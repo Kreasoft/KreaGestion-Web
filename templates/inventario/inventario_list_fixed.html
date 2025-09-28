@@ -1,0 +1,330 @@
+{% extends 'base.html' %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<style>
+.inventario-card {
+    border: none;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.inventario-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.inventario-header {
+    background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 0.75rem 0.75rem 0 0;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #9CAF88;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.stats-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.filter-card {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid #dee2e6;
+}
+
+.btn-inventario {
+    background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%);
+    border: none;
+    color: white;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-inventario:hover {
+    background: linear-gradient(135deg, #8A9A7A 0%, #A5B98A 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(156, 175, 136, 0.3);
+    color: white;
+}
+
+.table th {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+}
+
+.badge-status {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.pagination .page-link {
+    color: #9CAF88;
+    border-color: #dee2e6;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #9CAF88;
+    border-color: #9CAF88;
+}
+</style>
+
+<div class="container-fluid">
+    <!-- Header con estadísticas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="inventario-card">
+                <div class="inventario-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-boxes me-2"></i>{{ titulo }}</h4>
+                        <a href="{% url 'inventario:inventario_create' %}" class="btn btn-light btn-inventario">
+                            <i class="fas fa-plus me-2"></i>Nuevo Movimiento
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-success">{{ total_entradas|default:0 }}</div>
+                <div class="stats-label">Total Entradas</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-danger">{{ total_salidas|default:0 }}</div>
+                <div class="stats-label">Total Salidas</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-primary">${{ valor_total|default:0|floatformat:0 }}</div>
+                <div class="stats-label">Valor Total</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-info">{{ page_obj.paginator.count|default:0 }}</div>
+                <div class="stats-label">Total Movimientos</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="filter-card">
+                <h5 class="mb-3"><i class="fas fa-filter me-2"></i>Filtros</h5>
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Buscar:</label>
+                        <input type="text" name="search" class="form-control" value="{{ request.GET.search }}" placeholder="Código, nombre...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Tipo:</label>
+                        <select name="tipo_movimiento" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="entrada" {% if request.GET.tipo_movimiento == 'entrada' %}selected{% endif %}>Entrada</option>
+                            <option value="salida" {% if request.GET.tipo_movimiento == 'salida' %}selected{% endif %}>Salida</option>
+                            <option value="ajuste" {% if request.GET.tipo_movimiento == 'ajuste' %}selected{% endif %}>Ajuste</option>
+                            <option value="transferencia" {% if request.GET.tipo_movimiento == 'transferencia' %}selected{% endif %}>Transferencia</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Estado:</label>
+                        <select name="estado" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="pendiente" {% if request.GET.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                            <option value="completado" {% if request.GET.estado == 'completado' %}selected{% endif %}>Completado</option>
+                            <option value="cancelado" {% if request.GET.estado == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <a href="{% url 'inventario:inventario_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de movimientos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="inventario-card">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Artículo</th>
+                                <th>Cantidad</th>
+                                <th>Sucursal</th>
+                                <th>Estado</th>
+                                <th>Usuario</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inventario in page_obj %}
+                                <tr>
+                                    <td>{{ inventario.fecha_movimiento|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <span class="badge badge-status 
+                                            {% if inventario.tipo_movimiento == 'entrada' %}bg-success
+                                            {% elif inventario.tipo_movimiento == 'salida' %}bg-danger
+                                            {% elif inventario.tipo_movimiento == 'ajuste' %}bg-warning
+                                            {% else %}bg-info{% endif %}">
+                                            {{ inventario.get_tipo_movimiento_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ inventario.articulo.codigo }}</strong>
+                                            <br><small class="text-muted">{{ inventario.articulo.nombre }}</small>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong>{{ inventario.cantidad }}</strong>
+                                        <br><small class="text-muted">{{ inventario.articulo.unidad_medida.simbolo }}</small>
+                                    </td>
+                                    <td>
+                                        {% if inventario.sucursal_destino %}
+                                            <i class="fas fa-arrow-down text-success me-1"></i>{{ inventario.sucursal_destino.nombre }}
+                                        {% endif %}
+                                        {% if inventario.sucursal_origen %}
+                                            <i class="fas fa-arrow-up text-danger me-1"></i>{{ inventario.sucursal_origen.nombre }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-status {{ inventario.get_estado_badge_class }}">
+                                            {{ inventario.get_estado_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if inventario.creado_por %}
+                                            {{ inventario.creado_por.username }}
+                                        {% else %}
+                                            <span class="text-muted">Sistema</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'inventario:inventario_detail' inventario.pk %}" class="btn btn-sm btn-outline-primary" title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'inventario:inventario_update' inventario.pk %}" class="btn btn-sm btn-outline-warning" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'inventario:inventario_delete' inventario.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-4">
+                                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">No hay movimientos de inventario</h5>
+                                        <p class="text-muted">Comience creando su primer movimiento de inventario</p>
+                                        <a href="{% url 'inventario:inventario_create' %}" class="btn btn-inventario">
+                                            <i class="fas fa-plus me-2"></i>Crear Movimiento
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paginación -->
+    {% if page_obj.has_other_pages %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <nav aria-label="Paginación de movimientos">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_movimiento %}&tipo_movimiento={{ request.GET.tipo_movimiento }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_movimiento %}&tipo_movimiento={{ request.GET.tipo_movimiento }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_movimiento %}&tipo_movimiento={{ request.GET.tipo_movimiento }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_movimiento %}&tipo_movimiento={{ request.GET.tipo_movimiento }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_movimiento %}&tipo_movimiento={{ request.GET.tipo_movimiento }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+

@@ -1,0 +1,195 @@
+{% extends 'inventario/base_inventario.html' %}
+{% load crispy_forms_tags %}
+
+{% block inventario_content %}
+<!-- Header con estadísticas -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="inventario-card">
+            <div class="inventario-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4><i class="fas fa-boxes me-2"></i>{{ titulo }}</h4>
+                    <a href="{% url 'inventario:inventario_create' %}" class="btn btn-light btn-inventario">
+                        <i class="fas fa-plus me-2"></i>Nuevo Movimiento
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number text-success">{{ total_entradas }}</div>
+            <div class="stats-label">Total Entradas</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number text-danger">{{ total_salidas }}</div>
+            <div class="stats-label">Total Salidas</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number text-primary">${{ valor_total|floatformat:0 }}</div>
+            <div class="stats-label">Valor Total</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number text-info">{{ page_obj.paginator.count }}</div>
+            <div class="stats-label">Total Movimientos</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="filter-card">
+            <h5 class="mb-3"><i class="fas fa-filter me-2"></i>Filtros</h5>
+            {% crispy filter_form %}
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de movimientos -->
+<div class="row">
+    <div class="col-12">
+        <div class="inventario-card">
+            <div class="table-responsive">
+                <table class="table table-inventario">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Artículo</th>
+                            <th>Sucursal</th>
+                            <th>Tipo</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unit.</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inventario in page_obj %}
+                        <tr>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold">{{ inventario.fecha_movimiento|date:"d/m/Y" }}</span>
+                                    <small class="text-muted">{{ inventario.fecha_movimiento|time:"H:i" }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold">{{ inventario.articulo.nombre }}</span>
+                                    <small class="text-muted">{{ inventario.articulo.codigo }}</small>
+                                </div>
+                            </td>
+                            <td>{{ inventario.sucursal.nombre }}</td>
+                            <td>
+                                <span class="badge badge-tipo badge-{{ inventario.tipo_movimiento }}">
+                                    {{ inventario.get_tipo_movimiento_display }}
+                                </span>
+                            </td>
+                            <td class="text-end">{{ inventario.cantidad }}</td>
+                            <td class="text-end">${{ inventario.precio_unitario|floatformat:0 }}</td>
+                            <td class="text-end fw-bold">${{ inventario.total|floatformat:0 }}</td>
+                            <td>
+                                <span class="badge badge-estado badge-{{ inventario.estado }}">
+                                    {{ inventario.get_estado_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'inventario:inventario_detail' inventario.pk %}" 
+                                       class="btn btn-sm btn-outline-primary btn-inventario" 
+                                       title="Ver detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'inventario:inventario_update' inventario.pk %}" 
+                                       class="btn btn-sm btn-outline-warning btn-inventario" 
+                                       title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'inventario:inventario_delete' inventario.pk %}" 
+                                       class="btn btn-sm btn-outline-danger btn-inventario" 
+                                       title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-boxes fa-3x mb-3"></i>
+                                    <p>No hay movimientos de inventario registrados.</p>
+                                    <a href="{% url 'inventario:inventario_create' %}" class="btn btn-primary">
+                                        <i class="fas fa-plus me-2"></i>Crear Primer Movimiento
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Paginación -->
+{% if page_obj.has_other_pages %}
+<div class="pagination-wrapper">
+    <nav aria-label="Paginación de inventario">
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if request.GET.sucursal %}&sucursal={{ request.GET.sucursal }}{% endif %}{% if request.GET.articulo %}&articulo={{ request.GET.articulo }}{% endif %}{% if request.GET.tipo_movimiento %}&tipo_movimiento={{ request.GET.tipo_movimiento }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.sucursal %}&sucursal={{ request.GET.sucursal }}{% endif %}{% if request.GET.articulo %}&articulo={{ request.GET.articulo }}{% endif %}{% if request.GET.tipo_movimiento %}&tipo_movimiento={{ request.GET.tipo_movimiento }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.sucursal %}&sucursal={{ request.GET.sucursal }}{% endif %}{% if request.GET.articulo %}&articulo={{ request.GET.articulo }}{% endif %}{% if request.GET.tipo_movimiento %}&tipo_movimiento={{ request.GET.tipo_movimiento }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.sucursal %}&sucursal={{ request.GET.sucursal }}{% endif %}{% if request.GET.articulo %}&articulo={{ request.GET.articulo }}{% endif %}{% if request.GET.tipo_movimiento %}&tipo_movimiento={{ request.GET.tipo_movimiento }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.sucursal %}&sucursal={{ request.GET.sucursal }}{% endif %}{% if request.GET.articulo %}&articulo={{ request.GET.articulo }}{% endif %}{% if request.GET.tipo_movimiento %}&tipo_movimiento={{ request.GET.tipo_movimiento }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
+{% endblock %}
+
+

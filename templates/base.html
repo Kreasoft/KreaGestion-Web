@@ -1,0 +1,1085 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block page_title %}GestionCloud{% endblock %}</title>
+    
+    <!-- Font Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        /* Aplicar Poppins a todo el sistema */
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 280px;
+            background: #FFFFFF;
+            color: #495057;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+            border-right: 1px solid #E9ECEF;
+        }
+        
+        .sidebar.collapsed {
+            width: 70px;
+        }
+        
+        .sidebar-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #E9ECEF;
+            text-align: center;
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .logo-container svg {
+            transition: all 0.3s ease;
+        }
+        
+        .logo-container img {
+            transition: all 0.3s ease;
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .sidebar.collapsed .logo-container img {
+            width: 50px !important;
+            height: 40px !important;
+        }
+        
+        .sidebar.collapsed .logo-container {
+            justify-content: center;
+        }
+        
+        .sidebar-header h3 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.5rem;
+            color: #495057;
+        }
+        
+        .sidebar.collapsed .sidebar-header h3 {
+            display: none;
+        }
+        
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+        
+        .nav-item {
+            margin: 0.25rem 0;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: #495057;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .nav-link:hover {
+            color: #212529;
+            background-color: #F8F9FA;
+            border-left-color: #CD853F;
+        }
+        
+        .nav-link.active {
+            color: #212529;
+            background-color: #F8F9FA;
+            border-left-color: #CD853F;
+        }
+        
+        .nav-icon {
+            width: 20px;
+            margin-right: 1rem;
+            text-align: center;
+        }
+        
+        .sidebar.collapsed .nav-icon {
+            margin-right: 0;
+        }
+        
+        .nav-text {
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .sidebar.collapsed .nav-text {
+            display: none;
+        }
+        
+        .nav-dropdown {
+            padding-left: 3.5rem;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        
+        .sidebar.collapsed .nav-dropdown {
+            padding-left: 0;
+        }
+        
+        /* Submenu Styles */
+        .has-submenu .submenu-toggle {
+            position: relative;
+        }
+        
+        .submenu-arrow {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: transform 0.3s ease;
+            font-size: 0.875rem;
+        }
+        
+        .submenu-toggle[aria-expanded="true"] .submenu-arrow {
+            transform: translateY(-50%) rotate(180deg);
+        }
+        
+        .submenu {
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 0.5rem;
+            margin: 0.5rem 1rem;
+            overflow: hidden;
+        }
+        
+        .submenu-items {
+            padding: 0.5rem 0;
+        }
+        
+        .submenu-link {
+            padding: 0.75rem 1.5rem;
+            color: #6c757d;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        
+        .submenu-link:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+            color: #495057;
+        }
+        
+        .submenu-link.active {
+            background-color: rgba(0, 123, 255, 0.1);
+            color: #007bff;
+            font-weight: 600;
+        }
+        
+        .submenu-link i {
+            font-size: 0.875rem;
+            width: 1.25rem;
+        }
+        
+        .sidebar.collapsed .submenu {
+            display: none;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            transition: all 0.3s ease;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        
+        .main-content.expanded {
+            margin-left: 70px;
+        }
+        
+        /* Top Bar */
+        .top-bar {
+            background: white;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Ocultar top-bar en páginas que no sean dashboard */
+        .hide-top-bar .top-bar {
+            display: none;
+        }
+        
+        .hide-top-bar .main-content {
+            margin-top: 0;
+        }
+        
+        .toggle-sidebar {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-sidebar:hover {
+            background-color: #f8f9fa;
+            color: #495057;
+        }
+        
+        .toggle-sidebar-mobile {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-sidebar-mobile:hover {
+            background-color: #f8f9fa;
+            color: #495057;
+        }
+        
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .user-info {
+            text-align: right;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            color: #495057;
+            margin: 0;
+        }
+        
+        .user-role {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin: 0;
+        }
+        
+        /* Content Area */
+        .content {
+            padding: 2rem;
+        }
+        
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid #e9ecef;
+            border-radius: 0.75rem 0.75rem 0 0 !important;
+            padding: 1.25rem 1.5rem;
+        }
+        
+        /* Statistics Cards */
+        .border-left-primary {
+            border-left: 0.25rem solid #4e73df !important;
+        }
+        
+        .border-left-success {
+            border-left: 0.25rem solid #1cc88a !important;
+        }
+        
+        .border-left-warning {
+            border-left: 0.25rem solid #f6c23e !important;
+        }
+        
+        .border-left-danger {
+            border-left: 0.25rem solid #e74a3b !important;
+        }
+        
+        .text-gray-800 {
+            color: #5a5c69 !important;
+        }
+        
+        .text-gray-300 {
+            color: #dddfeb !important;
+        }
+        
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+        }
+        
+        /* Responsive */
+        @media (max-width: 991px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .sidebar.collapsed {
+                transform: translateX(-100%);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .main-content.expanded {
+                margin-left: 0;
+            }
+            
+            /* Ocultar menú automáticamente al hacer clic en enlaces con data-auto-hide */
+            .sidebar:has(a[data-auto-hide="true"]:focus) {
+                transform: translateX(-100%);
+            }
+            
+            /* Alternativa para navegadores que no soportan :has() */
+            .sidebar.auto-hide {
+                transform: translateX(-100%);
+            }
+        }
+        
+        /* Buttons */
+        .btn {
+            font-weight: 500;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-dark {
+            background-color: #2c3e50;
+            border-color: #2c3e50;
+        }
+        
+        .btn-dark:hover {
+            background-color: #34495e;
+            border-color: #34495e;
+        }
+        
+        /* Tables */
+        .table {
+            font-size: 0.9rem;
+        }
+        
+        .table th {
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        /* Badges */
+        .badge {
+            font-weight: 500;
+            padding: 0.5em 0.75em;
+        }
+        
+        /* Forms */
+        .form-control, .form-select {
+            border-radius: 0.5rem;
+            border: 1px solid #ced4da;
+            padding: 0.75rem;
+            font-size: 0.9rem;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+        
+        /* Modal */
+        .modal-content {
+            border-radius: 0.75rem;
+            border: none;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        
+        .modal-header {
+            border-bottom: 1px solid #e9ecef;
+            padding: 1.5rem;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .modal-footer {
+            border-top: 1px solid #e9ecef;
+            padding: 1.5rem;
+        }
+        
+        /* Empresa Info Styles */
+        .empresa-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .empresa-badge {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.25rem;
+            background: linear-gradient(135deg, #60A5FA 0%, #93C5FD 100%);
+            color: white;
+            border-radius: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+            transition: all 0.3s ease;
+            max-width: 100%;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+        }
+        
+        .empresa-badge::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border-radius: 0.75rem;
+            pointer-events: none;
+        }
+        
+        .empresa-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(96, 165, 250, 0.4);
+            text-decoration: none !important;
+        }
+        
+        .empresa-edit-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            margin-left: 0.5rem;
+            opacity: 0.8;
+            transition: all 0.3s ease;
+        }
+        
+        .empresa-badge:hover .empresa-edit-icon {
+            background: rgba(255, 255, 255, 0.3);
+            opacity: 1;
+            transform: scale(1.1);
+        }
+        
+        .empresa-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .empresa-details {
+            flex: 1;
+            min-width: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .empresa-nombre {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .empresa-rut {
+            font-weight: 500;
+            font-size: 0.8rem;
+            opacity: 0.9;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .sucursal-info {
+            font-weight: 400;
+            font-size: 0.75rem;
+            opacity: 0.8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .empresa-badge.superusuario {
+            background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+        }
+        
+        .empresa-badge.sin-empresa {
+            background: linear-gradient(135deg, #F39C12 0%, #E67E22 100%);
+        }
+        
+        .empresa-nombre {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .sucursal-nombre {
+            font-weight: 500;
+            font-size: 0.85rem;
+            opacity: 0.9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+        
+        .separador {
+            margin: 0 0.5rem;
+            opacity: 0.7;
+        }
+        
+        /* Responsive para empresa info */
+        @media (max-width: 768px) {
+            .empresa-info {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .empresa-badge {
+                padding: 0.6rem 1rem;
+                font-size: 0.85rem;
+            }
+            
+            .empresa-icon {
+                width: 35px;
+                height: 35px;
+                margin-right: 0.6rem;
+                font-size: 1rem;
+            }
+            
+            .empresa-nombre {
+                max-width: 150px;
+                font-size: 0.9rem;
+            }
+            
+            .empresa-rut {
+                max-width: 150px;
+                font-size: 0.75rem;
+            }
+            
+            .sucursal-info {
+                max-width: 150px;
+                font-size: 0.7rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .empresa-badge {
+                padding: 0.5rem 0.8rem;
+                font-size: 0.8rem;
+            }
+            
+            .empresa-icon {
+                width: 30px;
+                height: 30px;
+                margin-right: 0.5rem;
+                font-size: 0.9rem;
+            }
+            
+            .empresa-nombre {
+                max-width: 100px;
+                font-size: 0.85rem;
+            }
+            
+            .empresa-rut {
+                max-width: 100px;
+                font-size: 0.7rem;
+            }
+            
+            .sucursal-info {
+                max-width: 100px;
+                font-size: 0.65rem;
+            }
+        }
+    </style>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="logo-container">
+                    <img src="{% static 'image/logo.png' %}" alt="GestionCloud" style="width: 150px; height: 60px; object-fit: contain;">
+                </div>
+                <button class="toggle-sidebar-mobile d-lg-none" id="toggleSidebarMobile">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="sidebar-nav">
+            <div class="nav-item">
+                <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <i class="nav-icon fas fa-tachometer-alt"></i>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="{% url 'clientes:cliente_list' %}" class="nav-link {% if request.resolver_match.url_name == 'cliente_list' or request.resolver_match.url_name == 'cliente_detail' or request.resolver_match.url_name == 'cliente_create' or request.resolver_match.url_name == 'cliente_update' or request.resolver_match.url_name == 'cliente_delete' %}active{% endif %}">
+                    <i class="nav-icon fas fa-users"></i>
+                    <span class="nav-text">Clientes</span>
+                </a>
+            </div>
+            
+            <!-- Submenú de Artículos -->
+            <div class="nav-item has-submenu">
+                <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#articulosSubmenu" aria-expanded="false">
+                    <i class="nav-icon fas fa-box"></i>
+                    <span class="nav-text">Artículos</span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
+                </a>
+                <div class="collapse submenu" id="articulosSubmenu">
+                    <div class="submenu-items">
+                        <a href="{% url 'articulos:articulo_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'articulo_list' %}active{% endif %}">
+                            <i class="fas fa-list me-2"></i>
+                            <span>Lista de Artículos</span>
+                        </a>
+                        <a href="{% url 'articulos:categoria_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'categoria_list' %}active{% endif %}">
+                            <i class="fas fa-tags me-2"></i>
+                            <span>Categorías</span>
+                        </a>
+                        <a href="{% url 'articulos:impuesto_especifico_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'impuesto_especifico_list' %}active{% endif %}">
+                            <i class="fas fa-percentage me-2"></i>
+                            <span>Impuestos Específicos</span>
+                        </a>
+                        <a href="{% url 'articulos:unidad_medida_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'unidad_medida_list' %}active{% endif %}">
+                            <i class="fas fa-ruler me-2"></i>
+                            <span>Unidades de Medida</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            
+            <!-- Submenú de Inventario -->
+            <div class="nav-item has-submenu">
+                <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#inventarioSubmenu" aria-expanded="false">
+                    <i class="nav-icon fas fa-warehouse"></i>
+                    <span class="nav-text">Inventario</span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
+                </a>
+                <div class="collapse submenu" id="inventarioSubmenu">
+                    <div class="submenu-items">
+                        <a href="{% url 'inventario:inventario_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'inventario_list' %}active{% endif %}">
+                            <i class="fas fa-exchange-alt me-2"></i>
+                            <span>Movimientos</span>
+                        </a>
+                  <a href="{% url 'inventario:stock_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'stock_list' %}active{% endif %}">
+                      <i class="fas fa-boxes me-2"></i>
+                      <span>Control de Stock</span>
+                  </a>
+                        <a href="{% url 'inventario:carga_inicial' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'carga_inicial' %}active{% endif %}">
+                            <i class="fas fa-upload me-2"></i>
+                            <span>Carga Inicial</span>
+                        </a>
+                        <a href="{% url 'bodegas:bodega_list' %}" class="nav-link submenu-link {% if 'bodegas' in request.path %}active{% endif %}">
+                            <i class="fas fa-warehouse me-2"></i>
+                            <span>Bodegas</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <hr class="my-3" style="border-color: rgba(255,255,255,0.1);">
+            
+            <div class="nav-item">
+                <a href="{% url 'empresas:editar_empresa_activa' %}" class="nav-link {% if request.resolver_match.url_name == 'editar_empresa_activa' %}active{% endif %}">
+                    <i class="nav-icon fas fa-building"></i>
+                    <span class="nav-text">Datos de la Empresa</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="{% url 'empresas:paleta_colores' %}" class="nav-link {% if request.resolver_match.url_name == 'paleta_colores' %}active{% endif %}">
+                    <i class="nav-icon fas fa-palette"></i>
+                    <span class="nav-text">Paleta de Colores</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="d-flex align-items-center">
+                <button class="toggle-sidebar me-3" id="toggleSidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+                {% if empresa %}
+                    <div class="ms-3 empresa-info">
+                        <div class="d-flex align-items-center">
+                    <a href="{% url 'empresas:editar_empresa_activa' %}" class="empresa-badge text-decoration-none" title="Editar empresa activa">
+                        <div class="empresa-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <div class="empresa-details">
+                            <div class="empresa-nombre">{{ empresa.nombre }}</div>
+                            <div class="empresa-rut">{{ empresa.rut }}</div>
+                            {% if sucursal_activa %}
+                            <div class="sucursal-info">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                <span class="sucursal-nombre">{{ sucursal_activa.nombre }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="empresa-edit-icon">
+                            <i class="fas fa-edit"></i>
+                        </div>
+                    </a>
+                        </div>
+                    </div>
+                {% elif user.is_superuser %}
+                    <div class="ms-3 empresa-info">
+                        <div class="d-flex align-items-center">
+                            <div class="empresa-badge superusuario">
+                                <i class="fas fa-crown me-2"></i>
+                                <span class="empresa-nombre">Modo Administrador</span>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="ms-3 empresa-info">
+                        <div class="d-flex align-items-center">
+                            <div class="empresa-badge sin-empresa">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <span class="empresa-nombre">Sin Empresa Asignada</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="user-menu">
+                <div class="user-info">
+                    <p class="user-name">{{ user.get_full_name|default:user.username }}</p>
+                    <p class="user-role">{{ user.groups.first.name|default:"Usuario" }}</p>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                {% if user.is_superuser %}
+                <li><h6 class="dropdown-header"><i class="fas fa-crown me-2"></i>Administración</h6></li>
+                {% if empresa %}
+                <li><a class="dropdown-item" href="{% url 'empresas:editar_empresa_activa' %}"><i class="fas fa-edit me-2"></i>Editar Empresa Activa</a></li>
+                {% endif %}
+                <li><a class="dropdown-item" href="{% url 'empresas:seleccionar_empresa' %}"><i class="fas fa-exchange-alt me-2"></i>Cambiar Empresa</a></li>
+                <li><a class="dropdown-item" href="{% url 'empresas:empresa_list' %}"><i class="fas fa-building me-2"></i>Gestionar Empresas</a></li>
+                <li><hr class="dropdown-divider"></li>
+                {% endif %}
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Perfil</a></li>
+                        <li><a class="dropdown-item" href="{% url 'empresas:empresa_configuracion' %}"><i class="fas fa-cog me-2"></i>Configuración</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Sidebar toggle
+        document.getElementById('toggleSidebar').addEventListener('click', function() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+        });
+        
+        // Toggle sidebar mobile
+        document.getElementById('toggleSidebarMobile').addEventListener('click', function() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+        });
+        
+        // Set active nav item
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-link');
+            
+            navLinks.forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('active');
+                }
+            });
+            
+            
+            // Ocultar menú móvil al redimensionar ventana
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 992) {
+                    const sidebar = document.getElementById('sidebar');
+                    const mainContent = document.getElementById('mainContent');
+                    
+                    sidebar.classList.remove('collapsed');
+                    mainContent.classList.remove('expanded');
+                }
+            });
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+    
+    <script>
+        // Submenu functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const submenuToggles = document.querySelectorAll('.submenu-toggle');
+            
+            submenuToggles.forEach(toggle => {
+                toggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const target = document.querySelector(this.getAttribute('data-bs-target'));
+                    const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                    
+                    // Close all other submenus (solo cerrar otros submenús, no el actual)
+                    submenuToggles.forEach(otherToggle => {
+                        if (otherToggle !== this) {
+                            otherToggle.setAttribute('aria-expanded', 'false');
+                            const otherTarget = document.querySelector(otherToggle.getAttribute('data-bs-target'));
+                            otherTarget.classList.remove('show');
+                        }
+                    });
+                    
+                    // Toggle current submenu
+                    this.setAttribute('aria-expanded', !isExpanded);
+                    if (isExpanded) {
+                        target.classList.remove('show');
+                    } else {
+                        target.classList.add('show');
+                    }
+                });
+            });
+            
+            // No cerrar submenú al hacer clic en enlaces del submenú
+            const submenuLinks = document.querySelectorAll('.submenu-link');
+            submenuLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    // No prevenir el comportamiento por defecto, permitir navegación
+                    // El submenú permanecerá abierto
+                });
+            });
+            
+            // Auto-expand submenu if current page is in it
+            const currentUrl = window.location.pathname;
+            const articulosUrls = [
+                '/articulos/',
+                '/articulos/categorias/',
+                '/articulos/impuestos/',
+                '/articulos/unidades/'
+            ];
+            
+            if (articulosUrls.some(url => currentUrl.startsWith(url))) {
+                const articulosSubmenu = document.getElementById('articulosSubmenu');
+                const articulosToggle = document.querySelector('[data-bs-target="#articulosSubmenu"]');
+                
+                if (articulosSubmenu && articulosToggle) {
+                    articulosSubmenu.classList.add('show');
+                    articulosToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+            
+            // Auto-expand inventario submenu
+            const inventarioUrls = [
+                '/inventario/',
+                '/bodegas/'
+            ];
+            
+            if (inventarioUrls.some(url => currentUrl.startsWith(url))) {
+                const inventarioSubmenu = document.getElementById('inventarioSubmenu');
+                const inventarioToggle = document.querySelector('[data-bs-target="#inventarioSubmenu"]');
+                
+                if (inventarioSubmenu && inventarioToggle) {
+                    inventarioSubmenu.classList.add('show');
+                    inventarioToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+            
+            // Función específica para enlaces del submenú de inventario
+            const inventarioLinks = document.querySelectorAll('#inventarioSubmenu .submenu-link');
+            inventarioLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    console.log('Clic específico en enlace de inventario:', this.href);
+                    if (window.innerWidth < 992) {
+                        setTimeout(function() {
+                            const sidebar = document.getElementById('sidebar');
+                            const mainContent = document.getElementById('mainContent');
+                            
+                            if (sidebar && mainContent) {
+                                sidebar.classList.remove('show');
+                                sidebar.classList.add('collapsed');
+                                mainContent.classList.add('expanded');
+                                console.log('Menú de inventario ocultado');
+                            }
+                        }, 100);
+                    }
+                });
+            });
+        });
+    </script>
+    
+    <!-- SweetAlert2 Functions -->
+    <script>
+        // Función para mostrar alertas de éxito
+        function showSuccess(message, title = '¡Éxito!') {
+            Swal.fire({
+                icon: 'success',
+                title: title,
+                text: message,
+                confirmButtonText: 'Aceptar',
+                confirmButtonColor: '#28a745',
+                timer: 3000,
+                timerProgressBar: true
+            });
+        }
+        
+        // Función para mostrar alertas de error
+        function showError(message, title = 'Error') {
+            Swal.fire({
+                icon: 'error',
+                title: title,
+                text: message,
+                confirmButtonText: 'Aceptar',
+                confirmButtonColor: '#dc3545'
+            });
+        }
+        
+        // Función para mostrar alertas de advertencia
+        function showWarning(message, title = 'Advertencia') {
+            Swal.fire({
+                icon: 'warning',
+                title: title,
+                text: message,
+                confirmButtonText: 'Aceptar',
+                confirmButtonColor: '#ffc107'
+            });
+        }
+        
+        // Función para mostrar alertas de información
+        function showInfo(message, title = 'Información') {
+            Swal.fire({
+                icon: 'info',
+                title: title,
+                text: message,
+                confirmButtonText: 'Aceptar',
+                confirmButtonColor: '#17a2b8'
+            });
+        }
+        
+        // Función para confirmar acciones
+        function showConfirm(title, text, confirmButtonText = 'Sí, continuar', cancelButtonText = 'Cancelar') {
+            return Swal.fire({
+                title: title,
+                text: text,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: confirmButtonText,
+                cancelButtonText: cancelButtonText
+            });
+        }
+        
+        // Función para mostrar loading
+        function showLoading(title = 'Procesando...', text = 'Por favor espere') {
+            Swal.fire({
+                title: title,
+                text: text,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+        }
+        
+        // Función para cerrar loading
+        function hideLoading() {
+            Swal.close();
+        }
+    </script>
+</body>
+</html>

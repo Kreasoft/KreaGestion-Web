@@ -1,0 +1,32 @@
+from django.urls import path
+from . import views
+
+app_name = 'articulos'
+
+urlpatterns = [
+    # Artículos
+    path('', views.articulo_list, name='articulo_list'),
+    path('crear/', views.articulo_create, name='articulo_create'),
+    path('<int:pk>/', views.articulo_detail, name='articulo_detail'),
+    path('<int:pk>/editar/', views.articulo_update, name='articulo_update'),
+    path('<int:pk>/eliminar/', views.articulo_delete, name='articulo_delete'),
+    
+    # Categorías
+    path('categorias/', views.categoria_list, name='categoria_list'),
+    path('categorias/crear/', views.categoria_create, name='categoria_create'),
+    path('categorias/<int:pk>/editar/', views.categoria_update, name='categoria_update'),
+    path('categorias/<int:pk>/eliminar/', views.categoria_delete, name='categoria_delete'),
+    
+    # Unidades de Medida
+    path('unidades/', views.unidad_medida_list, name='unidad_medida_list'),
+    path('unidades/crear/', views.unidad_medida_create, name='unidad_medida_create'),
+    path('unidades/<int:pk>/editar/', views.unidad_medida_update, name='unidad_medida_update'),
+    # path('unidades/<int:pk>/eliminar/', views.unidad_medida_delete, name='unidad_medida_delete'),
+    
+    # Impuestos Específicos
+    path('impuestos/', views.impuesto_especifico_list, name='impuesto_especifico_list'),
+    path('impuestos/crear/', views.impuesto_especifico_create, name='impuesto_especifico_create'),
+    path('impuestos/<int:pk>/editar/', views.impuesto_especifico_update, name='impuesto_especifico_update'),
+    path('impuestos/<int:pk>/eliminar/', views.impuesto_especifico_delete, name='impuesto_especifico_delete'),
+    
+]

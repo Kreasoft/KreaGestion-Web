@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+	<div class="d-flex justify-content-between align-items-center mb-4">
+		<h3 class="m-0">
+			{% if empresa %}
+				Sucursales de {{ empresa.nombre }}
+			{% else %}
+				Todas las Sucursales
+			{% endif %}
+		</h3>
+		<div>
+			{% if empresa %}
+				<a href="{% url 'empresas:sucursal_create' empresa.id %}" class="btn text-white me-2" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none;">Nueva Sucursal</a>
+			{% else %}
+				<a href="{% url 'empresas:sucursal_create' %}" class="btn text-white me-2" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none;">Nueva Sucursal</a>
+			{% endif %}
+			<a href="{% url 'empresas:home' %}" class="btn btn-outline-dark">Volver</a>
+		</div>
+	</div>
+	
+	<div class="card">
+		<div class="card-body p-0">
+			<table class="table table-hover m-0">
+				<thead>
+					<tr>
+						<th>Nombre</th>
+						<th>Código</th>
+						<th>Empresa</th>
+						<th>Ciudad</th>
+						<th>Estado</th>
+						<th>Tipo</th>
+						<th>Acciones</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for sucursal in sucursales %}
+					<tr>
+						<td>{{ sucursal.nombre }}</td>
+						<td>{{ sucursal.codigo }}</td>
+						<td>{{ sucursal.empresa.nombre }}</td>
+						<td>{{ sucursal.ciudad }}</td>
+						<td>
+							{% if sucursal.estado == 'activa' %}
+							<span class="badge bg-success">Activa</span>
+							{% elif sucursal.estado == 'inactiva' %}
+							<span class="badge bg-danger">Inactiva</span>
+							{% else %}
+							<span class="badge bg-warning">En Construcción</span>
+							{% endif %}
+						</td>
+						<td>
+							{% if sucursal.es_principal %}
+							<span class="badge bg-primary">Principal</span>
+							{% else %}
+							<span class="badge bg-secondary">Secundaria</span>
+							{% endif %}
+						</td>
+						<td>
+							<a href="{% url 'empresas:sucursal_detail' sucursal.id %}" class="btn btn-sm btn-dark">Ver</a>
+							<a href="{% url 'empresas:sucursal_update' sucursal.id %}" class="btn btn-sm text-white" style="background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%); border: none;">Editar</a>
+						</td>
+					</tr>
+					{% empty %}
+					<tr>
+						<td colspan="7" class="text-center py-4">
+							{% if empresa %}
+								No hay sucursales registradas para esta empresa.
+							{% else %}
+								No hay sucursales registradas.
+							{% endif %}
+						</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+	
+	{% if empresa %}
+	<div class="mt-4">
+		<div class="card">
+			<div class="card-header">
+				<h6 class="m-0">Información de la Empresa</h6>
+			</div>
+			<div class="card-body">
+				<div class="row">
+					<div class="col-md-6">
+						<p><strong>Nombre:</strong> {{ empresa.nombre }}</p>
+						<p><strong>RUT:</strong> {{ empresa.rut }}</p>
+						<p><strong>Ciudad:</strong> {{ empresa.ciudad }}</p>
+					</div>
+					<div class="col-md-6">
+						<p><strong>Total Sucursales:</strong> {{ sucursales.count }}</p>
+						<p><strong>Estado:</strong> 
+							{% if empresa.estado == 'activa' %}
+							<span class="badge bg-success">Activa</span>
+							{% elif empresa.estado == 'inactiva' %}
+							<span class="badge bg-danger">Inactiva</span>
+							{% else %}
+							<span class="badge bg-warning">Suspendida</span>
+							{% endif %}
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	{% endif %}
+</div>
+{% endblock %}

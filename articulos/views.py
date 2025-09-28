@@ -1,0 +1,469 @@
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Q
+from decimal import Decimal
+from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico
+from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm
+from empresas.decorators import requiere_empresa
+
+
+@requiere_empresa
+@login_required
+def articulo_list(request):
+    """Lista de artículos"""
+    # Para superusuarios, mostrar todos los artículos
+    if request.user.is_superuser:
+        articulos = Articulo.objects.all().order_by('-fecha_creacion')
+    else:
+        articulos = Articulo.objects.filter(empresa=request.empresa).order_by('-fecha_creacion')
+    
+    # Filtros
+    search = request.GET.get('search', '')
+    categoria_id = request.GET.get('categoria', '')
+    activo = request.GET.get('activo', '')
+    
+    if search:
+        articulos = articulos.filter(
+            Q(codigo__icontains=search) |
+            Q(nombre__icontains=search) |
+            Q(descripcion__icontains=search)
+        )
+    
+    if categoria_id:
+        articulos = articulos.filter(categoria_id=categoria_id)
+    
+    if activo != '':
+        articulos = articulos.filter(activo=activo == 'true')
+    
+    # Paginación
+    paginator = Paginator(articulos, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Categorías para el filtro
+    categorias = CategoriaArticulo.objects.filter(empresa=request.empresa, activa=True)
+    
+    context = {
+        'page_obj': page_obj,
+        'categorias': categorias,
+        'search': search,
+        'categoria_id': categoria_id,
+        'activo': activo,
+    }
+    
+    return render(request, 'articulos/articulo_list.html', context)
+
+
+@requiere_empresa
+@login_required
+def articulo_detail(request, pk):
+    """Detalle de un artículo"""
+    # Para superusuarios, permitir ver cualquier artículo
+    if request.user.is_superuser:
+        articulo = get_object_or_404(Articulo, pk=pk)
+    else:
+        articulo = get_object_or_404(Articulo, pk=pk, empresa=request.empresa)
+    
+    # Stocks por sucursal
+    stocks = StockArticulo.objects.filter(articulo=articulo)
+    
+    context = {
+        'articulo': articulo,
+        'stocks': stocks,
+    }
+    
+    return render(request, 'articulos/articulo_detail.html', context)
+
+
+@requiere_empresa
+@login_required
+def articulo_create(request):
+    """Crear nuevo artículo"""
+    if request.method == 'POST':
+        form = ArticuloForm(request.POST, initial={'empresa': request.empresa})
+        if form.is_valid():
+            articulo = form.save(commit=False)
+            articulo.empresa = request.empresa
+            articulo.save()
+            messages.success(request, f'Artículo "{articulo.nombre}" creado exitosamente.')
+            return redirect('articulos:articulo_detail', pk=articulo.pk)
+        else:
+            messages.error(request, 'Error en el formulario. Revise los datos.')
+            # Debug: mostrar errores específicos
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = ArticuloForm(initial={'empresa': request.empresa})
+    
+    context = {
+        'form': form,
+        'title': 'Crear Artículo',
+        'submit_text': 'Crear Artículo',
+    }
+    
+    return render(request, 'articulos/articulo_form.html', context)
+
+
+@requiere_empresa
+@login_required
+def articulo_update(request, pk):
+    """Editar artículo"""
+    # Para superusuarios, permitir editar cualquier artículo
+    if request.user.is_superuser:
+        articulo = get_object_or_404(Articulo, pk=pk)
+    else:
+        articulo = get_object_or_404(Articulo, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = ArticuloForm(request.POST, instance=articulo)
+        if form.is_valid():
+            articulo = form.save(commit=False)
+            articulo.save()
+            messages.success(request, f'Artículo "{articulo.nombre}" actualizado exitosamente.')
+            return redirect('articulos:articulo_detail', pk=articulo.pk)
+        else:
+            messages.error(request, 'Error en el formulario. Revise los datos.')
+            # Debug: mostrar errores específicos
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = ArticuloForm(instance=articulo)
+    
+    context = {
+        'form': form,
+        'articulo': articulo,
+        'title': 'Editar Artículo',
+        'submit_text': 'Actualizar Artículo',
+    }
+    
+    return render(request, 'articulos/articulo_form.html', context)
+
+
+@requiere_empresa
+@login_required
+def articulo_delete(request, pk):
+    """Eliminar artículo"""
+    # Para superusuarios, permitir eliminar cualquier artículo
+    if request.user.is_superuser:
+        articulo = get_object_or_404(Articulo, pk=pk)
+    else:
+        articulo = get_object_or_404(Articulo, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        nombre = articulo.nombre
+        articulo.delete()
+        messages.success(request, f'Artículo "{nombre}" eliminado exitosamente.')
+        return redirect('articulos:articulo_list')
+    
+    context = {
+        'articulo': articulo,
+    }
+    
+    return render(request, 'articulos/articulo_confirm_delete.html', context)
+
+
+# Vistas para Categorías
+@requiere_empresa
+@login_required
+def categoria_list(request):
+    """Lista de categorías"""
+    # Para superusuarios, mostrar todas las categorías
+    if request.user.is_superuser:
+        categorias = CategoriaArticulo.objects.all().order_by('nombre')
+    else:
+        categorias = CategoriaArticulo.objects.filter(empresa=request.empresa).order_by('nombre')
+    
+    # Calcular estadísticas
+    total_categorias = categorias.count()
+    categorias_activas = categorias.filter(activa=True).count()
+    categorias_con_iva = categorias.filter(exenta_iva=False).count()
+    categorias_exentas = categorias.filter(exenta_iva=True).count()
+    
+    # Obtener impuestos específicos para el modal
+    if request.user.is_superuser:
+        impuestos_especificos = ImpuestoEspecifico.objects.filter(activa=True).order_by('nombre')
+    else:
+        impuestos_especificos = ImpuestoEspecifico.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
+    
+    context = {
+        'categorias': categorias,
+        'total_categorias': total_categorias,
+        'categorias_activas': categorias_activas,
+        'categorias_con_iva': categorias_con_iva,
+        'categorias_exentas': categorias_exentas,
+        'impuestos_especificos': impuestos_especificos,
+    }
+    
+    return render(request, 'articulos/categoria_list.html', context)
+
+
+@requiere_empresa
+@login_required
+def categoria_create(request):
+    """Crear nueva categoría"""
+    if request.method == 'POST':
+        form = CategoriaArticuloForm(request.POST)
+        if form.is_valid():
+            categoria = form.save(commit=False)
+            categoria.empresa = request.empresa
+            categoria.save()
+            messages.success(request, f'Categoría "{categoria.nombre}" creada exitosamente.')
+            return redirect('articulos:categoria_list')
+    else:
+        form = CategoriaArticuloForm()
+    
+    context = {
+        'form': form,
+        'title': 'Crear Categoría',
+        'submit_text': 'Crear Categoría',
+    }
+    
+    return render(request, 'articulos/categoria_form.html', context)
+
+
+@requiere_empresa
+@login_required
+def categoria_update(request, pk):
+    """Editar categoría"""
+    # Para superusuarios, no filtrar por empresa
+    if request.user.is_superuser:
+        categoria = get_object_or_404(CategoriaArticulo, pk=pk)
+    else:
+        categoria = get_object_or_404(CategoriaArticulo, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = CategoriaArticuloForm(request.POST, instance=categoria)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Categoría "{categoria.nombre}" actualizada exitosamente.')
+            return redirect('articulos:categoria_list')
+    else:
+        form = CategoriaArticuloForm(instance=categoria)
+    
+    context = {
+        'form': form,
+        'categoria': categoria,
+        'title': 'Editar Categoría',
+        'submit_text': 'Actualizar Categoría',
+    }
+    
+    return render(request, 'articulos/categoria_form.html', context)
+
+
+@requiere_empresa
+@login_required
+def categoria_delete(request, pk):
+    """Eliminar categoría"""
+    # Para superusuarios, no filtrar por empresa
+    if request.user.is_superuser:
+        categoria = get_object_or_404(CategoriaArticulo, pk=pk)
+    else:
+        categoria = get_object_or_404(CategoriaArticulo, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        nombre = categoria.nombre
+        categoria.delete()
+        messages.success(request, f'Categoría "{nombre}" eliminada exitosamente.')
+        return redirect('articulos:categoria_list')
+    
+    context = {
+        'categoria': categoria,
+        'title': 'Eliminar Categoría',
+    }
+    
+    return render(request, 'articulos/categoria_confirm_delete.html', context)
+
+
+# Vistas para Unidades de Medida
+@requiere_empresa
+@login_required
+def unidad_medida_list(request):
+    """Lista de unidades de medida"""
+    # Para superusuarios, mostrar todas las unidades
+    if request.user.is_superuser:
+        unidades = UnidadMedida.objects.all().order_by('nombre')
+    else:
+        unidades = UnidadMedida.objects.filter(empresa=request.empresa).order_by('nombre')
+    
+    context = {
+        'unidades': unidades,
+    }
+    
+    return render(request, 'articulos/unidad_list.html', context)
+
+
+@requiere_empresa
+@login_required
+def unidad_medida_create(request):
+    """Crear nueva unidad de medida"""
+    if request.method == 'POST':
+        form = UnidadMedidaForm(request.POST)
+        if form.is_valid():
+            unidad = form.save(commit=False)
+            unidad.empresa = request.empresa
+            unidad.save()
+            messages.success(request, f'Unidad "{unidad.nombre}" creada exitosamente.')
+            return redirect('articulos:unidad_medida_list')
+    else:
+        form = UnidadMedidaForm()
+    
+    context = {
+        'form': form,
+        'title': 'Crear Unidad de Medida',
+        'submit_text': 'Crear Unidad',
+    }
+    
+    return render(request, 'articulos/unidad_form.html', context)
+
+
+@requiere_empresa
+@login_required
+def unidad_medida_update(request, pk):
+    """Editar unidad de medida"""
+    # Para superusuarios, no filtrar por empresa
+    if request.user.is_superuser:
+        unidad = get_object_or_404(UnidadMedida, pk=pk)
+    else:
+        unidad = get_object_or_404(UnidadMedida, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = UnidadMedidaForm(request.POST, instance=unidad)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Unidad "{unidad.nombre}" actualizada exitosamente.')
+            return redirect('articulos:unidad_medida_list')
+    else:
+        form = UnidadMedidaForm(instance=unidad)
+    
+    context = {
+        'form': form,
+        'unidad': unidad,
+        'title': 'Editar Unidad de Medida',
+        'submit_text': 'Actualizar Unidad',
+    }
+    
+    return render(request, 'articulos/unidad_form.html', context)
+
+
+@requiere_empresa
+@login_required
+def unidad_medida_delete(request, pk):
+    """Eliminar unidad de medida"""
+    # Para superusuarios, no filtrar por empresa
+    if request.user.is_superuser:
+        unidad = get_object_or_404(UnidadMedida, pk=pk)
+    else:
+        unidad = get_object_or_404(UnidadMedida, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        nombre = unidad.nombre
+        unidad.delete()
+        messages.success(request, f'Unidad "{nombre}" eliminada exitosamente.')
+        return redirect('articulos:unidad_medida_list')
+    
+    context = {
+        'unidad': unidad,
+        'title': 'Eliminar Unidad de Medida',
+    }
+    
+    return render(request, 'articulos/unidad_confirm_delete.html', context)
+
+
+# Vistas para Impuestos Específicos
+@requiere_empresa
+@login_required
+def impuesto_especifico_list(request):
+    """Lista de impuestos específicos"""
+    # Para superusuarios, mostrar todos los impuestos
+    if request.user.is_superuser:
+        impuestos = ImpuestoEspecifico.objects.all().order_by('nombre')
+    else:
+        impuestos = ImpuestoEspecifico.objects.filter(empresa=request.empresa).order_by('nombre')
+    
+    context = {
+        'impuestos': impuestos,
+        'title': 'Impuestos Específicos',
+    }
+    
+    return render(request, 'articulos/impuesto_especifico_list.html', context)
+
+
+@requiere_empresa
+@login_required
+def impuesto_especifico_create(request):
+    """Crear impuesto específico"""
+    if request.method == 'POST':
+        form = ImpuestoEspecificoForm(request.POST)
+        if form.is_valid():
+            impuesto = form.save(commit=False)
+            impuesto.empresa = request.empresa
+            impuesto.save()
+            messages.success(request, f'Impuesto "{impuesto.nombre}" creado exitosamente.')
+            return redirect('articulos:impuesto_especifico_list')
+    else:
+        form = ImpuestoEspecificoForm()
+    
+    context = {
+        'form': form,
+        'title': 'Crear Impuesto Específico',
+        'submit_text': 'Crear Impuesto',
+    }
+    
+    return render(request, 'articulos/impuesto_especifico_form.html', context)
+
+
+@requiere_empresa
+@login_required
+def impuesto_especifico_update(request, pk):
+    """Editar impuesto específico"""
+    # Para superusuarios, no filtrar por empresa
+    if request.user.is_superuser:
+        impuesto = get_object_or_404(ImpuestoEspecifico, pk=pk)
+    else:
+        impuesto = get_object_or_404(ImpuestoEspecifico, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = ImpuestoEspecificoForm(request.POST, instance=impuesto)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Impuesto "{impuesto.nombre}" actualizado exitosamente.')
+            return redirect('articulos:impuesto_especifico_list')
+    else:
+        form = ImpuestoEspecificoForm(instance=impuesto)
+    
+    context = {
+        'form': form,
+        'impuesto': impuesto,
+        'title': 'Editar Impuesto Específico',
+        'submit_text': 'Actualizar Impuesto',
+    }
+    
+    return render(request, 'articulos/impuesto_especifico_form.html', context)
+
+
+@requiere_empresa
+@login_required
+def impuesto_especifico_delete(request, pk):
+    """Eliminar impuesto específico"""
+    # Para superusuarios, no filtrar por empresa
+    if request.user.is_superuser:
+        impuesto = get_object_or_404(ImpuestoEspecifico, pk=pk)
+    else:
+        impuesto = get_object_or_404(ImpuestoEspecifico, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        nombre = impuesto.nombre
+        impuesto.delete()
+        messages.success(request, f'Impuesto "{nombre}" eliminado exitosamente.')
+        return redirect('articulos:impuesto_especifico_list')
+    
+    context = {
+        'impuesto': impuesto,
+        'title': 'Eliminar Impuesto Específico',
+    }
+    
+    return render(request, 'articulos/impuesto_especifico_confirm_delete.html', context)

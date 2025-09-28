@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+	<div class="row justify-content-center">
+		<div class="col-md-6">
+			<div class="card border-danger">
+				<div class="card-header bg-danger text-white">
+					<h4 class="m-0">Confirmar Eliminación</h4>
+				</div>
+				<div class="card-body">
+					<div class="alert alert-warning">
+						<strong>¡Atención!</strong> Está a punto de eliminar la sucursal:
+					</div>
+					
+					<div class="mb-4">
+						<h5>{{ sucursal.nombre }}</h5>
+						<p><strong>Código:</strong> {{ sucursal.codigo }}</p>
+						<p><strong>Empresa:</strong> {{ sucursal.empresa.nombre }}</p>
+						<p><strong>Ciudad:</strong> {{ sucursal.ciudad }}</p>
+						{% if sucursal.es_principal %}
+						<div class="alert alert-danger">
+							<strong>¡IMPORTANTE!</strong> Esta es la sucursal principal de la empresa.
+						</div>
+						{% endif %}
+					</div>
+					
+					<div class="alert alert-danger">
+						<strong>Esta acción no se puede deshacer.</strong> Se eliminarán:
+						<ul class="mb-0 mt-2">
+							<li>La sucursal y todos sus datos</li>
+							<li>Los productos asociados a esta sucursal</li>
+							<li>Las ventas registradas en esta sucursal</li>
+							<li>Los empleados asignados a esta sucursal</li>
+						</ul>
+					</div>
+					
+					<form method="post">
+						{% csrf_token %}
+						<div class="d-flex justify-content-between">
+							<a href="{% url 'empresas:sucursal_detail' sucursal.id %}" class="btn btn-outline-dark">
+								Cancelar
+							</a>
+							<button type="submit" class="btn btn-danger">
+								Eliminar Sucursal
+							</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}

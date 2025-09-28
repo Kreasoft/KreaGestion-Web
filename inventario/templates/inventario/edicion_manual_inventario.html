@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<style>
+.table-container {
+    max-height: 600px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+}
+
+.table thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 10;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.search-container {
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.stock-input {
+    width: 100px;
+    text-align: center;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    padding: 0.375rem 0.5rem;
+}
+
+.stock-input:focus {
+    border-color: #9CAF88;
+    box-shadow: 0 0 0 0.2rem rgba(156, 175, 136, 0.25);
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%);
+    border: none;
+    color: white;
+    padding: 0.75rem 2rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-save:hover {
+    background: linear-gradient(135deg, #8A9A7A 0%, #A5B98A 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(156, 175, 136, 0.3);
+    color: white;
+}
+
+.product-row {
+    transition: background-color 0.2s ease;
+}
+
+.product-row:hover {
+    background-color: #f8f9fa;
+}
+
+.product-row.modified {
+    background-color: #fff3cd;
+}
+
+.stats-badge {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border: 1px solid #2196f3;
+    color: #1976d2;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+}
+</style>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-edit fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white">{{ title }}</h5>
+                                <small class="text-white-50">
+                                    {% if sucursal_seleccionada %}
+                                        Sucursal: {{ sucursal_seleccionada.nombre }}
+                                    {% else %}
+                                        Seleccione una sucursal para continuar
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            {% if sucursal_seleccionada %}
+                                <button class="btn btn-outline-light" onclick="guardarCambios()">
+                                    <i class="fas fa-save me-2"></i>Guardar Cambios
+                                </button>
+                            {% endif %}
+                            <a href="{% url 'inventario:carga_inicial' %}" class="btn btn-outline-light">
+                                <i class="fas fa-arrow-left me-2"></i>Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4">
+                    {% if not sucursal_seleccionada %}
+                        <!-- Selección de Sucursal -->
+                        <div class="text-center py-5">
+                            <i class="fas fa-building fa-4x text-muted mb-4"></i>
+                            <h4 class="text-muted mb-3">Seleccione una Sucursal</h4>
+                            <p class="text-muted mb-4">Para continuar con la edición manual, debe seleccionar una sucursal:</p>
+                            
+                            <div class="row justify-content-center">
+                                {% for sucursal in sucursales %}
+                                    <div class="col-md-3 mb-3">
+                                        <div class="card border-primary h-100">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-building fa-2x text-primary mb-3"></i>
+                                                <h6 class="card-title">{{ sucursal.nombre }}</h6>
+                                                <p class="card-text text-muted small">{{ sucursal.direccion }}</p>
+                                                <a href="?sucursal={{ sucursal.id }}" class="btn btn-primary">
+                                                    <i class="fas fa-edit me-2"></i>Seleccionar
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Edición Manual -->
+                        <div class="search-container">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                        <input type="text" id="search-input" class="form-control" placeholder="Buscar por código o nombre...">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <div class="stats-badge">
+                                        <i class="fas fa-boxes me-2"></i>
+                                        <span id="total-products">0</span> productos
+                                        <span class="mx-2">|</span>
+                                        <span id="modified-count">0</span> modificados
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tabla de Productos -->
+                        <div class="table-container">
+                            <table class="table table-hover mb-0" id="products-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 120px;">Código</th>
+                                        <th>Nombre</th>
+                                        <th style="width: 100px;">Unidad</th>
+                                        <th style="width: 120px;">Stock Actual</th>
+                                        <th style="width: 120px;">Stock Inicial</th>
+                                        <th style="width: 100px;">Stock Mín.</th>
+                                        <th style="width: 100px;">Stock Máx.</th>
+                                        <th style="width: 100px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="products-tbody">
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4">
+                                            <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                                            <p class="mt-2 text-muted">Cargando productos...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="mt-4 text-center">
+                            <button class="btn btn-save me-3" onclick="guardarCambios()">
+                                <i class="fas fa-save me-2"></i>Guardar Cambios
+                            </button>
+                            <button class="btn btn-outline-secondary me-3" onclick="limpiarCambios()">
+                                <i class="fas fa-undo me-2"></i>Limpiar Cambios
+                            </button>
+                            <button class="btn btn-outline-info" onclick="exportarCambios()">
+                                <i class="fas fa-download me-2"></i>Exportar Cambios
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if sucursal_seleccionada %}
+<script>
+let productos = [];
+let productosModificados = new Set();
+let sucursalId = {{ sucursal_seleccionada.id }};
+
+// Cargar productos al iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    cargarProductos();
+    
+    // Configurar búsqueda
+    document.getElementById('search-input').addEventListener('input', filtrarProductos);
+});
+
+async function cargarProductos() {
+    try {
+        const response = await fetch(`{% url 'inventario:api_articulos' %}?sucursal_id=${sucursalId}`);
+        const data = await response.json();
+        
+        if (data.articulos) {
+            productos = data.articulos;
+            renderizarProductos();
+            actualizarEstadisticas();
+        }
+    } catch (error) {
+        console.error('Error al cargar productos:', error);
+        document.getElementById('products-tbody').innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-4 text-danger">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>Error al cargar productos</p>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function renderizarProductos(productosFiltrados = productos) {
+    const tbody = document.getElementById('products-tbody');
+    
+    if (productosFiltrados.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-4 text-muted">
+                    <i class="fas fa-search fa-2x mb-2"></i>
+                    <p>No se encontraron productos</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = productosFiltrados.map(producto => `
+        <tr class="product-row" data-product-id="${producto.id}">
+            <td><strong>${producto.codigo}</strong></td>
+            <td>
+                <div>
+                    <strong>${producto.nombre}</strong>
+                    ${producto.descripcion ? `<br><small class="text-muted">${producto.descripcion}</small>` : ''}
+                </div>
+            </td>
+            <td class="text-center">${producto.unidad_medida}</td>
+            <td class="text-center">
+                <span class="badge bg-info">${producto.cantidad}</span>
+            </td>
+            <td class="text-center">
+                <input type="number" 
+                       class="stock-input" 
+                       value="${producto.stock_inicial || producto.cantidad}" 
+                       min="0" 
+                       step="0.01"
+                       onchange="marcarModificado(${producto.id}, this.value)"
+                       data-original="${producto.cantidad}">
+            </td>
+            <td class="text-center">
+                <span class="badge bg-warning">${producto.stock_minimo}</span>
+            </td>
+            <td class="text-center">
+                <span class="badge bg-success">${producto.stock_maximo}</span>
+            </td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary" onclick="copiarStockActual(${producto.id})">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filtrarProductos() {
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const productosFiltrados = productos.filter(producto => 
+        producto.codigo.toLowerCase().includes(searchTerm) ||
+        producto.nombre.toLowerCase().includes(searchTerm) ||
+        (producto.descripcion && producto.descripcion.toLowerCase().includes(searchTerm))
+    );
+    
+    renderizarProductos(productosFiltrados);
+}
+
+function marcarModificado(productoId, nuevoValor) {
+    const producto = productos.find(p => p.id === productoId);
+    const valorOriginal = parseFloat(producto.cantidad);
+    const valorNuevo = parseFloat(nuevoValor);
+    
+    if (valorNuevo !== valorOriginal) {
+        productosModificados.add(productoId);
+        document.querySelector(`tr[data-product-id="${productoId}"]`).classList.add('modified');
+    } else {
+        productosModificados.delete(productoId);
+        document.querySelector(`tr[data-product-id="${productoId}"]`).classList.remove('modified');
+    }
+    
+    actualizarEstadisticas();
+}
+
+function copiarStockActual(productoId) {
+    const producto = productos.find(p => p.id === productoId);
+    const input = document.querySelector(`tr[data-product-id="${productoId}"] input`);
+    input.value = producto.cantidad;
+    marcarModificado(productoId, producto.cantidad);
+}
+
+function actualizarEstadisticas() {
+    document.getElementById('total-products').textContent = productos.length;
+    document.getElementById('modified-count').textContent = productosModificados.size;
+}
+
+async function guardarCambios() {
+    if (productosModificados.size === 0) {
+        alert('No hay cambios para guardar');
+        return;
+    }
+    
+    const inventarios = [];
+    
+    productosModificados.forEach(productoId => {
+        const producto = productos.find(p => p.id === productoId);
+        const input = document.querySelector(`tr[data-product-id="${productoId}"] input`);
+        const cantidad = parseFloat(input.value);
+        
+        if (cantidad > 0) {
+            inventarios.push({
+                articulo_id: productoId,
+                cantidad: cantidad
+            });
+        }
+    });
+    
+    if (inventarios.length === 0) {
+        alert('No hay cantidades válidas para guardar');
+        return;
+    }
+    
+    const confirmacion = confirm(`¿Está seguro de guardar ${inventarios.length} cambios de inventario?`);
+    if (!confirmacion) return;
+    
+    try {
+        const response = await fetch('{% url "inventario:api_guardar_manual" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                sucursal_id: sucursalId,
+                inventarios: inventarios
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ ${result.message}`);
+            productosModificados.clear();
+            cargarProductos(); // Recargar datos
+        } else {
+            alert(`❌ ${result.message}`);
+        }
+    } catch (error) {
+        alert(`❌ Error al guardar: ${error.message}`);
+    }
+}
+
+function limpiarCambios() {
+    if (productosModificados.size === 0) {
+        alert('No hay cambios para limpiar');
+        return;
+    }
+    
+    const confirmacion = confirm('¿Está seguro de limpiar todos los cambios?');
+    if (!confirmacion) return;
+    
+    productosModificados.forEach(productoId => {
+        const producto = productos.find(p => p.id === productoId);
+        const input = document.querySelector(`tr[data-product-id="${productoId}"] input`);
+        input.value = producto.cantidad;
+        document.querySelector(`tr[data-product-id="${productoId}"]`).classList.remove('modified');
+    });
+    
+    productosModificados.clear();
+    actualizarEstadisticas();
+}
+
+function exportarCambios() {
+    if (productosModificados.size === 0) {
+        alert('No hay cambios para exportar');
+        return;
+    }
+    
+    const cambios = [];
+    productosModificados.forEach(productoId => {
+        const producto = productos.find(p => p.id === productoId);
+        const input = document.querySelector(`tr[data-product-id="${productoId}"] input`);
+        const cantidad = parseFloat(input.value);
+        
+        cambios.push({
+            codigo: producto.codigo,
+            nombre: producto.nombre,
+            cantidad: producto.cantidad,
+            stock_inicial: cantidad,
+            diferencia: cantidad - producto.cantidad
+        });
+    });
+    
+    // Crear CSV
+    const headers = ['Código', 'Nombre', 'Stock Actual', 'Stock Inicial', 'Diferencia'];
+    const csvContent = [
+        headers.join(','),
+        ...cambios.map(cambio => [
+            cambio.codigo,
+            `"${cambio.nombre}"`,
+            cambio.cantidad,
+            cambio.stock_inicial,
+            cambio.diferencia
+        ].join(','))
+    ].join('\n');
+    
+    // Descargar archivo
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `cambios_inventario_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+{% endif %}
+{% endblock %}
+

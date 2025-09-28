@@ -1,0 +1,293 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<style>
+    /* Estilos específicos para inventario */
+    .inventario-card {
+        border: 2px solid #E5E7EB;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .inventario-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    }
+    
+    .inventario-header {
+        background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%);
+        color: white;
+        border-radius: 0.75rem 0.75rem 0 0;
+        padding: 1.5rem;
+    }
+    
+    .inventario-header h4 {
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    .badge-tipo {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+    }
+    
+    .badge-entrada {
+        background-color: #10B981;
+        color: white;
+    }
+    
+    .badge-salida {
+        background-color: #EF4444;
+        color: white;
+    }
+    
+    .badge-ajuste {
+        background-color: #F59E0B;
+        color: white;
+    }
+    
+    .badge-transferencia {
+        background-color: #3B82F6;
+        color: white;
+    }
+    
+    .badge-estado {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+    
+    .badge-pendiente {
+        background-color: #F59E0B;
+        color: white;
+    }
+    
+    .badge-confirmado {
+        background-color: #10B981;
+        color: white;
+    }
+    
+    .badge-cancelado {
+        background-color: #EF4444;
+        color: white;
+    }
+    
+    .stats-card {
+        background: white;
+        border: 2px solid #E5E7EB;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1rem;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .stats-card-primary {
+        background: linear-gradient(135deg, #D2B48C 0%, #DEB887 100%);
+        border: none;
+        color: #8B4513;
+    }
+    
+    .stats-card-primary .stats-icon {
+        color: #8B4513;
+    }
+    
+    .stats-card-primary .stats-number {
+        color: #8B4513;
+    }
+    
+    .stats-card-primary .stats-label {
+        color: #8B4513;
+    }
+    
+    .stats-card-danger {
+        background: linear-gradient(135deg, #8FBC8F 0%, #9ACD32 100%);
+        border: none;
+        color: #2F4F2F;
+    }
+    
+    .stats-card-danger .stats-icon {
+        color: #2F4F2F;
+    }
+    
+    .stats-card-danger .stats-number {
+        color: #2F4F2F;
+    }
+    
+    .stats-card-danger .stats-label {
+        color: #2F4F2F;
+    }
+    
+    .stats-card-warning {
+        background: linear-gradient(135deg, #DAA520 0%, #F4A460 100%);
+        border: none;
+        color: #8B4513;
+    }
+    
+    .stats-card-warning .stats-icon {
+        color: #8B4513;
+    }
+    
+    .stats-card-warning .stats-number {
+        color: #8B4513;
+    }
+    
+    .stats-card-warning .stats-label {
+        color: #8B4513;
+    }
+    
+    .stats-card-success {
+        background: linear-gradient(135deg, #CD853F 0%, #A0522D 100%);
+        border: none;
+        color: white;
+    }
+    
+    .stats-card-success .stats-icon {
+        color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .stats-card-success .stats-number {
+        color: white;
+    }
+    
+    .stats-card-success .stats-label {
+        color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .stats-icon {
+        font-size: 2.5rem;
+        margin-right: 1rem;
+        opacity: 0.9;
+    }
+    
+    .stats-content {
+        flex: 1;
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+        line-height: 1;
+    }
+    
+    .stats-label {
+        color: #6B7280;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin: 0;
+    }
+    
+    .table-inventario {
+        background: white;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .table-inventario thead {
+        background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%);
+    }
+    
+    .table-inventario th {
+        border: none;
+        font-weight: 600;
+        color: #374151;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .table-inventario td {
+        border: none;
+        padding: 0.4rem 0.75rem;
+        vertical-align: middle;
+        line-height: 1.2;
+    }
+    
+    .table-inventario tbody tr {
+        border-bottom: 1px solid #F3F4F6;
+        transition: background-color 0.2s ease;
+    }
+    
+    .table-inventario tbody tr:hover {
+        background-color: #F9FAFB;
+    }
+    
+    .table-inventario .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .table-inventario .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .btn-inventario {
+        border-radius: 0.5rem;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-inventario:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .filter-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .pagination-wrapper {
+        display: flex;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+    
+    .pagination .page-link {
+        border-radius: 0.5rem;
+        margin: 0 0.25rem;
+        border: 1px solid #E5E7EB;
+        color: #374151;
+    }
+    
+    .pagination .page-link:hover {
+        background-color: #F3F4F6;
+        border-color: #D1D5DB;
+    }
+    
+    .pagination .page-item.active .page-link {
+        background-color: #374151;
+        border-color: #374151;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            {% block inventario_content %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+{% load widget_tweaks %}
+
+{% block title %}Lista de Artículos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+
+            <div class="card shadow-sm">
+                <div class="card-header" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-box fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white">
+                                    Gestión de Artículos
+                                </h5>
+                                <small class="text-white-50">Administra el catálogo de productos, crea nuevos artículos, edita existentes y controla el stock de tu negocio</small>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{% url 'articulos:categoria_list' %}" class="btn btn-outline-light">
+                                <i class="fas fa-tags"></i> Categorías
+                            </a>
+                            <a href="{% url 'articulos:unidad_medida_list' %}" class="btn btn-outline-light">
+                                <i class="fas fa-ruler"></i> Unidades
+                            </a>
+                            <a href="{% url 'articulos:articulo_create' %}" class="btn" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(107, 142, 35, 0.3);">
+                                <i class="fas fa-plus me-2"></i> Nuevo Artículo
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Estadísticas dentro de la tarjeta -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none; box-shadow: 0 4px 15px rgba(156, 175, 136, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Total Artículos</h6>
+                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ page_obj.paginator.count }}</h3>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">En catálogo</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-box fa-2x" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); border: none; box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Activos</h6>
+                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ page_obj|length }}</h3>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">Disponibles</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-check-circle fa-2x" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #DAA520 0%, #FFD700 100%); border: none; box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Categorías</h6>
+                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ categorias|length }}</h3>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">Clasificaciones</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-tags fa-2x" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #CD853F 0%, #DEB887 100%); border: none; box-shadow: 0 4px 15px rgba(205, 133, 63, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Con Stock</h6>
+                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">-</h3>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">Inventario</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-warehouse fa-2x" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <div class="card-body">
+                    <!-- Filtros Avanzados -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <form method="get" id="filterForm">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Búsqueda</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">
+                                                        <i class="fas fa-search"></i>
+                                                    </span>
+                                                    <input type="text" name="search" class="form-control" 
+                                                           placeholder="Código, nombre o descripción..." 
+                                                           value="{{ search }}">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Categoría</label>
+                                                <select name="categoria" class="form-select" onchange="this.form.submit()">
+                                                    <option value="">Todas las categorías</option>
+                                                    {% for categoria in categorias %}
+                                                        <option value="{{ categoria.id }}" 
+                                                                {% if categoria.id|stringformat:"s" == categoria_id %}selected{% endif %}>
+                                                            {{ categoria.nombre }}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label class="form-label fw-bold">Estado</label>
+                                                <select name="activo" class="form-select" onchange="this.form.submit()">
+                                                    <option value="">Todos</option>
+                                                    <option value="true" {% if activo == 'true' %}selected{% endif %}>Activos</option>
+                                                    <option value="false" {% if activo == 'false' %}selected{% endif %}>Inactivos</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Acciones</label>
+                                                <div class="d-flex gap-2">
+                                                    <button type="submit" class="btn btn-primary">
+                                                        <i class="fas fa-filter"></i> Filtrar
+                                                    </button>
+                                                    <a href="{% url 'articulos:articulo_list' %}" class="btn btn-outline-secondary">
+                                                        <i class="fas fa-times"></i> Limpiar
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabla de artículos mejorada -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="border-0">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="selectAll">
+                                            <label class="form-check-label" for="selectAll">
+                                                <strong>Artículo</strong>
+                                            </label>
+                                        </div>
+                                    </th>
+                                    <th class="border-0"><strong>Categoría</strong></th>
+                                    <th class="border-0 text-center"><strong>Tipo</strong></th>
+                                    <th class="border-0 text-center"><strong>Código Barras</strong></th>
+                                    <th class="border-0 text-end"><strong>Precio Costo</strong></th>
+                                    <th class="border-0 text-end"><strong>Precio Venta</strong></th>
+                                    <th class="border-0 text-end"><strong>Precio Final</strong></th>
+                                    <th class="border-0 text-center"><strong>Margen</strong></th>
+                                    <th class="border-0 text-center"><strong>Stock</strong></th>
+                                    <th class="border-0 text-center"><strong>Estado</strong></th>
+                                    <th class="border-0 text-center"><strong>Acciones</strong></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for articulo in page_obj %}
+                                <tr class="border-bottom">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="form-check me-3">
+                                                <input class="form-check-input" type="checkbox" value="{{ articulo.id }}">
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-primary">{{ articulo.codigo }}</div>
+                                                <div class="fw-semibold">{{ articulo.nombre }}</div>
+                                                {% if articulo.descripcion %}
+                                                    <small class="text-muted">{{ articulo.descripcion|truncatechars:40 }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                            <i class="fas fa-tag me-1"></i>{{ articulo.categoria.nombre }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if articulo.tipo_articulo == 'producto_venta' %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="fas fa-shopping-cart me-1"></i>Venta
+                                            </span>
+                                        {% elif articulo.tipo_articulo == 'insumo' %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                                <i class="fas fa-cogs me-1"></i>Insumo
+                                            </span>
+                                        {% elif articulo.tipo_articulo == 'ambos' %}
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                                <i class="fas fa-exchange-alt me-1"></i>Ambos
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if articulo.codigo_barras %}
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                                <i class="fas fa-qrcode me-1"></i>{{ articulo.codigo_barras }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-success fw-bold">
+                                            ${{ articulo.precio_costo|floatformat:0 }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-primary fw-bold">
+                                            ${{ articulo.precio_venta|floatformat:0 }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-danger fw-bold fs-6">
+                                            ${{ articulo.precio_final|floatformat:0 }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                            {{ articulo.margen_porcentaje }}%
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if articulo.control_stock %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="fas fa-check me-1"></i>Controlado
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                <i class="fas fa-times me-1"></i>No controlado
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if articulo.activo %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="fas fa-check-circle me-1"></i>Activo
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                <i class="fas fa-times-circle me-1"></i>Inactivo
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" 
+                                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li>
+                                                    <a class="dropdown-item" href="{% url 'articulos:articulo_detail' articulo.pk %}">
+                                                        <i class="fas fa-eye me-2" style="color: #4682B4;"></i>Ver detalles
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{% url 'articulos:articulo_update' articulo.pk %}">
+                                                        <i class="fas fa-edit me-2" style="color: #B8860B;"></i>Editar
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{% url 'articulos:articulo_delete' articulo.pk %}">
+                                                        <i class="fas fa-trash me-2" style="color: #DC143C;"></i>Eliminar
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="fas fa-box fa-4x mb-4 opacity-50"></i>
+                                            <h4 class="fw-light">No hay artículos registrados</h4>
+                                            <p class="mb-4">Comienza creando tu primer artículo para gestionar tu inventario.</p>
+                                            <a href="{% url 'articulos:articulo_create' %}" class="btn btn-primary btn-lg">
+                                                <i class="fas fa-plus me-2"></i>Crear Primer Artículo
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginación y acciones masivas -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <span class="text-muted me-3">
+                                    Mostrando {{ page_obj.start_index }} - {{ page_obj.end_index }} de {{ page_obj.paginator.count }} artículos
+                                </span>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAll()">
+                                        <i class="fas fa-check-square"></i> Seleccionar todo
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAll()">
+                                        <i class="fas fa-square"></i> Deseleccionar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            {% if page_obj.has_other_pages %}
+                            <nav aria-label="Paginación de artículos">
+                                <ul class="pagination pagination-sm justify-content-end mb-0">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if activo %}&activo={{ activo }}{% endif %}">
+                                                <i class="fas fa-angle-double-left"></i>
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if activo %}&activo={{ activo }}{% endif %}">
+                                                <i class="fas fa-angle-left"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if activo %}&activo={{ activo }}{% endif %}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if activo %}&activo={{ activo }}{% endif %}">
+                                                <i class="fas fa-angle-right"></i>
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if activo %}&activo={{ activo }}{% endif %}">
+                                                <i class="fas fa-angle-double-right"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Funciones para selección masiva
+function selectAll() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]:not(#selectAll)');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    selectAllCheckbox.checked = true;
+}
+
+function deselectAll() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+}
+
+// Función para manejar el checkbox "Seleccionar todo"
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]:not(#selectAll)');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+});
+
+// Función para actualizar el estado del checkbox "Seleccionar todo"
+document.addEventListener('change', function(e) {
+    if (e.target.type === 'checkbox' && e.target.id !== 'selectAll') {
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]:not(#selectAll)');
+        const selectAllCheckbox = document.getElementById('selectAll');
+        const checkedCount = document.querySelectorAll('input[type="checkbox"]:not(#selectAll):checked').length;
+        
+        if (checkedCount === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (checkedCount === checkboxes.length) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+});
+
+// Función para formatear números con separadores de miles
+function formatNumber(num) {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+</script>
+{% endblock %}

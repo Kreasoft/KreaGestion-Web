@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4>{{ titulo }}</h4>
+        <a href="{% url 'bodegas:bodega_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Volver
+        </a>
+    </div>
+
+    <!-- Información Básica -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Información General</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nombre:</label>
+                        <p class="form-control-plaintext">{{ bodega.nombre }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Código:</label>
+                        <p class="form-control-plaintext">{{ bodega.codigo }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Estado:</label>
+                        <p class="form-control-plaintext">
+                            {% if bodega.activa %}
+                                <span class="badge bg-success">Activa</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactiva</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Acciones</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-warning" onclick="editarBodega({{ bodega.id }})">
+                            <i class="fas fa-edit me-2"></i>Editar Bodega
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="eliminarBodega({{ bodega.id }}, '{{ bodega.nombre }}')">
+                            <i class="fas fa-trash me-2"></i>Eliminar Bodega
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para editar bodega -->
+<div class="modal fade" id="modalEditarBodega" tabindex="-1" aria-labelledby="modalEditarBodegaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEditarBodegaLabel">Editar Bodega</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="bodegaEditFormContainer">
+                    <!-- El formulario se carga aquí via AJAX -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para eliminar bodega -->
+<div class="modal fade" id="modalEliminarBodega" tabindex="-1" aria-labelledby="modalEliminarBodegaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEliminarBodegaLabel">Eliminar Bodega</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="bodegaDeleteFormContainer">
+                    <!-- El formulario se carga aquí via AJAX -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let bodegaEditando = null;
+
+// Función para editar bodega
+function editarBodega(id) {
+    bodegaEditando = id;
+    
+    fetch(`/bodegas/editar-modal/${id}/`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('bodegaEditFormContainer').innerHTML = data.html_form;
+        const modal = new bootstrap.Modal(document.getElementById('modalEditarBodega'));
+        modal.show();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al cargar el formulario de edición');
+    });
+}
+
+// Función para eliminar bodega
+function eliminarBodega(id, nombre) {
+    fetch(`/bodegas/eliminar-modal/${id}/`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('bodegaDeleteFormContainer').innerHTML = data.html_form;
+        const modal = new bootstrap.Modal(document.getElementById('modalEliminarBodega'));
+        modal.show();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al cargar el formulario de eliminación');
+    });
+}
+</script>
+{% endblock %}
+

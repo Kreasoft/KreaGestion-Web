@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Lista de Clientes{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-users fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    Gestión de Clientes
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">Administra la información de tus clientes, contactos y datos comerciales</small>
+                            </div>
+                        </div>
+                        <a href="{% url 'clientes:cliente_create' %}" class="btn" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(107, 142, 35, 0.3); font-family: 'Poppins', sans-serif;">
+                            <i class="fas fa-plus me-2"></i> Nuevo Cliente
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Estadísticas dentro de la tarjeta -->
+                <div class="card-body" style="padding: 15px 20px;">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none; box-shadow: 0 4px 15px rgba(156, 175, 136, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Total Clientes</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ total_clientes }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Registrados</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-users fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); border: none; box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Activos</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ clientes_activos }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">En sistema</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-check-circle fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #DAA520 0%, #FFD700 100%); border: none; box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Contribuyentes</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ clientes_contribuyentes }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Con RUT</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-building fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #CD853F 0%, #DEB887 100%); border: none; box-shadow: 0 4px 15px rgba(205, 133, 63, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Consumidor Final</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ clientes_consumidor_final }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Particulares</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-user fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filtros y búsqueda -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card shadow-sm" style="border: none; border-radius: 10px;">
+                                <div class="card-body py-3">
+                                    <form method="get" class="row g-2">
+                                        <div class="col-md-4">
+                                            <div class="input-group input-group-sm">
+                                                <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                    <i class="fas fa-search" style="color: #6c757d;"></i>
+                                                </div>
+                                                <input type="text" class="form-control" name="search" value="{{ search }}" 
+                                                       placeholder="Buscar por nombre, RUT o email" style="border-left: none;">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <select name="estado" class="form-select form-select-sm">
+                                                <option value="">Todos los estados</option>
+                                                {% for value, label in estados %}
+                                                    <option value="{{ value }}" {% if estado == value %}selected{% endif %}>{{ label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <select name="tipo_cliente" class="form-select form-select-sm">
+                                                <option value="">Todos los tipos</option>
+                                                {% for value, label in tipos_cliente %}
+                                                    <option value="{{ value }}" {% if tipo_cliente == value %}selected{% endif %}>{{ label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                <i class="fas fa-filter me-1"></i>Filtrar
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lista de clientes -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card shadow-sm" style="border: none; border-radius: 15px;">
+                                <div class="card-body p-0">
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead style="background: #f8f9fa;">
+                                    <tr>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Cliente</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">RUT</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Tipo</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Estado</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Límite Crédito</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Contactos</th>
+                                        <th class="py-2 px-3 text-center" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cliente in page_obj %}
+                                        <tr style="border-bottom: 1px solid #f1f3f4;">
+                                            <td class="py-2 px-3">
+                                                <div>
+                                                    <div class="fw-bold" style="color: #2c3e50; font-size: 0.9rem;">{{ cliente.nombre }}</div>
+                                                </div>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <span style="color: #6c757d; font-size: 0.9rem;">{{ cliente.get_rut_formateado }}</span>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <span class="badge" style="background-color: #e3f2fd; color: #1976d2; font-size: 0.8rem;">
+                                                    {{ cliente.get_tipo_cliente_display }}
+                                                </span>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <span class="badge bg-{{ cliente.get_estado_display_color }}" style="font-size: 0.8rem;">
+                                                    {{ cliente.get_estado_display }}
+                                                </span>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <span class="fw-bold" style="color: #2c3e50; font-size: 0.9rem;">${{ cliente.limite_credito|floatformat:0 }}</span>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <span class="badge bg-info" style="font-size: 0.8rem;">{{ cliente.contactos.count }}</span>
+                                            </td>
+                                            <td class="py-2 px-3 text-center">
+                                                <div class="btn-group" role="group">
+                                                    <a href="{% url 'clientes:cliente_detail' cliente.pk %}" 
+                                                       class="btn btn-sm" 
+                                                       data-bs-toggle="tooltip" 
+                                                       title="Ver detalles"
+                                                       style="border: none; background: none; padding: 2px 6px;">
+                                                        <i class="fas fa-eye" style="color: #4682B4; font-size: 14px;"></i>
+                                                    </a>
+                                                    <a href="{% url 'clientes:cliente_update' cliente.pk %}" 
+                                                       class="btn btn-sm" 
+                                                       data-bs-toggle="tooltip" 
+                                                       title="Editar"
+                                                       style="border: none; background: none; padding: 2px 6px;">
+                                                        <i class="fas fa-edit" style="color: #B8860B; font-size: 14px;"></i>
+                                                    </a>
+                                                    <a href="{% url 'clientes:cliente_delete' cliente.pk %}" 
+                                                       class="btn btn-sm" 
+                                                       data-bs-toggle="tooltip" 
+                                                       title="Eliminar"
+                                                       style="border: none; background: none; padding: 2px 6px;">
+                                                        <i class="fas fa-trash" style="color: #DC143C; font-size: 14px;"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Paginación -->
+                        {% if page_obj.has_other_pages %}
+                            <div class="card-footer" style="background: #f8f9fa; border-top: 1px solid #f1f3f4;">
+                                <nav aria-label="Paginación de clientes">
+                                    <ul class="pagination justify-content-center mb-0">
+                                        {% if page_obj.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}">
+                                                    <i class="fas fa-angle-double-left"></i>
+                                                </a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}">
+                                                    <i class="fas fa-angle-left"></i>
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        <li class="page-item active">
+                                            <span class="page-link">
+                                                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                                            </span>
+                                        </li>
+                                        
+                                        {% if page_obj.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}">
+                                                    <i class="fas fa-angle-right"></i>
+                                                </a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}">
+                                                    <i class="fas fa-angle-double-right"></i>
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No se encontraron clientes</h5>
+                            <p class="text-muted">Comienza agregando tu primer cliente al sistema.</p>
+                            <a href="{% url 'clientes:cliente_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Crear Primer Cliente
+                            </a>
+                        </div>
+                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

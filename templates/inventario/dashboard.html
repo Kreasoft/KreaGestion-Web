@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<style>
+.inventario-card {
+    border: none;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.inventario-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.inventario-header {
+    background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 0.75rem 0.75rem 0 0;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #9CAF88;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.stats-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.btn-inventario {
+    background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%);
+    border: none;
+    color: white;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-inventario:hover {
+    background: linear-gradient(135deg, #8A9A7A 0%, #A5B98A 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(156, 175, 136, 0.3);
+    color: white;
+}
+
+.alert-card {
+    border-left: 4px solid #dc3545;
+    background: #fff5f5;
+}
+
+.alert-card h6 {
+    color: #dc3545;
+}
+</style>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="inventario-card">
+                <div class="inventario-header">
+                    <h4><i class="fas fa-tachometer-alt me-2"></i>{{ titulo }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas principales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-success">{{ total_articulos|default:0 }}</div>
+                <div class="stats-label">Total Artículos</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-primary">{{ total_movimientos|default:0 }}</div>
+                <div class="stats-label">Movimientos Hoy</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-warning">{{ alertas_stock|default:0 }}</div>
+                <div class="stats-label">Alertas de Stock</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-info">${{ valor_total|default:0|floatformat:0 }}</div>
+                <div class="stats-label">Valor Total</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones rápidas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="inventario-card">
+                <div class="inventario-header">
+                    <h5><i class="fas fa-bolt me-2"></i>Acciones Rápidas</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'inventario:inventario_create' %}" class="btn btn-inventario w-100">
+                                <i class="fas fa-plus me-2"></i>Nuevo Movimiento
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'inventario:stock_list' %}" class="btn btn-inventario w-100">
+                                <i class="fas fa-boxes me-2"></i>Control de Stock
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'inventario:carga_inicial' %}" class="btn btn-inventario w-100">
+                                <i class="fas fa-upload me-2"></i>Carga Inicial
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'inventario:inventario_list' %}" class="btn btn-inventario w-100">
+                                <i class="fas fa-list me-2"></i>Ver Movimientos
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alertas de stock -->
+    {% if alertas_stock > 0 %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="inventario-card">
+                    <div class="alert-card p-4">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Alertas de Stock Bajo</h6>
+                        <p class="mb-0">Hay {{ alertas_stock }} artículos con stock bajo. Revise el control de stock para más detalles.</p>
+                        <a href="{% url 'inventario:stock_list' %}" class="btn btn-outline-danger btn-sm mt-2">
+                            <i class="fas fa-eye me-1"></i>Ver Detalles
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="inventario-card">
+                    <div class="card-body p-4 text-center">
+                        <i class="fas fa-check-circle fa-2x mb-3 text-success"></i>
+                        <p>Todo el stock está en niveles normales</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

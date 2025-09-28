@@ -1,0 +1,182 @@
+{% extends 'inventario/base_inventario.html' %}
+{% load crispy_forms_tags %}
+
+{% block inventario_content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="inventario-card">
+            <div class="inventario-header">
+                <h4><i class="fas fa-edit me-2"></i>{{ titulo }}</h4>
+            </div>
+            <div class="card-body p-4">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post" id="inventarioForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.bodega_destino.id_for_label }}" class="form-label">
+                                    <i class="fas fa-warehouse me-2"></i>{{ form.bodega_destino.label }}
+                                </label>
+                                {{ form.bodega_destino }}
+                                {% if form.bodega_destino.errors %}
+                                    <div class="text-danger">{{ form.bodega_destino.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.articulo.id_for_label }}" class="form-label">
+                                    <i class="fas fa-box me-2"></i>{{ form.articulo.label }}
+                                </label>
+                                {{ form.articulo }}
+                                {% if form.articulo.errors %}
+                                    <div class="text-danger">{{ form.articulo.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.tipo_movimiento.id_for_label }}" class="form-label">
+                                    <i class="fas fa-exchange-alt me-2"></i>{{ form.tipo_movimiento.label }}
+                                </label>
+                                {{ form.tipo_movimiento }}
+                                {% if form.tipo_movimiento.errors %}
+                                    <div class="text-danger">{{ form.tipo_movimiento.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.cantidad.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calculator me-2"></i>{{ form.cantidad.label }}
+                                </label>
+                                {{ form.cantidad }}
+                                {% if form.cantidad.errors %}
+                                    <div class="text-danger">{{ form.cantidad.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.precio_unitario.id_for_label }}" class="form-label">
+                                    <i class="fas fa-dollar-sign me-2"></i>{{ form.precio_unitario.label }}
+                                </label>
+                                {{ form.precio_unitario }}
+                                {% if form.precio_unitario.errors %}
+                                    <div class="text-danger">{{ form.precio_unitario.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.estado.id_for_label }}" class="form-label">
+                                    <i class="fas fa-flag me-2"></i>{{ form.estado.label }}
+                                </label>
+                                {{ form.estado }}
+                                {% if form.estado.errors %}
+                                    <div class="text-danger">{{ form.estado.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.numero_documento.id_for_label }}" class="form-label">
+                                    <i class="fas fa-file-alt me-2"></i>{{ form.numero_documento.label }}
+                                </label>
+                                {{ form.numero_documento }}
+                                {% if form.numero_documento.errors %}
+                                    <div class="text-danger">{{ form.numero_documento.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.proveedor.id_for_label }}" class="form-label">
+                                    <i class="fas fa-truck me-2"></i>{{ form.proveedor.label }}
+                                </label>
+                                {{ form.proveedor }}
+                                {% if form.proveedor.errors %}
+                                    <div class="text-danger">{{ form.proveedor.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.motivo.id_for_label }}" class="form-label">
+                                    <i class="fas fa-comment me-2"></i>{{ form.motivo.label }}
+                                </label>
+                                {{ form.motivo }}
+                                {% if form.motivo.errors %}
+                                    <div class="text-danger">{{ form.motivo.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Cálculo automático del total -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-calculator me-2"></i>Total Calculado:</span>
+                                    <span class="fw-bold fs-5" id="totalCalculado">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'inventario:inventario_list' %}" class="btn btn-outline-secondary btn-inventario">
+                            <i class="fas fa-arrow-left me-2"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-inventario">
+                            <i class="fas fa-save me-2"></i>Guardar Movimiento
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Cálculo automático del total
+document.addEventListener('DOMContentLoaded', function() {
+    const cantidadInput = document.querySelector('#id_cantidad');
+    const precioInput = document.querySelector('#id_precio_unitario');
+    const totalSpan = document.getElementById('totalCalculado');
+    
+    function calcularTotal() {
+        const cantidad = parseFloat(cantidadInput.value) || 0;
+        const precio = parseFloat(precioInput.value) || 0;
+        const total = cantidad * precio;
+        totalSpan.textContent = '$' + total.toLocaleString('es-CL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+    }
+    
+    cantidadInput.addEventListener('input', calcularTotal);
+    precioInput.addEventListener('input', calcularTotal);
+    
+    // Calcular total inicial
+    calcularTotal();
+});
+</script>
+{% endblock %}

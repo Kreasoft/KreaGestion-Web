@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+<style>
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+</style>
+
+{% block content %}
+<div class="container py-4">
+	<div class="d-flex justify-content-between align-items-center mb-4">
+		<h3 class="m-0">Panel de Administración</h3>
+		<div>
+			<a href="{% url 'empresas:empresa_create' %}" class="btn btn-dark me-2">Nueva Empresa</a>
+			<a href="{% url 'logout' %}" class="btn btn-outline-dark">Cerrar sesión</a>
+		</div>
+	</div>
+	
+	<div class="row">
+		<div class="col-md-8">
+			<div class="card">
+				<div class="card-header">
+					<h5 class="m-0">Empresas Registradas</h5>
+				</div>
+				<div class="card-body p-0">
+					<table class="table table-hover m-0">
+						<thead>
+							<tr>
+								<th>Nombre</th>
+								<th>RUT</th>
+								<th>Ciudad</th>
+								<th>Estado</th>
+								<th>Acciones</th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for empresa in empresas %}
+							<tr>
+								<td>{{ empresa.nombre }}</td>
+								<td>{{ empresa.rut }}</td>
+								<td>{{ empresa.ciudad }}</td>
+								<td>
+									{% if empresa.estado == 'activa' %}
+									<span class="badge bg-success">Activa</span>
+									{% elif empresa.estado == 'inactiva' %}
+									<span class="badge bg-danger">Inactiva</span>
+									{% else %}
+									<span class="badge bg-warning">Suspendida</span>
+									{% endif %}
+								</td>
+								<td>
+									<a href="{% url 'empresas:empresa_detail' empresa.id %}" class="btn btn-sm btn-dark">Ver</a>
+									<a href="{% url 'empresas:empresa_update' empresa.id %}" class="btn btn-sm btn-outline-dark">Editar</a>
+								</td>
+							</tr>
+							{% empty %}
+							<tr>
+								<td colspan="5" class="text-center py-4">No hay empresas registradas.</td>
+							</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+		
+		<div class="col-md-4">
+			<div class="card">
+				<div class="card-header">
+					<h6 class="m-0">Resumen</h6>
+				</div>
+				<div class="card-body">
+					<div class="d-flex justify-content-between mb-2">
+						<span>Total Empresas:</span>
+						<strong>{{ empresas.count }}</strong>
+					</div>
+					<div class="d-flex justify-content-between mb-2">
+						<span>Empresas Activas:</span>
+						<strong>{{ empresas|length }}</strong>
+					</div>
+					<div class="d-flex justify-content-between">
+						<span>Total Sucursales:</span>
+						<strong>0</strong>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}

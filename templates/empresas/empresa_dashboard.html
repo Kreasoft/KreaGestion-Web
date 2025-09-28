@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% load producto_filters %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+<style>
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+</style>
+{% block page_title %}🚀 SISTEMA ACTUALIZADO - VERSIÓN 2.0 🚀{% endblock %}
+{% block page_heading %}🚀 SISTEMA ACTUALIZADO - VERSIÓN 2.0 🚀{% endblock %}
+
+{% block content %}
+<!-- TARJETA DE CONFIRMACIÓN MEGA VISIBLE -->
+<div class="row mb-4">
+	<div class="col-12">
+		<div class="alert alert-danger text-center" style="background: linear-gradient(135deg, #ff0000 0%, #ff4444 100%); border: 10px solid #000000; box-shadow: 0 0 30px rgba(255, 0, 0, 0.8); animation: pulse 1s infinite; min-height: 200px; display: flex; align-items: center; justify-content: center;">
+			<div>
+				<h1 class="mb-4 text-white" style="font-size: 4rem; font-weight: 900; text-shadow: 3px 3px 6px rgba(0,0,0,0.8);">
+					🔥 ¡SISTEMA COMPLETAMENTE ACTUALIZADO! 🔥
+				</h1>
+				<h2 class="mb-4 text-white" style="font-size: 2.5rem; font-weight: bold;">
+					✅ ARTICULOS FUNCIONANDO PERFECTAMENTE ✅
+				</h2>
+				<h3 class="mb-4 text-white" style="font-size: 2rem;">
+					🚀 VERSIÓN 2.0 - SERVIDOR ACTIVO 🚀
+				</h3>
+				<p class="mb-0 text-white fs-3" style="font-weight: bold;">
+					📅 <strong>Fecha:</strong> {{ "now"|date:"d/m/Y H:i:s" }} | 
+					🟢 <strong>Estado:</strong> OPERATIVO | 
+					🔢 <strong>Versión:</strong> 2.0 | 
+					⚡ <strong>Servidor:</strong> ACTIVO
+				</p>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Tarjetas de Estadísticas -->
+<div class="row g-4 mb-4">
+	<!-- Productos -->
+	<div class="col-xl-3 col-md-6">
+		<div class="card text-white h-100" style="background: linear-gradient(135deg, #D2691E 0%, #CD853F 100%); border: 2px solid #E0E0E0; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+			<div class="card-body d-flex flex-column justify-content-center">
+				<div class="d-flex justify-content-between align-items-center">
+					<div>
+						<h4 class="mb-0">{{ total_productos }}</h4>
+						<small>Total Productos</small>
+					</div>
+					<div class="align-self-center">
+						<i class="fas fa-box fa-2x opacity-75"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Productos con Stock -->
+	<div class="col-xl-3 col-md-6">
+		<div class="card text-white h-100" style="background: linear-gradient(135deg, #F5DEB3 0%, #DEB887 100%); border: 2px solid #E0E0E0; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+			<div class="card-body d-flex flex-column justify-content-center">
+				<div class="d-flex justify-content-between align-items-center">
+					<div>
+						<h4 class="mb-0">{{ productos_con_stock }}</h4>
+						<small>Con Stock</small>
+					</div>
+					<div class="align-self-center">
+						<i class="fas fa-check-circle fa-2x opacity-75"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Productos Stock Bajo -->
+	<div class="col-xl-3 col-md-6">
+		<div class="card text-white h-100" style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); border: 2px solid #E0E0E0; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+			<div class="card-body d-flex flex-column justify-content-center">
+				<div class="d-flex justify-content-between align-items-center">
+					<div>
+						<h4 class="mb-0">{{ productos_stock_bajo }}</h4>
+						<small>Stock Bajo</small>
+					</div>
+					<div class="align-self-center">
+						<i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Productos Sin Stock -->
+	<div class="col-xl-3 col-md-6">
+		<div class="card text-white h-100" style="background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%); border: 2px solid #E0E0E0; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+			<div class="card-body d-flex flex-column justify-content-center">
+				<div class="d-flex justify-content-between align-items-center">
+					<div>
+						<h4 class="mb-0">{{ productos_sin_stock }}</h4>
+						<small>Sin Stock</small>
+					</div>
+					<div class="align-self-center">
+						<i class="fas fa-times-circle fa-2x opacity-75"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Segunda fila de estadísticas -->
+<div class="row g-4 mb-4">
+	<!-- Categorías -->
+	<div class="col-xl-3 col-md-6">
+		<div class="card text-white h-100" style="background: linear-gradient(135deg, #FF8C00 0%, #FF6347 100%); border: 2px solid #E0E0E0; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+			<div class="card-body d-flex flex-column justify-content-center">
+				<div class="d-flex justify-content-between align-items-center">
+					<div>
+						<h4 class="mb-0">{{ total_categorias }}</h4>
+						<small>Categorías</small>
+					</div>
+					<div class="align-self-center">
+						<i class="fas fa-tags fa-2x opacity-75"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Unidades de Medida -->
+	<div class="col-xl-3 col-md-6">
+		<div class="card text-white h-100" style="background: linear-gradient(135deg, #8FBC8F 0%, #556B2F 100%); border: 2px solid #E0E0E0; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+			<div class="card-body d-flex flex-column justify-content-center">
+				<div class="d-flex justify-content-between align-items-center">
+					<div>
+						<h4 class="mb-0">{{ total_unidades }}</h4>
+						<small>Unidades</small>
+					</div>
+					<div class="align-self-center">
+						<i class="fas fa-ruler fa-2x opacity-75"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Valor Total Inventario -->
+	<div class="col-xl-3 col-md-6">
+		<div class="card text-white h-100" style="background: linear-gradient(135deg, #D2B48C 0%, #BC8F8F 100%); border: 2px solid #E0E0E0; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+			<div class="card-body d-flex flex-column justify-content-center">
+				<div class="d-flex justify-content-between align-items-center">
+					<div>
+						<h4 class="mb-0">{{ valor_total_inventario|formato_chileno:0 }}</h4>
+						<small>Valor Inventario</small>
+					</div>
+					<div class="align-self-center">
+						<i class="fas fa-dollar-sign fa-2x opacity-75"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Sucursales -->
+	<div class="col-xl-3 col-md-6">
+		<div class="card text-white h-100" style="background: linear-gradient(135deg, #696969 0%, #2F4F4F 100%); border: 2px solid #E0E0E0; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+			<div class="card-body d-flex flex-column justify-content-center">
+				<div class="d-flex justify-content-between align-items-center">
+					<div>
+						<h4 class="mb-0">{{ total_sucursales }}</h4>
+						<small>Sucursales</small>
+					</div>
+					<div class="align-self-center">
+						<i class="fas fa-building fa-2x opacity-75"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Alertas y Acciones Rápidas -->
+<div class="row mb-4">
+	<!-- Alertas -->
+	<div class="col-lg-8">
+		<div class="card shadow">
+			<div class="card-header py-3">
+				<h6 class="m-0 font-weight-bold" style="color: #1E40AF;">Alertas del Sistema</h6>
+			</div>
+			<div class="card-body">
+				{% if productos_stock_bajo > 0 %}
+					<div class="alert alert-warning d-flex align-items-center" role="alert">
+						<i class="fas fa-exclamation-triangle me-2"></i>
+						<div>
+							<strong>Stock Bajo:</strong> {{ productos_stock_bajo }} productos necesitan reposición.
+							<a href="{% url 'articulos:stock_list' %}" class="alert-link">Ver detalles</a>
+						</div>
+					</div>
+				{% endif %}
+				
+				{% if productos_sin_stock > 0 %}
+					<div class="alert alert-danger d-flex align-items-center" role="alert">
+						<i class="fas fa-times-circle me-2"></i>
+						<div>
+							<strong>Sin Stock:</strong> {{ productos_sin_stock }} productos están agotados.
+							<a href="{% url 'articulos:stock_list' %}" class="alert-link">Ver detalles</a>
+						</div>
+					</div>
+				{% endif %}
+				
+				{% if productos_stock_bajo == 0 and productos_sin_stock == 0 %}
+					<div class="alert alert-success d-flex align-items-center" role="alert">
+						<i class="fas fa-check-circle me-2"></i>
+						<div>
+							<strong>¡Excelente!</strong> Todos los productos tienen stock suficiente.
+						</div>
+					</div>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+
+	<!-- Acciones Rápidas -->
+	<div class="col-lg-4">
+		<div class="card shadow">
+			<div class="card-header py-3">
+				<h6 class="m-0 font-weight-bold" style="color: #1E40AF;">Acciones Rápidas</h6>
+			</div>
+			<div class="card-body">
+				<div class="d-grid gap-2">
+					<a href="{% url 'articulos:producto_create' %}" class="btn btn-sm" style="background-color: #1E40AF; color: white; border: none;">
+						<i class="fas fa-plus me-2"></i>Nuevo Producto
+					</a>
+					<a href="{% url 'articulos:categoria_create' %}" class="btn btn-sm" style="border: 1px solid #1E40AF; color: #1E40AF; background: transparent;">
+						<i class="fas fa-tags me-2"></i>Nueva Categoría
+					</a>
+					<a href="{% url 'articulos:unidad_medida_create' %}" class="btn btn-sm" style="border: 1px solid #1E40AF; color: #1E40AF; background: transparent;">
+						<i class="fas fa-ruler me-2"></i>Nueva Unidad
+					</a>
+					<a href="{% url 'articulos:impuesto_create' %}" class="btn btn-sm" style="border: 1px solid #1E40AF; color: #1E40AF; background: transparent;">
+						<i class="fas fa-percentage me-2"></i>Nuevo Impuesto
+					</a>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Productos Recientes y Categorías Populares -->
+<div class="row">
+	<!-- Productos Recientes -->
+	<div class="col-lg-8">
+		<div class="card shadow">
+			<div class="card-header py-3 d-flex justify-content-between align-items-center">
+				<h6 class="m-0 font-weight-bold" style="color: #1E40AF;">Productos Recientes</h6>
+				<a href="{% url 'articulos:producto_list' %}" class="btn btn-sm" style="border: 1px solid #1E40AF; color: #1E40AF; background: transparent;">Ver Todos</a>
+			</div>
+			<div class="card-body">
+				{% if ultimos_productos %}
+					<div class="table-responsive">
+						<table class="table table-hover">
+							<thead>
+								<tr>
+									<th>Código</th>
+									<th>Nombre</th>
+									<th>Categoría</th>
+									<th>Precio</th>
+									<th>Stock</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for producto in ultimos_productos %}
+								<tr>
+									<td><strong>{{ producto.codigo }}</strong></td>
+									<td>{{ producto.nombre }}</td>
+									<td>
+										{% if producto.categoria %}
+											<span class="badge bg-info">{{ producto.categoria.nombre }}</span>
+										{% else %}
+											<span class="text-muted">Sin categoría</span>
+										{% endif %}
+									</td>
+									<td>{{ producto.precio_venta|formato_chileno:0 }}</td>
+									<td>
+										<span class="{% if producto.stock_total > 0 %}text-success{% else %}text-danger{% endif %}">
+											{{ producto.stock_total|default:0 }}
+										</span>
+									</td>
+								</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+				{% else %}
+					<div class="text-center py-4">
+						<i class="fas fa-box fa-3x text-muted mb-3"></i>
+						<p class="text-muted">No hay productos registrados</p>
+						<a href="{% url 'articulos:producto_create' %}" class="btn" style="background-color: #1E40AF; color: white; border: none;">Crear Primer Producto</a>
+					</div>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+
+	<!-- Categorías Populares -->
+	<div class="col-lg-4">
+		<div class="card shadow">
+			<div class="card-header py-3">
+				<h6 class="m-0 font-weight-bold" style="color: #1E40AF;">Categorías Populares</h6>
+			</div>
+			<div class="card-body">
+				{% if categorias_populares %}
+					<div class="list-group list-group-flush">
+						{% for categoria in categorias_populares %}
+						<div class="list-group-item d-flex justify-content-between align-items-center">
+							<div>
+								<strong>{{ categoria.nombre }}</strong>
+								<br><small class="text-muted">{{ categoria.total_productos }} productos</small>
+							</div>
+							<span class="badge bg-primary rounded-pill">{{ categoria.total_productos }}</span>
+						</div>
+						{% endfor %}
+					</div>
+				{% else %}
+					<div class="text-center py-3">
+						<i class="fas fa-tags fa-2x text-muted mb-2"></i>
+						<p class="text-muted mb-0">No hay categorías registradas</p>
+					</div>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
