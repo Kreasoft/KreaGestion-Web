@@ -2,6 +2,7 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 {% load widget_tweaks %}
+{% load articulo_filters %}
 
 {% block title %}Lista de Artículos{% endblock %}
 
@@ -103,7 +104,6 @@
                             </div>
                         </div>
                     </div>
-                <div class="card-body">
                     <!-- Filtros Avanzados -->
                     <div class="row mb-4">
                         <div class="col-12">
@@ -233,17 +233,17 @@
                                     </td>
                                     <td class="text-end">
                                         <span class="text-success fw-bold">
-                                            ${{ articulo.precio_costo|floatformat:0 }}
+                                            ${{ articulo.precio_costo|format_price }}
                                         </span>
                                     </td>
                                     <td class="text-end">
                                         <span class="text-primary fw-bold">
-                                            ${{ articulo.precio_venta|floatformat:0 }}
+                                            ${{ articulo.precio_venta|format_price }}
                                         </span>
                                     </td>
                                     <td class="text-end">
                                         <span class="text-danger fw-bold fs-6">
-                                            ${{ articulo.precio_final|floatformat:0 }}
+                                            ${{ articulo.precio_final|format_price }}
                                         </span>
                                     </td>
                                     <td class="text-center">
@@ -352,17 +352,11 @@
                                         </li>
                                     {% endif %}
                                     
-                                    {% for num in page_obj.paginator.page_range %}
-                                        {% if page_obj.number == num %}
-                                            <li class="page-item active">
-                                                <span class="page-link">{{ num }}</span>
-                                            </li>
-                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if activo %}&activo={{ activo }}{% endif %}">{{ num }}</a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
+                                    <li class="page-item active">
+                                        <span class="page-link">
+                                            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                                        </span>
+                                    </li>
                                     
                                     {% if page_obj.has_next %}
                                         <li class="page-item">

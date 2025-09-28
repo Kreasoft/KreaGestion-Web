@@ -132,6 +132,8 @@ class Articulo(models.Model):
     impuesto_especifico = models.CharField(
         max_length=50, 
         default='0.00',
+        blank=True,
+        null=True,
         verbose_name="Impuesto Específico"
     )
     
@@ -237,28 +239,8 @@ class Articulo(models.Model):
         return Decimal('0.00')
     
     def save(self, *args, **kwargs):
-        """Calcula automáticamente los precios al guardar"""
-        # Convertir strings a decimales para cálculos
-        try:
-            precio_costo = self._string_to_decimal(self.precio_costo)
-            margen_porcentaje = self._string_to_decimal(self.margen_porcentaje)
-            precio_venta = self._string_to_decimal(self.precio_venta)
-            
-            # Si se modificó el precio de costo o margen, calcular precio de venta
-            if precio_costo > 0 and margen_porcentaje > 0:
-                precio_venta_calculado = precio_costo * (1 + margen_porcentaje / 100)
-                self.precio_venta = str(precio_venta_calculado)
-                precio_venta = precio_venta_calculado
-            
-            # Calcular precio final usando el precio de venta correcto
-            if precio_venta > 0:
-                precio_final_calculado = precio_venta * Decimal('1.19')
-                self.precio_final = str(int(precio_final_calculado))
-                
-        except Exception:
-            # Si hay error en los cálculos, continuar sin modificar
-            pass
-        
+        """Guarda el artículo sin cálculos automáticos"""
+        # Los precios se manejan manualmente en el formulario
         super().save(*args, **kwargs)
     
     def _string_to_decimal(self, value):

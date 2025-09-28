@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load articulo_filters %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
@@ -64,15 +65,15 @@
                             <table class="table table-borderless">
                                 <tr>
                                     <td><strong>Precio Costo:</strong></td>
-                                    <td class="text-success fw-bold" id="precio-costo">${{ articulo.precio_costo }}</td>
+                                    <td class="text-success fw-bold" id="precio-costo">${{ articulo.precio_costo|format_price }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Precio Venta:</strong></td>
-                                    <td class="text-primary fw-bold" id="precio-venta">${{ articulo.precio_venta }}</td>
+                                    <td class="text-primary fw-bold" id="precio-venta">${{ articulo.precio_venta|format_price }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Precio Final:</strong></td>
-                                    <td class="text-danger fw-bold fs-5" id="precio-final">${{ articulo.precio_final }}</td>
+                                    <td class="text-danger fw-bold fs-5" id="precio-final">${{ articulo.precio_final|format_price }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Margen:</strong></td>
@@ -200,112 +201,6 @@
     </div>
 </div>
 
-<script>
-// Función para formatear precios con separadores de miles
-function formatearPrecio(elemento) {
-    let texto = elemento.textContent;
-    // Remover el símbolo $ y extraer solo el número
-    let numero = texto.replace('$', '').trim();
-    
-    // Convertir a número y formatear
-    try {
-        let valor = parseFloat(numero);
-        if (!isNaN(valor)) {
-            // Formatear con separadores de miles
-            let formateado = Math.round(valor).toLocaleString('es-CL');
-            elemento.textContent = '$' + formateado;
-        }
-    } catch (e) {
-        console.log('Error formateando precio:', e);
-    }
-}
-
-// Función para formatear porcentaje
-function formatearPorcentaje(elemento) {
-    let texto = elemento.textContent;
-    // Remover el símbolo % y extraer solo el número
-    let numero = texto.replace('%', '').trim();
-    
-    try {
-        let valor = parseFloat(numero);
-        if (!isNaN(valor)) {
-            // Formatear con 2 decimales
-            let formateado = valor.toFixed(2);
-            elemento.textContent = formateado + '%';
-        }
-    } catch (e) {
-        console.log('Error formateando porcentaje:', e);
-    }
-}
-
-// Formatear precios y porcentajes cuando se carga la página
-document.addEventListener('DOMContentLoaded', function() {
-    // Formatear precios
-    const precioCosto = document.getElementById('precio-costo');
-    const precioVenta = document.getElementById('precio-venta');
-    const precioFinal = document.getElementById('precio-final');
-    const margenPorcentaje = document.getElementById('margen-porcentaje');
-    
-    if (precioCosto) formatearPrecio(precioCosto);
-    if (precioVenta) formatearPrecio(precioVenta);
-    if (precioFinal) formatearPrecio(precioFinal);
-    if (margenPorcentaje) formatearPorcentaje(margenPorcentaje);
-    
-    // Corregir valores corruptos automáticamente
-    corregirValoresCorruptos();
-});
-
-// Función para corregir valores corruptos
-function corregirValoresCorruptos() {
-    const precioFinal = document.getElementById('precio-final');
-    const margenPorcentaje = document.getElementById('margen-porcentaje');
-    
-    if (precioFinal) {
-        let texto = precioFinal.textContent;
-        let numero = texto.replace('$', '').replace(/\./g, '');
-        
-        // Si el número es muy grande (corrupto), corregirlo
-        if (numero.length > 10) {
-            // Calcular precio final correcto desde precio de venta
-            const precioVenta = document.getElementById('precio-venta');
-            if (precioVenta) {
-                let ventaTexto = precioVenta.textContent;
-                let ventaNumero = ventaTexto.replace('$', '').replace(/\./g, '');
-                let ventaValor = parseFloat(ventaNumero);
-                
-                if (!isNaN(ventaValor)) {
-                    let precioFinalCorrecto = Math.round(ventaValor * 1.19);
-                    precioFinal.textContent = '$' + precioFinalCorrecto.toLocaleString('es-CL');
-                }
-            }
-        }
-    }
-    
-    if (margenPorcentaje) {
-        let texto = margenPorcentaje.textContent;
-        let numero = parseFloat(texto.replace('%', ''));
-        
-        // Si el margen es negativo o muy grande, corregirlo
-        if (numero < 0 || numero > 1000) {
-            const precioCosto = document.getElementById('precio-costo');
-            const precioVenta = document.getElementById('precio-venta');
-            
-            if (precioCosto && precioVenta) {
-                let costoTexto = precioCosto.textContent;
-                let ventaTexto = precioVenta.textContent;
-                let costoNumero = costoTexto.replace('$', '').replace(/\./g, '');
-                let ventaNumero = ventaTexto.replace('$', '').replace(/\./g, '');
-                let costoValor = parseFloat(costoNumero);
-                let ventaValor = parseFloat(ventaNumero);
-                
-                if (!isNaN(costoValor) && !isNaN(ventaValor) && costoValor > 0) {
-                    let margenCorrecto = ((ventaValor - costoValor) / costoValor) * 100;
-                    margenPorcentaje.textContent = margenCorrecto.toFixed(2) + '%';
-                }
-            }
-        }
-    }
-}
-</script>
+<!-- Los precios se formatean correctamente con el filtro format_price -->
 {% endblock %}
 

@@ -29,4 +29,7 @@ urlpatterns = [
     path('impuestos/<int:pk>/editar/', views.impuesto_especifico_update, name='impuesto_especifico_update'),
     path('impuestos/<int:pk>/eliminar/', views.impuesto_especifico_delete, name='impuesto_especifico_delete'),
     
+    # Cálculos de Precios
+    path('calcular-precios/', views.calcular_precios_articulo, name='calcular_precios_articulo'),
+    
 ]

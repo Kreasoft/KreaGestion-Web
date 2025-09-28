@@ -100,11 +100,11 @@ def empresa_create(request):
 			ConfiguracionEmpresa.objects.create(empresa=empresa)
 			
 			messages.success(request, 'Empresa creada exitosamente.')
-			return redirect('dashboard')
+			return redirect('empresas:empresa_detail', pk=empresa.pk)
 	else:
 		form = EmpresaForm()
 	
-	return render(request, 'empresas/editar_empresa_activa.html', {'form': form, 'empresa': None, 'titulo': 'Nueva Empresa'})
+	return render(request, 'empresas/empresa_form.html', {'form': form})
 
 
 @solo_superusuario
@@ -127,7 +127,7 @@ def empresa_update(request, pk):
 	else:
 		form = EmpresaForm(instance=empresa)
 	
-	return render(request, 'empresas/editar_empresa_activa.html', {'form': form, 'empresa': empresa, 'titulo': f'Editar Empresa: {empresa.nombre}'})
+	return render(request, 'empresas/empresa_form.html', {'form': form, 'empresa': empresa})
 
 
 @solo_superusuario
@@ -348,18 +348,13 @@ def editar_empresa_activa(request):
 		return redirect('dashboard')
 
 	if request.method == 'POST':
-		print(f"DEBUG - POST recibido: {request.POST}")
-		print(f"DEBUG - FILES recibidos: {request.FILES}")
 		form = EmpresaForm(request.POST, request.FILES, instance=empresa_activa)
-		print(f"DEBUG - Form válido: {form.is_valid()}")
 		
 		if form.is_valid():
 			empresa_guardada = form.save()
-			print(f"DEBUG - Empresa guardada: {empresa_guardada}")
 			messages.success(request, f'Empresa "{empresa_activa.nombre}" actualizada correctamente.')
 			return redirect('dashboard')
 		else:
-			print(f"DEBUG - Errores del formulario: {form.errors}")
 			messages.error(request, 'Hubo errores en el formulario.')
 	else:
 		form = EmpresaForm(instance=empresa_activa)

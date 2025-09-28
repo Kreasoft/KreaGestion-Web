@@ -38,11 +38,14 @@ def home(request):
 			sucursal_activa = empresa.sucursales.first()
 		
 		# Importar modelos de productos para estadísticas
+		# from productos.models import Producto, CategoriaProducto, UnidadMedida
 		from django.db.models import Sum, Q, F
 		from datetime import datetime
 		
 		# Estadísticas de productos (temporalmente deshabilitado)
 		total_productos = 0
+		
+		# Productos con stock (temporalmente deshabilitado)
 		productos_con_stock = 0
 		productos_stock_bajo = 0
 		productos_sin_stock = 0
@@ -100,11 +103,11 @@ def empresa_create(request):
 			ConfiguracionEmpresa.objects.create(empresa=empresa)
 			
 			messages.success(request, 'Empresa creada exitosamente.')
-			return redirect('dashboard')
+			return redirect('empresas:empresa_detail', pk=empresa.pk)
 	else:
 		form = EmpresaForm()
 	
-	return render(request, 'empresas/editar_empresa_activa.html', {'form': form, 'empresa': None, 'titulo': 'Nueva Empresa'})
+	return render(request, 'empresas/empresa_form.html', {'form': form})
 
 
 @solo_superusuario
@@ -127,7 +130,7 @@ def empresa_update(request, pk):
 	else:
 		form = EmpresaForm(instance=empresa)
 	
-	return render(request, 'empresas/editar_empresa_activa.html', {'form': form, 'empresa': empresa, 'titulo': f'Editar Empresa: {empresa.nombre}'})
+	return render(request, 'empresas/empresa_form.html', {'form': form, 'empresa': empresa})
 
 
 @solo_superusuario
@@ -322,7 +325,7 @@ def seleccionar_empresa(request):
 				# Guardar la empresa seleccionada en la sesión
 				request.session['empresa_activa_id'] = empresa.id
 				messages.success(request, f'Empresa cambiada a: {empresa.nombre}')
-				return redirect('dashboard')  # Redirigir al dashboard principal
+				return redirect('dashboard')
 			except Empresa.DoesNotExist:
 				messages.error(request, 'Empresa no encontrada.')
 	
@@ -348,18 +351,174 @@ def editar_empresa_activa(request):
 		return redirect('dashboard')
 
 	if request.method == 'POST':
-		print(f"DEBUG - POST recibido: {request.POST}")
-		print(f"DEBUG - FILES recibidos: {request.FILES}")
+		print(f"POST data: {request.POST}")
+		print(f"FILES data: {request.FILES}")
+		print(f"Content type: {request.content_type}")
+		
 		form = EmpresaForm(request.POST, request.FILES, instance=empresa_activa)
-		print(f"DEBUG - Form válido: {form.is_valid()}")
+		print(f"Form is valid: {form.is_valid()}")
 		
 		if form.is_valid():
+			# Debug: verificar si hay archivo
+			if 'logo' in request.FILES:
+				print(f"Archivo recibido: {request.FILES['logo'].name}")
+				print(f"Tamaño del archivo: {request.FILES['logo'].size}")
+			else:
+				print("No se recibió archivo de logo")
+			
 			empresa_guardada = form.save()
-			print(f"DEBUG - Empresa guardada: {empresa_guardada}")
+			print(f"Logo guardado: {empresa_guardada.logo}")
+			print(f"Logo path: {empresa_guardada.logo.path if empresa_guardada.logo else 'None'}")
 			messages.success(request, f'Empresa "{empresa_activa.nombre}" actualizada correctamente.')
 			return redirect('dashboard')
 		else:
-			print(f"DEBUG - Errores del formulario: {form.errors}")
+			print(f"Errores del formulario: {form.errors}")
+			messages.error(request, 'Hubo errores en el formulario.')
+	else:
+		form = EmpresaForm(instance=empresa_activa)
+
+	context = {
+		'form': form,
+		'empresa': empresa_activa,
+		'titulo': f'Editar Empresa: {empresa_activa.nombre}',
+	}
+
+	return render(request, 'empresas/editar_empresa_activa.html', context)
+
+	"""
+	Elimina una sucursal - verifica que pertenezca a la empresa del usuario
+	"""
+	sucursal = get_object_or_404(Sucursal, pk=pk)
+	
+	# Verificar que el usuario tenga acceso a esta sucursal
+	if not request.user.is_superuser and sucursal.empresa != request.empresa:
+		messages.error(request, 'No tiene acceso a esta sucursal.')
+		return redirect('dashboard')
+	
+	if request.method == 'POST':
+		sucursal.delete()
+		messages.success(request, 'Sucursal eliminada exitosamente.')
+		return redirect('empresas:sucursal_list')
+	
+	return render(request, 'empresas/sucursal_confirm_delete.html', {'sucursal': sucursal})
+
+
+@requiere_empresa
+def empresa_configuracion(request):
+	"""
+	Vista para configurar datos de la empresa
+	"""
+	empresa = request.empresa
+	
+	# Si no hay empresa asignada, redirigir a crear una
+	if not empresa:
+		if request.user.is_superuser:
+			messages.info(request, 'Primero debe crear una empresa.')
+			return redirect('empresas:empresa_create')
+		else:
+			messages.error(request, 'No tiene acceso a ninguna empresa. Contacte al administrador.')
+			return redirect('logout')
+	
+	# Obtener o crear configuración
+	try:
+		configuracion = ConfiguracionEmpresa.objects.get(empresa=empresa)
+	except ConfiguracionEmpresa.DoesNotExist:
+		configuracion = ConfiguracionEmpresa.objects.create(empresa=empresa)
+	
+	if request.method == 'POST':
+		form = ConfiguracionEmpresaForm(request.POST, instance=configuracion)
+		if form.is_valid():
+			configuracion = form.save(commit=False)
+			configuracion.empresa = empresa
+			configuracion.save()
+			messages.success(request, 'Configuración actualizada exitosamente.')
+			return redirect('empresas:empresa_configuracion')
+	else:
+		form = ConfiguracionEmpresaForm(instance=configuracion)
+	
+	context = {
+		'empresa': empresa,
+		'form': form,
+		'configuracion': configuracion,
+	}
+	
+	return render(request, 'empresas/empresa_configuracion.html', context)
+
+
+def paleta_colores(request):
+	"""
+	Vista para mostrar la paleta de colores del sistema
+	"""
+	return render(request, 'paleta_colores.html')
+
+
+def seleccionar_empresa(request):
+	"""
+	Vista para que superusuarios seleccionen una empresa activa
+	"""
+	if not request.user.is_superuser:
+		messages.error(request, 'Solo los administradores pueden cambiar de empresa.')
+		return redirect('dashboard')
+	
+	empresas = Empresa.objects.all()
+	empresa_actual = request.empresa
+	
+	if request.method == 'POST':
+		empresa_id = request.POST.get('empresa_id')
+		if empresa_id:
+			try:
+				empresa = Empresa.objects.get(id=empresa_id)
+				# Guardar la empresa seleccionada en la sesión
+				request.session['empresa_activa_id'] = empresa.id
+				messages.success(request, f'Empresa cambiada a: {empresa.nombre}')
+				return redirect('dashboard')
+			except Empresa.DoesNotExist:
+				messages.error(request, 'Empresa no encontrada.')
+	
+	context = {
+		'empresas': empresas,
+		'empresa_actual': empresa_actual,
+	}
+	
+	return render(request, 'empresas/seleccionar_empresa.html', context)
+
+
+def editar_empresa_activa(request):
+	"""
+	Vista para editar la empresa activa
+	"""
+	if not request.user.is_superuser:
+		messages.error(request, 'Solo los administradores pueden editar empresas.')
+		return redirect('dashboard')
+
+	empresa_activa = request.empresa
+	if not empresa_activa:
+		messages.error(request, 'No hay empresa activa para editar.')
+		return redirect('dashboard')
+
+	if request.method == 'POST':
+		print(f"POST data: {request.POST}")
+		print(f"FILES data: {request.FILES}")
+		print(f"Content type: {request.content_type}")
+		
+		form = EmpresaForm(request.POST, request.FILES, instance=empresa_activa)
+		print(f"Form is valid: {form.is_valid()}")
+		
+		if form.is_valid():
+			# Debug: verificar si hay archivo
+			if 'logo' in request.FILES:
+				print(f"Archivo recibido: {request.FILES['logo'].name}")
+				print(f"Tamaño del archivo: {request.FILES['logo'].size}")
+			else:
+				print("No se recibió archivo de logo")
+			
+			empresa_guardada = form.save()
+			print(f"Logo guardado: {empresa_guardada.logo}")
+			print(f"Logo path: {empresa_guardada.logo.path if empresa_guardada.logo else 'None'}")
+			messages.success(request, f'Empresa "{empresa_activa.nombre}" actualizada correctamente.')
+			return redirect('dashboard')
+		else:
+			print(f"Errores del formulario: {form.errors}")
 			messages.error(request, 'Hubo errores en el formulario.')
 	else:
 		form = EmpresaForm(instance=empresa_activa)

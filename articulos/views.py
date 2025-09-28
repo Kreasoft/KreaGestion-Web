@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal
 from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico
 from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm
@@ -38,7 +39,7 @@ def articulo_list(request):
         articulos = articulos.filter(activo=activo == 'true')
     
     # Paginación
-    paginator = Paginator(articulos, 20)
+    paginator = Paginator(articulos, 5)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -88,7 +89,7 @@ def articulo_create(request):
             articulo.empresa = request.empresa
             articulo.save()
             messages.success(request, f'Artículo "{articulo.nombre}" creado exitosamente.')
-            return redirect('articulos:articulo_detail', pk=articulo.pk)
+            return redirect('articulos:articulo_list')
         else:
             messages.error(request, 'Error en el formulario. Revise los datos.')
             # Debug: mostrar errores específicos
@@ -123,7 +124,7 @@ def articulo_update(request, pk):
             articulo = form.save(commit=False)
             articulo.save()
             messages.success(request, f'Artículo "{articulo.nombre}" actualizado exitosamente.')
-            return redirect('articulos:articulo_detail', pk=articulo.pk)
+            return redirect('articulos:articulo_list')
         else:
             messages.error(request, 'Error en el formulario. Revise los datos.')
             # Debug: mostrar errores específicos
@@ -467,3 +468,69 @@ def impuesto_especifico_delete(request, pk):
     }
     
     return render(request, 'articulos/impuesto_especifico_confirm_delete.html', context)
+
+
+@csrf_exempt
+@login_required
+def calcular_precios_articulo(request):
+    """Vista AJAX para cálculos bidireccionales de precios"""
+    try:
+        # Obtener datos del POST
+        costo = Decimal(request.POST.get('costo', '0'))
+        precio_venta = Decimal(request.POST.get('precio_venta', '0'))
+        precio_final = Decimal(request.POST.get('precio_final', '0'))
+        margen_porcentaje = Decimal(request.POST.get('margen_porcentaje', '0'))
+        impuesto_especifico = Decimal(request.POST.get('impuesto_especifico', '0'))
+        modo = request.POST.get('modo', 'margen')  # 'margen', 'precio_venta', 'precio_final'
+        
+        # Factores de impuestos
+        factor_iva = Decimal('1.19')  # IVA 19%
+        factor_especifico = (Decimal('1') + impuesto_especifico / Decimal('100')) if impuesto_especifico > 0 else Decimal('1')
+        factor_total = factor_iva * factor_especifico
+        
+        if modo == 'margen' and costo and margen_porcentaje:
+            # Calcular precio neto desde margen
+            factor_utilidad = Decimal('1') + (margen_porcentaje / Decimal('100'))
+            precio_neto = costo * factor_utilidad
+            precio_venta = precio_neto
+            precio_final = precio_neto * factor_total
+            
+        elif modo == 'precio_venta' and precio_venta:
+            # Calcular desde precio neto
+            precio_neto = precio_venta
+            precio_final = precio_neto * factor_total
+            if costo > 0:
+                margen_porcentaje = ((precio_neto / costo) - Decimal('1')) * Decimal('100')
+            
+        elif modo == 'precio_final' and precio_final:
+            # Calcular precio neto hacia atrás desde precio final
+            precio_neto = precio_final / factor_total
+            precio_venta = precio_neto
+            if costo > 0:
+                margen_porcentaje = ((precio_neto / costo) - Decimal('1')) * Decimal('100')
+        else:
+            return JsonResponse({'error': 'Datos insuficientes para el cálculo'}, status=400)
+            
+        # Redondear resultados
+        precio_neto = round(precio_neto, 2)
+        precio_venta = round(precio_venta, 2)
+        precio_final = round(precio_final, 2)
+        margen_porcentaje = round(margen_porcentaje, 2)
+        
+        # Calcular impuestos
+        valor_iva = round(precio_neto * Decimal('0.19'), 2)
+        valor_impuesto_especifico = round(precio_neto * (impuesto_especifico / Decimal('100')), 2)
+        
+        return JsonResponse({
+            'precio_neto': str(precio_neto),
+            'precio_venta': str(precio_venta),
+            'precio_final': str(precio_final),
+            'margen_porcentaje': str(margen_porcentaje),
+            'valor_iva': str(valor_iva),
+            'valor_impuesto_especifico': str(valor_impuesto_especifico)
+        })
+        
+    except (ValueError, TypeError) as e:
+        return JsonResponse({
+            'error': f'Error en el cálculo de precios: {str(e)}'
+        }, status=400)

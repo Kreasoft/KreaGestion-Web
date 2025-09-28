@@ -558,10 +558,20 @@ function removeLogoPreview() {
 
     // Función para calcular precios automáticamente (CÁLCULO CIRCULAR)
     function calcularPrecios() {
-        const precioCosto = parseFloat(document.getElementById('id_precio_costo').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-        const precioNeto = parseFloat(document.getElementById('id_precio_venta').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-        const precioFinal = parseFloat(document.getElementById('id_precio_final').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-        const impuestoEspecifico = parseFloat(document.getElementById('id_impuesto_especifico')?.value.replace(/[^\d,]/g, '').replace(',', '.') || 0) || 0;
+        // Función para convertir formato chileno a número
+        function parseChileanNumber(value) {
+            if (!value) return 0;
+            // Quitar separadores de miles (puntos) pero mantener coma decimal
+            let cleanValue = value.toString().replace(/\./g, '');
+            // Convertir coma decimal a punto
+            cleanValue = cleanValue.replace(',', '.');
+            return parseFloat(cleanValue) || 0;
+        }
+        
+        const precioCosto = parseChileanNumber(document.getElementById('id_precio_costo').value);
+        const precioNeto = parseChileanNumber(document.getElementById('id_precio_venta').value);
+        const precioFinal = parseChileanNumber(document.getElementById('id_precio_final').value);
+        const impuestoEspecifico = parseChileanNumber(document.getElementById('id_impuesto_especifico')?.value || 0);
         
         let iva, margenCalculado, nuevoPrecioNeto, nuevoPrecioFinal;
         
@@ -601,13 +611,18 @@ function removeLogoPreview() {
         }
         
         // Actualizar displays con valores finales
-        const precioNetoDisplay = parseFloat(document.getElementById('id_precio_venta').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-        const precioFinalDisplay = parseFloat(document.getElementById('id_precio_final').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+        const precioNetoDisplay = parseFloat(document.getElementById('id_precio_venta').value) || 0;
+        const precioFinalDisplay = parseFloat(document.getElementById('id_precio_final').value) || 0;
         const ivaDisplay = precioNetoDisplay * 0.19;
         
-        document.getElementById('precio_neto_display').textContent = '$' + Math.round(precioNetoDisplay).toLocaleString('es-CL');
-        document.getElementById('iva_display').textContent = '$' + Math.round(ivaDisplay).toLocaleString('es-CL');
-        document.getElementById('impuesto_especifico_display').textContent = '$' + Math.round(impuestoEspecifico).toLocaleString('es-CL');
+        // Formatear números correctamente
+        function formatearNumero(num) {
+            return '$' + num.toFixed(2).replace('.', ',');
+        }
+        
+        document.getElementById('precio_neto_display').textContent = formatearNumero(precioNetoDisplay);
+        document.getElementById('iva_display').textContent = formatearNumero(ivaDisplay);
+        document.getElementById('impuesto_especifico_display').textContent = formatearNumero(impuestoEspecifico);
         document.getElementById('precio_final_display').textContent = '$' + Math.round(precioFinalDisplay).toLocaleString('es-CL');
     }
 

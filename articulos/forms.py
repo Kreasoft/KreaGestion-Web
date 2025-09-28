@@ -25,7 +25,7 @@ class ArticuloForm(forms.ModelForm):
             'logo': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
             'precio_costo': forms.TextInput(attrs={'class': 'form-control'}),
             'precio_venta': forms.TextInput(attrs={'class': 'form-control'}),
-            'precio_final': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
+            'precio_final': forms.TextInput(attrs={'class': 'form-control'}),
             'margen_porcentaje': forms.TextInput(attrs={'class': 'form-control'}),
             'impuesto_especifico': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0.00'}),
             'control_stock': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -99,14 +99,22 @@ class ArticuloForm(forms.ModelForm):
     
     def clean_impuesto_especifico(self):
         impuesto = self.cleaned_data.get('impuesto_especifico')
-        if impuesto:
-            # Convertir a string y limpiar
-            impuesto_str = str(impuesto).strip()
-            # Si está vacío, usar valor por defecto
-            if not impuesto_str:
-                return '0.00'
+        # Siempre retornar un valor, nunca None
+        if impuesto is None or impuesto == '':
+            return '0.00'
+        
+        # Convertir a string y limpiar
+        impuesto_str = str(impuesto).strip()
+        # Si está vacío, usar valor por defecto
+        if not impuesto_str:
+            return '0.00'
+        
+        # Validar que sea un número válido
+        try:
+            float(impuesto_str.replace(',', '.'))
             return impuesto_str
-        return '0.00'
+        except (ValueError, AttributeError):
+            return '0.00'
     
     def clean_stock_maximo(self):
         stock_maximo = self.cleaned_data.get('stock_maximo')
@@ -115,38 +123,24 @@ class ArticuloForm(forms.ModelForm):
         return '0.00'
     
     def clean(self):
+        # Convertir valores de formato chileno a decimales antes de guardar
         cleaned_data = super().clean()
         
-        # Estructura correcta: Costo + Neto + % Utilidad + IVA + Imp. Esp. = Final
-        try:
-            precio_costo_str = cleaned_data.get('precio_costo', '0')
-            precio_venta_str = cleaned_data.get('precio_venta', '0')  # Este es el precio neto
-            margen_str = cleaned_data.get('margen_porcentaje', '30')
-            impuesto_esp_str = cleaned_data.get('impuesto_especifico', '0')
-            
-            # Convertir a decimales
-            precio_costo = self._string_to_decimal(precio_costo_str)
-            precio_neto = self._string_to_decimal(precio_venta_str)
-            margen = self._string_to_decimal(margen_str)
-            impuesto_especifico = self._string_to_decimal(impuesto_esp_str)
-            
-            # Si hay precio neto, calcular precio final con IVA
-            if precio_neto and precio_neto > 0:
-                # IVA = Precio Neto * 19%
-                iva = precio_neto * Decimal('0.19')
-                
-                # Precio Final = Precio Neto + IVA + Impuesto Específico
-                precio_final_calculado = precio_neto + iva + impuesto_especifico
-                cleaned_data['precio_final'] = f"{precio_final_calculado:.2f}"
-                
-                # Si hay precio de costo, calcular margen real
-                if precio_costo and precio_costo > 0:
-                    margen_calculado = ((precio_neto - precio_costo) / precio_costo) * 100
-                    cleaned_data['margen_porcentaje'] = f"{margen_calculado:.2f}"
-                    
-        except Exception:
-            # Si hay error, continuar sin modificar
-            pass
+        # Convertir precios de formato chileno a decimal
+        if 'precio_costo' in cleaned_data and cleaned_data['precio_costo']:
+            cleaned_data['precio_costo'] = self._string_to_decimal(cleaned_data['precio_costo'])
+        
+        if 'precio_venta' in cleaned_data and cleaned_data['precio_venta']:
+            cleaned_data['precio_venta'] = self._string_to_decimal(cleaned_data['precio_venta'])
+        
+        if 'precio_final' in cleaned_data and cleaned_data['precio_final']:
+            cleaned_data['precio_final'] = self._string_to_decimal(cleaned_data['precio_final'])
+        
+        if 'margen_porcentaje' in cleaned_data and cleaned_data['margen_porcentaje']:
+            cleaned_data['margen_porcentaje'] = self._string_to_decimal(cleaned_data['margen_porcentaje'])
+        
+        if 'impuesto_especifico' in cleaned_data and cleaned_data['impuesto_especifico']:
+            cleaned_data['impuesto_especifico'] = self._string_to_decimal(cleaned_data['impuesto_especifico'])
         
         return cleaned_data
     
