@@ -6,10 +6,11 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import render
+from . import views
 
 def dashboard_view(request):
     """Vista del dashboard principal"""
-    return render(request, 'dashboard.html')
+    return views.dashboard(request)
 
 def opciones_principales_view(request):
     """Vista de opciones principales del sistema"""

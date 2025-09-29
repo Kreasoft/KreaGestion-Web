@@ -2,10 +2,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal
 from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico
+from inventario.models import Stock
 from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm
 from empresas.decorators import requiere_empresa
 
@@ -43,6 +44,25 @@ def articulo_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    # Agregar stock total a cada artículo
+    for articulo in page_obj:
+        if articulo.control_stock:
+            stock_total = Stock.objects.filter(articulo=articulo).aggregate(
+                total=Sum('cantidad')
+            )['total']
+            articulo.stock_total = stock_total or 0
+        else:
+            articulo.stock_total = None
+    
+    # Estadísticas reales (antes de aplicar filtros)
+    articulos_totales = Articulo.objects.filter(empresa=request.empresa)
+    total_articulos = articulos_totales.count()
+    articulos_activos = articulos_totales.filter(activo=True).count()
+    articulos_inactivos = articulos_totales.filter(activo=False).count()
+    
+    # Contar artículos con control de stock
+    articulos_con_stock = articulos_totales.filter(control_stock=True).count()
+    
     # Categorías para el filtro
     categorias = CategoriaArticulo.objects.filter(empresa=request.empresa, activa=True)
     
@@ -52,6 +72,10 @@ def articulo_list(request):
         'search': search,
         'categoria_id': categoria_id,
         'activo': activo,
+        'total_articulos': total_articulos,
+        'articulos_activos': articulos_activos,
+        'articulos_inactivos': articulos_inactivos,
+        'articulos_con_stock': articulos_con_stock,
     }
     
     return render(request, 'articulos/articulo_list.html', context)

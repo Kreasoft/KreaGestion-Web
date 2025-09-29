@@ -228,6 +228,11 @@ document.getElementById('modalCrearBodega').addEventListener('show.bs.modal', fu
     });
 });
 
+// Resetear variable de edición cuando se cierre el modal de edición
+document.getElementById('modalEditarBodega').addEventListener('hidden.bs.modal', function () {
+    bodegaEditando = null;
+});
+
 // Función para editar bodega
 function editarBodega(id) {
     bodegaEditando = id;
@@ -243,6 +248,9 @@ function editarBodega(id) {
         document.getElementById('bodegaEditFormContainer').innerHTML = data.html_form;
         const modal = new bootstrap.Modal(document.getElementById('modalEditarBodega'));
         modal.show();
+        
+        // Configurar el formulario después de cargarlo
+        setupBodegaForm();
     })
     .catch(error => {
         console.error('Error:', error);
@@ -290,7 +298,20 @@ function setupBodegaForm() {
             console.log('Formulario enviado');
             
             const formData = new FormData(this);
-            const url = '/bodegas/crear-modal/';
+            
+            // Determinar si es creación o edición
+            let url;
+            let modalId;
+            
+            if (bodegaEditando) {
+                // Es edición
+                url = `/bodegas/editar-modal/${bodegaEditando}/`;
+                modalId = 'modalEditarBodega';
+            } else {
+                // Es creación
+                url = '/bodegas/crear-modal/';
+                modalId = 'modalCrearBodega';
+            }
             
             console.log('URL:', url);
             console.log('FormData:', Object.fromEntries(formData));
@@ -310,7 +331,7 @@ function setupBodegaForm() {
                 console.log('Response data:', data);
                 if (data.status === 'success') {
                     // Cerrar modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalCrearBodega'));
+                    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
                     modal.hide();
                     
                     // Mostrar mensaje de éxito

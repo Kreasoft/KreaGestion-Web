@@ -6,6 +6,7 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <style>
 .table-container {
     max-height: 600px;
@@ -92,16 +93,16 @@
                             <div>
                                 <h5 class="mb-0 text-white">{{ title }}</h5>
                                 <small class="text-white-50">
-                                    {% if sucursal_seleccionada %}
-                                        Sucursal: {{ sucursal_seleccionada.nombre }}
+                                    {% if bodega_seleccionada %}
+                                        Bodega: {{ bodega_seleccionada.nombre }}
                                     {% else %}
-                                        Seleccione una sucursal para continuar
+                                        Seleccione una bodega para continuar
                                     {% endif %}
                                 </small>
                             </div>
                         </div>
                         <div class="d-flex gap-2">
-                            {% if sucursal_seleccionada %}
+                            {% if bodega_seleccionada %}
                                 <button class="btn btn-outline-light" onclick="guardarCambios()">
                                     <i class="fas fa-save me-2"></i>Guardar Cambios
                                 </button>
@@ -114,22 +115,22 @@
                 </div>
                 
                 <div class="card-body p-4">
-                    {% if not sucursal_seleccionada %}
-                        <!-- Selección de Sucursal -->
+                    {% if not bodega_seleccionada %}
+                        <!-- Selección de Bodega -->
                         <div class="text-center py-5">
-                            <i class="fas fa-building fa-4x text-muted mb-4"></i>
-                            <h4 class="text-muted mb-3">Seleccione una Sucursal</h4>
-                            <p class="text-muted mb-4">Para continuar con la edición manual, debe seleccionar una sucursal:</p>
+                            <i class="fas fa-warehouse fa-4x text-muted mb-4"></i>
+                            <h4 class="text-muted mb-3">Seleccione una Bodega</h4>
+                            <p class="text-muted mb-4">Para continuar con la edición manual, debe seleccionar una bodega:</p>
                             
                             <div class="row justify-content-center">
-                                {% for sucursal in sucursales %}
+                                {% for bodega in bodegas %}
                                     <div class="col-md-3 mb-3">
                                         <div class="card border-primary h-100">
                                             <div class="card-body text-center">
-                                                <i class="fas fa-building fa-2x text-primary mb-3"></i>
-                                                <h6 class="card-title">{{ sucursal.nombre }}</h6>
-                                                <p class="card-text text-muted small">{{ sucursal.direccion }}</p>
-                                                <a href="?sucursal={{ sucursal.id }}" class="btn btn-primary">
+                                                <i class="fas fa-warehouse fa-2x text-primary mb-3"></i>
+                                                <h6 class="card-title">{{ bodega.nombre }}</h6>
+                                                <p class="card-text text-muted small">{{ bodega.direccion }}</p>
+                                                <a href="?bodega={{ bodega.id }}" class="btn btn-primary">
                                                     <i class="fas fa-edit me-2"></i>Seleccionar
                                                 </a>
                                             </div>
@@ -206,24 +207,48 @@
     </div>
 </div>
 
-{% if sucursal_seleccionada %}
 <script>
 let productos = [];
 let productosModificados = new Set();
-let sucursalId = {{ sucursal_seleccionada.id }};
+let bodegaId = {% if bodega_seleccionada %}{{ bodega_seleccionada.id }}{% else %}null{% endif %};
 
-// Cargar productos al iniciar
-document.addEventListener('DOMContentLoaded', function() {
-    cargarProductos();
-    
-    // Configurar búsqueda
-    document.getElementById('search-input').addEventListener('input', filtrarProductos);
-});
+        // Función para inicializar todo
+        function inicializar() {
+            console.log('=== INICIALIZANDO ===');
+            console.log('bodegaId:', bodegaId);
+            
+            if (!bodegaId) {
+                console.log('No hay bodega seleccionada');
+                return;
+            }
+            
+            // Configurar search input
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', filtrarProductos);
+                console.log('Search input configurado');
+            }
+            
+            // Cargar productos
+            cargarProductos();
+        }
+        
+        // Cargar productos al iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM cargado');
+            // Esperar un poco más para asegurar que todo esté renderizado
+            setTimeout(inicializar, 1000);
+        });
 
 async function cargarProductos() {
     try {
-        const response = await fetch(`{% url 'inventario:api_articulos' %}?sucursal_id=${sucursalId}`);
+        console.log('Cargando productos para bodega ID:', bodegaId);
+        const url = `{% url 'inventario:api_articulos' %}?bodega_id=${bodegaId}`;
+        console.log('URL:', url);
+        const response = await fetch(url);
+        console.log('Response status:', response.status);
         const data = await response.json();
+        console.log('Data recibida:', data);
         
         if (data.articulos) {
             productos = data.articulos;
@@ -245,6 +270,11 @@ async function cargarProductos() {
 
 function renderizarProductos(productosFiltrados = productos) {
     const tbody = document.getElementById('products-tbody');
+    
+    if (!tbody) {
+        console.error('No se encontró el elemento products-tbody');
+        return;
+    }
     
     if (productosFiltrados.length === 0) {
         tbody.innerHTML = `
@@ -271,15 +301,16 @@ function renderizarProductos(productosFiltrados = productos) {
             <td class="text-center">
                 <span class="badge bg-info">${producto.cantidad}</span>
             </td>
-            <td class="text-center">
-                <input type="number" 
-                       class="stock-input" 
-                       value="${producto.stock_inicial || producto.cantidad}" 
-                       min="0" 
-                       step="0.01"
-                       onchange="marcarModificado(${producto.id}, this.value)"
-                       data-original="${producto.cantidad}">
-            </td>
+                    <td class="text-center">
+                        <input type="number" 
+                               class="form-control stock-input" 
+                               value="${producto.stock_inicial || producto.cantidad}" 
+                               min="0" 
+                               step="0.01"
+                               onchange="marcarModificado(${producto.id}, this.value)"
+                               data-original="${producto.cantidad}"
+                               data-product-id="${producto.id}">
+                    </td>
             <td class="text-center">
                 <span class="badge bg-warning">${producto.stock_minimo}</span>
             </td>
@@ -296,7 +327,10 @@ function renderizarProductos(productosFiltrados = productos) {
 }
 
 function filtrarProductos() {
-    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const searchInput = document.getElementById('search-input');
+    if (!searchInput) return;
+    
+    const searchTerm = searchInput.value.toLowerCase();
     const productosFiltrados = productos.filter(producto => 
         producto.codigo.toLowerCase().includes(searchTerm) ||
         producto.nombre.toLowerCase().includes(searchTerm) ||
@@ -307,45 +341,116 @@ function filtrarProductos() {
 }
 
 function marcarModificado(productoId, nuevoValor) {
+    console.log(`marcarModificado - ID: ${productoId}, Valor: ${nuevoValor}`);
     const producto = productos.find(p => p.id === productoId);
+    console.log('Producto encontrado en marcarModificado:', producto);
+    
+    if (!producto) {
+        console.error('Producto no encontrado en marcarModificado');
+        return;
+    }
+    
     const valorOriginal = parseFloat(producto.cantidad);
     const valorNuevo = parseFloat(nuevoValor);
     
+    console.log(`Valor original: ${valorOriginal}, Valor nuevo: ${valorNuevo}`);
+    
     if (valorNuevo !== valorOriginal) {
         productosModificados.add(productoId);
+        console.log('Producto agregado a modificados:', productoId);
         document.querySelector(`tr[data-product-id="${productoId}"]`).classList.add('modified');
     } else {
         productosModificados.delete(productoId);
+        console.log('Producto removido de modificados:', productoId);
         document.querySelector(`tr[data-product-id="${productoId}"]`).classList.remove('modified');
     }
     
+    console.log('Productos modificados actuales:', Array.from(productosModificados));
     actualizarEstadisticas();
 }
 
 function copiarStockActual(productoId) {
     const producto = productos.find(p => p.id === productoId);
-    const input = document.querySelector(`tr[data-product-id="${productoId}"] input`);
-    input.value = producto.cantidad;
-    marcarModificado(productoId, producto.cantidad);
+    
+    // Intentar múltiples selectores para encontrar el input
+    let input = document.querySelector(`tr[data-product-id="${productoId}"] input.stock-input`);
+    if (!input) {
+        input = document.querySelector(`input[data-product-id="${productoId}"]`);
+    }
+    if (!input) {
+        input = document.querySelector(`tr[data-product-id="${productoId}"] input[type="number"]`);
+    }
+    
+    if (input) {
+        input.value = producto.cantidad;
+        marcarModificado(productoId, producto.cantidad);
+    } else {
+        console.error(`No se encontró el input para copiar stock del producto ID: ${productoId}`);
+    }
 }
 
 function actualizarEstadisticas() {
-    document.getElementById('total-products').textContent = productos.length;
-    document.getElementById('modified-count').textContent = productosModificados.size;
+    const totalProducts = document.getElementById('total-products');
+    const modifiedCount = document.getElementById('modified-count');
+    
+    if (totalProducts) {
+        totalProducts.textContent = productos.length;
+    }
+    if (modifiedCount) {
+        modifiedCount.textContent = productosModificados.size;
+    }
 }
 
 async function guardarCambios() {
+    console.log('=== INICIO guardarCambios ===');
+    console.log('Productos modificados:', Array.from(productosModificados));
+    console.log('Total productos cargados:', productos.length);
+    
     if (productosModificados.size === 0) {
-        alert('No hay cambios para guardar');
+        Swal.fire({
+            icon: 'info',
+            title: 'Sin cambios',
+            text: 'No hay cambios para guardar',
+            confirmButtonText: 'Entendido'
+        });
         return;
     }
     
     const inventarios = [];
     
+    // Obtener todos los inputs de una vez
+    const allInputs = document.querySelectorAll('input.stock-input');
+    console.log('Todos los inputs encontrados:', allInputs.length);
+    
     productosModificados.forEach(productoId => {
+        console.log(`Procesando producto ID: ${productoId}`);
         const producto = productos.find(p => p.id === productoId);
-        const input = document.querySelector(`tr[data-product-id="${productoId}"] input`);
+        
+        if (!producto) {
+            console.error(`Producto no encontrado para ID: ${productoId}`);
+            return;
+        }
+        
+        // Buscar input por data-product-id
+        let input = document.querySelector(`input[data-product-id="${productoId}"]`);
+        
+        if (!input) {
+            // Fallback: buscar por posición en la tabla
+            const tr = document.querySelector(`tr[data-product-id="${productoId}"]`);
+            if (tr) {
+                input = tr.querySelector('input.stock-input');
+            }
+        }
+        
+        console.log('Input encontrado:', input);
+        
+        if (!input) {
+            console.error(`No se encontró el input para el producto ID: ${productoId}`);
+            return;
+        }
+        
         const cantidad = parseFloat(input.value);
+        console.log('Cantidad leída:', cantidad);
         
         if (cantidad > 0) {
             inventarios.push({
@@ -355,72 +460,179 @@ async function guardarCambios() {
         }
     });
     
+    console.log('Inventarios a guardar:', inventarios);
+    
     if (inventarios.length === 0) {
-        alert('No hay cantidades válidas para guardar');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Sin cantidades válidas',
+            text: 'No hay cantidades válidas para guardar',
+            confirmButtonText: 'Entendido'
+        });
         return;
     }
     
-    const confirmacion = confirm(`¿Está seguro de guardar ${inventarios.length} cambios de inventario?`);
-    if (!confirmacion) return;
+    console.log('Mostrando confirmación...');
+    const confirmacion = await Swal.fire({
+        title: 'Confirmar guardado',
+        text: `¿Está seguro de guardar ${inventarios.length} cambios de inventario?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, guardar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#9CAF88',
+        cancelButtonColor: '#6c757d'
+    });
     
+    console.log('Confirmación:', confirmacion);
+    
+    if (!confirmacion.isConfirmed) {
+        console.log('Usuario canceló el guardado');
+        return;
+    }
+    
+    console.log('Enviando petición al servidor...');
     try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        console.log('CSRF Token:', csrfToken);
+        
+        const requestData = {
+            bodega_id: bodegaId,
+            inventarios: inventarios
+        };
+        console.log('Datos a enviar:', requestData);
+        
         const response = await fetch('{% url "inventario:api_guardar_manual" %}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({
-                sucursal_id: sucursalId,
-                inventarios: inventarios
-            })
+            body: JSON.stringify(requestData)
         });
         
+        console.log('Response status:', response.status);
         const result = await response.json();
+        console.log('Resultado del servidor:', result);
         
         if (result.success) {
-            alert(`✅ ${result.message}`);
+            console.log('Guardado exitoso');
+            Swal.fire({
+                icon: 'success',
+                title: '¡Guardado exitoso!',
+                text: result.message,
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#9CAF88'
+            });
             productosModificados.clear();
             cargarProductos(); // Recargar datos
         } else {
-            alert(`❌ ${result.message}`);
+            console.log('Error del servidor:', result.message);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al guardar',
+                text: result.message,
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#d33'
+            });
         }
     } catch (error) {
-        alert(`❌ Error al guardar: ${error.message}`);
+        console.error('Error en la petición:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error al guardar',
+            text: `Error al guardar: ${error.message}`,
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#d33'
+        });
     }
 }
 
 function limpiarCambios() {
     if (productosModificados.size === 0) {
-        alert('No hay cambios para limpiar');
+        Swal.fire({
+            icon: 'info',
+            title: 'Sin cambios',
+            text: 'No hay cambios para limpiar',
+            confirmButtonText: 'Entendido'
+        });
         return;
     }
     
-    const confirmacion = confirm('¿Está seguro de limpiar todos los cambios?');
-    if (!confirmacion) return;
+    Swal.fire({
+        title: 'Confirmar limpieza',
+        text: '¿Está seguro de limpiar todos los cambios?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, limpiar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#f39c12',
+        cancelButtonColor: '#6c757d'
+    }).then((result) => {
+        if (result.isConfirmed) {
     
-    productosModificados.forEach(productoId => {
-        const producto = productos.find(p => p.id === productoId);
-        const input = document.querySelector(`tr[data-product-id="${productoId}"] input`);
-        input.value = producto.cantidad;
-        document.querySelector(`tr[data-product-id="${productoId}"]`).classList.remove('modified');
+            productosModificados.forEach(productoId => {
+                const producto = productos.find(p => p.id === productoId);
+                
+                // Intentar múltiples selectores para encontrar el input
+                let input = document.querySelector(`tr[data-product-id="${productoId}"] input.stock-input`);
+                if (!input) {
+                    input = document.querySelector(`input[data-product-id="${productoId}"]`);
+                }
+                if (!input) {
+                    input = document.querySelector(`tr[data-product-id="${productoId}"] input[type="number"]`);
+                }
+                
+                if (input) {
+                    input.value = producto.cantidad;
+                    document.querySelector(`tr[data-product-id="${productoId}"]`).classList.remove('modified');
+                }
+            });
+            
+            productosModificados.clear();
+            actualizarEstadisticas();
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Cambios limpiados',
+                text: 'Todos los cambios han sido revertidos',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#9CAF88'
+            });
+        }
     });
-    
-    productosModificados.clear();
-    actualizarEstadisticas();
 }
 
 function exportarCambios() {
     if (productosModificados.size === 0) {
-        alert('No hay cambios para exportar');
+        Swal.fire({
+            icon: 'info',
+            title: 'Sin cambios',
+            text: 'No hay cambios para exportar',
+            confirmButtonText: 'Entendido'
+        });
         return;
     }
     
     const cambios = [];
-    productosModificados.forEach(productoId => {
-        const producto = productos.find(p => p.id === productoId);
-        const input = document.querySelector(`tr[data-product-id="${productoId}"] input`);
-        const cantidad = parseFloat(input.value);
+            productosModificados.forEach(productoId => {
+                const producto = productos.find(p => p.id === productoId);
+                
+                // Intentar múltiples selectores para encontrar el input
+                let input = document.querySelector(`tr[data-product-id="${productoId}"] input.stock-input`);
+                if (!input) {
+                    input = document.querySelector(`input[data-product-id="${productoId}"]`);
+                }
+                if (!input) {
+                    input = document.querySelector(`tr[data-product-id="${productoId}"] input[type="number"]`);
+                }
+                
+                if (!input) {
+                    console.error(`No se encontró el input para el producto ID: ${productoId}`);
+                    return;
+                }
+                
+                const cantidad = parseFloat(input.value);
         
         cambios.push({
             codigo: producto.codigo,
@@ -456,6 +668,5 @@ function exportarCambios() {
     document.body.removeChild(link);
 }
 </script>
-{% endif %}
 {% endblock %}
 

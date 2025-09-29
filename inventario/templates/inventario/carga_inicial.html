@@ -450,16 +450,74 @@ document.addEventListener('DOMContentLoaded', function() {
         hideLoading();
         
         if (result.success) {
-            showSuccess(result.message, '¡Importación exitosa!');
             if (result.detalle_errores && result.detalle_errores.length > 0) {
-                console.log('Errores:', result.detalle_errores);
+                // Hay errores pero también éxitos
+                let errorMessage = 'Errores encontrados:\n';
+                result.detalle_errores.forEach(error => {
+                    errorMessage += `• ${error}\n`;
+                });
+                showWarning(`${result.message}\n\n${errorMessage}`, 'Importación con errores');
+            } else {
+                // Todo exitoso
+                showSuccess(result.message, '¡Importación exitosa!');
             }
-            // Recargar página después de 2 segundos
+            
+            // Mostrar información de depuración si está disponible
+            
+            // Recargar página después de 3 segundos
             setTimeout(() => {
                 window.location.reload();
-            }, 2000);
+            }, 3000);
         } else {
-            showError(result.message, 'Error en la importación');
+            let errorMessage = result.message;
+            if (result.error_details) {
+                errorMessage += '\n\nDetalles del error:\n' + result.error_details;
+            }
+            
+            // Mostrar error con opción de copiar
+            Swal.fire({
+                icon: 'error',
+                title: 'Error en la importación',
+                html: `<pre style="text-align: left; white-space: pre-wrap; max-height: 400px; overflow-y: auto;">${errorMessage}</pre>`,
+                showConfirmButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'Copiar Error',
+                cancelButtonText: 'Cerrar',
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                timer: null, // Sin timer automático
+                timerProgressBar: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Copiar al portapapeles
+                    navigator.clipboard.writeText(errorMessage).then(() => {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Error copiado',
+                            text: 'El error se ha copiado al portapapeles',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }).catch(() => {
+                        // Fallback para navegadores que no soportan clipboard API
+                        const textArea = document.createElement('textarea');
+                        textArea.value = errorMessage;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Error copiado',
+                            text: 'El error se ha copiado al portapapeles',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    });
+                }
+            });
         }
     } catch (error) {
         hideLoading();

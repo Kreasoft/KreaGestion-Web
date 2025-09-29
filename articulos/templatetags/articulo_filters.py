@@ -5,9 +5,9 @@ register = template.Library()
 
 @register.filter
 def format_price(value):
-    """Formatea un precio con separadores de miles en formato chileno"""
+    """Formatea un precio con separadores de miles en formato chileno (sin decimales)"""
     if not value:
-        return "0,00"
+        return "0"
     
     try:
         # Convertir a Decimal si es necesario
@@ -16,10 +16,13 @@ def format_price(value):
         else:
             value = Decimal(str(value))
         
-        # Formatear con separadores de miles y 2 decimales
-        formatted = f"{value:,.2f}"
-        # Reemplazar comas de miles por puntos y punto decimal por coma
-        return formatted.replace(',', 'X').replace('.', ',').replace('X', '.')
+        # Redondear a entero
+        value = round(value)
+        
+        # Formatear con separadores de miles (sin decimales)
+        formatted = f"{value:,}"
+        # Reemplazar comas de miles por puntos
+        return formatted.replace(',', '.')
     except:
         return str(value)
 

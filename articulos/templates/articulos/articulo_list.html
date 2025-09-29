@@ -45,7 +45,7 @@
                                     <div class="d-flex justify-content-between">
                                         <div>
                                             <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Total Artículos</h6>
-                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ page_obj.paginator.count }}</h3>
+                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ total_articulos }}</h3>
                                             <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">En catálogo</small>
                                         </div>
                                         <div class="align-self-center">
@@ -61,7 +61,7 @@
                                     <div class="d-flex justify-content-between">
                                         <div>
                                             <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Activos</h6>
-                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ page_obj|length }}</h3>
+                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ articulos_activos }}</h3>
                                             <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">Disponibles</small>
                                         </div>
                                         <div class="align-self-center">
@@ -93,7 +93,7 @@
                                     <div class="d-flex justify-content-between">
                                         <div>
                                             <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Con Stock</h6>
-                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">-</h3>
+                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ articulos_con_stock }}</h3>
                                             <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">Inventario</small>
                                         </div>
                                         <div class="align-self-center">
@@ -180,7 +180,7 @@
                                     <th class="border-0 text-end"><strong>Precio Venta</strong></th>
                                     <th class="border-0 text-end"><strong>Precio Final</strong></th>
                                     <th class="border-0 text-center"><strong>Margen</strong></th>
-                                    <th class="border-0 text-center"><strong>Stock</strong></th>
+                                    <th class="border-0 text-center"><strong>Stock Disponible</strong></th>
                                     <th class="border-0 text-center"><strong>Estado</strong></th>
                                     <th class="border-0 text-center"><strong>Acciones</strong></th>
                                 </tr>
@@ -253,9 +253,15 @@
                                     </td>
                                     <td class="text-center">
                                         {% if articulo.control_stock %}
-                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                                <i class="fas fa-check me-1"></i>Controlado
-                                            </span>
+                                            {% if articulo.stock_total and articulo.stock_total > 0 %}
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                    <i class="fas fa-boxes me-1"></i>{{ articulo.stock_total|floatformat:0 }}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>Sin Stock
+                                                </span>
+                                            {% endif %}
                                         {% else %}
                                             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
                                                 <i class="fas fa-times me-1"></i>No controlado
@@ -323,7 +329,7 @@
                         <div class="col-md-6">
                             <div class="d-flex align-items-center">
                                 <span class="text-muted me-3">
-                                    Mostrando {{ page_obj.start_index }} - {{ page_obj.end_index }} de {{ page_obj.paginator.count }} artículos
+                                    Mostrando {{ page_obj.start_index }} - {{ page_obj.end_index }} de {{ total_articulos }} artículos
                                 </span>
                                 <div class="btn-group" role="group">
                                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAll()">

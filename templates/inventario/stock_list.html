@@ -276,6 +276,8 @@
 
 <script>
 function editarStock(stockId) {
+    console.log('Editar stock ID:', stockId);
+    
     // Mostrar loading
     document.getElementById('modalEditarStockBody').innerHTML = `
         <div class="text-center py-4">
@@ -291,14 +293,24 @@ function editarStock(stockId) {
     modal.show();
     
     // Cargar formulario via AJAX
-    fetch(`/inventario/stock/${stockId}/editar-modal/`, {
+    const url = `/inventario/stock/${stockId}/editar-modal/`;
+    console.log('URL:', url);
+    
+    fetch(url, {
         method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
         }
     })
-    .then(response => response.text())
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+    })
     .then(html => {
+        console.log('HTML recibido:', html.substring(0, 100) + '...');
         document.getElementById('modalEditarStockBody').innerHTML = html;
         setupStockForm();
     })
@@ -307,7 +319,7 @@ function editarStock(stockId) {
         document.getElementById('modalEditarStockBody').innerHTML = `
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                Error al cargar el formulario. Por favor, intente nuevamente.
+                Error al cargar el formulario: ${error.message}
             </div>
         `;
     });

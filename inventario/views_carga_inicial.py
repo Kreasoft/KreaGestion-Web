@@ -123,8 +123,14 @@ def importar_inventario_excel(request):
         
         bodega = get_object_or_404(Bodega, id=bodega_id, empresa=request.empresa)
         
+        # Mostrar códigos disponibles en la empresa
+        codigos_disponibles = list(Articulo.objects.filter(empresa=request.empresa, activo=True).values_list('codigo', flat=True))
+        print(f"DEBUG - Códigos disponibles en {request.empresa.nombre}: {codigos_disponibles}")
+        
         # Leer Excel
         df = pd.read_excel(excel_file)
+        print(f"DEBUG - Columnas en Excel: {list(df.columns)}")
+        print(f"DEBUG - Códigos en Excel: {df['CODIGO'].tolist()}")
         
         # Validar columnas requeridas
         required_columns = ['CODIGO', 'STOCK_INICIAL']
@@ -147,12 +153,16 @@ def importar_inventario_excel(request):
                     codigo = str(row['CODIGO']).strip()
                     stock_inicial = float(row['STOCK_INICIAL']) if pd.notna(row['STOCK_INICIAL']) else 0
                     
+                    print(f"DEBUG - Buscando artículo con código: '{codigo}'")
+                    
                     # Buscar artículo
                     articulo = Articulo.objects.get(
                         codigo=codigo, 
                         empresa=request.empresa, 
                         activo=True
                     )
+                    
+                    print(f"DEBUG - Artículo encontrado: {articulo.nombre}")
                     
                     # Crear o actualizar stock
                     stock, created = Stock.objects.get_or_create(
@@ -194,7 +204,14 @@ def importar_inventario_excel(request):
         })
         
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error al procesar archivo: {str(e)}'})
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR COMPLETO: {error_details}")
+        return JsonResponse({
+            'success': False, 
+            'message': f'Error al procesar archivo: {str(e)}',
+            'error_details': error_details
+        })
 
 
 @login_required
@@ -212,7 +229,17 @@ def edicion_manual_inventario(request):
     bodega_seleccionada = None
     
     if bodega_id:
-        bodega_seleccionada = get_object_or_404(Bodega, id=bodega_id, empresa=request.empresa)
+        try:
+            bodega_seleccionada = Bodega.objects.get(id=bodega_id, empresa=request.empresa)
+        except Bodega.DoesNotExist:
+            messages.error(request, f'La bodega con ID {bodega_id} no existe o no pertenece a la empresa {request.empresa.nombre}.')
+            # Redirigir a la selección de bodegas
+            context = {
+                'title': 'Edición Manual de Inventario Inicial',
+                'bodegas': bodegas,
+                'bodega_seleccionada': None,
+            }
+            return render(request, 'inventario/edicion_manual_inventario.html', context)
     
     context = {
         'title': 'Edición Manual de Inventario Inicial',
