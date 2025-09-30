@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Eliminar Contacto{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="modal-dialog modal-md">
+    <div class="modal-content">
+        <!-- Header -->
+        <div class="modal-header" style="background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%); color: white;">
+            <h5 class="modal-title" style="font-family: 'Poppins', sans-serif;">
+                <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
+            </h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <!-- Contenido -->
+        <div class="modal-body" style="padding: 20px; font-family: 'Poppins', sans-serif;">
+            <div class="text-center mb-4">
+                <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px;">
+                    <i class="fas fa-user-times fa-2x text-white"></i>
+                </div>
+                <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 5px;">{{ contacto.nombre }}</h6>
+                <p class="text-muted mb-0" style="font-size: 0.9rem;">{{ contacto.get_tipo_contacto_display }}</p>
+            </div>
+            
+            <div class="alert alert-warning" style="border: none; border-radius: 8px; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107;">
+                <div class="d-flex align-items-start">
+                    <i class="fas fa-exclamation-triangle text-warning me-2 mt-1"></i>
+                    <div>
+                        <h6 class="alert-heading" style="color: #856404; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem;">
+                            ¿Estás seguro de que quieres eliminar este contacto?
+                        </h6>
+                        <p class="mb-0" style="color: #856404; font-size: 0.85rem;">
+                            Esta acción no se puede deshacer.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" style="border: 2px solid #e9ecef; border-radius: 8px; background: #f8f9fa;">
+                <div class="card-body" style="padding: 15px;">
+                    <h6 style="color: #495057; font-weight: 600; margin-bottom: 10px; font-size: 0.9rem;">
+                        <i class="fas fa-info-circle me-2" style="color: #8B4513;"></i>Información del Contacto
+                    </h6>
+                    {% if contacto.cargo %}
+                    <div class="mb-2" style="font-size: 0.85rem;">
+                        <strong>Cargo:</strong> {{ contacto.cargo }}
+                    </div>
+                    {% endif %}
+                    {% if contacto.telefono %}
+                    <div class="mb-2" style="font-size: 0.85rem;">
+                        <strong>Teléfono:</strong> {{ contacto.telefono }}
+                    </div>
+                    {% endif %}
+                    {% if contacto.celular %}
+                    <div class="mb-2" style="font-size: 0.85rem;">
+                        <strong>Celular:</strong> {{ contacto.celular }}
+                    </div>
+                    {% endif %}
+                    {% if contacto.email %}
+                    <div class="mb-2" style="font-size: 0.85rem;">
+                        <strong>Email:</strong> {{ contacto.email }}
+                    </div>
+                    {% endif %}
+                    {% if contacto.es_contacto_principal %}
+                    <div class="mt-2">
+                        <span class="badge" style="background: linear-gradient(135deg, #ffc107 0%, #ffb347 100%); color: #212529; font-size: 0.75rem;">
+                            <i class="fas fa-star me-1"></i>Contacto Principal
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer con botones -->
+        <div class="modal-footer" style="background: #f8f9fa; border: none; padding: 15px 20px;">
+            <form method="post" class="d-flex justify-content-between w-100">
+                {% csrf_token %}
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 6px; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 8px 16px;">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="submit" class="btn" style="background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%); border: none; color: white; border-radius: 6px; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 8px 16px;">
+                    <i class="fas fa-trash me-2"></i>Eliminar Contacto
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Manejar envío del formulario
+    document.querySelector('form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        fetch(this.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                // Cerrar modal y recargar página
+                const modal = bootstrap.Modal.getInstance(document.getElementById('contactoModal'));
+                modal.hide();
+                window.location.reload();
+            } else {
+                alert('Error al eliminar el contacto');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al procesar la solicitud');
+        });
+    });
+});
+</script>
+{% endblock %}

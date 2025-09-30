@@ -1,0 +1,659 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="card shadow-lg" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); color: white; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-truck me-3" style="font-size: 1.8rem; color: #F4E4BC;"></i>
+                                <div>
+                                    <h4 class="mb-1" style="font-weight: 600; font-size: 1.4rem; font-family: 'Poppins', sans-serif;">{{ title }}</h4>
+                                    <small style="font-size: 0.9rem; opacity: 0.9; font-family: 'Poppins', sans-serif;">Gestiona la información completa del proveedor</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{% url 'proveedores:proveedor_list' %}" class="btn btn-light btn-sm" style="font-family: 'Poppins', sans-serif;">
+                                <i class="fas fa-arrow-left me-2"></i>Volver a Lista
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario con pestañas -->
+                <div class="card-body p-0">
+                    <form method="post" id="proveedorForm">
+                        {% csrf_token %}
+                        
+                        <!-- Pestañas -->
+                        <ul class="nav nav-tabs" id="proveedorTabs" role="tablist" style="border-bottom: 2px solid #e9ecef; margin: 0; font-family: 'Poppins', sans-serif;">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="datos-basicos-tab" data-bs-toggle="tab" data-bs-target="#datos-basicos" type="button" role="tab" 
+                                        style="border: none; border-radius: 0; padding: 12px 20px; font-weight: 500; color: #495057; background: transparent; font-family: 'Poppins', sans-serif;">
+                                    <i class="fas fa-truck me-2"></i>Datos Básicos
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="datos-comerciales-tab" data-bs-toggle="tab" data-bs-target="#datos-comerciales" type="button" role="tab"
+                                        style="border: none; border-radius: 0; padding: 12px 20px; font-weight: 500; color: #495057; background: transparent; font-family: 'Poppins', sans-serif;">
+                                    <i class="fas fa-chart-line me-2"></i>Datos Comerciales
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="contactos-tab" data-bs-toggle="tab" data-bs-target="#contactos" type="button" role="tab"
+                                        style="border: none; border-radius: 0; padding: 12px 20px; font-weight: 500; color: #495057; background: transparent; font-family: 'Poppins', sans-serif;">
+                                    <i class="fas fa-address-book me-2"></i>Contactos
+                                </button>
+                            </li>
+                        </ul>
+
+                        <!-- Contenido de las pestañas -->
+                        <div class="tab-content" id="proveedorTabsContent" style="padding: 20px; font-family: 'Poppins', sans-serif;">
+                            <!-- Pestaña 1: Datos Básicos -->
+                            <div class="tab-pane fade show active" id="datos-basicos" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.rut.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-id-card me-2" style="color: #8B4513;"></i>RUT *
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-id-card" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.rut }}
+                                            <div class="input-group-text" id="rut-status" style="background-color: #f8f9fa; border-left: none;">
+                                                <i class="fas fa-question-circle" id="rut-icon" style="color: #6c757d;"></i>
+                                            </div>
+                                        </div>
+                                        <div id="rut-help" class="form-text" style="color: #6c757d;">Ingrese RUT con o sin puntos: 12.345.678-9 o 12345678-9</div>
+                                        <div id="rut-error" class="text-danger mt-1" style="display: none;"></div>
+                                        {% if form.rut.errors %}
+                                            <div class="text-danger mt-1">{{ form.rut.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.nombre.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-truck me-2" style="color: #8B4513;"></i>Nombre del Proveedor *
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-truck" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.nombre }}
+                                        </div>
+                                        {% if form.nombre.errors %}
+                                            <div class="text-danger mt-1">{{ form.nombre.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.razon_social.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-building me-2" style="color: #8B4513;"></i>Razón Social
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-building" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.razon_social }}
+                                        </div>
+                                        {% if form.razon_social.errors %}
+                                            <div class="text-danger mt-1">{{ form.razon_social.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.giro.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-industry me-2" style="color: #8B4513;"></i>Giro Comercial *
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-industry" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.giro }}
+                                        </div>
+                                        {% if form.giro.errors %}
+                                            <div class="text-danger mt-1">{{ form.giro.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.tipo_proveedor.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-tags me-2" style="color: #8B4513;"></i>Tipo de Proveedor
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-tags" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.tipo_proveedor }}
+                                        </div>
+                                        {% if form.tipo_proveedor.errors %}
+                                            <div class="text-danger mt-1">{{ form.tipo_proveedor.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.categoria_principal.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-folder me-2" style="color: #8B4513;"></i>Categoría Principal
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-folder" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.categoria_principal }}
+                                        </div>
+                                        {% if form.categoria_principal.errors %}
+                                            <div class="text-danger mt-1">{{ form.categoria_principal.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.estado.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-circle me-2" style="color: #8B4513;"></i>Estado
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-circle" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.estado }}
+                                        </div>
+                                        {% if form.estado.errors %}
+                                            <div class="text-danger mt-1">{{ form.estado.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-12 mb-4">
+                                        <label for="{{ form.direccion.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-map-marker-alt me-2" style="color: #8B4513;"></i>Dirección *
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-map-marker-alt" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.direccion }}
+                                        </div>
+                                        {% if form.direccion.errors %}
+                                            <div class="text-danger mt-1">{{ form.direccion.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-4">
+                                        <label for="{{ form.comuna.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-map me-2" style="color: #8B4513;"></i>Comuna *
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-map" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.comuna }}
+                                        </div>
+                                        {% if form.comuna.errors %}
+                                            <div class="text-danger mt-1">{{ form.comuna.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-4">
+                                        <label for="{{ form.ciudad.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-city me-2" style="color: #8B4513;"></i>Ciudad *
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-city" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.ciudad }}
+                                        </div>
+                                        {% if form.ciudad.errors %}
+                                            <div class="text-danger mt-1">{{ form.ciudad.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-4">
+                                        <label for="{{ form.region.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-globe me-2" style="color: #8B4513;"></i>Región *
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-globe" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.region }}
+                                        </div>
+                                        {% if form.region.errors %}
+                                            <div class="text-danger mt-1">{{ form.region.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-4">
+                                        <label for="{{ form.telefono.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-phone me-2" style="color: #8B4513;"></i>Teléfono *
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-phone" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.telefono }}
+                                        </div>
+                                        {% if form.telefono.errors %}
+                                            <div class="text-danger mt-1">{{ form.telefono.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-4">
+                                        <label for="{{ form.email.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-envelope me-2" style="color: #8B4513;"></i>Email
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-envelope" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.email }}
+                                        </div>
+                                        {% if form.email.errors %}
+                                            <div class="text-danger mt-1">{{ form.email.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-4">
+                                        <label for="{{ form.sitio_web.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-globe me-2" style="color: #8B4513;"></i>Sitio Web
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-globe" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.sitio_web }}
+                                        </div>
+                                        {% if form.sitio_web.errors %}
+                                            <div class="text-danger mt-1">{{ form.sitio_web.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Pestaña 2: Datos Comerciales -->
+                            <div class="tab-pane fade" id="datos-comerciales" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.plazo_entrega.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-clock me-2" style="color: #8B4513;"></i>Plazo de Entrega
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-clock" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.plazo_entrega }}
+                                        </div>
+                                        {% if form.plazo_entrega.errors %}
+                                            <div class="text-danger mt-1">{{ form.plazo_entrega.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.condiciones_pago.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-credit-card me-2" style="color: #8B4513;"></i>Condiciones de Pago
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-credit-card" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.condiciones_pago }}
+                                        </div>
+                                        {% if form.condiciones_pago.errors %}
+                                            <div class="text-danger mt-1">{{ form.condiciones_pago.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.descuento_porcentaje.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-percentage me-2" style="color: #8B4513;"></i>Descuento por Defecto (%)
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-percentage" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.descuento_porcentaje }}
+                                        </div>
+                                        {% if form.descuento_porcentaje.errors %}
+                                            <div class="text-danger mt-1">{{ form.descuento_porcentaje.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.calificacion.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-star me-2" style="color: #8B4513;"></i>Calificación (1-5)
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-star" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.calificacion }}
+                                        </div>
+                                        {% if form.calificacion.errors %}
+                                            <div class="text-danger mt-1">{{ form.calificacion.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-12 mb-4">
+                                        <label for="{{ form.observaciones_calidad.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-clipboard-check me-2" style="color: #8B4513;"></i>Observaciones de Calidad
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da; align-items: flex-start; padding-top: 12px;">
+                                                <i class="fas fa-clipboard-check" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.observaciones_calidad }}
+                                        </div>
+                                        {% if form.observaciones_calidad.errors %}
+                                            <div class="text-danger mt-1">{{ form.observaciones_calidad.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-12 mb-4">
+                                        <label for="{{ form.observaciones.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-sticky-note me-2" style="color: #8B4513;"></i>Observaciones Generales
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da; align-items: flex-start; padding-top: 12px;">
+                                                <i class="fas fa-sticky-note" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.observaciones }}
+                                        </div>
+                                        {% if form.observaciones.errors %}
+                                            <div class="text-danger mt-1">{{ form.observaciones.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Pestaña 3: Contactos -->
+                            <div class="tab-pane fade" id="contactos" role="tabpanel">
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h5 style="color: #2c3e50; font-weight: 600; border-bottom: 2px solid #8B4513; padding-bottom: 10px;">
+                                            <i class="fas fa-address-book me-2" style="color: #8B4513;"></i>Contactos del Proveedor
+                                        </h5>
+                                        <p class="text-muted" style="font-size: 0.9rem;">Agrega los contactos principales del proveedor para facilitar la comunicación.</p>
+                                    </div>
+                                </div>
+                                
+                                {{ formset.management_form }}
+                                
+                                <div id="contactos-container">
+                                    {% for form_contacto in formset %}
+                                        <div class="contacto-form" style="border: 2px solid #e9ecef; border-radius: 10px; padding: 20px; margin-bottom: 20px; background: #f8f9fa;">
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
+                                                        <i class="fas fa-user me-2" style="color: #8B4513;"></i>Nombre del Contacto *
+                                                    </label>
+                                                    {{ form_contacto.nombre }}
+                                                    {% if form_contacto.nombre.errors %}
+                                                        <div class="text-danger mt-1">{{ form_contacto.nombre.errors.0 }}</div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
+                                                        <i class="fas fa-briefcase me-2" style="color: #8B4513;"></i>Cargo
+                                                    </label>
+                                                    {{ form_contacto.cargo }}
+                                                    {% if form_contacto.cargo.errors %}
+                                                        <div class="text-danger mt-1">{{ form_contacto.cargo.errors.0 }}</div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
+                                                        <i class="fas fa-tags me-2" style="color: #8B4513;"></i>Tipo de Contacto
+                                                    </label>
+                                                    {{ form_contacto.tipo_contacto }}
+                                                    {% if form_contacto.tipo_contacto.errors %}
+                                                        <div class="text-danger mt-1">{{ form_contacto.tipo_contacto.errors.0 }}</div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
+                                                        <i class="fas fa-phone me-2" style="color: #8B4513;"></i>Teléfono
+                                                    </label>
+                                                    {{ form_contacto.telefono }}
+                                                    {% if form_contacto.telefono.errors %}
+                                                        <div class="text-danger mt-1">{{ form_contacto.telefono.errors.0 }}</div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
+                                                        <i class="fas fa-mobile-alt me-2" style="color: #8B4513;"></i>Celular
+                                                    </label>
+                                                    {{ form_contacto.celular }}
+                                                    {% if form_contacto.celular.errors %}
+                                                        <div class="text-danger mt-1">{{ form_contacto.celular.errors.0 }}</div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
+                                                        <i class="fas fa-envelope me-2" style="color: #8B4513;"></i>Email
+                                                    </label>
+                                                    {{ form_contacto.email }}
+                                                    {% if form_contacto.email.errors %}
+                                                        <div class="text-danger mt-1">{{ form_contacto.email.errors.0 }}</div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="form-check">
+                                                        {{ form_contacto.es_contacto_principal }}
+                                                        <label class="form-check-label" for="{{ form_contacto.es_contacto_principal.id_for_label }}" style="font-weight: 600; color: #495057;">
+                                                            <i class="fas fa-star me-2" style="color: #ffc107;"></i>Es Contacto Principal
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    {% if form_contacto.DELETE %}
+                                                        <div class="form-check">
+                                                            {{ form_contacto.DELETE }}
+                                                            <label class="form-check-label" for="{{ form_contacto.DELETE.id_for_label }}" style="font-weight: 600; color: #dc3545;">
+                                                                <i class="fas fa-trash me-2"></i>Eliminar Contacto
+                                                            </label>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="col-12 mb-3">
+                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
+                                                        <i class="fas fa-sticky-note me-2" style="color: #8B4513;"></i>Observaciones
+                                                    </label>
+                                                    {{ form_contacto.observaciones }}
+                                                    {% if form_contacto.observaciones.errors %}
+                                                        <div class="text-danger mt-1">{{ form_contacto.observaciones.errors.0 }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <button type="button" class="btn btn-outline-primary" id="add-contacto" style="border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                                    <i class="fas fa-plus me-2"></i>Agregar Contacto
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Botones de acción -->
+                        <div class="card-footer" style="background: #f8f9fa; border: none; padding: 20px; text-align: right;">
+                            <a href="{% url 'proveedores:proveedor_list' %}" class="btn btn-secondary me-2" style="border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); border: none; color: white; border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                                <i class="fas fa-save me-2"></i>{{ submit_text }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Validación de RUT en tiempo real
+    const rutInput = document.getElementById('rut-input');
+    const rutIcon = document.getElementById('rut-icon');
+    const rutStatus = document.getElementById('rut-status');
+    const rutError = document.getElementById('rut-error');
+    const rutHelp = document.getElementById('rut-help');
+
+    if (rutInput) {
+        // Validación en tiempo real mientras escribe
+        rutInput.addEventListener('input', function() {
+            const rut = this.value.trim();
+            validarRUTEnTiempoReal(rut);
+        });
+
+        // Formateo automático del RUT
+        rutInput.addEventListener('keyup', function() {
+            let rut = this.value.replace(/[.-]/g, '');
+            
+            if (rut.length > 1) {
+                // Formatear con puntos mientras escribe
+                if (rut.length <= 7) {
+                    rut = rut.slice(0, 1) + '.' + rut.slice(1, 4) + '.' + rut.slice(4);
+                } else if (rut.length <= 8) {
+                    rut = rut.slice(0, 2) + '.' + rut.slice(2, 5) + '.' + rut.slice(5);
+                } else if (rut.length <= 9) {
+                    rut = rut.slice(0, 2) + '.' + rut.slice(2, 5) + '.' + rut.slice(5, 8) + '-' + rut.slice(8);
+                }
+                
+                if (this.value !== rut) {
+                    this.value = rut;
+                }
+            }
+            
+            validarRUTEnTiempoReal(rut);
+        });
+
+        // Validación al perder el foco
+        rutInput.addEventListener('blur', function() {
+            const rut = this.value.trim();
+            validarRUTEnTiempoReal(rut);
+        });
+    }
+
+    function validarRUTEnTiempoReal(rut) {
+        if (rut.length === 0) {
+            rutIcon.className = 'fas fa-question-circle';
+            rutIcon.style.color = '#6c757d';
+            rutStatus.style.backgroundColor = '#f8f9fa';
+            rutError.style.display = 'none';
+            rutHelp.style.color = '#6c757d';
+            return;
+        }
+
+        // Limpiar RUT para validación
+        const rutLimpio = rut.replace(/[.-]/g, '');
+        
+        if (rutLimpio.length < 8) {
+            rutIcon.className = 'fas fa-exclamation-circle';
+            rutIcon.style.color = '#ffc107';
+            rutStatus.style.backgroundColor = '#fff3cd';
+            rutError.style.display = 'block';
+            rutError.textContent = 'RUT muy corto';
+            rutHelp.style.color = '#ffc107';
+            return;
+        }
+
+        if (validarRUT(rut)) {
+            rutIcon.className = 'fas fa-check-circle';
+            rutIcon.style.color = '#28a745';
+            rutStatus.style.backgroundColor = '#d4edda';
+            rutError.style.display = 'none';
+            rutHelp.style.color = '#28a745';
+        } else {
+            rutIcon.className = 'fas fa-times-circle';
+            rutIcon.style.color = '#dc3545';
+            rutStatus.style.backgroundColor = '#f8d7da';
+            rutError.style.display = 'block';
+            rutError.textContent = 'RUT inválido';
+            rutHelp.style.color = '#dc3545';
+        }
+    }
+
+    function validarRUT(rut) {
+        // Limpiar RUT
+        const rutLimpio = rut.replace(/[.-]/g, '');
+        
+        if (rutLimpio.length < 8 || rutLimpio.length > 9) return false;
+        
+        const numero = rutLimpio.slice(0, -1);
+        const dv = rutLimpio.slice(-1).toUpperCase();
+        
+        // Validar que el número solo contenga dígitos
+        if (!/^\d+$/.test(numero)) return false;
+        
+        // Validar dígito verificador
+        if (!/^[0-9K]$/.test(dv)) return false;
+        
+        let suma = 0;
+        let multiplicador = 2;
+        
+        for (let i = numero.length - 1; i >= 0; i--) {
+            suma += parseInt(numero[i]) * multiplicador;
+            multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
+        }
+        
+        const resto = suma % 11;
+        const dvCalculado = 11 - resto;
+        
+        if (dvCalculado === 11) return dv === '0';
+        if (dvCalculado === 10) return dv === 'K';
+        return dv === dvCalculado.toString();
+    }
+
+    // Manejo de contactos dinámicos
+    const addContactoBtn = document.getElementById('add-contacto');
+    const contactosContainer = document.getElementById('contactos-container');
+    const totalForms = document.getElementById('id_contactos-TOTAL_FORMS');
+
+    if (addContactoBtn && contactosContainer) {
+        addContactoBtn.addEventListener('click', function() {
+            const formCount = parseInt(totalForms.value);
+            const newForm = contactosContainer.children[0].cloneNode(true);
+            
+            // Actualizar IDs y nombres de los campos
+            const inputs = newForm.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                if (input.name) {
+                    input.name = input.name.replace(/\d+/, formCount);
+                    input.id = input.id.replace(/\d+/, formCount);
+                    input.value = '';
+                }
+            });
+            
+            // Actualizar labels
+            const labels = newForm.querySelectorAll('label');
+            labels.forEach(label => {
+                if (label.htmlFor) {
+                    label.htmlFor = label.htmlFor.replace(/\d+/, formCount);
+                }
+            });
+            
+            contactosContainer.appendChild(newForm);
+            totalForms.value = formCount + 1;
+        });
+    }
+});
+</script>
+{% endblock %}

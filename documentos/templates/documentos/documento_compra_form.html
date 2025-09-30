@@ -1,0 +1,1200 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if documento %}
+        Editar Documento de Compra - GestionCloud
+    {% else %}
+        Crear Documento de Compra - GestionCloud
+    {% endif %}
+{% endblock %}
+
+{% block body_class %}hide-top-bar{% if documento %} edit-mode{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        border: 1px solid #e3e6f0;
+        margin-bottom: 2rem;
+    }
+    
+    .form-section {
+        background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e3e6f0;
+    }
+    
+    .form-section h5 {
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .form-section h5 i {
+        margin-right: 0.5rem;
+        color: #4e73df;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+        border: none;
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(78, 115, 223, 0.4);
+    }
+    
+    .btn-secondary {
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .items-container {
+        background: white;
+        border: 1px solid #e3e6f0;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .item-form {
+        background: #f8f9fc;
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .item-form:last-child {
+        margin-bottom: 0;
+    }
+    
+    .add-item-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        border-radius: 4px;
+        color: white;
+        padding: 0.4rem 0.7rem;
+        font-weight: 600;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 1px 4px rgba(40, 167, 69, 0.3);
+        height: 28px;
+    }
+    
+    .add-item-btn:hover {
+        background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(40, 167, 69, 0.4);
+        color: white;
+    }
+    
+    .add-item-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 4px rgba(40, 167, 69, 0.3);
+    }
+    
+    .remove-item-btn {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border: none;
+        border-radius: 20px;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+    }
+    
+    .remove-item-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(220, 53, 69, 0.4);
+        color: white;
+    }
+    
+    .total-section {
+        background: linear-gradient(135deg, #6f42c1 0%, #563d7c 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+    
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .total-row:last-child {
+        margin-bottom: 0;
+        font-weight: bold;
+        font-size: 1.1rem;
+        border-top: 1px solid rgba(255,255,255,0.2);
+        padding-top: 0.5rem;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    }
+    
+     /* Estilos para el resumen de valores - Tarjeta Elegante */
+     .summary-card {
+         background: linear-gradient(135deg, #ffffff 0%, #f8f9fc 100%);
+         border-radius: 16px;
+         border: 1px solid rgba(255, 255, 255, 0.2);
+         overflow: hidden;
+         margin-top: 2rem;
+         padding: 0;
+         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.1);
+         min-height: 220px;
+         position: relative;
+         backdrop-filter: blur(10px);
+     }
+     
+     .summary-card::before {
+         content: '';
+         position: absolute;
+         top: 0;
+         left: 0;
+         right: 0;
+         height: 4px;
+         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+     }
+     
+     .summary-header {
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         padding: 1.2rem 1.5rem;
+         border-bottom: none;
+         position: relative;
+     }
+     
+     .summary-header::after {
+         content: '';
+         position: absolute;
+         bottom: 0;
+         left: 0;
+         right: 0;
+         height: 1px;
+         background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+     }
+     
+     .summary-title {
+         color: white;
+         font-weight: 700;
+         margin: 0;
+         font-size: 1.1rem;
+         text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+         letter-spacing: 0.5px;
+     }
+     
+     .summary-title i {
+         color: rgba(255, 255, 255, 0.9);
+         margin-right: 0.7rem;
+         font-size: 1.2rem;
+     }
+     
+     .summary-body {
+         padding: 1.2rem 1.5rem;
+         background: rgba(255, 255, 255, 0.5);
+     }
+     
+     .summary-row-compact {
+         display: flex;
+         justify-content: space-between;
+         align-items: center;
+         margin-bottom: 0;
+         padding: 0.8rem 0;
+         font-size: 0.95rem;
+         border-bottom: 1px solid rgba(108, 117, 125, 0.1);
+         transition: all 0.3s ease;
+         position: relative;
+     }
+     
+     .summary-row-compact:hover {
+         background: rgba(102, 126, 234, 0.05);
+         border-radius: 8px;
+         margin: 0 -0.5rem;
+         padding-left: 0.5rem;
+         padding-right: 0.5rem;
+     }
+     
+     .summary-row-compact:last-child {
+         border-bottom: none;
+         background: linear-gradient(135deg, #f8f9fc 0%, #e9ecef 100%);
+         border-radius: 12px;
+         margin: 0.5rem -0.5rem -0.5rem -0.5rem;
+         padding: 1rem 0.5rem;
+         box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+     }
+     
+     .summary-label {
+         font-weight: 600;
+         color: #495057;
+         font-size: 0.9rem;
+         letter-spacing: 0.3px;
+     }
+     
+     .summary-value {
+         font-weight: 700;
+         color: #2c3e50;
+         font-size: 0.95rem;
+         text-align: right;
+         font-family: 'Courier New', monospace;
+     }
+     
+     .summary-row-compact:last-child .summary-label,
+     .summary-row-compact:last-child .summary-value {
+         font-size: 1.1rem;
+         color: #667eea;
+         font-weight: 800;
+     }
+    
+    .summary-line {
+        margin: 0;
+        border: none;
+        border-top: 1px solid #e9ecef;
+        opacity: 0.5;
+    }
+    
+    .summary-divider {
+        margin: 0.5rem 0;
+        border: none;
+        border-top: 2px solid #6b8e23;
+        opacity: 0.8;
+    }
+    
+    .summary-divider-compact {
+        margin: 0.3rem 0;
+        border: none;
+        border-top: 1px solid #6b8e23;
+        opacity: 0.6;
+    }
+    
+    .total-row {
+        background: linear-gradient(135deg, #f8f9fc 0%, #e9ecef 100%);
+        margin: 0 -1.5rem -1.5rem -1.5rem;
+        padding: 1rem 1.5rem;
+        border-top: 2px solid #6b8e23;
+    }
+    
+    .total-row .summary-label,
+    .total-row .summary-value {
+        font-size: 1.2rem;
+        color: #6b8e23;
+        font-weight: 700;
+    }
+    
+    .section-divider {
+        border: none;
+        border-top: 2px solid #e9ecef;
+        margin: 1rem 0;
+        opacity: 0.6;
+    }
+    
+    /* Estilos para lista compacta de items */
+    .item-form-compact {
+        transition: background-color 0.2s ease;
+    }
+    
+    .item-form-compact:hover {
+        background-color: #f0f8ff !important;
+    }
+    
+    .item-form-compact:nth-child(even) {
+        background-color: #f8f9fc;
+    }
+    
+    .item-form-compact:nth-child(odd) {
+        background-color: #ffffff;
+    }
+    
+    .items-container {
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
+    }
+    
+    /* Campos más compactos para items */
+    .item-form-compact .form-control-sm,
+    .item-form-compact .form-select-sm {
+        padding: 0.15rem 0.4rem;
+        font-size: 0.8rem;
+        line-height: 1.1;
+        height: calc(1.2em + 0.3rem + 2px);
+    }
+    
+    .item-form-compact .form-control-sm:focus,
+    .item-form-compact .form-select-sm:focus {
+        box-shadow: 0 0 0 0.2rem rgba(107, 142, 35, 0.25);
+        border-color: #6b8e23;
+    }
+    
+    .item-total {
+        font-weight: 600 !important;
+        background-color: #f8f9fc !important;
+        color: #495057 !important;
+        text-align: right !important;
+    }
+
+    .alert {
+        border-radius: 10px;
+        border: none;
+    }
+    
+    .alert-success {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
+    }
+    
+    .alert-danger {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        color: #721c24;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #6b8e23 0%, #556b2f 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-invoice-dollar fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    {% if documento %}
+                                        Editar Documento de Compra
+                                    {% else %}
+                                        Crear Documento de Compra
+                                    {% endif %}
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">
+                                    {% if documento %}
+                                        Modifica la información del documento {{ documento.numero_documento }}
+                                    {% else %}
+                                        Registra un nuevo documento de compra en el sistema
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        <a href="{% url 'documentos:documento_compra_list' %}" class="btn" style="background: linear-gradient(135deg, #6c757d 0%, #545b62 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3); font-family: 'Poppins', sans-serif;">
+                            <i class="fas fa-arrow-left me-2"></i> Volver a la Lista
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Contenido del formulario -->
+                <div class="card-body" style="padding: 20px;">
+
+    <!-- Mensajes -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" id="documentoForm">
+        {% csrf_token %}
+        
+        <!-- Información del Documento -->
+        <div class="form-container">
+            <div class="form-section">
+                <h5 style="font-weight: 700; color: #495057;">Información del Documento</h5>
+                <div class="row">
+                    <div class="col-md-2">
+                        <label for="{{ form.tipo_documento.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Tipo *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-file-alt"></i></span>
+                            {{ form.tipo_documento }}
+                        </div>
+                        {% if form.tipo_documento.errors %}
+                            <div class="text-danger small">{{ form.tipo_documento.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2">
+                        <label for="{{ form.numero_documento.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Número *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+                            {{ form.numero_documento }}
+                        </div>
+                        {% if form.numero_documento.errors %}
+                            <div class="text-danger small">{{ form.numero_documento.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-5">
+                        <label for="{{ form.proveedor.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Proveedor *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-truck"></i></span>
+                            {{ form.proveedor }}
+                        </div>
+                        {% if form.proveedor.errors %}
+                            <div class="text-danger small">{{ form.proveedor.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                     <div class="col-md-3">
+                         <label for="{{ form.fecha_emision.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Fecha Emisión *</label>
+                         <div class="input-group">
+                             <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                             <input type="date" name="{{ form.fecha_emision.name }}" class="form-control" value="{% if form.fecha_emision.value %}{{ form.fecha_emision.value|date:'Y-m-d' }}{% else %}{{ 'now'|date:'Y-m-d' }}{% endif %}" required>
+                         </div>
+                         {% if form.fecha_emision.errors %}
+                             <div class="text-danger small">{{ form.fecha_emision.errors.0 }}</div>
+                         {% endif %}
+                     </div>
+                </div>
+                <div class="row mt-3">
+                     <div class="col-md-4">
+                         <label for="{{ form.fecha_vencimiento.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Fecha Vencimiento</label>
+                         <div class="input-group">
+                             <span class="input-group-text"><i class="fas fa-calendar-times"></i></span>
+                             <input type="date" name="{{ form.fecha_vencimiento.name }}" class="form-control" value="{% if form.fecha_vencimiento.value %}{{ form.fecha_vencimiento.value|date:'Y-m-d' }}{% endif %}">
+                         </div>
+                         {% if form.fecha_vencimiento.errors %}
+                             <div class="text-danger small">{{ form.fecha_vencimiento.errors.0 }}</div>
+                         {% endif %}
+                     </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.bodega.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Bodega *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-warehouse"></i></span>
+                            {{ form.bodega }}
+                        </div>
+                        {% if form.bodega.errors %}
+                            <div class="text-danger small">{{ form.bodega.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.estado_pago.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Estado Pago</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-credit-card"></i></span>
+                            {{ form.estado_pago }}
+                        </div>
+                        {% if form.estado_pago.errors %}
+                            <div class="text-danger small">{{ form.estado_pago.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <!-- Estado del documento oculto temporalmente -->
+                    {{ form.estado_documento.as_hidden }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Items del Documento -->
+        <div class="form-container">
+            <div class="form-section">
+                <h5 style="font-weight: 700; color: #495057;">Items del Documento</h5>
+                <hr class="section-divider">
+                <div class="items-container">
+                    {{ formset.management_form }}
+                     <!-- Headers de columnas -->
+                     <div class="row mb-1 align-items-center" style="font-weight: 600; color: #6c757d; font-size: 0.85rem; background: #f8f9fc; padding: 0.4rem 0.75rem; border-radius: 4px; border-bottom: 2px solid #dee2e6;">
+                         <div class="col-md-4">Artículo</div>
+                         <div class="col-md-1">Cant.</div>
+                         <div class="col-md-2">Precio Unit.</div>
+                         <div class="col-md-1">Desc. %</div>
+                         <div class="col-md-2">Total</div>
+                         <div class="col-md-2 d-flex justify-content-between align-items-center">
+                             <span>Acciones</span>
+                             <button type="button" class="btn btn-success btn-sm" id="addItemBtn" onclick="addItemForm();" style="padding: 0.6rem 1rem; font-size: 0.9rem; font-weight: 600; border-radius: 4px; height: 40px;">
+                                 <i class="fas fa-plus me-1"></i>Agregar
+                             </button>
+                         </div>
+                     </div>
+                    
+                    <!-- Items compactos -->
+                    {% for item_form in formset %}
+                        <div class="item-form-compact" data-form-index="{{ forloop.counter0 }}" style="margin-bottom: 0; padding: 0.2rem 0.75rem; border-bottom: 1px solid #e9ecef; {% cycle 'background: #ffffff;' 'background: #f8f9fc;' %}">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <select name="{{ item_form.articulo.html_name }}" class="form-select form-select-sm articulo-select" data-index="{{ forloop.counter0 }}">
+                                        <option value="">Seleccionar artículo</option>
+                                        {% for articulo in articulos_empresa %}
+                                            <option value="{{ articulo.id }}" 
+                                                    data-codigo="{{ articulo.codigo }}" 
+                                                    data-nombre="{{ articulo.nombre }}"
+                                                    {% if item_form.articulo.value == articulo.id %}selected{% endif %}>
+                                                {{ articulo.codigo }} - {{ articulo.nombre }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if item_form.articulo.errors %}
+                                        <div class="text-danger small">{{ item_form.articulo.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-1">
+                                    {{ item_form.cantidad }}
+                                    {% if item_form.cantidad.errors %}
+                                        <div class="text-danger small">{{ item_form.cantidad.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ item_form.precio_unitario }}
+                                    {% if item_form.precio_unitario.errors %}
+                                        <div class="text-danger small">{{ item_form.precio_unitario.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-1">
+                                    {{ item_form.descuento_porcentaje }}
+                                    {% if item_form.descuento_porcentaje.errors %}
+                                        <div class="text-danger small">{{ item_form.descuento_porcentaje.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="text" class="form-control form-control-sm item-total" readonly placeholder="0" style="font-weight: 600; background-color: #f8f9fc;">
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        {% for hidden in item_form.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                        <button type="button" class="btn btn-sm btn-outline-danger delete-item-btn" 
+                                                data-form-index="{{ forloop.counter0 }}" 
+                                                title="Eliminar item"
+                                                style="padding: 0.2rem 0.4rem;"
+                                                onclick="eliminarItem(this)">
+                                            <i class="fas fa-trash" style="font-size: 0.75rem;"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Observaciones y Resumen de Valores -->
+        <div class="row">
+            <div class="col-lg-9">
+                 <div class="form-container">
+                     <div class="form-section">
+                         <h5 style="font-weight: 700; color: #495057;">Observaciones</h5>
+                         <div class="input-group">
+                             <span class="input-group-text"><i class="fas fa-comment-alt"></i></span>
+                             {{ form.observaciones }}
+                         </div>
+                         {% if form.observaciones.errors %}
+                             <div class="text-danger small">{{ form.observaciones.errors.0 }}</div>
+                         {% endif %}
+                         <small class="text-muted">Información adicional sobre el documento, condiciones especiales, notas internas, etc.</small>
+                     </div>
+                     
+                     <!-- Botones -->
+                     <div class="mt-3">
+                         <div class="d-flex justify-content-end gap-2">
+                             <a href="{% url 'documentos:documento_compra_list' %}" class="btn btn-secondary">
+                                 <i class="fas fa-times me-2"></i>
+                                 Cancelar
+                             </a>
+                             <button type="submit" class="btn btn-primary">
+                                 <i class="fas fa-save me-2"></i>
+                                 {% if documento %}
+                                     Actualizar Documento
+                                 {% else %}
+                                     Crear Documento
+                                 {% endif %}
+                             </button>
+                         </div>
+                     </div>
+                 </div>
+            </div>
+            <div class="col-lg-3">
+                 <div style="background: #f8f9fa !important; border: 1px solid #dee2e6 !important; border-radius: 10px !important; padding: 15px !important; margin-top: 20px !important; box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;">
+                     <div style="background: #6c757d !important; color: white !important; padding: 10px !important; margin: -15px -15px 15px -15px !important; border-radius: 7px 7px 0 0 !important; font-weight: bold !important; text-align: center !important;">
+                         <i class="fas fa-calculator"></i> RESUMEN DE VALORES
+                     </div>
+                     
+                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                         <span style="font-weight: 600;">Neto:</span>
+                         <span style="font-weight: 700; text-align: right;" id="subtotal-total">$0</span>
+                     </div>
+                     
+                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                         <span style="font-weight: 600;">Descuentos:</span>
+                         <span style="font-weight: 700; text-align: right;" id="descuentos-total">$0</span>
+                     </div>
+                     
+                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                         <span style="font-weight: 600;">IVA (19%):</span>
+                         <span style="font-weight: 700; text-align: right;" id="iva-total">$0</span>
+                     </div>
+                     
+                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                         <span style="font-weight: 600;">Imp. Específico:</span>
+                         <span style="font-weight: 700; text-align: right;" id="impuesto-esp-total">$0</span>
+                     </div>
+                     
+                     <div style="display: flex; justify-content: space-between; padding: 12px 0; background: #e9ecef; margin: 10px -15px -15px -15px; border-radius: 0 0 7px 7px; font-size: 1.1rem;">
+                         <span style="font-weight: 800; color: #495057;">TOTAL:</span>
+                         <span style="font-weight: 800; color: #495057; text-align: right;" id="total-documento">$0</span>
+                     </div>
+                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Función global para eliminar items -->
+<script>
+function eliminarItem(button) {
+    console.log('*** ELIMINANDO ITEM - FUNCIÓN GLOBAL ***');
+    console.log('Botón:', button);
+    
+    const itemForm = button.closest('.item-form-compact');
+    console.log('Form encontrado:', itemForm);
+    
+    if (!itemForm) {
+        console.error('No se encontró el formulario del item');
+        return;
+    }
+    
+    // Verificar si es un item existente (tiene checkbox DELETE)
+    const deleteCheckbox = itemForm.querySelector('input[name$="-DELETE"]');
+    if (deleteCheckbox) {
+        deleteCheckbox.checked = true;
+        console.log('Checkbox DELETE marcado para item existente');
+    } else {
+        // Si no tiene checkbox DELETE, es un item nuevo - crear uno
+        const formIndex = button.getAttribute('data-form-index');
+        const deleteInput = document.createElement('input');
+        deleteInput.type = 'hidden';
+        deleteInput.name = `items-${formIndex}-DELETE`;
+        deleteInput.value = 'on';
+        itemForm.appendChild(deleteInput);
+        console.log('Checkbox DELETE creado para item nuevo');
+    }
+    
+    // Ocultar el formulario
+    itemForm.style.display = 'none';
+    console.log('Item ocultado');
+    
+    // Recalcular totales
+    setTimeout(function() {
+        let subtotal = 0;
+        document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
+            const cantidadInput = form.querySelector('input[name*="cantidad"]');
+            const precioInput = form.querySelector('input[name*="precio_unitario"]');
+            const cantidad = parseInt(cantidadInput?.value) || 0;
+            const precioUnitario = parseInt(precioInput?.value) || 0;
+            subtotal += cantidad * precioUnitario;
+        });
+        
+        const iva = Math.round(subtotal * 0.19);
+        const total = subtotal + iva;
+        
+        const subtotalElement = document.getElementById('subtotal-total');
+        const ivaElement = document.getElementById('iva-total');
+        const totalElement = document.getElementById('total-documento');
+        
+        if (subtotalElement) subtotalElement.textContent = '$' + subtotal.toLocaleString();
+        if (ivaElement) ivaElement.textContent = '$' + iva.toLocaleString();
+        if (totalElement) totalElement.textContent = '$' + total.toLocaleString();
+        
+        console.log('Totales recalculados:', {subtotal, iva, total});
+    }, 100);
+}
+</script>
+
+{% if documento %}
+<script>
+    // Cargar totales existentes desde el servidor
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Cargando totales del documento existente...');
+        
+        // Cargar totales desde el servidor
+        const total = {{ documento.total_documento|default:0 }};
+        
+        console.log('Total del documento:', total);
+        
+        // Calcular subtotal basado en el total (descontando IVA)
+        // Si el total es 25050, el subtotal sería aproximadamente 21050 (25050 / 1.19)
+        const subtotal = Math.round(total / 1.19);
+        const iva = total - subtotal;
+        const descuentos = 0;
+        const impuestoEsp = 0;
+        
+        console.log('Totales calculados:', {subtotal, descuentos, iva, impuestoEsp, total});
+        
+        // Función para calcular totales de líneas individuales
+        function calculateLineTotals() {
+            console.log('Calculando totales de líneas...');
+            
+            document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
+                const cantidadInput = form.querySelector('input[name*="cantidad"]');
+                const precioInput = form.querySelector('input[name*="precio_unitario"]');
+                const totalField = form.querySelector('.item-total');
+                
+                if (cantidadInput && precioInput && totalField) {
+                    const cantidad = parseInt(cantidadInput.value) || 0;
+                    const precioUnitario = parseInt(precioInput.value) || 0;
+                    const totalItem = cantidad * precioUnitario;
+                    
+                    if (totalItem > 0) {
+                        totalField.value = '$' + totalItem.toLocaleString();
+                        console.log('Línea calculada:', {cantidad, precioUnitario, totalItem});
+                    }
+                }
+            });
+        }
+        
+        // Actualizar interfaz con valores existentes
+        setTimeout(function() {
+            const subtotalElement = document.getElementById('subtotal-total');
+            const descuentosElement = document.getElementById('descuentos-total');
+            const ivaElement = document.getElementById('iva-total');
+            const impuestoEspElement = document.getElementById('impuesto-esp-total');
+            const totalElement = document.getElementById('total-documento');
+            
+            if (subtotalElement) subtotalElement.textContent = '$' + subtotal.toLocaleString();
+            if (descuentosElement) descuentosElement.textContent = '$' + descuentos.toLocaleString();
+            if (ivaElement) ivaElement.textContent = '$' + iva.toLocaleString();
+            if (impuestoEspElement) impuestoEspElement.textContent = '$' + impuestoEsp.toLocaleString();
+            if (totalElement) totalElement.textContent = '$' + total.toLocaleString();
+            
+            // Calcular totales de líneas individuales
+            calculateLineTotals();
+        }, 100);
+    });
+</script>
+{% endif %}
+
+<!-- Manejo de mensajes con SweetAlert -->
+{% if messages %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% for message in messages %}
+        {% if message.tags == 'success' %}
+            Swal.fire({
+                icon: 'success',
+                title: '¡Éxito!',
+                text: '{{ message }}',
+                timer: 3000,
+                showConfirmButton: false
+            });
+        {% elif message.tags == 'error' %}
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: '{{ message }}',
+                confirmButtonText: 'Entendido'
+            });
+        {% elif message.tags == 'warning' %}
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: '{{ message }}',
+                confirmButtonText: 'Entendido'
+            });
+        {% else %}
+            Swal.fire({
+                icon: 'info',
+                title: 'Información',
+                text: '{{ message }}',
+                timer: 3000,
+                showConfirmButton: false
+            });
+        {% endif %}
+    {% endfor %}
+});
+</script>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Variables globales
+    let formCount = {{ formset.total_form_count }};
+    const maxForms = 1000;
+    
+    // Función para agregar nuevo item
+    function addItemForm() {
+        console.log('addItemForm ejecutándose, formCount:', formCount);
+        if (formCount < maxForms) {
+            const emptyForm = document.querySelector('.item-form-compact').cloneNode(true);
+            const formIndex = formCount;
+            
+            // Actualizar nombres de campos
+            emptyForm.querySelectorAll('input, select, textarea').forEach(function(element) {
+                if (element.name) {
+                    element.name = element.name.replace(/-\d+-/, '-' + formIndex + '-');
+                    element.id = element.id.replace(/-\d+-/, '-' + formIndex + '-');
+                }
+                if (element.classList.contains('articulo-select')) {
+                    element.setAttribute('data-index', formIndex);
+                }
+            });
+            
+            // Limpiar valores
+            emptyForm.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function(element) {
+                element.value = '';
+            });
+            
+            // Actualizar el botón de eliminar para el nuevo índice
+            const deleteBtn = emptyForm.querySelector('.delete-item-btn');
+            if (deleteBtn) {
+                deleteBtn.setAttribute('data-form-index', formIndex);
+            }
+            
+            // Agregar botón de eliminar
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-sm remove-item-btn mt-2';
+            removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            removeBtn.onclick = function() {
+                deleteDiv.querySelector('input[type="checkbox"]').checked = true;
+                emptyForm.style.display = 'none';
+            };
+            deleteDiv.appendChild(removeBtn);
+            
+            // Insertar en el contenedor de items
+            const container = document.querySelector('.items-container');
+            container.appendChild(emptyForm);
+            
+            // Actualizar contador
+            formCount++;
+            document.getElementById('id_items-TOTAL_FORMS').value = formCount;
+            
+            console.log('Item agregado exitosamente');
+        }
+    }
+    
+     // Función para calcular totales
+     function calculateTotals() {
+         console.log('Calculando totales...');
+         let subtotal = 0;
+         
+         document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
+             // Buscar campos por name attribute
+             const cantidadInput = form.querySelector('input[name*="cantidad"]');
+             const precioInput = form.querySelector('input[name*="precio_unitario"]');
+             
+             const cantidad = parseInt(cantidadInput?.value) || 0;
+             const precioUnitario = parseInt(precioInput?.value) || 0;
+             
+             console.log('Item:', {cantidad, precioUnitario});
+             
+             const subtotalItem = cantidad * precioUnitario;
+             
+             // Actualizar total del item
+             const totalField = form.querySelector('.item-total');
+             if (totalField && subtotalItem > 0) {
+                 totalField.value = '$' + subtotalItem.toLocaleString();
+             }
+             
+             subtotal += subtotalItem;
+         });
+         
+         // Calcular IVA del documento (19% sobre el neto)
+         const ivaDocumento = Math.round(subtotal * 0.19);
+         const impuestoEspecifico = 0; // Por ahora 0
+         
+         const totalDocumento = subtotal + ivaDocumento + impuestoEspecifico;
+         
+         console.log('Totales calculados:', {
+             subtotal, 
+             ivaDocumento, 
+             totalDocumento
+         });
+         
+         // Actualizar totales en la interfaz
+         const subtotalElement = document.getElementById('subtotal-total');
+         const descuentosElement = document.getElementById('descuentos-total');
+         const ivaElement = document.getElementById('iva-total');
+         const impuestoEspElement = document.getElementById('impuesto-esp-total');
+         const totalElement = document.getElementById('total-documento');
+         
+         if (subtotalElement) subtotalElement.textContent = '$' + subtotal.toLocaleString();
+         if (descuentosElement) descuentosElement.textContent = '$0';
+         if (ivaElement) ivaElement.textContent = '$' + ivaDocumento.toLocaleString();
+         if (impuestoEspElement) impuestoEspElement.textContent = '$' + impuestoEspecifico.toLocaleString();
+         if (totalElement) totalElement.textContent = '$' + totalDocumento.toLocaleString();
+     }
+    
+     // Función para actualizar campos cuando se selecciona un artículo
+     function updateArticleFields(selectElement) {
+         const selectedOption = selectElement.options[selectElement.selectedIndex];
+         const form = selectElement.closest('.item-form-compact');
+         
+         if (selectedOption.value) {
+             // Auto-calcular total de línea basado en cantidad * precio + descuentos + impuestos
+             const cantidadInput = form.querySelector('input[name*="cantidad"]');
+             const precioInput = form.querySelector('input[name*="precio_unitario"]');
+             const descuentoInput = form.querySelector('input[name*="descuento_porcentaje"]');
+             const impuestoInput = form.querySelector('input[name*="impuesto_porcentaje"]');
+             
+             const cantidad = parseInt(cantidadInput?.value) || 1;
+             const precioUnitario = parseInt(precioInput?.value) || 0;
+             const descuentoPorcentaje = parseInt(descuentoInput?.value) || 0;
+             const impuestoPorcentaje = parseInt(impuestoInput?.value) || 0;
+             
+             // Calcular total de línea con descuentos e impuestos
+             const subtotalItem = cantidad * precioUnitario;
+             const descuentoItem = Math.round(subtotalItem * (descuentoPorcentaje / 100));
+             const impuestoItem = Math.round((subtotalItem - descuentoItem) * (impuestoPorcentaje / 100));
+             const totalItem = subtotalItem - descuentoItem + impuestoItem;
+             
+             // Actualizar el campo de total del item
+             const totalField = form.querySelector('.item-total');
+             if (totalField) {
+                 totalField.value = '$' + totalItem.toLocaleString();
+             }
+             
+             // Recalcular totales generales
+             calculateTotals();
+         }
+     }
+    
+     // Función para auto-calcular cuando cambia cantidad o precio
+     function autoCalculateItem(quantityInput) {
+         const form = quantityInput.closest('.item-form-compact');
+         const cantidad = parseInt(quantityInput.value) || 1;
+         const precioInput = form.querySelector('input[name*="precio_unitario"]');
+         const precioUnitario = parseInt(precioInput?.value) || 0;
+         const descuentoInput = form.querySelector('input[name*="descuento_porcentaje"]');
+         const descuentoPorcentaje = parseInt(descuentoInput?.value) || 0;
+         const impuestoInput = form.querySelector('input[name*="impuesto_porcentaje"]');
+         const impuestoPorcentaje = parseInt(impuestoInput?.value) || 0;
+         
+         // Calcular total de línea (solo cantidad * precio, sin descuentos ni impuestos por ahora)
+         const totalItem = cantidad * precioUnitario;
+         
+         const totalField = form.querySelector('.item-total');
+         if (totalField) {
+             totalField.value = '$' + totalItem.toLocaleString();
+         }
+         calculateTotals();
+     }
+    
+     // Función para auto-calcular cuando cambia precio
+     function autoCalculatePrice(priceInput) {
+         const form = priceInput.closest('.item-form-compact');
+         const precioUnitario = parseInt(priceInput.value) || 0;
+         const cantidadInput = form.querySelector('input[name*="cantidad"]');
+         const cantidad = parseInt(cantidadInput?.value) || 1;
+         
+         // Calcular total de línea (solo cantidad * precio, sin descuentos ni impuestos por ahora)
+         const totalItem = cantidad * precioUnitario;
+         
+         const totalField = form.querySelector('.item-total');
+         if (totalField) {
+             totalField.value = '$' + totalItem.toLocaleString();
+         }
+         calculateTotals();
+     }
+    
+    // Función para eliminar item directamente
+    function deleteItem(button) {
+        console.log('Eliminando item...');
+        const formIndex = button.getAttribute('data-form-index');
+        const itemForm = button.closest('.item-form-compact');
+        
+        console.log('Form index:', formIndex);
+        console.log('Item form:', itemForm);
+        
+        // Verificar si es un item existente (tiene ID)
+        const deleteCheckbox = itemForm.querySelector('input[name$="-DELETE"]');
+        if (deleteCheckbox) {
+            // Es un item existente, marcarlo para eliminación
+            deleteCheckbox.checked = true;
+            console.log('Checkbox DELETE marcado para item existente');
+        }
+        
+        // Ocultar el formulario
+        itemForm.style.display = 'none';
+        console.log('Item ocultado');
+        
+        // Recalcular totales si la función está disponible
+        if (typeof calculateTotals === 'function') {
+            calculateTotals();
+        } else {
+            console.log('Función calculateTotals no disponible, recalculando manualmente...');
+            // Recalcular manualmente
+            setTimeout(function() {
+                let subtotal = 0;
+                document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
+                    const cantidadInput = form.querySelector('input[name*="cantidad"]');
+                    const precioInput = form.querySelector('input[name*="precio_unitario"]');
+                    const cantidad = parseInt(cantidadInput?.value) || 0;
+                    const precioUnitario = parseInt(precioInput?.value) || 0;
+                    subtotal += cantidad * precioUnitario;
+                });
+                
+                const iva = Math.round(subtotal * 0.19);
+                const total = subtotal + iva;
+                
+                const subtotalElement = document.getElementById('subtotal-total');
+                const ivaElement = document.getElementById('iva-total');
+                const totalElement = document.getElementById('total-documento');
+                
+                if (subtotalElement) subtotalElement.textContent = '$' + subtotal.toLocaleString();
+                if (ivaElement) ivaElement.textContent = '$' + iva.toLocaleString();
+                if (totalElement) totalElement.textContent = '$' + total.toLocaleString();
+                
+                console.log('Totales recalculados manualmente:', {subtotal, iva, total});
+            }, 100);
+        }
+    }
+    
+    // Event listeners - INMEDIATO
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM cargado, configurando botón...');
+        const addBtn = document.getElementById('addItemBtn');
+        console.log('Botón encontrado:', addBtn);
+        if (addBtn) {
+            addBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Botón clickeado!');
+                addItemForm();
+            });
+            console.log('Event listener agregado al botón');
+        } else {
+            console.error('NO SE ENCONTRÓ EL BOTÓN addItemBtn');
+        }
+    });
+    
+    // Eliminación directa de items - VERSIÓN MEJORADA
+    document.addEventListener('click', function(e) {
+        console.log('Click detectado en:', e.target);
+        console.log('Clases del elemento:', e.target.className);
+        
+        // Verificar si es el botón de eliminar o el ícono dentro del botón
+        const deleteButton = e.target.closest('.delete-item-btn');
+        const isIcon = e.target.classList.contains('fa-trash');
+        const isButton = e.target.classList.contains('delete-item-btn');
+        
+        console.log('deleteButton encontrado:', deleteButton);
+        console.log('Es ícono trash:', isIcon);
+        console.log('Es botón delete:', isButton);
+        
+        if (deleteButton || isIcon || isButton) {
+            console.log('*** ELIMINANDO ITEM ***');
+            const button = deleteButton || e.target.closest('button') || e.target;
+            deleteItem(button);
+        }
+    });
+    
+     // Calcular totales cuando cambien los valores
+     document.addEventListener('input', function(e) {
+         if (e.target.name && e.target.name.includes('cantidad')) {
+             autoCalculateItem(e.target);
+         } else if (e.target.name && e.target.name.includes('precio_unitario')) {
+             autoCalculatePrice(e.target);
+         } else if ((e.target.name && e.target.name.includes('descuento_porcentaje')) || 
+                    (e.target.name && e.target.name.includes('impuesto_porcentaje'))) {
+             calculateTotals();
+         }
+     });
+    
+     // Función para cargar totales existentes en modo edición
+     function loadExistingTotals() {
+         console.log('Cargando totales existentes...');
+         
+         // Verificar si estamos en modo edición
+         const isEditMode = document.body.classList.contains('edit-mode') || 
+                           document.querySelector('input[name="numero_documento"]')?.value !== '';
+         
+         if (isEditMode) {
+             // Los totales se cargarán desde el servidor
+             console.log('Modo edición detectado, cargando totales...');
+         }
+     }
+     
+     // Función para configurar botones de eliminar
+     function setupDeleteButtons() {
+         console.log('Configurando botones de eliminar...');
+         const deleteButtons = document.querySelectorAll('.delete-item-btn');
+         console.log('Botones encontrados:', deleteButtons.length);
+         
+         deleteButtons.forEach(function(button, index) {
+             console.log(`Configurando botón ${index}:`, button);
+             
+             // Agregar evento directo
+             button.addEventListener('click', function(e) {
+                 e.preventDefault();
+                 e.stopPropagation();
+                 console.log('Botón de eliminar clickeado directamente:', button);
+                 deleteItem(button);
+             });
+         });
+     }
+     
+     // Calcular totales iniciales al cargar la página - INMEDIATO
+     document.addEventListener('DOMContentLoaded', function() {
+         console.log('Calculando totales iniciales...');
+         
+         // Cargar totales existentes si estamos en modo edición
+         loadExistingTotals();
+         
+         setTimeout(function() {
+             calculateTotals();
+             console.log('Totales calculados');
+             
+             // Configurar botones de eliminar
+             setupDeleteButtons();
+         }, 500);
+     });
+    
+    // Actualizar campos cuando se selecciona un artículo
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('articulo-select')) {
+            updateArticleFields(e.target);
+        }
+    });
+    
+     // Calcular totales iniciales
+     calculateTotals();
+     
+     // Validación del formulario antes de enviar
+     document.getElementById('documentoForm').addEventListener('submit', function(e) {
+         console.log('=== ENVIANDO FORMULARIO ===');
+         console.log('Formulario encontrado:', this);
+         console.log('Método:', this.method);
+         console.log('Action:', this.action);
+         
+         // Verificar si hay items
+         const items = document.querySelectorAll('.item-form-compact:not([style*="display: none"])');
+         console.log('Items encontrados:', items.length);
+         
+         // Verificar campos de fecha
+         const fechaEmision = document.querySelector('input[name="fecha_emision"]');
+         const fechaVencimiento = document.querySelector('input[name="fecha_vencimiento"]');
+         console.log('Fecha emisión:', fechaEmision?.value);
+         console.log('Fecha vencimiento:', fechaVencimiento?.value);
+         
+         // Verificar checkboxes DELETE
+         const deleteCheckboxes = document.querySelectorAll('input[name$="-DELETE"]:checked');
+         console.log('Items marcados para eliminar:', deleteCheckboxes.length);
+         
+         console.log('ENVIANDO FORMULARIO...');
+         // NO hacer preventDefault() - dejar que Django maneje la validación
+     });
+</script>
+{% endblock %}

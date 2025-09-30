@@ -1,9 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 from empresas.models import Empresa
 from bodegas.models import Bodega
 from articulos.models import Articulo
+
+# Los modelos de ajustes se manejan directamente en las vistas
 
 
 class Inventario(models.Model):
@@ -27,6 +30,9 @@ class Inventario(models.Model):
     bodega_destino = models.ForeignKey(Bodega, on_delete=models.CASCADE, related_name='inventarios_destino', null=True, blank=True)
     bodega_origen = models.ForeignKey(Bodega, on_delete=models.CASCADE, related_name='inventarios_origen', null=True, blank=True)
     articulo = models.ForeignKey(Articulo, on_delete=models.CASCADE, related_name='inventarios')
+    
+    # Número de folio para ajustes
+    numero_folio = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de Folio")
     
     # Información del movimiento
     tipo_movimiento = models.CharField(
@@ -73,7 +79,7 @@ class Inventario(models.Model):
     
     # Estado y auditoría
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
-    fecha_movimiento = models.DateTimeField(verbose_name="Fecha del Movimiento", auto_now_add=True)
+    fecha_movimiento = models.DateTimeField(verbose_name="Fecha del Movimiento", default=timezone.now)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
     creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)

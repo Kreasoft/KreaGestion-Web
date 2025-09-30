@@ -20,6 +20,7 @@ def paleta_colores_view(request):
     """Vista de paleta de colores del sistema"""
     return render(request, 'paleta_colores.html')
 
+
 urlpatterns = [
 	path('admin/', admin.site.urls),
 	path('accounts/', include('django.contrib.auth.urls')),
@@ -33,8 +34,8 @@ urlpatterns = [
 	path('ventas/', include('ventas.urls')),
 	path('compras/', include('compras.urls')),
 	path('clientes/', include('clientes.urls')),
-	path('proveedores/', include('proveedores.urls')),
 	path('documentos/', include('documentos.urls')),
+	path('proveedores/', include('proveedores.urls')),
 	path('reportes/', include('reportes.urls')),
 	path('usuarios/', include('usuarios.urls')),
 ]

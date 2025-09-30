@@ -347,26 +347,67 @@ def editar_empresa_activa(request):
 		messages.error(request, 'No hay empresa activa para editar.')
 		return redirect('dashboard')
 
+	# Obtener o crear configuración
+	try:
+		configuracion = ConfiguracionEmpresa.objects.get(empresa=empresa_activa)
+	except ConfiguracionEmpresa.DoesNotExist:
+		configuracion = ConfiguracionEmpresa.objects.create(empresa=empresa_activa)
+
+	# Inicializar formularios
+	form = EmpresaForm(instance=empresa_activa)
+	config_form = ConfiguracionEmpresaForm(instance=configuracion)
+	
 	if request.method == 'POST':
 		print(f"DEBUG - POST recibido: {request.POST}")
 		print(f"DEBUG - FILES recibidos: {request.FILES}")
-		form = EmpresaForm(request.POST, request.FILES, instance=empresa_activa)
-		print(f"DEBUG - Form válido: {form.is_valid()}")
 		
-		if form.is_valid():
-			empresa_guardada = form.save()
-			print(f"DEBUG - Empresa guardada: {empresa_guardada}")
-			messages.success(request, f'Empresa "{empresa_activa.nombre}" actualizada correctamente.')
-			return redirect('dashboard')
+		# Determinar qué formulario se está enviando
+		# Si solo tiene campos de configuración, es el formulario de folios
+		campos_empresa = ['nombre', 'razon_social', 'rut', 'giro', 'direccion', 'comuna', 'ciudad', 'region', 'telefono', 'email']
+		tiene_campos_empresa = any(campo in request.POST for campo in campos_empresa)
+		
+		print(f"DEBUG - Tiene campos empresa: {tiene_campos_empresa}")
+		print(f"DEBUG - Tiene prefijo_ajustes: {'prefijo_ajustes' in request.POST}")
+		
+		if not tiene_campos_empresa and 'prefijo_ajustes' in request.POST:
+			# Solo actualizar configuración, mantener datos de empresa
+			configuracion.prefijo_ajustes = request.POST.get('prefijo_ajustes', 'Aju')
+			configuracion.siguiente_ajuste = int(request.POST.get('siguiente_ajuste', 1))
+			configuracion.formato_ajustes = request.POST.get('formato_ajustes', '{prefijo}-{000}')
+			
+			configuracion.save()
+			print(f"DEBUG - Solo configuración guardada: {configuracion}")
+			messages.success(request, 'Configuración de folios actualizada correctamente.')
+			return redirect('empresas:editar_empresa_activa')
 		else:
-			print(f"DEBUG - Errores del formulario: {form.errors}")
-			messages.error(request, 'Hubo errores en el formulario.')
-	else:
-		form = EmpresaForm(instance=empresa_activa)
+			# Actualizar datos de empresa
+			form = EmpresaForm(request.POST, request.FILES, instance=empresa_activa)
+			
+			# Manejar configuración manualmente si está presente
+			if 'prefijo_ajustes' in request.POST:
+				configuracion.prefijo_ajustes = request.POST.get('prefijo_ajustes', configuracion.prefijo_ajustes)
+				configuracion.siguiente_ajuste = int(request.POST.get('siguiente_ajuste', configuracion.siguiente_ajuste))
+				configuracion.formato_ajustes = request.POST.get('formato_ajustes', configuracion.formato_ajustes)
+			
+			print(f"DEBUG - Form válido: {form.is_valid()}")
+			print(f"DEBUG - Configuración: {configuracion.prefijo_ajustes}, {configuracion.siguiente_ajuste}, {configuracion.formato_ajustes}")
+			
+			if form.is_valid():
+				empresa_guardada = form.save()
+				configuracion.save()
+				print(f"DEBUG - Empresa guardada: {empresa_guardada}")
+				print(f"DEBUG - Configuración guardada: {configuracion}")
+				messages.success(request, f'Empresa "{empresa_activa.nombre}" actualizada correctamente.')
+				return redirect('dashboard')
+			else:
+				print(f"DEBUG - Errores del formulario: {form.errors}")
+				messages.error(request, 'Hubo errores en el formulario.')
 
 	context = {
 		'form': form,
+		'config_form': config_form,
 		'empresa': empresa_activa,
+		'configuracion': configuracion,
 		'titulo': f'Editar Empresa: {empresa_activa.nombre}',
 	}
 

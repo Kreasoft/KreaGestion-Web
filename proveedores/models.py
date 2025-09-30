@@ -24,7 +24,6 @@ class Proveedor(models.Model):
     
     # Información básica
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
-    codigo = models.CharField(max_length=20, verbose_name="Código del Proveedor")
     nombre = models.CharField(max_length=200, verbose_name="Nombre del Proveedor")
     razon_social = models.CharField(max_length=200, blank=True, verbose_name="Razón Social")
     
@@ -88,14 +87,37 @@ class Proveedor(models.Model):
         verbose_name = "Proveedor"
         verbose_name_plural = "Proveedores"
         ordering = ['nombre']
-        unique_together = ['empresa', 'codigo']
+        unique_together = ['empresa', 'rut']
     
     def __str__(self):
-        return f"{self.codigo} - {self.nombre}"
+        return f"{self.get_rut_formateado()} - {self.nombre}"
     
     def get_rut_formateado(self):
-        """Retorna el RUT formateado"""
-        return self.rut
+        """Retorna el RUT formateado con puntos y guión"""
+        if not self.rut:
+            return "Sin RUT"
+        
+        # Limpiar el RUT (quitar puntos y guiones)
+        rut_limpio = self.rut.replace('.', '').replace('-', '')
+        
+        if len(rut_limpio) < 8:
+            return self.rut
+        
+        # Separar número y dígito verificador
+        numero = rut_limpio[:-1]
+        dv = rut_limpio[-1].upper()
+        
+        # Formatear con puntos
+        if len(numero) == 7:
+            # RUT de 7 dígitos: 1.234.567-8
+            numero_formateado = f"{numero[0]}.{numero[1:4]}.{numero[4:7]}"
+        elif len(numero) == 8:
+            # RUT de 8 dígitos: 12.345.678-9
+            numero_formateado = f"{numero[0:2]}.{numero[2:5]}.{numero[5:8]}"
+        else:
+            return self.rut
+        
+        return f"{numero_formateado}-{dv}"
     
     def get_direccion_completa(self):
         """Retorna la dirección completa formateada"""

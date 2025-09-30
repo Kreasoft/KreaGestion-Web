@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<style>
+.config-container {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.config-header {
+    background: linear-gradient(135deg, #9CAF88 0%, #7A9A6B 100%);
+    color: white;
+    padding: 1.5rem;
+    margin: 0;
+}
+
+.config-body {
+    padding: 2rem;
+}
+
+.correlativo-card {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.correlativo-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.correlativo-card.active {
+    border-color: #28a745;
+    background: #f8fff9;
+}
+
+.correlativo-card.inactive {
+    border-color: #dc3545;
+    background: #fff8f8;
+    opacity: 0.7;
+}
+
+.tipo-documento {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-bottom: 1rem;
+}
+
+.folio-preview {
+    background: #e3f2fd;
+    border: 1px solid #2196f3;
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #1976d2;
+    margin-top: 0.5rem;
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #9CAF88 0%, #7A9A6B 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 2rem;
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+.btn-cancel {
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 2rem;
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+.form-check-input:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.info-text {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+</style>
+
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+            <div class="config-container">
+                <div class="config-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-hashtag me-2"></i>{{ titulo }}
+                    </h4>
+                    <small>Configure los correlativos para generar folios automáticamente</small>
+                </div>
+                
+                <div class="config-body">
+                    <form method="post" id="correlativosForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            {% for correlativo in correlativos %}
+                                    <div class="col-md-6 mb-4">
+                                        <div class="correlativo-card {% if correlativo.activo %}active{% else %}inactive{% endif %}">
+                                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                                <div>
+                                                    <span class="tipo-documento">{{ correlativo.get_tipo_documento_display }}</span>
+                                                    <h6 class="mb-1">{{ correlativo.tipo_documento }}</h6>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           name="activo_{{ correlativo.tipo_documento }}" 
+                                                           id="activo_{{ correlativo.tipo_documento }}"
+                                                           {% if correlativo.activo %}checked{% endif %}>
+                                                    <label class="form-check-label" for="activo_{{ correlativo.tipo_documento }}">
+                                                        Activo
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Prefijo</label>
+                                                        <input type="text" class="form-control" 
+                                                               name="prefijo_{{ correlativo.tipo_documento }}" 
+                                                               value="{{ correlativo.prefijo|default:correlativo.tipo_documento }}"
+                                                               placeholder="Ej: {{ correlativo.tipo_documento }}">
+                                                        <div class="info-text">Prefijo que aparecerá en el folio</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Número Actual</label>
+                                                        <input type="number" class="form-control" 
+                                                               name="numero_actual_{{ correlativo.tipo_documento }}" 
+                                                               value="{{ correlativo.numero_actual|default:0 }}"
+                                                               min="0">
+                                                        <div class="info-text">Último número usado</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label">Formato del Folio</label>
+                                                <input type="text" class="form-control" 
+                                                       name="formato_{{ correlativo.tipo_documento }}" 
+                                                       value="{{ correlativo.formato|default:'{prefijo}-{numero:04d}' }}"
+                                                       placeholder="{prefijo}-{numero:04d}">
+                                                <div class="info-text">
+                                                    Use {prefijo} para el prefijo y {numero:04d} para el número con 4 dígitos
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="folio-preview" id="preview_{{ correlativo.tipo_documento }}">
+                                                Folio: {{ correlativo.prefijo|default:correlativo.tipo_documento }}-0001
+                                            </div>
+                                        </div>
+                                    </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Información adicional -->
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>Información Importante</h6>
+                            <ul class="mb-0">
+                                <li>Los correlativos se generan automáticamente al crear nuevos documentos</li>
+                                <li>El número actual se incrementa cada vez que se genera un folio</li>
+                                <li>Puede desactivar un tipo de documento si no lo necesita</li>
+                                <li>El formato permite personalizar cómo se ve el folio final</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'inventario:ajustes_list' %}" class="btn btn-cancel">
+                                <i class="fas fa-arrow-left me-2"></i>Volver a Ajustes
+                            </a>
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save me-2"></i>Guardar Configuración
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Actualizar preview de folios en tiempo real
+document.addEventListener('DOMContentLoaded', function() {
+    // Obtener todos los inputs de correlativos
+    const prefijoInputs = document.querySelectorAll('input[name^="prefijo_"]');
+    
+    prefijoInputs.forEach(function(prefijoInput) {
+        const name = prefijoInput.name;
+        const tipoDoc = name.replace('prefijo_', '');
+        const numeroInput = document.querySelector(`input[name="numero_actual_${tipoDoc}"]`);
+        const formatoInput = document.querySelector(`input[name="formato_${tipoDoc}"]`);
+        const preview = document.getElementById(`preview_${tipoDoc}`);
+        
+        function updatePreview() {
+            const prefijo = prefijoInput.value || tipoDoc;
+            const numero = parseInt(numeroInput.value) || 0;
+            const formato = formatoInput.value || '{prefijo}-{numero:04d}';
+            
+            const folio = formato
+                .replace('{prefijo}', prefijo)
+                .replace('{numero:04d}', (numero + 1).toString().padStart(4, '0'));
+            
+            preview.textContent = `Próximo folio: ${folio}`;
+        }
+        
+        if (prefijoInput) prefijoInput.addEventListener('input', updatePreview);
+        if (numeroInput) numeroInput.addEventListener('input', updatePreview);
+        if (formatoInput) formatoInput.addEventListener('input', updatePreview);
+        
+        // Actualizar preview inicial
+        updatePreview();
+    });
+    
+    // Actualizar estado visual de las tarjetas
+    document.querySelectorAll('.form-check-input').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const card = this.closest('.correlativo-card');
+            if (this.checked) {
+                card.classList.remove('inactive');
+                card.classList.add('active');
+            } else {
+                card.classList.remove('active');
+                card.classList.add('inactive');
+            }
+        });
+    });
+});
+
+// Validación del formulario
+document.getElementById('correlativosForm').addEventListener('submit', function(e) {
+    let hasActive = false;
+    
+    document.querySelectorAll('.form-check-input:checked').forEach(checkbox => {
+        hasActive = true;
+    });
+    
+    if (!hasActive) {
+        e.preventDefault();
+        alert('Debe activar al menos un tipo de documento.');
+        return;
+    }
+});
+</script>
+{% endblock %}

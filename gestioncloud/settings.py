@@ -47,9 +47,9 @@ LOCAL_APPS = [
 	'bodegas.apps.BodegasConfig',
 	'ventas.apps.VentasConfig',
 	'clientes.apps.ClientesConfig',
+	'documentos.apps.DocumentosConfig',
 	'proveedores.apps.ProveedoresConfig',
 	'compras.apps.ComprasConfig',
-	'documentos.apps.DocumentosConfig',
 	'reportes.apps.ReportesConfig',
 	'usuarios.apps.UsuariosConfig',
 ]

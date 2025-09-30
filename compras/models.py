@@ -4,8 +4,8 @@ from django.core.validators import MinValueValidator
 from django.utils import timezone
 from decimal import Decimal
 from empresas.models import Empresa, Sucursal
-# from proveedores.models import Proveedor
-# from productos.models import Producto
+# from proveedores.models import Proveedor  # Temporal
+from articulos.models import Articulo
 
 
 class OrdenCompra(models.Model):
@@ -105,7 +105,7 @@ class ItemOrdenCompra(models.Model):
     """Items individuales de una orden de compra"""
     
     orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.CASCADE, related_name='items')
-    producto = models.CharField(max_length=200, verbose_name="Producto")  # Temporal
+    articulo = models.ForeignKey(Articulo, on_delete=models.CASCADE, verbose_name="Artículo")
     
     cantidad_solicitada = models.DecimalField(
         max_digits=10, 
@@ -142,10 +142,10 @@ class ItemOrdenCompra(models.Model):
     class Meta:
         verbose_name = "Item de Orden de Compra"
         verbose_name_plural = "Items de Órdenes de Compra"
-        unique_together = ['orden_compra', 'producto']
+        unique_together = ['orden_compra', 'articulo']
     
     def __str__(self):
-        return f"{self.producto} - {self.cantidad_solicitada}"
+        return f"{self.articulo.nombre} - {self.cantidad_solicitada}"
     
     def save(self, *args, **kwargs):
         """Calcula el subtotal al guardar"""
@@ -237,7 +237,7 @@ class ItemRecepcion(models.Model):
         unique_together = ['recepcion', 'item_orden']
     
     def __str__(self):
-        return f"{self.item_orden.producto} - {self.cantidad_recibida}"
+        return f"{self.item_orden.articulo.nombre} - {self.cantidad_recibida}"
     
     def save(self, *args, **kwargs):
         """Actualiza la cantidad recibida del item de la orden"""

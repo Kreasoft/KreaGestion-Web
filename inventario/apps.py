@@ -7,3 +7,15 @@ class InventarioConfig(AppConfig):
     verbose_name = 'Sistema de Inventario'
 
 
+
+
+
+
+
+
+
+
+
+
+
+

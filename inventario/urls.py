@@ -3,6 +3,7 @@ from . import views
 from . import views_carga_inicial
 from . import views_stock_modal
 from . import views_stock_updated
+from . import views_ajustes_simple
 
 app_name = 'inventario'
 
@@ -31,6 +32,14 @@ urlpatterns = [
     path('carga-inicial/edicion-manual/', views_carga_inicial.edicion_manual_inventario, name='edicion_manual'),
     path('api/articulos-inventario/', views_carga_inicial.obtener_articulos_para_inventario, name='api_articulos'),
     path('api/guardar-inventario-manual/', views_carga_inicial.guardar_inventario_manual, name='api_guardar_manual'),
+    
+    # Ajustes de Stock (Simple)
+    path('ajustes/', views_ajustes_simple.ajustes_list_simple, name='ajustes_list'),
+    path('ajustes/nuevo/', views_ajustes_simple.ajuste_create_simple, name='ajuste_create_simple'),
+    path('ajustes/<int:pk>/', views_ajustes_simple.ajuste_detail_simple, name='ajuste_detail_simple'),
+    path('ajustes/<int:pk>/editar/', views_ajustes_simple.ajuste_edit_simple, name='ajuste_edit_simple'),
+    path('ajustes/<int:pk>/eliminar/', views_ajustes_simple.ajuste_delete_simple, name='ajuste_delete_simple'),
+    path('api/articulos-ajuste/', views_ajustes_simple.api_articulos_ajuste_simple, name='api_articulos_ajuste'),
 ]
 
 

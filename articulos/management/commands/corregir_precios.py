@@ -51,3 +51,8 @@ class Command(BaseCommand):
             corregidos += 1
         
         self.stdout.write(f'\nCorrección completada. {corregidos} artículos corregidos.')
+
+
+
+
+

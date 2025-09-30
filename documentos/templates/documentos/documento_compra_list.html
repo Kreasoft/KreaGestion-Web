@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Documentos de Compra - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-invoice fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    Gestión de Documentos de Compra
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">Administra facturas, guías, notas de crédito y otros documentos</small>
+                            </div>
+                        </div>
+                        <a href="{% url 'documentos:documento_compra_create' %}" class="btn" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(32, 201, 151, 0.3); font-family: 'Poppins', sans-serif;">
+                            <i class="fas fa-plus me-2"></i> Nuevo Documento
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Estadísticas dentro de la tarjeta -->
+                <div class="card-body" style="padding: 15px 20px;">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Total Documentos</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ stats.total_documentos }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Registrados</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-file-invoice fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); border: none; box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Pendientes</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ stats.documentos_pendientes }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Por aprobar</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-clock fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">En Crédito</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ stats.documentos_credito }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Por pagar</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-credit-card fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); border: none; box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Monto Pendiente</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">${{ stats.monto_pendiente|floatformat:0 }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Por pagar</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-dollar-sign fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formulario de búsqueda -->
+                    <div class="card" style="background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%); border: 1px solid #e3e6f0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 15px; margin-bottom: 20px;">
+                        <div class="card-body" style="padding: 20px;">
+                            <form method="get" class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Buscar</label>
+                                    {{ search_form.search }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Tipo</label>
+                                    {{ search_form.tipo_documento }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Estado</label>
+                                    {{ search_form.estado_documento }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Pago</label>
+                                    {{ search_form.estado_pago }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Proveedor</label>
+                                    {{ search_form.proveedor }}
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white; border-radius: 10px; font-weight: 500; font-family: 'Poppins', sans-serif;">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Lista de documentos -->
+                    <div class="row">
+                        {% for documento in page_obj %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100" style="border: 1px solid #e3e6f0; border-radius: 15px; transition: all 0.3s ease; background: white; overflow: hidden; position: relative;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 10px rgba(0,0,0,0.05)'">
+                                <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);"></div>
+                                <div class="card-body" style="padding: 20px;">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div>
+                                            <h6 class="card-title mb-1" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">{{ documento.get_tipo_documento_display }} {{ documento.numero_documento }}</h6>
+                                            <p class="text-muted mb-0" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">{{ documento.proveedor.nombre }}</p>
+                                        </div>
+                                        <div class="text-end">
+                                            {% if documento.estado_documento == 'borrador' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; font-size: 0.7rem; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Borrador</span>
+                                            {% elif documento.estado_documento == 'pendiente' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: white; font-size: 0.7rem; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Pendiente</span>
+                                            {% elif documento.estado_documento == 'aprobado' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; font-size: 0.7rem; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Aprobado</span>
+                                            {% else %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white; font-size: 0.7rem; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">{{ documento.get_estado_documento_display }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif;">
+                                            <i class="fas fa-calendar me-1"></i>
+                                            Emisión: {{ documento.fecha_emision|date:"d/m/Y" }}
+                                        </small>
+                                        {% if documento.fecha_vencimiento %}
+                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif;">
+                                            <i class="fas fa-calendar-times me-1"></i>
+                                            Vencimiento: {{ documento.fecha_vencimiento|date:"d/m/Y" }}
+                                        </small>
+                                        {% endif %}
+                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif;">
+                                            <i class="fas fa-building me-1"></i>
+                                            RUT: {{ documento.rut_proveedor }}
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small class="text-muted" style="font-family: 'Poppins', sans-serif;">Total: </small>
+                                            <strong style="color: #2c3e50; font-family: 'Poppins', sans-serif;">${{ documento.total_documento|floatformat:0 }}</strong>
+                                        </div>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'documentos:documento_compra_detail' documento.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white; border-radius: 8px; font-weight: 500; font-family: 'Poppins', sans-serif;">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if documento.puede_editar %}
+                                                <a href="{% url 'documentos:documento_compra_update' documento.pk %}" class="btn btn-sm btn-outline-secondary" style="border-radius: 8px; font-family: 'Poppins', sans-serif;">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <div class="text-center py-5">
+                                <div style="background: white; border-radius: 20px; padding: 3rem 2rem; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border: 1px solid #e3e6f0;">
+                                    <div class="mb-4" style="opacity: 0.6;">
+                                        <i class="fas fa-file-invoice fa-4x text-muted"></i>
+                                    </div>
+                                    <h3 class="text-muted mb-3" style="font-family: 'Poppins', sans-serif;">No hay documentos de compra</h3>
+                                    <p class="text-muted mb-4" style="font-family: 'Poppins', sans-serif;">Comienza creando tu primer documento de compra para gestionar facturas y otros documentos</p>
+                                    <a href="{% url 'documentos:documento_compra_create' %}" class="btn btn-lg" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white; border-radius: 25px; font-weight: 500; font-family: 'Poppins', sans-serif;">
+                                        <i class="fas fa-plus me-2"></i>
+                                        Crear Primer Documento
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Paginación -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Paginación de documentos">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_documento %}&tipo_documento={{ request.GET.tipo_documento }}{% endif %}{% if request.GET.estado_documento %}&estado_documento={{ request.GET.estado_documento }}{% endif %}{% if request.GET.estado_pago %}&estado_pago={{ request.GET.estado_pago }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #28a745; font-weight: 500;">
+                                        <i class="fas fa-angle-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_documento %}&tipo_documento={{ request.GET.tipo_documento }}{% endif %}{% if request.GET.estado_documento %}&estado_documento={{ request.GET.estado_documento }}{% endif %}{% if request.GET.estado_pago %}&estado_pago={{ request.GET.estado_pago }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #28a745; font-weight: 500;">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border-color: #28a745; border-radius: 10px; margin: 0 2px;">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_documento %}&tipo_documento={{ request.GET.tipo_documento }}{% endif %}{% if request.GET.estado_documento %}&estado_documento={{ request.GET.estado_documento }}{% endif %}{% if request.GET.estado_pago %}&estado_pago={{ request.GET.estado_pago }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #28a745; font-weight: 500;" onmouseover="this.style.backgroundColor='#f8f9fc'; this.style.color='#1e7e34'; this.style.transform='translateY(-1px)'" onmouseout="this.style.backgroundColor=''; this.style.color='#28a745'; this.style.transform='translateY(0)'">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_documento %}&tipo_documento={{ request.GET.tipo_documento }}{% endif %}{% if request.GET.estado_documento %}&estado_documento={{ request.GET.estado_documento }}{% endif %}{% if request.GET.estado_pago %}&estado_pago={{ request.GET.estado_pago }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #28a745; font-weight: 500;">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_documento %}&tipo_documento={{ request.GET.tipo_documento }}{% endif %}{% if request.GET.estado_documento %}&estado_documento={{ request.GET.estado_documento }}{% endif %}{% if request.GET.estado_pago %}&estado_pago={{ request.GET.estado_pago }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #28a745; font-weight: 500;">
+                                        <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

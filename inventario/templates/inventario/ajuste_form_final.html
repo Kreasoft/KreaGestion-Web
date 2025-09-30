@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block title %}Nuevo Ajuste de Stock{% endblock %}
+
+{% block content %}
+<style>
+.form-container {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.form-header {
+    background: linear-gradient(135deg, #9CAF88 0%, #7A9A6B 100%);
+    color: white;
+    padding: 1.5rem;
+    margin: 0;
+}
+
+.form-body {
+    padding: 2rem;
+}
+
+.detalles-section {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+
+.detalle-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.detalle-item:last-child {
+    border-bottom: none;
+}
+
+.btn-add-detail {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+}
+
+.btn-remove-detail {
+    background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #9CAF88 0%, #7A9A6B 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 2rem;
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+.btn-cancel {
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 2rem;
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+.articulo-info {
+    background: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.cantidad-sign {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #dc3545;
+}
+
+.cantidad-sign.entrada {
+    color: #28a745;
+}
+</style>
+
+<div class="container-fluid mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+            <div class="form-container">
+                <div class="form-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-adjust me-2"></i>Nuevo Ajuste de Stock
+                    </h4>
+                    <small>Complete los datos del ajuste de stock</small>
+                </div>
+                
+                <div class="form-body">
+                    <form method="post" id="ajusteForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="detalles_data" id="detalles_data">
+                        
+                        <!-- Datos del Ajuste -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-dark">Tipo de Ajuste *</label>
+                                    <select name="tipo_ajuste" class="form-control" required>
+                                        <option value="">Seleccionar tipo...</option>
+                                        <option value="ENTRADA">Entrada</option>
+                                        <option value="SALIDA">Salida</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-dark">Fecha del Ajuste *</label>
+                                    <input type="date" name="fecha_ajuste" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-dark">Bodega *</label>
+                                    <select name="bodega" class="form-control" required onchange="cargarArticulos()">
+                                        <option value="">Seleccionar bodega...</option>
+                                        {% for bodega in bodegas %}
+                                            <option value="{{ bodega.id }}">{{ bodega.nombre }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-dark">Descripción *</label>
+                                    <input type="text" name="descripcion" class="form-control" required 
+                                           placeholder="Motivo del ajuste (rotura, merma, robo, etc.)">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Detalles del Ajuste -->
+                        <div class="detalles-section">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-list me-2 text-primary"></i>
+                                    <span class="fw-bold text-dark">Artículos del Ajuste</span>
+                                    <span class="badge bg-primary ms-2" id="contadorArticulos">0</span>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarDetalle()">
+                                    <i class="fas fa-plus me-1"></i>Agregar
+                                </button>
+                            </div>
+                            
+                            <div id="detallesContainer">
+                                <!-- Los detalles se agregarán dinámicamente -->
+                            </div>
+                        </div>
+                        
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'inventario:ajustes_list' %}" class="btn btn-cancel">
+                                <i class="fas fa-arrow-left me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save me-2"></i>Guardar Ajuste
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let detalleCount = 0;
+let articulos = [];
+
+// Cargar artículos cuando se selecciona una bodega
+document.addEventListener('DOMContentLoaded', function() {
+    // Establecer fecha actual (solo fecha, sin hora)
+    const now = new Date();
+    const fechaInput = document.querySelector('input[name="fecha_ajuste"]');
+    if (fechaInput) {
+        // Formato YYYY-MM-DD para input type="date"
+        const fecha = now.toISOString().slice(0, 10);
+        fechaInput.value = fecha;
+    }
+    
+    // Agregar event listener para cambio de bodega
+    const bodegaSelect = document.querySelector('select[name="bodega"]');
+    if (bodegaSelect) {
+        bodegaSelect.addEventListener('change', cargarArticulos);
+    }
+    
+    // Agregar primer detalle
+    agregarDetalle();
+});
+
+function cargarArticulos() {
+    const bodegaId = document.querySelector('select[name="bodega"]').value;
+    if (!bodegaId) {
+        articulos = [];
+        console.log('No se seleccionó bodega');
+        return;
+    }
+    
+    console.log('Cargando artículos para bodega:', bodegaId);
+    
+    fetch(`/inventario/api/articulos-ajuste/?bodega_id=${bodegaId}`)
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            articulos = data.articulos || [];
+            console.log('Artículos cargados:', articulos.length, 'artículos');
+            console.log('Primeros artículos:', articulos.slice(0, 3));
+            
+            // Actualizar todos los selects existentes
+            actualizarSelectsArticulos();
+        })
+        .catch(error => {
+            console.error('Error al cargar artículos:', error);
+            articulos = [];
+            alert('Error al cargar artículos: ' + error.message);
+        });
+}
+
+function actualizarSelectsArticulos() {
+    const selects = document.querySelectorAll('.articulo-select');
+    console.log('Actualizando', selects.length, 'selects de artículos');
+    
+    selects.forEach((select, index) => {
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">Seleccionar artículo...</option>';
+        
+        console.log(`Select ${index + 1}: Agregando ${articulos.length} artículos`);
+        
+        articulos.forEach(art => {
+            const option = document.createElement('option');
+            option.value = art.id;
+            option.textContent = `${art.codigo} - ${art.nombre}`;
+            option.dataset.codigo = art.codigo;
+            option.dataset.nombre = art.nombre;
+            option.dataset.unidad = art.unidad_medida;
+            option.dataset.stock = art.stock_actual;
+            select.appendChild(option);
+        });
+        
+        if (currentValue) {
+            select.value = currentValue;
+        }
+    });
+    
+    console.log('Selects actualizados correctamente');
+}
+
+function agregarDetalle() {
+    detalleCount++;
+    const container = document.getElementById('detallesContainer');
+    
+    const detalleHtml = `
+        <div class="detalle-item mb-2" id="detalle-${detalleCount}">
+            <div class="row align-items-center">
+                <div class="col-md-5">
+                    <div class="d-flex align-items-center">
+                        <select class="form-control articulo-select me-2" name="detalles-${detalleCount}-articulo" 
+                                onchange="cargarInfoArticulo(this, ${detalleCount})">
+                            <option value="">Seleccionar artículo...</option>
+                            ${articulos.length > 0 ? articulos.map(art => `
+                                <option value="${art.id}" data-codigo="${art.codigo}" data-nombre="${art.nombre}" 
+                                        data-unidad="${art.unidad_medida}" data-stock="${art.stock_actual}">
+                                    ${art.codigo} - ${art.nombre}
+                                </option>
+                            `).join('') : ''}
+                        </select>
+                        <small class="text-muted" id="info-${detalleCount}" style="display: none;">
+                            Stock: <span id="stock-${detalleCount}">0</span> | 
+                            Unidad: <span id="unidad-${detalleCount}">-</span>
+                        </small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text cantidad-sign" id="sign-${detalleCount}">+</span>
+                        <input type="number" class="form-control" name="detalles-${detalleCount}-cantidad" 
+                               step="0.01" min="0.01" placeholder="0.00" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control" name="detalles-${detalleCount}-comentario" 
+                           placeholder="Comentario opcional">
+                </div>
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-outline-danger btn-sm w-100" 
+                            onclick="eliminarDetalle(${detalleCount})" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', detalleHtml);
+    actualizarSignosCantidad();
+    actualizarContadorArticulos();
+}
+
+function eliminarDetalle(id) {
+    const detalle = document.getElementById(`detalle-${id}`);
+    if (detalle) {
+        detalle.remove();
+        actualizarSignosCantidad();
+        actualizarContadorArticulos();
+    }
+}
+
+function actualizarContadorArticulos() {
+    const detalles = document.querySelectorAll('.detalle-item');
+    const contador = document.getElementById('contadorArticulos');
+    if (contador) {
+        contador.textContent = detalles.length;
+    }
+}
+
+function cargarInfoArticulo(select, detalleId) {
+    const option = select.selectedOptions[0];
+    if (!option || !option.value) {
+        document.getElementById(`info-${detalleId}`).style.display = 'none';
+        return;
+    }
+    
+    const stock = option.dataset.stock || '0';
+    const unidad = option.dataset.unidad || '-';
+    
+    document.getElementById(`stock-${detalleId}`).textContent = stock;
+    document.getElementById(`unidad-${detalleId}`).textContent = unidad;
+    document.getElementById(`info-${detalleId}`).style.display = 'block';
+}
+
+function actualizarSignosCantidad() {
+    const tipoAjuste = document.querySelector('select[name="tipo_ajuste"]').value;
+    const signos = document.querySelectorAll('.cantidad-sign');
+    
+    signos.forEach(signo => {
+        if (tipoAjuste === 'ENTRADA') {
+            signo.textContent = '+';
+            signo.className = 'input-group-text cantidad-sign entrada';
+        } else {
+            signo.textContent = '-';
+            signo.className = 'input-group-text cantidad-sign';
+        }
+    });
+}
+
+// Actualizar signos cuando cambia el tipo de ajuste
+document.querySelector('select[name="tipo_ajuste"]').addEventListener('change', actualizarSignosCantidad);
+
+// Validación del formulario
+document.getElementById('ajusteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const detalles = document.querySelectorAll('.detalle-item');
+    if (detalles.length === 0) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Debe agregar al menos un artículo al ajuste.',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+    
+    let articulosValidos = 0;
+    let detallesData = [];
+    
+    detalles.forEach(detalle => {
+        const articulo = detalle.querySelector('.articulo-select').value;
+        const cantidad = detalle.querySelector('input[name*="cantidad"]').value;
+        const comentario = detalle.querySelector('input[name*="comentario"]').value;
+        
+        if (articulo && cantidad && parseFloat(cantidad) > 0) {
+            articulosValidos++;
+            detallesData.push({
+                articulo_id: articulo,
+                cantidad: parseFloat(cantidad),
+                comentario: comentario
+            });
+        }
+    });
+    
+    if (articulosValidos === 0) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Debe completar al menos un artículo con cantidad válida.',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+    
+    // Mostrar loading
+    Swal.fire({
+        title: 'Procesando...',
+        text: 'Guardando ajuste de stock',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // Guardar detalles en el input hidden
+    document.getElementById('detalles_data').value = JSON.stringify(detallesData);
+    
+    // Enviar formulario via fetch
+    const formData = new FormData(this);
+    
+    fetch(this.action || window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Éxito!',
+                text: data.message,
+                confirmButtonText: 'Continuar'
+            }).then(() => {
+                window.location.href = '{% url "inventario:ajustes_list" %}';
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message,
+                confirmButtonText: 'Entendido'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error de conexión. Intente nuevamente.',
+            confirmButtonText: 'Entendido'
+        });
+    });
+});
+</script>
+{% endblock %}
+
+
+
+
+

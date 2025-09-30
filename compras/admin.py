@@ -1,3 +1,228 @@
 from django.contrib import admin
+from django.utils.html import format_html
+from django.urls import reverse
+from django.utils.safestring import mark_safe
+from .models import (
+    OrdenCompra, ItemOrdenCompra, RecepcionMercancia, 
+    ItemRecepcion, CuentaCorrienteProveedor
+)
 
-# Register your models here.
+
+class ItemOrdenCompraInline(admin.TabularInline):
+    model = ItemOrdenCompra
+    extra = 0
+    fields = ['articulo', 'cantidad_solicitada', 'precio_unitario', 'descuento_unitario', 'subtotal']
+    readonly_fields = ['subtotal']
+    
+    def subtotal(self, obj):
+        if obj.pk:
+            return f"${obj.subtotal:,.2f}"
+        return "-"
+    subtotal.short_description = "Subtotal"
+
+
+@admin.register(OrdenCompra)
+class OrdenCompraAdmin(admin.ModelAdmin):
+    list_display = [
+        'numero_orden', 'proveedor', 'fecha_orden', 'estado_badge', 
+        'prioridad_badge', 'total_formateado', 'fecha_creacion'
+    ]
+    list_filter = ['estado', 'prioridad', 'fecha_orden', 'fecha_creacion']
+    search_fields = ['numero_orden', 'proveedor__nombre', 'proveedor__rut']
+    readonly_fields = [
+        'numero_orden', 'subtotal', 'iva', 'total', 'fecha_creacion', 
+        'fecha_modificacion', 'aprobado_por', 'fecha_aprobacion'
+    ]
+    inlines = [ItemOrdenCompraInline]
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('empresa', 'sucursal', 'proveedor', 'numero_orden')
+        }),
+        ('Fechas', {
+            'fields': ('fecha_orden', 'fecha_entrega_esperada', 'fecha_entrega_real')
+        }),
+        ('Estado y Prioridad', {
+            'fields': ('estado', 'prioridad')
+        }),
+        ('Condiciones', {
+            'fields': ('condiciones_pago', 'plazo_entrega', 'observaciones')
+        }),
+        ('Totales', {
+            'fields': ('subtotal', 'iva', 'descuento', 'total'),
+            'classes': ('collapse',)
+        }),
+        ('Auditoría', {
+            'fields': ('creado_por', 'aprobado_por', 'fecha_aprobacion', 'fecha_creacion', 'fecha_modificacion'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def estado_badge(self, obj):
+        colors = {
+            'borrador': 'secondary',
+            'pendiente_aprobacion': 'warning',
+            'aprobada': 'info',
+            'en_proceso': 'primary',
+            'parcialmente_recibida': 'warning',
+            'completamente_recibida': 'success',
+            'cancelada': 'danger',
+            'cerrada': 'dark',
+        }
+        color = colors.get(obj.estado, 'secondary')
+        return format_html(
+            '<span class="badge bg-{}">{}</span>',
+            color, obj.get_estado_display()
+        )
+    estado_badge.short_description = 'Estado'
+    
+    def prioridad_badge(self, obj):
+        colors = {
+            'baja': 'success',
+            'normal': 'primary',
+            'alta': 'warning',
+            'urgente': 'danger',
+        }
+        color = colors.get(obj.prioridad, 'primary')
+        return format_html(
+            '<span class="badge bg-{}">{}</span>',
+            color, obj.get_prioridad_display()
+        )
+    prioridad_badge.short_description = 'Prioridad'
+    
+    def total_formateado(self, obj):
+        return f"${obj.total:,.2f}"
+    total_formateado.short_description = 'Total'
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        # Filtrar por empresa si no es superusuario
+        empresa = request.session.get('empresa_activa')
+        if empresa:
+            return qs.filter(empresa=empresa)
+        return qs.none()
+
+
+class ItemRecepcionInline(admin.TabularInline):
+    model = ItemRecepcion
+    extra = 0
+    fields = ['item_orden', 'cantidad_recibida', 'calidad_aceptable', 'observaciones_calidad']
+    readonly_fields = ['item_orden']
+
+
+@admin.register(RecepcionMercancia)
+class RecepcionMercanciaAdmin(admin.ModelAdmin):
+    list_display = [
+        'numero_recepcion', 'orden_compra', 'fecha_recepcion', 
+        'estado_badge', 'transportista', 'recibido_por'
+    ]
+    list_filter = ['estado', 'fecha_recepcion', 'fecha_creacion']
+    search_fields = ['numero_recepcion', 'orden_compra__numero_orden', 'transportista']
+    readonly_fields = ['numero_recepcion', 'fecha_creacion']
+    inlines = [ItemRecepcionInline]
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('orden_compra', 'numero_recepcion', 'fecha_recepcion')
+        }),
+        ('Estado', {
+            'fields': ('estado',)
+        }),
+        ('Transporte', {
+            'fields': ('transportista', 'numero_guia')
+        }),
+        ('Observaciones', {
+            'fields': ('observaciones',)
+        }),
+        ('Auditoría', {
+            'fields': ('recibido_por', 'revisado_por', 'fecha_revision', 'fecha_creacion'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def estado_badge(self, obj):
+        colors = {
+            'pendiente': 'warning',
+            'en_revision': 'info',
+            'aprobada': 'success',
+            'rechazada': 'danger',
+        }
+        color = colors.get(obj.estado, 'secondary')
+        return format_html(
+            '<span class="badge bg-{}">{}</span>',
+            color, obj.get_estado_display()
+        )
+    estado_badge.short_description = 'Estado'
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        # Filtrar por empresa si no es superusuario
+        empresa = request.session.get('empresa_activa')
+        if empresa:
+            return qs.filter(orden_compra__empresa=empresa)
+        return qs.none()
+
+
+@admin.register(CuentaCorrienteProveedor)
+class CuentaCorrienteProveedorAdmin(admin.ModelAdmin):
+    list_display = [
+        'proveedor', 'fecha', 'tipo_movimiento_badge', 'monto', 
+        'saldo_nuevo', 'descripcion', 'fecha_creacion'
+    ]
+    list_filter = ['tipo_movimiento', 'fecha', 'fecha_creacion']
+    search_fields = ['proveedor__nombre', 'descripcion', 'factura_proveedor']
+    readonly_fields = ['saldo_anterior', 'saldo_nuevo', 'fecha_creacion']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('empresa', 'proveedor', 'fecha', 'tipo_movimiento')
+        }),
+        ('Referencias', {
+            'fields': ('orden_compra', 'factura_proveedor')
+        }),
+        ('Montos', {
+            'fields': ('monto', 'saldo_anterior', 'saldo_nuevo')
+        }),
+        ('Descripción', {
+            'fields': ('descripcion', 'observaciones')
+        }),
+        ('Auditoría', {
+            'fields': ('creado_por', 'fecha_creacion'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def tipo_movimiento_badge(self, obj):
+        colors = {
+            'compra': 'danger',
+            'pago': 'success',
+            'nota_credito': 'info',
+            'nota_debito': 'warning',
+            'ajuste': 'secondary',
+        }
+        color = colors.get(obj.tipo_movimiento, 'secondary')
+        return format_html(
+            '<span class="badge bg-{}">{}</span>',
+            color, obj.get_tipo_movimiento_display()
+        )
+    tipo_movimiento_badge.short_description = 'Tipo'
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        # Filtrar por empresa si no es superusuario
+        empresa = request.session.get('empresa_activa')
+        if empresa:
+            return qs.filter(empresa=empresa)
+        return qs.none()
+
+
+# Configuración adicional
+admin.site.site_header = "GestionCloud - Administración"
+admin.site.site_title = "GestionCloud Admin"
+admin.site.index_title = "Panel de Administración"

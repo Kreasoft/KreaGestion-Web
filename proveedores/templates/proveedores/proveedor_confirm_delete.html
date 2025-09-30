@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Eliminar Proveedor{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%); color: white; padding: 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="text-center">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color: #F4E4BC;"></i>
+                        <h4 class="mb-0" style="font-weight: 600; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">
+                            Confirmar Eliminación
+                        </h4>
+                        <p class="mb-0 mt-2" style="font-size: 0.9rem; opacity: 0.9; font-family: 'Poppins', sans-serif;">
+                            Esta acción no se puede deshacer
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Contenido -->
+                <div class="card-body" style="padding: 30px; font-family: 'Poppins', sans-serif;">
+                    <div class="text-center mb-4">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                            <i class="fas fa-truck fa-2x text-white"></i>
+                        </div>
+                        <h5 style="color: #2c3e50; font-weight: 600; margin-bottom: 10px;">{{ proveedor.nombre }}</h5>
+                        <p class="text-muted mb-0">{{ proveedor.get_rut_formateado }} - {{ proveedor.get_tipo_proveedor_display }}</p>
+                    </div>
+                    
+                    <div class="alert alert-warning" style="border: none; border-radius: 10px; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107;">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning me-3 mt-1"></i>
+                            <div>
+                                <h6 class="alert-heading" style="color: #856404; font-weight: 600; margin-bottom: 10px;">
+                                    ¿Estás seguro de que quieres eliminar este proveedor?
+                                </h6>
+                                <p class="mb-2" style="color: #856404;">
+                                    Al eliminar este proveedor, también se eliminarán:
+                                </p>
+                                <ul class="mb-0" style="color: #856404; padding-left: 20px;">
+                                    <li>Todos los contactos asociados</li>
+                                    <li>Las categorías del proveedor</li>
+                                    <li>El historial de precios</li>
+                                    <li>Las evaluaciones registradas</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card" style="border: 2px solid #e9ecef; border-radius: 10px; background: #f8f9fa;">
+                                <div class="card-body" style="padding: 15px;">
+                                    <h6 style="color: #495057; font-weight: 600; margin-bottom: 10px;">
+                                        <i class="fas fa-info-circle me-2" style="color: #8B4513;"></i>Información del Proveedor
+                                    </h6>
+                                    <div class="mb-2">
+                                        <strong>RUT:</strong> {{ proveedor.get_rut_formateado }}
+                                    </div>
+                                    {% if proveedor.razon_social %}
+                                    <div class="mb-2">
+                                        <strong>Razón Social:</strong> {{ proveedor.razon_social }}
+                                    </div>
+                                    {% endif %}
+                                    <div class="mb-2">
+                                        <strong>Giro:</strong> {{ proveedor.giro }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Estado:</strong>
+                                        <span class="badge badge-{{ proveedor.get_estado_display_color }} ms-2">
+                                            {{ proveedor.get_estado_display }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card" style="border: 2px solid #e9ecef; border-radius: 10px; background: #f8f9fa;">
+                                <div class="card-body" style="padding: 15px;">
+                                    <h6 style="color: #495057; font-weight: 600; margin-bottom: 10px;">
+                                        <i class="fas fa-chart-bar me-2" style="color: #8B4513;"></i>Estadísticas
+                                    </h6>
+                                    <div class="mb-2">
+                                        <strong>Contactos:</strong> {{ proveedor.contactos.count }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Categorías:</strong> {{ proveedor.categorias.count }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Evaluaciones:</strong> {{ proveedor.evaluaciones.count }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Calificación:</strong>
+                                        <span class="ms-2" style="color: #ffc107;">{{ proveedor.get_calificacion_estrellas }}</span>
+                                        <span class="ms-1">{{ proveedor.calificacion }}/5</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer con botones -->
+                <div class="card-footer" style="background: #f8f9fa; border: none; padding: 20px 30px;">
+                    <form method="post" class="d-flex justify-content-between">
+                        {% csrf_token %}
+                        <a href="{% url 'proveedores:proveedor_detail' proveedor.pk %}" class="btn btn-secondary" style="border-radius: 8px; font-family: 'Poppins', sans-serif; padding: 10px 20px;">
+                            <i class="fas fa-arrow-left me-2"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn" style="background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%); border: none; color: white; border-radius: 8px; font-family: 'Poppins', sans-serif; padding: 10px 20px;">
+                            <i class="fas fa-trash me-2"></i>Eliminar Proveedor
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    color: white !important;
+}
+
+.badge-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #ffb347 100%) !important;
+    color: white !important;
+}
+
+.badge-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%) !important;
+    color: white !important;
+}
+
+.badge-secondary {
+    background: linear-gradient(135deg, #6c757d 0%, #adb5bd 100%) !important;
+    color: white !important;
+}
+</style>
+{% endblock %}

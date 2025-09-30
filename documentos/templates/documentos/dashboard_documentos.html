@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard - Documentos de Compra - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-chart-line fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    Dashboard - Documentos de Compra
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">Resumen general de documentos y pagos</small>
+                            </div>
+                        </div>
+                        <a href="{% url 'documentos:documento_compra_create' %}" class="btn" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(32, 201, 151, 0.3); font-family: 'Poppins', sans-serif;">
+                            <i class="fas fa-plus me-2"></i> Nuevo Documento
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 20px;">
+                    <!-- Estadísticas principales -->
+                    <div class="row mb-4">
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Total Documentos</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem; font-family: 'Poppins', sans-serif;">{{ stats.total_documentos }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; font-family: 'Poppins', sans-serif;">Registrados</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-file-invoice fa-2x" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">En Crédito</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem; font-family: 'Poppins', sans-serif;">{{ stats.documentos_credito }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; font-family: 'Poppins', sans-serif;">Por pagar</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-credit-card fa-2x" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); border: none; box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Pendientes</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem; font-family: 'Poppins', sans-serif;">{{ stats.documentos_pendientes }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; font-family: 'Poppins', sans-serif;">Por aprobar</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-clock fa-2x" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); border: none; box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Monto Pendiente</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem; font-family: 'Poppins', sans-serif;">${{ stats.monto_pendiente|floatformat:0 }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; font-family: 'Poppins', sans-serif;">Por pagar</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-dollar-sign fa-2x" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Acciones rápidas -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card" style="border: 1px solid #e3e6f0; border-radius: 15px;">
+                                <div class="card-header" style="background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%); border-bottom: 1px solid #e3e6f0; border-radius: 15px 15px 0 0;">
+                                    <h6 class="mb-0" style="font-weight: 600; color: #495057; font-family: 'Poppins', sans-serif;">
+                                        <i class="fas fa-bolt me-2"></i>Acciones Rápidas
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 20px;">
+                                    <div class="row">
+                                        <div class="col-md-3 mb-3">
+                                            <a href="{% url 'documentos:documento_compra_create' %}" class="btn w-100" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white; border-radius: 10px; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 15px;">
+                                                <i class="fas fa-plus me-2"></i>
+                                                <div>Nuevo Documento</div>
+                                                <small>Crear factura, guía, etc.</small>
+                                            </a>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <a href="{% url 'documentos:documento_compra_list' %}?estado_documento=pendiente" class="btn w-100" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); border: none; color: white; border-radius: 10px; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 15px;">
+                                                <i class="fas fa-check-circle me-2"></i>
+                                                <div>Pendientes</div>
+                                                <small>Por aprobar</small>
+                                            </a>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <a href="{% url 'documentos:documento_compra_list' %}?estado_pago=credito" class="btn w-100" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; color: white; border-radius: 10px; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 15px;">
+                                                <i class="fas fa-credit-card me-2"></i>
+                                                <div>En Crédito</div>
+                                                <small>Por pagar</small>
+                                            </a>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <a href="{% url 'documentos:documento_compra_list' %}" class="btn w-100" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); border: none; color: white; border-radius: 10px; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 15px;">
+                                                <i class="fas fa-list me-2"></i>
+                                                <div>Todos</div>
+                                                <small>Ver todos</small>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Documentos recientes y próximos a vencer -->
+                    <div class="row">
+                        <!-- Documentos recientes -->
+                        <div class="col-lg-6 mb-4">
+                            <div class="card" style="border: 1px solid #e3e6f0; border-radius: 15px;">
+                                <div class="card-header" style="background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%); border-bottom: 1px solid #e3e6f0; border-radius: 15px 15px 0 0;">
+                                    <h6 class="mb-0" style="font-weight: 600; color: #495057; font-family: 'Poppins', sans-serif;">
+                                        <i class="fas fa-history me-2"></i>Documentos Recientes
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 20px;">
+                                    {% if documentos_recientes %}
+                                        {% for documento in documentos_recientes %}
+                                        <div class="d-flex justify-content-between align-items-center mb-3" style="border-bottom: 1px solid #f8f9fc; padding-bottom: 10px;">
+                                            <div>
+                                                <strong style="color: #2c3e50; font-family: 'Poppins', sans-serif; font-size: 0.9rem;">{{ documento.get_tipo_documento_display }} {{ documento.numero_documento }}</strong>
+                                                <br>
+                                                <small style="color: #6c757d; font-family: 'Poppins', sans-serif;">{{ documento.proveedor.nombre }}</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <div style="color: #495057; font-family: 'Poppins', sans-serif; font-weight: 500;">${{ documento.total_documento|floatformat:0 }}</div>
+                                                {% if documento.estado_documento == 'pendiente' %}
+                                                    <span class="badge" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: white; font-size: 0.7rem; padding: 0.3rem 0.6rem; border-radius: 15px;">Pendiente</span>
+                                                {% elif documento.estado_documento == 'aprobado' %}
+                                                    <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; font-size: 0.7rem; padding: 0.3rem 0.6rem; border-radius: 15px;">Aprobado</span>
+                                                {% else %}
+                                                    <span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; font-size: 0.7rem; padding: 0.3rem 0.6rem; border-radius: 15px;">{{ documento.get_estado_documento_display }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                        <div class="text-center">
+                                            <a href="{% url 'documentos:documento_compra_list' %}" class="btn btn-sm" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white; border-radius: 10px; font-family: 'Poppins', sans-serif;">
+                                                Ver Todos
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center py-4">
+                                            <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted" style="font-family: 'Poppins', sans-serif;">No hay documentos registrados</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Documentos próximos a vencer -->
+                        <div class="col-lg-6 mb-4">
+                            <div class="card" style="border: 1px solid #e3e6f0; border-radius: 15px;">
+                                <div class="card-header" style="background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%); border-bottom: 1px solid #e3e6f0; border-radius: 15px 15px 0 0;">
+                                    <h6 class="mb-0" style="font-weight: 600; color: #495057; font-family: 'Poppins', sans-serif;">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Próximos a Vencer
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 20px;">
+                                    {% if documentos_por_vencer %}
+                                        {% for documento in documentos_por_vencer %}
+                                        <div class="d-flex justify-content-between align-items-center mb-3" style="border-bottom: 1px solid #f8f9fc; padding-bottom: 10px;">
+                                            <div>
+                                                <strong style="color: #2c3e50; font-family: 'Poppins', sans-serif; font-size: 0.9rem;">{{ documento.get_tipo_documento_display }} {{ documento.numero_documento }}</strong>
+                                                <br>
+                                                <small style="color: #6c757d; font-family: 'Poppins', sans-serif;">{{ documento.proveedor.nombre }}</small>
+                                                <br>
+                                                <small style="color: #dc3545; font-family: 'Poppins', sans-serif;">
+                                                    <i class="fas fa-calendar-times me-1"></i>
+                                                    Vence: {{ documento.fecha_vencimiento|date:"d/m/Y" }}
+                                                </small>
+                                            </div>
+                                            <div class="text-end">
+                                                <div style="color: #495057; font-family: 'Poppins', sans-serif; font-weight: 500;">${{ documento.saldo_pendiente|floatformat:0 }}</div>
+                                                <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white; font-size: 0.7rem; padding: 0.3rem 0.6rem; border-radius: 15px;">Pendiente</span>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                        <div class="text-center">
+                                            <a href="{% url 'documentos:documento_compra_list' %}?estado_pago=credito" class="btn btn-sm" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); border: none; color: white; border-radius: 10px; font-family: 'Poppins', sans-serif;">
+                                                Ver Todos
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center py-4">
+                                            <i class="fas fa-calendar-check fa-3x text-success mb-3"></i>
+                                            <p class="text-muted" style="font-family: 'Poppins', sans-serif;">No hay documentos próximos a vencer</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -169,15 +169,10 @@ class ConfiguracionEmpresa(models.Model):
     
     empresa = models.OneToOneField(Empresa, on_delete=models.CASCADE, related_name='configuracion')
     
-    # Configuración de documentos
-    prefijo_facturas = models.CharField(max_length=10, default='F', verbose_name="Prefijo Facturas")
-    prefijo_boletas = models.CharField(max_length=10, default='B', verbose_name="Prefijo Boletas")
-    prefijo_guias = models.CharField(max_length=10, default='G', verbose_name="Prefijo Guías")
-    
-    # Configuración de numeración
-    siguiente_factura = models.IntegerField(default=1, verbose_name="Siguiente Número Factura")
-    siguiente_boleta = models.IntegerField(default=1, verbose_name="Siguiente Número Boleta")
-    siguiente_guia = models.IntegerField(default=1, verbose_name="Siguiente Número Guía")
+    # Configuración de ajustes
+    prefijo_ajustes = models.CharField(max_length=10, default='Aju', verbose_name="Prefijo Ajustes")
+    siguiente_ajuste = models.IntegerField(default=1, verbose_name="Siguiente Número Ajuste")
+    formato_ajustes = models.CharField(max_length=20, default='{prefijo}-{000}', verbose_name="Formato Ajustes")
     
     # Configuración de impresión
     imprimir_logo = models.BooleanField(default=True, verbose_name="Imprimir Logo en Documentos")
@@ -208,34 +203,18 @@ class ConfiguracionEmpresa(models.Model):
     
     def __str__(self):
         return f"Configuración de {self.empresa.nombre}"
-
     
-    # Configuración de impresión
-    imprimir_logo = models.BooleanField(default=True, verbose_name="Imprimir Logo en Documentos")
-    pie_pagina_documentos = models.TextField(blank=True, verbose_name="Pie de Página en Documentos")
-    
-    # Configuración de notificaciones
-    alerta_stock_minimo = models.BooleanField(default=True, verbose_name="Alertas de Stock Mínimo")
-    notificar_vencimientos = models.BooleanField(default=True, verbose_name="Notificar Vencimientos")
-    
-    # Configuración de respaldo
-    respaldo_automatico = models.BooleanField(default=True, verbose_name="Respaldo Automático")
-    frecuencia_respaldo = models.CharField(
-        max_length=20,
-        choices=[
-            ('diario', 'Diario'),
-            ('semanal', 'Semanal'),
-            ('mensual', 'Mensual'),
-        ],
-        default='diario',
-        verbose_name="Frecuencia de Respaldo"
-    )
-    
-    fecha_modificacion = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name = "Configuración de Empresa"
-        verbose_name_plural = "Configuraciones de Empresas"
-    
-    def __str__(self):
-        return f"Configuración de {self.empresa.nombre}"
+    def generar_numero_ajuste(self):
+        """Genera el siguiente número de ajuste"""
+        numero = self.siguiente_ajuste
+        self.siguiente_ajuste += 1
+        self.save()
+        
+        # Formatear el número según el formato configurado
+        formato = self.formato_ajustes
+        numero_formateado = formato.format(
+            prefijo=self.prefijo_ajustes,
+            numero=numero
+        ).replace('{000}', f"{numero:03d}")
+        
+        return numero_formateado

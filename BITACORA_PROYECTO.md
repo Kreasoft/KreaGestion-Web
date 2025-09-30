@@ -1,9 +1,9 @@
 # BITÁCORA DEL PROYECTO GESTIONCLOUD
 
 ## ESTADO ACTUAL DEL PROYECTO
-**Fecha:** 28 de Septiembre 2025
+**Fecha:** 29 de Septiembre 2025
 **Estado:** ✅ PROYECTO COMPLETAMENTE FUNCIONAL Y RESPALDADO
-**Última Actualización:** Sistema de inventario por bodegas implementado y respaldado en GitHub
+**Última Actualización:** Módulos de Proveedores, Compras y Documentos de Compra implementados
 
 ## ERRORES RESUELTOS ✅
 - ✅ Error de formulario de artículos (impuesto_especifico) - RESUELTO
@@ -26,6 +26,7 @@
    - Precio Final (resultado)
 5. **CORREGIR** el JavaScript que está generando números enormes
 6. **NO TOCAR** otros formularios ni crear archivos nuevos
+7. **USAR BODEGAS NO SUCURSALES** - Para todo efecto se debe usar el concepto de bodega y no sucursal
 
 ## HISTORIAL DE PROBLEMAS
 - Usuario frustrado por errores repetidos
@@ -136,11 +137,13 @@
 ## MÓDULOS FUNCIONALES - ESTADO ACTUAL
 - ✅ **Artículos** - CRUD completo con cálculos de precios
 - ✅ **Clientes** - Gestión con contactos y validaciones
+- ✅ **Proveedores** - CRUD completo con validación de RUT en tiempo real
 - ✅ **Bodegas** - CRUD simplificado con modales
 - ✅ **Inventario** - Control de stock por bodega
+- ✅ **Compras** - Órdenes de compra y recepción de mercancía
+- ✅ **Documentos de Compra** - Facturas, guías, notas de crédito/débito, boletas
 - ✅ **Empresas** - Configuración y paleta de colores
 - ✅ **Usuarios** - Autenticación y permisos
-- ✅ **Ventas/Compras** - Estructura base lista
 - ✅ **Reportes** - Módulo base implementado
 
 ## PRÓXIMOS PASOS SUGERIDOS
@@ -149,9 +152,33 @@
 3. **Nuevas funcionalidades** - Según requerimientos del usuario
 4. **Despliegue** - Preparar para producción
 
+## DECISIONES ARQUITECTÓNICAS IMPORTANTES
+
+### 🏪 USO DE BODEGAS EN LUGAR DE SUCURSALES
+**Fecha:** 29 de Septiembre 2025
+**Decisión:** Para todo efecto se debe usar el concepto de **BODEGA** y **NO SUCURSAL**
+**Justificación:** 
+- El sistema está diseñado para manejar inventario por bodegas/almacenes
+- Las sucursales no son necesarias para el flujo de negocio actual
+- Simplifica la arquitectura del sistema
+- Mantiene consistencia con el módulo de inventario existente
+
+**Módulos Afectados:**
+- ✅ **Documentos de Compra** - Usa bodega_destino en lugar de sucursal
+- ✅ **Compras** - Órdenes de compra vinculadas a bodegas
+- ✅ **Inventario** - Sistema completo por bodegas
+- ✅ **Bodegas** - CRUD independiente sin relación con sucursales
+
+**Implementación:**
+- Modelos actualizados para usar `ForeignKey(Bodega)` en lugar de `ForeignKey(Sucursal)`
+- Formularios filtrados por `bodega.objects.filter(empresa=empresa)`
+- Migraciones aplicadas para remover campos de sucursal
+- Admin interfaces actualizadas
+
 ## NOTAS IMPORTANTES
 - ✅ **Proyecto completamente funcional** - Sin errores críticos
 - ✅ **Código respaldado** - En GitHub para control de versiones
 - ✅ **Interfaz moderna** - Bootstrap 5 + SweetAlert2
 - ✅ **Arquitectura sólida** - Django modular y escalable
 - ✅ **Usuario satisfecho** - Todas las funcionalidades solicitadas implementadas
+- ✅ **Decisión arquitectónica documentada** - Uso de bodegas en lugar de sucursales

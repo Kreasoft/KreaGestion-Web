@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}Lista de Ajustes de Stock{% endblock %}
+
+<!-- Token CSRF oculto para JavaScript -->
+<form id="csrf-form" style="display: none;">
+    {% csrf_token %}
+</form>
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-adjust fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    Gestión de Ajustes de Stock
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">Administra los ajustes de inventario, entradas y salidas de productos</small>
+                            </div>
+                        </div>
+                        <a href="{% url 'inventario:ajuste_create_simple' %}" class="btn" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(107, 142, 35, 0.3); font-family: 'Poppins', sans-serif;">
+                            <i class="fas fa-plus me-2"></i> Nuevo Ajuste
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Estadísticas dentro de la tarjeta -->
+                <div class="card-body" style="padding: 15px 20px;">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none; box-shadow: 0 4px 15px rgba(156, 175, 136, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Total Ajustes</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ total_ajustes }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Registrados</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-adjust fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); border: none; box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Entradas</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ ajustes_entrada }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Aumentos</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-arrow-up fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #DAA520 0%, #FFD700 100%); border: none; box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Salidas</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ ajustes_salida }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Reducciones</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-arrow-down fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                        </div>
+                    </div>
+                </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #CD853F 0%, #DEB887 100%); border: none; box-shadow: 0 4px 15px rgba(205, 133, 63, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 15px 20px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Este Mes</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ total_ajustes }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Movimientos</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-calendar fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+                    <!-- Filtros y búsqueda -->
+                    <div class="row mb-4">
+        <div class="col-12">
+                            <div class="card shadow-sm" style="border: none; border-radius: 10px;">
+                                <div class="card-body py-3">
+                                    <form method="get" class="row g-2">
+                                        <div class="col-md-4">
+                                            <div class="input-group input-group-sm">
+                                                <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                    <i class="fas fa-search" style="color: #6c757d;"></i>
+                                                </div>
+                                                <input type="text" class="form-control" name="search" value="{{ search }}" 
+                                                       placeholder="Buscar por código, artículo o descripción" style="border-left: none;">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <select name="bodega" class="form-select form-select-sm">
+                                                <option value="">Todas las bodegas</option>
+                                                {% for bodega in bodegas %}
+                                                    <option value="{{ bodega.id }}" {% if bodega.id|stringformat:"s" == request.GET.bodega %}selected{% endif %}>{{ bodega.nombre }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <select name="tipo" class="form-select form-select-sm">
+                                                <option value="">Todos los tipos</option>
+                                                <option value="entrada" {% if request.GET.tipo == 'entrada' %}selected{% endif %}>Entrada</option>
+                                                <option value="salida" {% if request.GET.tipo == 'salida' %}selected{% endif %}>Salida</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input type="date" class="form-control form-control-sm" name="fecha_desde" value="{{ request.GET.fecha_desde }}" placeholder="Desde">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input type="date" class="form-control form-control-sm" name="fecha_hasta" value="{{ request.GET.fecha_hasta }}" placeholder="Hasta">
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                </div>
+                
+                    <!-- Lista de ajustes -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card shadow-sm" style="border: none; border-radius: 15px;">
+                                <div class="card-body p-0">
+                    {% if ajustes %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                                <thead style="background: #f8f9fa;">
+                                    <tr>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Nº Registro</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Fecha</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Tipo</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Bodega</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Artículo</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Cantidad</th>
+                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Usuario</th>
+                                        <th class="py-2 px-3 text-center" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ajuste in ajustes %}
+                                        <tr style="border-bottom: 1px solid #f1f3f4;">
+                                            <td class="py-2 px-3">
+                                                <span style="color: #495057; font-weight: 600; font-size: 0.9rem;">{{ ajuste.numero_folio|default:"Sin folio" }}</span>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <span style="color: #6c757d; font-size: 0.9rem;">{{ ajuste.fecha_movimiento|date:"d/m/Y" }}</span>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                        {% if ajuste.cantidad > 0 %}
+                                                    <span class="badge bg-success" style="font-size: 0.8rem;">
+                                                <i class="fas fa-arrow-up me-1"></i>Entrada
+                                            </span>
+                                        {% else %}
+                                                    <span class="badge bg-danger" style="font-size: 0.8rem;">
+                                                <i class="fas fa-arrow-down me-1"></i>Salida
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                            <td class="py-2 px-3">
+                                                <span style="color: #2c3e50; font-size: 0.9rem;">{{ ajuste.bodega_destino.nombre }}</span>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <div>
+                                                    <div class="fw-bold" style="color: #2c3e50; font-size: 0.9rem;">{{ ajuste.articulo.codigo }}</div>
+                                                    <small style="color: #6c757d; font-size: 0.8rem;">{{ ajuste.articulo.nombre|truncatechars:30 }}</small>
+                                                </div>
+                                    </td>
+                                            <td class="py-2 px-3">
+                                                <span class="fw-bold {% if ajuste.cantidad > 0 %}text-success{% else %}text-danger{% endif %}" style="font-size: 0.9rem;">
+                                                    {% if ajuste.cantidad > 0 %}+{% endif %}{{ ajuste.cantidad|floatformat:0 }}
+                                                </span>
+                                    </td>
+                                            <td class="py-2 px-3">
+                                                <span style="color: #6c757d; font-size: 0.9rem;" title="{{ ajuste.descripcion }}">
+                                                    {{ ajuste.descripcion|truncatechars:30 }}
+                                        </span>
+                                    </td>
+                                            <td class="py-2 px-3">
+                                                <span style="color: #2c3e50; font-size: 0.9rem;">{{ ajuste.creado_por.username }}</span>
+                                            </td>
+                                            <td class="py-2 px-3 text-center">
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm" 
+                                                            data-bs-toggle="tooltip" 
+                                                            title="Ver detalles"
+                                                            onclick="verAjuste({{ ajuste.id }})"
+                                                            style="border: none; background: none; padding: 2px 6px;">
+                                                        <i class="fas fa-eye" style="color: #4682B4; font-size: 14px;"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm" 
+                                                            data-bs-toggle="tooltip" 
+                                                            title="Editar"
+                                                            onclick="editarAjuste({{ ajuste.id }})"
+                                                            style="border: none; background: none; padding: 2px 6px;">
+                                                        <i class="fas fa-edit" style="color: #B8860B; font-size: 14px;"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm" 
+                                                            data-bs-toggle="tooltip" 
+                                                            title="Eliminar"
+                                                            onclick="eliminarAjuste({{ ajuste.id }})"
+                                                            style="border: none; background: none; padding: 2px 6px;">
+                                                        <i class="fas fa-trash" style="color: #DC143C; font-size: 14px;"></i>
+                                                    </button>
+                                                </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-adjust fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No se encontraron ajustes</h5>
+                            <p class="text-muted">Comienza creando tu primer ajuste de stock.</p>
+                            <a href="{% url 'inventario:ajuste_create_simple' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Crear Primer Ajuste
+                            </a>
+                        </div>
+                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Acciones de ajustes
+function verAjuste(id) {
+    // Crear modal dinámicamente
+    const modalHtml = `
+        <div class="modal fade" id="modalVerAjuste" tabindex="-1" aria-labelledby="modalVerAjusteLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div id="modalContent"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remover modal existente si existe
+    const existingModal = document.getElementById('modalVerAjuste');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Agregar modal al body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Cargar contenido del modal
+    fetch(`/inventario/ajustes/${id}/`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            const modal = new bootstrap.Modal(document.getElementById('modalVerAjuste'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al cargar los detalles del ajuste',
+                confirmButtonText: 'Entendido'
+            });
+        });
+}
+
+function editarAjuste(id) {
+    // Crear modal dinámicamente
+    const modalHtml = `
+        <div class="modal fade" id="modalEditarAjuste" tabindex="-1" aria-labelledby="modalEditarAjusteLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div id="modalEditContent"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remover modal existente si existe
+    const existingModal = document.getElementById('modalEditarAjuste');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Agregar modal al body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Cargar contenido del modal
+    fetch(`/inventario/ajustes/${id}/editar/`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modalEditContent').innerHTML = html;
+            
+            // Ejecutar el JavaScript del modal después de cargar el contenido
+            const scripts = document.getElementById('modalEditContent').querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                document.head.appendChild(newScript);
+            });
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarAjuste'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al cargar el formulario de edición',
+                confirmButtonText: 'Entendido'
+            });
+        });
+}
+
+function eliminarAjuste(id) {
+    Swal.fire({
+        title: '¿Eliminar Ajuste?',
+        text: 'Esta acción no se puede deshacer y afectará el stock',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Crear un formulario temporal para enviar la petición
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/inventario/ajustes/${id}/eliminar/`;
+            
+            // Agregar el token CSRF
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = '{{ csrf_token }}';
+            form.appendChild(csrfInput);
+            
+            // Agregar el formulario al DOM y enviarlo
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

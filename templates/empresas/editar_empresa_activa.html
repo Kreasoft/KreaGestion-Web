@@ -68,6 +68,81 @@
         border-radius: 0.5rem;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
+    
+    /* Estilos para las pestañas */
+    .nav-tabs {
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 2rem;
+    }
+    
+    .nav-tabs .nav-link {
+        border: none;
+        border-radius: 0.5rem 0.5rem 0 0;
+        margin-right: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        color: #6c757d;
+        background: #f8f9fa;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: #495057;
+        background: #e9ecef;
+        border-bottom-color: #dee2e6;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: #fff;
+        background: linear-gradient(135deg, #374151 0%, #6B7280 100%);
+        border-bottom-color: #374151;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(55, 65, 81, 0.3);
+        font-weight: 600;
+    }
+    
+    .nav-tabs .nav-link.active::before {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #374151 0%, #6B7280 100%);
+        border-radius: 2px 2px 0 0;
+    }
+    
+    .nav-tabs .nav-link i {
+        margin-right: 0.5rem;
+        font-size: 1.1rem;
+    }
+    
+    .nav-tabs .nav-link.active i {
+        color: #fff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Contenido de las pestañas */
+    .tab-content {
+        background: #fff;
+        border-radius: 0 0.5rem 0.5rem 0.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        min-height: 400px;
+    }
+    
+    .tab-pane {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 </style>
 
 <div class="container py-2">
@@ -96,8 +171,26 @@
                         </div>
                     {% endif %}
                     
-                    <form method="post" enctype="multipart/form-data">
-                        {% csrf_token %}
+                    <!-- Pestañas -->
+                    <ul class="nav nav-tabs mb-4" id="empresaTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="datos-tab" data-bs-toggle="tab" data-bs-target="#datos" type="button" role="tab" aria-controls="datos" aria-selected="true">
+                                <i class="fas fa-building me-2"></i>Datos de la Empresa
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="folios-tab" data-bs-toggle="tab" data-bs-target="#folios" type="button" role="tab" aria-controls="folios" aria-selected="false">
+                                <i class="fas fa-file-alt me-2"></i>Folios y Correlativos
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Contenido de las pestañas -->
+                    <div class="tab-content" id="empresaTabsContent">
+                        <!-- Pestaña Datos de la Empresa -->
+                        <div class="tab-pane fade show active" id="datos" role="tabpanel" aria-labelledby="datos-tab">
+                            <form method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
                         
                         <!-- Primera fila: RUT, Razón Social, Nombre de Fantasía -->
                         <div class="row mb-3">
@@ -318,20 +411,115 @@
                             </div>
                         </div>
 
-                        <!-- Botones -->
-                        <div class="row">
-                            <div class="col-12">
-                                <div class="d-flex justify-content-end gap-3">
-                                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
-                                        <i class="fas fa-times me-2"></i>Cancelar
-                                    </a>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-save me-2"></i>Guardar Cambios
-                                    </button>
+                                <!-- Botones -->
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="d-flex justify-content-end gap-3">
+                                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                                                <i class="fas fa-times me-2"></i>Cancelar
+                                            </a>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-save me-2"></i>Guardar Cambios
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            </form>
                         </div>
-                    </form>
+
+                        <!-- Pestaña Folios y Correlativos -->
+                        <div class="tab-pane fade" id="folios" role="tabpanel" aria-labelledby="folios-tab">
+                            <form method="post" id="configForm">
+                                {% csrf_token %}
+                                
+                                <!-- Campos ocultos de la empresa para mantener los datos -->
+                                <input type="hidden" name="nombre" value="{{ empresa.nombre }}">
+                                <input type="hidden" name="razon_social" value="{{ empresa.razon_social }}">
+                                <input type="hidden" name="rut" value="{{ empresa.rut }}">
+                                <input type="hidden" name="giro" value="{{ empresa.giro }}">
+                                <input type="hidden" name="direccion" value="{{ empresa.direccion }}">
+                                <input type="hidden" name="comuna" value="{{ empresa.comuna }}">
+                                <input type="hidden" name="ciudad" value="{{ empresa.ciudad }}">
+                                <input type="hidden" name="region" value="{{ empresa.region }}">
+                                <input type="hidden" name="telefono" value="{{ empresa.telefono }}">
+                                <input type="hidden" name="email" value="{{ empresa.email }}">
+                                <input type="hidden" name="sitio_web" value="{{ empresa.sitio_web }}">
+                                <input type="hidden" name="regimen_tributario" value="{{ empresa.regimen_tributario }}">
+                                <input type="hidden" name="estado" value="{{ empresa.estado }}">
+                                
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Configure la numeración para los ajustes de stock.
+                                </div>
+
+                                <!-- Configuración de Ajustes -->
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">
+                                            <i class="fas fa-adjust me-2"></i>Prefijo Ajustes
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="fas fa-adjust"></i>
+                                            </span>
+                                            <input type="text" name="prefijo_ajustes" class="form-control" 
+                                                   value="{{ configuracion.prefijo_ajustes|default:'Aju' }}" 
+                                                   maxlength="10" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">
+                                            <i class="fas fa-sort-numeric-up me-2"></i>Siguiente Ajuste
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="fas fa-sort-numeric-up"></i>
+                                            </span>
+                                            <input type="number" name="siguiente_ajuste" class="form-control" 
+                                                   value="{{ configuracion.siguiente_ajuste|default:1 }}" 
+                                                   min="1" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">
+                                            <i class="fas fa-code me-2"></i>Formato Ajustes
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="fas fa-code"></i>
+                                            </span>
+                                            <input type="text" name="formato_ajustes" class="form-control" 
+                                                   value="{{ configuracion.formato_ajustes|default:'{prefijo}-{000}' }}" 
+                                                   placeholder="Ej: {prefijo}-{000}" required>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-light">
+                                    <small class="text-muted">
+                                        <strong>Variables disponibles:</strong><br>
+                                        <code>{prefijo}</code> = Prefijo configurado<br>
+                                        <code>{000}</code> = Número con ceros a la izquierda<br>
+                                        <strong>Ejemplo:</strong> Si prefijo es "Aju" y siguiente es 5, el resultado será "Aju-005"
+                                    </small>
+                                </div>
+
+                                <!-- Botones -->
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="d-flex justify-content-end gap-3">
+                                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                                                <i class="fas fa-times me-2"></i>Cancelar
+                                            </a>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-save me-2"></i>Guardar Configuración
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
