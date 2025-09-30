@@ -4,14 +4,15 @@ from django.core.validators import MinValueValidator
 from django.utils import timezone
 from decimal import Decimal
 from empresas.models import Empresa, Sucursal
-# from proveedores.models import Proveedor  # Temporal
+from proveedores.models import Proveedor
 from articulos.models import Articulo
+from bodegas.models import Bodega
 
 
 class OrdenCompra(models.Model):
     """Modelo para gestionar órdenes de compra a proveedores"""
     
-    ESTADO_CHOICES = [
+    ESTADO_ORDEN_CHOICES = [
         ('borrador', 'Borrador'),
         ('pendiente_aprobacion', 'Pendiente de Aprobación'),
         ('aprobada', 'Aprobada'),
@@ -22,6 +23,13 @@ class OrdenCompra(models.Model):
         ('cerrada', 'Cerrada'),
     ]
     
+    ESTADO_PAGO_CHOICES = [
+        ('pagada', 'Pagada'),
+        ('credito', 'Crédito'),
+        ('parcial', 'Pago Parcial'),
+        ('vencida', 'Vencida'),
+    ]
+    
     PRIORIDAD_CHOICES = [
         ('baja', 'Baja'),
         ('normal', 'Normal'),
@@ -29,9 +37,10 @@ class OrdenCompra(models.Model):
         ('urgente', 'Urgente'),
     ]
     
-    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
-    proveedor = models.CharField(max_length=200, verbose_name="Proveedor")  # Temporal
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, verbose_name="Sucursal", null=True, blank=True)
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, verbose_name="Proveedor")
+    bodega = models.ForeignKey(Bodega, on_delete=models.CASCADE, verbose_name="Bodega", null=True, blank=True)
     
     # Información de la orden
     numero_orden = models.CharField(max_length=20, unique=True, verbose_name="Número de Orden")
@@ -39,27 +48,34 @@ class OrdenCompra(models.Model):
     fecha_entrega_esperada = models.DateField(verbose_name="Fecha de Entrega Esperada")
     fecha_entrega_real = models.DateField(blank=True, null=True, verbose_name="Fecha de Entrega Real")
     
-    # Estado y prioridad
-    estado = models.CharField(max_length=30, choices=ESTADO_CHOICES, default='borrador')
-    prioridad = models.CharField(max_length=20, choices=PRIORIDAD_CHOICES, default='normal')
+    # Estados
+    estado_orden = models.CharField(max_length=30, choices=ESTADO_ORDEN_CHOICES, default='borrador', verbose_name="Estado de la Orden")
+    estado_pago = models.CharField(max_length=20, choices=ESTADO_PAGO_CHOICES, default='credito', verbose_name="Estado de Pago")
+    prioridad = models.CharField(max_length=20, choices=PRIORIDAD_CHOICES, default='normal', verbose_name="Prioridad")
     
     # Información adicional
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     condiciones_pago = models.CharField(max_length=200, blank=True, verbose_name="Condiciones de Pago")
     plazo_entrega = models.CharField(max_length=100, blank=True, verbose_name="Plazo de Entrega")
     
-    # Totales
-    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
-    iva = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
-    descuento = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
-    total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    # Totales (usando IntegerField como en documentos)
+    subtotal = models.IntegerField(default=0, verbose_name="Subtotal")
+    descuentos_totales = models.IntegerField(default=0, verbose_name="Descuentos Totales")
+    impuestos_totales = models.IntegerField(default=0, verbose_name="Impuestos Totales")
+    total_orden = models.IntegerField(default=0, verbose_name="Total Orden")
+    
+    # Campos para cuentas corrientes (similar a documentos)
+    en_cuenta_corriente = models.BooleanField(default=False, verbose_name="En Cuenta Corriente")
+    fecha_registro_cc = models.DateTimeField(blank=True, null=True, verbose_name="Fecha Registro CC")
+    monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Monto Pagado")
+    saldo_pendiente = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Saldo Pendiente")
     
     # Auditoría
-    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_creadas')
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_compra_creadas', verbose_name="Creado por")
     aprobado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_aprobadas')
-    fecha_aprobacion = models.DateTimeField(blank=True, null=True)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_modificacion = models.DateTimeField(auto_now=True)
+    fecha_aprobacion = models.DateTimeField(blank=True, null=True, verbose_name="Fecha de Aprobación")
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    fecha_modificacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Modificación")
     
     class Meta:
         verbose_name = "Orden de Compra"
@@ -67,19 +83,26 @@ class OrdenCompra(models.Model):
         ordering = ['-fecha_orden', '-numero_orden']
     
     def __str__(self):
-        return f"OC-{self.numero_orden} - {self.proveedor}"
+        return f"OC-{self.numero_orden} - {self.proveedor.nombre}"
     
     def calcular_totales(self):
-        """Calcula los totales de la orden de compra"""
-        subtotal = sum(item.subtotal for item in self.items.all())
-        iva = subtotal * Decimal('0.19')  # 19% IVA
-        self.subtotal = subtotal
-        self.iva = iva
-        self.total = subtotal + iva - self.descuento
+        """Calcula los totales de la orden de compra basado en sus items"""
+        items = self.items.all()
+        
+        self.subtotal = sum(item.get_subtotal() for item in items)
+        self.descuentos_totales = sum(item.get_descuento_monto() for item in items)
+        self.impuestos_totales = sum(item.get_impuesto_monto() for item in items)
+        self.total_orden = self.subtotal - self.descuentos_totales + self.impuestos_totales
+        
+        # Actualizar saldo pendiente
+        self.saldo_pendiente = self.total_orden - self.monto_pagado
+        
+        # El estado de pago se maneja en el modelo CuentaCorrienteProveedor
+        
         self.save()
     
     def get_estado_display_color(self):
-        """Retorna el color CSS para el estado"""
+        """Retorna el color CSS para el estado de la orden"""
         colores = {
             'borrador': 'secondary',
             'pendiente_aprobacion': 'warning',
@@ -90,50 +113,64 @@ class OrdenCompra(models.Model):
             'cancelada': 'danger',
             'cerrada': 'dark',
         }
-        return colores.get(self.estado, 'secondary')
+        return colores.get(self.estado_orden, 'secondary')
+    
+    def get_estado_pago_display_color(self):
+        """Retorna el color CSS para el estado de pago"""
+        colores = {
+            'pagada': 'success',
+            'credito': 'info',
+            'parcial': 'warning',
+            'vencida': 'danger',
+        }
+        return colores.get(self.estado_pago, 'secondary')
+    
+    def puede_editar(self):
+        """Verifica si la orden puede ser editada"""
+        return self.estado_orden in ['borrador', 'pendiente_aprobacion']
     
     def puede_aprobar(self):
         """Verifica si la orden puede ser aprobada"""
-        return self.estado == 'pendiente_aprobacion'
+        return self.estado_orden == 'pendiente_aprobacion'
     
     def puede_recibir(self):
         """Verifica si la orden puede recibir mercancías"""
-        return self.estado in ['aprobada', 'en_proceso', 'parcialmente_recibida']
+        return self.estado_orden in ['aprobada', 'en_proceso', 'parcialmente_recibida']
+    
+    def debe_ir_a_cuenta_corriente(self):
+        """Verifica si la orden debe ir a cuenta corriente"""
+        return self.estado_pago in ['credito', 'parcial'] and self.estado_orden == 'aprobada'
+    
+    def registrar_en_cuenta_corriente(self):
+        """Registra la orden en cuenta corriente"""
+        if self.debe_ir_a_cuenta_corriente() and not self.en_cuenta_corriente:
+            self.en_cuenta_corriente = True
+            self.fecha_registro_cc = timezone.now()
+            self.save()
+            return True
+        return False
 
 
 class ItemOrdenCompra(models.Model):
     """Items individuales de una orden de compra"""
     
-    orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.CASCADE, related_name='items')
+    orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.CASCADE, related_name='items', verbose_name="Orden de Compra")
     articulo = models.ForeignKey(Articulo, on_delete=models.CASCADE, verbose_name="Artículo")
     
-    cantidad_solicitada = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Cantidad Solicitada"
-    )
-    cantidad_recibida = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        default=Decimal('0.00'),
-        verbose_name="Cantidad Recibida"
-    )
+    # Información del item
+    cantidad_solicitada = models.IntegerField(default=1, validators=[MinValueValidator(1)], verbose_name="Cantidad Solicitada")
+    cantidad_recibida = models.IntegerField(default=0, validators=[MinValueValidator(0)], verbose_name="Cantidad Recibida")
+    precio_unitario = models.IntegerField(validators=[MinValueValidator(0)], verbose_name="Precio Unitario")
     
-    precio_unitario = models.DecimalField(
-        max_digits=15, 
-        decimal_places=2, 
-        validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Precio Unitario"
-    )
-    descuento_unitario = models.DecimalField(
-        max_digits=15, 
-        decimal_places=2, 
-        default=Decimal('0.00'),
-        verbose_name="Descuento Unitario"
-    )
+    # Descuentos e impuestos
+    descuento_porcentaje = models.IntegerField(default=0, validators=[MinValueValidator(0)], verbose_name="Descuento (%)")
+    impuesto_porcentaje = models.IntegerField(default=19, validators=[MinValueValidator(0)], verbose_name="Impuesto (%)")
     
-    subtotal = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Subtotal")
+    # Totales del item
+    subtotal = models.IntegerField(default=0, verbose_name="Subtotal")
+    descuento_monto = models.IntegerField(default=0, verbose_name="Descuento Monto")
+    impuesto_monto = models.IntegerField(default=0, verbose_name="Impuesto Monto")
+    total_item = models.IntegerField(default=0, verbose_name="Total Item")
     
     # Información adicional
     especificaciones = models.TextField(blank=True, verbose_name="Especificaciones")
@@ -143,15 +180,35 @@ class ItemOrdenCompra(models.Model):
         verbose_name = "Item de Orden de Compra"
         verbose_name_plural = "Items de Órdenes de Compra"
         unique_together = ['orden_compra', 'articulo']
+        ordering = ['id']
     
     def __str__(self):
         return f"{self.articulo.nombre} - {self.cantidad_solicitada}"
     
     def save(self, *args, **kwargs):
-        """Calcula el subtotal al guardar"""
-        self.subtotal = (self.precio_unitario - self.descuento_unitario) * self.cantidad_solicitada
+        """Calcula automáticamente los totales al guardar"""
+        self.subtotal = self.cantidad_solicitada * self.precio_unitario
+        self.descuento_monto = round(self.subtotal * (self.descuento_porcentaje / 100))
+        self.impuesto_monto = round((self.subtotal - self.descuento_monto) * (self.impuesto_porcentaje / 100))
+        self.total_item = self.subtotal - self.descuento_monto + self.impuesto_monto
         super().save(*args, **kwargs)
         self.orden_compra.calcular_totales()
+    
+    def get_subtotal(self):
+        """Retorna el subtotal del item"""
+        return self.cantidad_solicitada * self.precio_unitario
+    
+    def get_descuento_monto(self):
+        """Retorna el monto del descuento"""
+        return round(self.subtotal * (self.descuento_porcentaje / 100))
+    
+    def get_impuesto_monto(self):
+        """Retorna el monto del impuesto"""
+        return round((self.subtotal - self.get_descuento_monto()) * (self.impuesto_porcentaje / 100))
+    
+    def get_total(self):
+        """Retorna el total del item"""
+        return self.get_subtotal() - self.get_descuento_monto() + self.get_impuesto_monto()
     
     def get_cantidad_pendiente(self):
         """Retorna la cantidad pendiente de recibir"""
@@ -258,11 +315,11 @@ class ItemRecepcion(models.Model):
         total_recibido = sum(item.cantidad_recibida for item in orden.items.all())
         
         if total_recibido == 0:
-            orden.estado = 'aprobada'
+            orden.estado_orden = 'aprobada'
         elif total_recibido < total_solicitado:
-            orden.estado = 'parcialmente_recibida'
+            orden.estado_orden = 'parcialmente_recibida'
         else:
-            orden.estado = 'completamente_recibida'
+            orden.estado_orden = 'completamente_recibida'
         
         orden.save()
 

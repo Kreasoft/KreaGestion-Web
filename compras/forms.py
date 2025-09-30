@@ -2,9 +2,10 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.core.exceptions import ValidationError
 from .models import OrdenCompra, ItemOrdenCompra, RecepcionMercancia, ItemRecepcion
-# from proveedores.models import Proveedor  # Temporal
+from proveedores.models import Proveedor
 from articulos.models import Articulo
 from empresas.models import Sucursal
+from bodegas.models import Bodega
 
 
 class OrdenCompraForm(forms.ModelForm):
@@ -13,30 +14,36 @@ class OrdenCompraForm(forms.ModelForm):
     class Meta:
         model = OrdenCompra
         fields = [
-            'proveedor', 'sucursal', 'numero_orden', 'fecha_orden', 
-            'fecha_entrega_esperada', 'estado', 'prioridad', 'observaciones',
-            'condiciones_pago', 'plazo_entrega'
+            'proveedor', 'bodega', 'numero_orden', 'fecha_orden', 
+            'fecha_entrega_esperada', 'estado_orden', 'prioridad', 
+            'observaciones', 'condiciones_pago', 'plazo_entrega',
+            'subtotal', 'descuentos_totales', 'impuestos_totales', 'total_orden'
         ]
         widgets = {
-            'proveedor': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del proveedor'}),
-            'sucursal': forms.Select(attrs={'class': 'form-select'}),
+            'proveedor': forms.Select(attrs={'class': 'form-select'}),
+            'bodega': forms.Select(attrs={'class': 'form-select'}),
             'numero_orden': forms.TextInput(attrs={'class': 'form-control', 'readonly': True}),
             'fecha_orden': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'fecha_entrega_esperada': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'estado': forms.Select(attrs={'class': 'form-select'}),
+            'estado_orden': forms.Select(attrs={'class': 'form-select'}),
             'prioridad': forms.Select(attrs={'class': 'form-select'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'condiciones_pago': forms.TextInput(attrs={'class': 'form-control'}),
             'plazo_entrega': forms.TextInput(attrs={'class': 'form-control'}),
+            'subtotal': forms.HiddenInput(),
+            'descuentos_totales': forms.HiddenInput(),
+            'impuestos_totales': forms.HiddenInput(),
+            'total_orden': forms.HiddenInput(),
         }
     
     def __init__(self, *args, **kwargs):
         self.empresa = kwargs.pop('empresa', None)
         super().__init__(*args, **kwargs)
         
-        # Configurar sucursales por empresa
+        # Configurar datos por empresa
         if self.empresa:
-            self.fields['sucursal'].queryset = Sucursal.objects.filter(empresa=self.empresa)
+            self.fields['proveedor'].queryset = Proveedor.objects.filter(empresa=self.empresa)
+            self.fields['bodega'].queryset = Bodega.objects.filter(empresa=self.empresa)
         
         # Generar número de orden automáticamente
         if not self.instance.pk:
@@ -58,19 +65,23 @@ class ItemOrdenCompraForm(forms.ModelForm):
         model = ItemOrdenCompra
         fields = [
             'articulo', 'cantidad_solicitada', 'precio_unitario', 
-            'descuento_unitario', 'especificaciones', 'fecha_entrega_item'
+            'descuento_porcentaje', 'impuesto_porcentaje', 'especificaciones', 'fecha_entrega_item'
         ]
         widgets = {
             'articulo': forms.Select(attrs={'class': 'form-select articulo-select'}),
-            'cantidad_solicitada': forms.NumberInput(attrs={'class': 'form-control cantidad-input', 'step': '0.01'}),
-            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control precio-input', 'step': '0.01'}),
-            'descuento_unitario': forms.NumberInput(attrs={'class': 'form-control descuento-input', 'step': '0.01', 'value': '0.00'}),
+            'cantidad_solicitada': forms.NumberInput(attrs={'class': 'form-control cantidad-input', 'min': '1'}),
+            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control precio-input', 'min': '0'}),
+            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control descuento-input', 'min': '0', 'max': '100', 'value': '0'}),
+            'impuesto_porcentaje': forms.NumberInput(attrs={'class': 'form-control impuesto-input', 'min': '0', 'max': '100', 'value': '19'}),
             'especificaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'fecha_entrega_item': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        # Hacer impuesto_porcentaje opcional
+        self.fields['impuesto_porcentaje'].required = False
         
         # Filtrar artículos por empresa - esto se hará en la vista
         # La empresa se pasará a través del contexto del template
@@ -83,9 +94,21 @@ class ItemOrdenCompraForm(forms.ModelForm):
     
     def clean_precio_unitario(self):
         precio = self.cleaned_data.get('precio_unitario')
-        if precio and precio <= 0:
-            raise ValidationError('El precio debe ser mayor a 0.')
+        if precio and precio < 0:
+            raise ValidationError('El precio no puede ser negativo.')
         return precio
+    
+    def clean_descuento_porcentaje(self):
+        descuento = self.cleaned_data.get('descuento_porcentaje')
+        if descuento and (descuento < 0 or descuento > 100):
+            raise ValidationError('El descuento debe estar entre 0 y 100%.')
+        return descuento
+    
+    def clean_impuesto_porcentaje(self):
+        impuesto = self.cleaned_data.get('impuesto_porcentaje')
+        if impuesto and (impuesto < 0 or impuesto > 100):
+            raise ValidationError('El impuesto debe estar entre 0 y 100%.')
+        return impuesto
 
 
 # Formset para manejar múltiples items
@@ -97,7 +120,7 @@ ItemOrdenCompraFormSet = inlineformset_factory(
     can_delete=True,
     fields=[
         'articulo', 'cantidad_solicitada', 'precio_unitario', 
-        'descuento_unitario', 'especificaciones', 'fecha_entrega_item'
+        'descuento_porcentaje', 'impuesto_porcentaje', 'especificaciones', 'fecha_entrega_item'
     ]
 )
 
@@ -190,7 +213,7 @@ ItemRecepcionFormSet = inlineformset_factory(
 class BusquedaOrdenForm(forms.Form):
     """Formulario para buscar órdenes de compra"""
     
-    ESTADO_CHOICES = [
+    ESTADO_ORDEN_CHOICES = [
         ('', 'Todos los estados'),
         ('borrador', 'Borrador'),
         ('pendiente_aprobacion', 'Pendiente de Aprobación'),
@@ -200,6 +223,14 @@ class BusquedaOrdenForm(forms.Form):
         ('completamente_recibida', 'Completamente Recibida'),
         ('cancelada', 'Cancelada'),
         ('cerrada', 'Cerrada'),
+    ]
+    
+    ESTADO_PAGO_CHOICES = [
+        ('', 'Todos los estados de pago'),
+        ('pagada', 'Pagada'),
+        ('credito', 'Crédito'),
+        ('parcial', 'Pago Parcial'),
+        ('vencida', 'Vencida'),
     ]
     
     PRIORIDAD_CHOICES = [
@@ -219,11 +250,12 @@ class BusquedaOrdenForm(forms.Form):
         })
     )
     
-    estado = forms.ChoiceField(
-        choices=ESTADO_CHOICES,
+    estado_orden = forms.ChoiceField(
+        choices=ESTADO_ORDEN_CHOICES,
         required=False,
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+    
     
     prioridad = forms.ChoiceField(
         choices=PRIORIDAD_CHOICES,

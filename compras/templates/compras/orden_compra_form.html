@@ -1,57 +1,54 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{{ titulo }} - GestionCloud{% endblock %}
+{% block title %}
+    {% if orden %}
+        Editar Orden de Compra - GestionCloud
+    {% else %}
+        Crear Orden de Compra - GestionCloud
+    {% endif %}
+{% endblock %}
 
-{% block body_class %}hide-top-bar{% endblock %}
+{% block body_class %}hide-top-bar{% if orden %} edit-mode{% endif %}{% endblock %}
 
 {% block extra_css %}
 <style>
-    .form-section {
+    .form-container {
         background: white;
         border-radius: 15px;
         padding: 2rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         border: 1px solid #e3e6f0;
+        margin-bottom: 2rem;
     }
     
-    .section-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 10px;
-        margin-bottom: 1.5rem;
-        font-family: 'Poppins', sans-serif;
-    }
-    
-    .section-header h5 {
-        margin: 0;
-        font-weight: 600;
-        font-size: 1.1rem;
-    }
-    
-    .item-row {
-        background: #f8f9fc;
+    .form-section {
+        background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%);
         border-radius: 10px;
         padding: 1.5rem;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
         border: 1px solid #e3e6f0;
-        transition: all 0.3s ease;
     }
     
-    .item-row:hover {
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        transform: translateY(-2px);
+    .form-section h5 {
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .form-section h5 i {
+        margin-right: 0.5rem;
+        color: #4e73df;
     }
     
     .btn-primary {
         background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
         border: none;
-        border-radius: 10px;
+        border-radius: 25px;
         padding: 0.75rem 2rem;
         font-weight: 500;
-        font-family: 'Poppins', sans-serif;
         transition: all 0.3s ease;
     }
     
@@ -61,59 +58,78 @@
     }
     
     .btn-secondary {
-        border-radius: 10px;
+        border-radius: 25px;
         padding: 0.75rem 2rem;
         font-weight: 500;
-        font-family: 'Poppins', sans-serif;
         transition: all 0.3s ease;
     }
     
-    .btn-danger {
-        background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%);
-        border: none;
+    .items-container {
+        background: white;
+        border: 1px solid #e3e6f0;
         border-radius: 10px;
-        padding: 0.5rem 1rem;
-        font-weight: 500;
-        font-family: 'Poppins', sans-serif;
+        padding: 1rem;
+        margin-bottom: 1rem;
     }
     
-    .btn-success {
-        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
-        border: none;
-        border-radius: 10px;
-        padding: 0.5rem 1rem;
-        font-weight: 500;
-        font-family: 'Poppins', sans-serif;
-    }
-    
-    .form-control, .form-select {
+    .item-form {
+        background: #f8f9fc;
+        border: 1px solid #e3e6f0;
         border-radius: 8px;
-        border: 1px solid #ced4da;
-        padding: 0.75rem;
-        font-family: 'Poppins', sans-serif;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .item-form:last-child {
+        margin-bottom: 0;
+    }
+    
+    .add-item-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        border-radius: 4px;
+        color: white;
+        padding: 0.4rem 0.7rem;
+        font-weight: 600;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 1px 4px rgba(40, 167, 69, 0.3);
+        height: 28px;
+    }
+    
+    .add-item-btn:hover {
+        background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(40, 167, 69, 0.4);
+        color: white;
+    }
+    
+    .add-item-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 4px rgba(40, 167, 69, 0.3);
+    }
+    
+    .remove-item-btn {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border: none;
+        border-radius: 20px;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
         transition: all 0.3s ease;
     }
     
-    .form-control:focus, .form-select:focus {
-        border-color: #4e73df;
-        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
-    }
-    
-    .articulo-info {
-        background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fc 100%);
-        border: 1px solid #bbdefb;
-        border-radius: 8px;
-        padding: 0.75rem;
-        margin-top: 0.5rem;
-        font-size: 0.9rem;
-        color: #1565c0;
+    .remove-item-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(220, 53, 69, 0.4);
+        color: white;
     }
     
     .total-section {
-        background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%);
-        border-radius: 15px;
+        background: linear-gradient(135deg, #6f42c1 0%, #563d7c 100%);
+        color: white;
+        border-radius: 10px;
         padding: 1.5rem;
-        border: 1px solid #e3e6f0;
         margin-top: 1rem;
     }
     
@@ -121,42 +137,35 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #e3e6f0;
+        margin-bottom: 0.5rem;
     }
     
     .total-row:last-child {
-        border-bottom: none;
-        font-weight: 600;
+        margin-bottom: 0;
+        font-weight: bold;
         font-size: 1.1rem;
-        color: #2c3e50;
+        border-top: 1px solid rgba(255,255,255,0.2);
+        padding-top: 0.5rem;
     }
     
-    .nav-tabs {
-        border-bottom: 2px solid #e3e6f0;
-        margin-bottom: 1.5rem;
+    .form-control:focus, .form-select:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
     }
     
-    .nav-tabs .nav-link {
+    .alert {
+        border-radius: 10px;
         border: none;
-        border-radius: 10px 10px 0 0;
-        margin-right: 0.5rem;
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
-        font-family: 'Poppins', sans-serif;
-        color: #6c757d;
-        transition: all 0.3s ease;
     }
     
-    .nav-tabs .nav-link:hover {
-        background: #f8f9fc;
-        color: #495057;
+    .alert-success {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
     }
     
-    .nav-tabs .nav-link.active {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
+    .alert-danger {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        color: #721c24;
     }
 </style>
 {% endblock %}
@@ -167,446 +176,546 @@
         <div class="col-12">
             <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
                 <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
                             <i class="fas fa-shopping-cart fa-2x text-white me-3"></i>
                             <div>
                                 <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                                    {{ titulo }}
+                                    {% if orden %}
+                                        Editar Orden de Compra
+                                    {% else %}
+                                        Crear Orden de Compra
+                                    {% endif %}
                                 </h5>
-                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">Gestiona la información de la orden de compra</small>
+                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">
+                                    {% if orden %}
+                                        Modifica la información de la orden {{ orden.numero_orden }}
+                                    {% else %}
+                                        Registra una nueva orden de compra en el sistema
+                                    {% endif %}
+                                </small>
                             </div>
                         </div>
-                        <a href="{% url 'compras:orden_compra_list' %}" class="btn" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3); font-family: 'Poppins', sans-serif;">
-                            <i class="fas fa-arrow-left me-2"></i> Volver
+                        <a href="{% url 'compras:orden_compra_list' %}" class="btn" style="background: linear-gradient(135deg, #6c757d 0%, #545b62 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3); font-family: 'Poppins', sans-serif;">
+                            <i class="fas fa-arrow-left me-2"></i> Volver a la Lista
                         </a>
                     </div>
                 </div>
                 
+                <!-- Contenido del formulario -->
                 <div class="card-body" style="padding: 20px;">
-                    <form method="post" id="ordenForm">
+
+    <!-- Mensajes -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" id="ordenForm">
                         {% csrf_token %}
                         
-                        <!-- Navegación por pestañas -->
-                        <ul class="nav nav-tabs" id="ordenTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab">
-                                    <i class="fas fa-info-circle me-2"></i>Información General
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab">
-                                    <i class="fas fa-list me-2"></i>Items de la Orden
-                                </button>
-                            </li>
-                        </ul>
+        <!-- Campos ocultos para totales calculados -->
+        <input type="hidden" name="subtotal" id="subtotal-hidden" value="0">
+        <input type="hidden" name="descuentos_totales" id="descuentos-hidden" value="0">
+        <input type="hidden" name="impuestos_totales" id="impuestos-hidden" value="0">
+        <input type="hidden" name="total_orden" id="total-hidden" value="0">
                         
-                        <div class="tab-content" id="ordenTabContent">
-                            <!-- Pestaña de Información General -->
-                            <div class="tab-pane fade show active" id="info" role="tabpanel">
+        <!-- Información de la Orden -->
+        <div class="form-container">
                                 <div class="form-section">
-                                    <div class="section-header">
-                                        <h5><i class="fas fa-info-circle me-2"></i>Datos de la Orden</h5>
+                <h5 style="font-weight: 700; color: #495057;">Información de la Orden</h5>
+                <div class="row">
+                    <div class="col-md-2">
+                        <label for="{{ form.numero_orden.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Número *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+                            {{ form.numero_orden }}
                                     </div>
-                                    
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Proveedor *</label>
-                                            {{ form.proveedor }}
-                                            {% if form.proveedor.errors %}
-                                                <div class="text-danger mt-1">{{ form.proveedor.errors.0 }}</div>
+                        {% if form.numero_orden.errors %}
+                            <div class="text-danger small">{{ form.numero_orden.errors.0 }}</div>
                                             {% endif %}
                                         </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Sucursal *</label>
-                                            {{ form.sucursal }}
-                                            {% if form.sucursal.errors %}
-                                                <div class="text-danger mt-1">{{ form.sucursal.errors.0 }}</div>
+                    <div class="col-md-5">
+                        <label for="{{ form.proveedor.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Proveedor *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-truck"></i></span>
+                            {{ form.proveedor }}
+                        </div>
+                        {% if form.proveedor.errors %}
+                            <div class="text-danger small">{{ form.proveedor.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                     <div class="col-md-3">
+                         <label for="{{ form.fecha_orden.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Fecha Orden *</label>
+                         <div class="input-group">
+                             <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                             <input type="date" name="{{ form.fecha_orden.name }}" class="form-control" value="{% if form.fecha_orden.value %}{{ form.fecha_orden.value|date:'Y-m-d' }}{% else %}{{ 'now'|date:'Y-m-d' }}{% endif %}" required>
+                                    </div>
+                         {% if form.fecha_orden.errors %}
+                             <div class="text-danger small">{{ form.fecha_orden.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                     <div class="col-md-2">
+                         <label for="{{ form.estado_orden.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Estado</label>
+                         <div class="input-group">
+                             <span class="input-group-text"><i class="fas fa-info-circle"></i></span>
+                             {{ form.estado_orden }}
+                         </div>
+                         {% if form.estado_orden.errors %}
+                             <div class="text-danger small">{{ form.estado_orden.errors.0 }}</div>
                                             {% endif %}
                                         </div>
                                     </div>
-                                    
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Número de Orden</label>
-                                            {{ form.numero_orden }}
-                                            {% if form.numero_orden.errors %}
-                                                <div class="text-danger mt-1">{{ form.numero_orden.errors.0 }}</div>
-                                            {% endif %}
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Fecha de Orden</label>
-                                            {{ form.fecha_orden }}
-                                            {% if form.fecha_orden.errors %}
-                                                <div class="text-danger mt-1">{{ form.fecha_orden.errors.0 }}</div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Fecha de Entrega Esperada *</label>
-                                            {{ form.fecha_entrega_esperada }}
+                <div class="row mt-3">
+                     <div class="col-md-4">
+                         <label for="{{ form.fecha_entrega_esperada.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Fecha Entrega *</label>
+                         <div class="input-group">
+                             <span class="input-group-text"><i class="fas fa-calendar-times"></i></span>
+                             <input type="date" name="{{ form.fecha_entrega_esperada.name }}" class="form-control" value="{% if form.fecha_entrega_esperada.value %}{{ form.fecha_entrega_esperada.value|date:'Y-m-d' }}{% endif %}" required>
+                         </div>
                                             {% if form.fecha_entrega_esperada.errors %}
-                                                <div class="text-danger mt-1">{{ form.fecha_entrega_esperada.errors.0 }}</div>
+                             <div class="text-danger small">{{ form.fecha_entrega_esperada.errors.0 }}</div>
                                             {% endif %}
                                         </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Estado</label>
-                                            {{ form.estado }}
-                                            {% if form.estado.errors %}
-                                                <div class="text-danger mt-1">{{ form.estado.errors.0 }}</div>
+                    <div class="col-md-4">
+                        <label for="{{ form.bodega.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Bodega *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-warehouse"></i></span>
+                            {{ form.bodega }}
+                        </div>
+                        {% if form.bodega.errors %}
+                            <div class="text-danger small">{{ form.bodega.errors.0 }}</div>
                                             {% endif %}
                                         </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Prioridad</label>
+                    <div class="col-md-4">
+                        <label for="{{ form.prioridad.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">Prioridad *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-exclamation-triangle"></i></span>
                                             {{ form.prioridad }}
+                        </div>
                                             {% if form.prioridad.errors %}
-                                                <div class="text-danger mt-1">{{ form.prioridad.errors.0 }}</div>
+                            <div class="text-danger small">{{ form.prioridad.errors.0 }}</div>
                                             {% endif %}
+                                        </div>
+                                    </div>
                                         </div>
                                     </div>
                                     
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Condiciones de Pago</label>
-                                            {{ form.condiciones_pago }}
-                                            {% if form.condiciones_pago.errors %}
-                                                <div class="text-danger mt-1">{{ form.condiciones_pago.errors.0 }}</div>
-                                            {% endif %}
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Plazo de Entrega</label>
-                                            {{ form.plazo_entrega }}
-                                            {% if form.plazo_entrega.errors %}
-                                                <div class="text-danger mt-1">{{ form.plazo_entrega.errors.0 }}</div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif;">Observaciones</label>
-                                        {{ form.observaciones }}
-                                        {% if form.observaciones.errors %}
-                                            <div class="text-danger mt-1">{{ form.observaciones.errors.0 }}</div>
-                                        {% endif %}
-                                    </div>
+        <!-- Items de la Orden -->
+        <div class="form-container">
+            <div class="form-section">
+                <h5 style="font-weight: 700; color: #495057;">Items de la Orden</h5>
+                <hr class="section-divider">
+                <div class="items-container">
+                    {{ formset.management_form }}
+                     <!-- Headers de columnas -->
+                     <div class="row mb-1 align-items-center" style="font-weight: 600; color: #6c757d; font-size: 0.85rem; background: #f8f9fc; padding: 0.4rem 0.75rem; border-radius: 4px; border-bottom: 2px solid #dee2e6;">
+                         <div class="col-md-4">Artículo</div>
+                         <div class="col-md-1">Cant.</div>
+                         <div class="col-md-2">Precio Unit.</div>
+                         <div class="col-md-1">Desc. %</div>
+                         <div class="col-md-2">Total</div>
+                         <div class="col-md-2 d-flex justify-content-between align-items-center">
+                             <span>Acciones</span>
+                             <button type="button" class="btn btn-success btn-sm" id="addItemBtn" onclick="addItemForm();" style="padding: 0.6rem 1rem; font-size: 0.9rem; font-weight: 600; border-radius: 4px; height: 40px;">
+                                 <i class="fas fa-plus me-1"></i>Agregar
+                             </button>
                                 </div>
                             </div>
                             
-                            <!-- Pestaña de Items -->
-                            <div class="tab-pane fade" id="items" role="tabpanel">
-                                <div class="form-section">
-                                    <div class="section-header">
-                                        <h5><i class="fas fa-list me-2"></i>Items de la Orden</h5>
-                                    </div>
-                                    
-                                    {{ formset.management_form }}
-                                    <div id="items-container">
-                                        {% for form in formset %}
-                                        <div class="item-row" data-index="{{ forloop.counter0 }}">
-                                            <div class="row align-items-end">
-                                                <div class="col-md-4 mb-3">
-                                                    <label class="form-label">Artículo *</label>
-                                                    {{ form.articulo }}
-                                                    <div class="articulo-info" id="articulo-info-{{ forloop.counter0 }}" style="display: none;"></div>
-                                                    {% if form.articulo.errors %}
-                                                        <div class="text-danger">{{ form.articulo.errors.0 }}</div>
+                    <!-- Items compactos -->
+                    {% for item_form in formset %}
+                        <div class="item-form-compact" data-form-index="{{ forloop.counter0 }}" style="margin-bottom: 0; padding: 0.2rem 0.75rem; border-bottom: 1px solid #e9ecef; {% cycle 'background: #ffffff;' 'background: #f8f9fc;' %}">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <select name="{{ item_form.articulo.html_name }}" class="form-select form-select-sm articulo-select" data-index="{{ forloop.counter0 }}">
+                                        <option value="">Seleccionar artículo</option>
+                                        {% for articulo in articulos_empresa %}
+                                            <option value="{{ articulo.id }}" 
+                                                    data-codigo="{{ articulo.codigo }}" 
+                                                    data-nombre="{{ articulo.nombre }}"
+                                                    {% if item_form.articulo.value == articulo.id %}selected{% endif %}>
+                                                {{ articulo.codigo }} - {{ articulo.nombre }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if item_form.articulo.errors %}
+                                        <div class="text-danger small">{{ item_form.articulo.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
-                                                <div class="col-md-2 mb-3">
-                                                    <label class="form-label">Cantidad *</label>
-                                                    {{ form.cantidad_solicitada }}
-                                                    {% if form.cantidad_solicitada.errors %}
-                                                        <div class="text-danger">{{ form.cantidad_solicitada.errors.0 }}</div>
+                                <div class="col-md-1">
+                                    {{ item_form.cantidad_solicitada }}
+                                    {% if item_form.cantidad_solicitada.errors %}
+                                        <div class="text-danger small">{{ item_form.cantidad_solicitada.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
-                                                <div class="col-md-2 mb-3">
-                                                    <label class="form-label">Precio Unitario *</label>
-                                                    {{ form.precio_unitario }}
-                                                    {% if form.precio_unitario.errors %}
-                                                        <div class="text-danger">{{ form.precio_unitario.errors.0 }}</div>
+                                <div class="col-md-2">
+                                    {{ item_form.precio_unitario }}
+                                    {% if item_form.precio_unitario.errors %}
+                                        <div class="text-danger small">{{ item_form.precio_unitario.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
-                                                <div class="col-md-2 mb-3">
-                                                    <label class="form-label">Descuento (%)</label>
-                                                    {{ form.descuento_unitario }}
-                                                    {% if form.descuento_unitario.errors %}
-                                                        <div class="text-danger">{{ form.descuento_unitario.errors.0 }}</div>
+                                <div class="col-md-1">
+                                    {{ item_form.descuento_porcentaje }}
+                                    {% if item_form.descuento_porcentaje.errors %}
+                                        <div class="text-danger small">{{ item_form.descuento_porcentaje.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
-                                                <div class="col-md-2 mb-3">
-                                                    <label class="form-label">Subtotal</label>
-                                                    <input type="text" class="form-control subtotal-input" readonly style="background-color: #f8f9fc;">
+                                <div class="col-md-2">
+                                    <input type="text" class="form-control form-control-sm item-total" placeholder="0" style="font-weight: 600; background-color: #f8f9fc;">
                                                 </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-4 mb-3">
-                                                    <label class="form-label">Especificaciones</label>
-                                                    {{ form.especificaciones }}
-                                                    {% if form.especificaciones.errors %}
-                                                        <div class="text-danger">{{ form.especificaciones.errors.0 }}</div>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="col-md-4 mb-3">
-                                                    <label class="form-label">Fecha de Entrega Item</label>
-                                                    {{ form.fecha_entrega_item }}
-                                                    {% if form.fecha_entrega_item.errors %}
-                                                        <div class="text-danger">{{ form.fecha_entrega_item.errors.0 }}</div>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="col-md-4 mb-3 d-flex align-items-end">
-                                                    <button type="button" class="btn btn-danger remove-item" style="width: 100%;">
-                                                        <i class="fas fa-trash me-2"></i>Eliminar Item
+                                <div class="col-md-2">
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        {% for hidden in item_form.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                        <button type="button" class="btn btn-sm btn-outline-danger delete-item-btn" 
+                                                data-form-index="{{ forloop.counter0 }}" 
+                                                title="Eliminar item"
+                                                style="padding: 0.2rem 0.4rem;"
+                                                onclick="eliminarItem(this)">
+                                            <i class="fas fa-trash" style="font-size: 0.75rem;"></i>
                                                     </button>
                                                 </div>
                                             </div>
-                                            {% if form.id %}
-                                                {{ form.id }}
-                                            {% endif %}
-                                            {% if form.DELETE %}
-                                                {{ form.DELETE }}
-                                            {% endif %}
+                            </div>
                                         </div>
                                         {% endfor %}
                                     </div>
-                                    
-                                    <div class="text-center mb-3">
-                                        <button type="button" class="btn btn-success" id="add-item">
-                                            <i class="fas fa-plus me-2"></i>Agregar Item
-                                        </button>
+            </div>
                                     </div>
                                     
-                                    <!-- Totales -->
-                                    <div class="total-section">
-                                        <h6 style="font-weight: 600; color: #495057; font-family: 'Poppins', sans-serif; margin-bottom: 1rem;">
-                                            <i class="fas fa-calculator me-2"></i>Resumen de Totales
-                                        </h6>
-                                        <div class="total-row">
-                                            <span>Subtotal:</span>
-                                            <span id="subtotal-total">$0</span>
+        <!-- Observaciones y Resumen de Valores -->
+        <div class="row">
+            <div class="col-lg-9">
+                 <div class="form-container">
+                     <div class="form-section">
+                         <h5 style="font-weight: 700; color: #495057;">Observaciones</h5>
+                         <div class="input-group">
+                             <span class="input-group-text"><i class="fas fa-comment-alt"></i></span>
+                             {{ form.observaciones }}
                                         </div>
-                                        <div class="total-row">
-                                            <span>Descuentos:</span>
-                                            <span id="descuentos-total">$0</span>
+                         {% if form.observaciones.errors %}
+                             <div class="text-danger small">{{ form.observaciones.errors.0 }}</div>
+                         {% endif %}
+                         <small class="text-muted">Información adicional sobre la orden, condiciones especiales, notas internas, etc.</small>
                                         </div>
-                                        <div class="total-row">
-                                            <span>Total:</span>
-                                            <span id="total-orden">$0</span>
+                     
+                     <!-- Botones -->
+                     <div class="mt-3">
+                         <div class="d-flex justify-content-end gap-2">
+                             <a href="{% url 'compras:orden_compra_list' %}" class="btn btn-secondary">
+                                 <i class="fas fa-times me-2"></i>
+                                 Cancelar
+                             </a>
+                             <button type="submit" class="btn btn-primary">
+                                 <i class="fas fa-save me-2"></i>
+                                 {% if orden %}
+                                     Actualizar Orden
+                                 {% else %}
+                                     Crear Orden
+                                 {% endif %}
+                             </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+            <div class="col-lg-3">
+                 <div style="background: #f8f9fa !important; border: 1px solid #dee2e6 !important; border-radius: 10px !important; padding: 15px !important; margin-top: 20px !important; box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;">
+                     <div style="background: #6c757d !important; color: white !important; padding: 10px !important; margin: -15px -15px 15px -15px !important; border-radius: 7px 7px 0 0 !important; font-weight: bold !important; text-align: center !important;">
+                         <i class="fas fa-calculator"></i> RESUMEN DE VALORES
+                     </div>
+                     
+                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                         <span style="font-weight: 600;">Neto:</span>
+                         <span style="font-weight: 700; text-align: right;" id="subtotal-total" class="total-amount">$0</span>
+                     </div>
+                     
+                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                         <span style="font-weight: 600;">Descuentos:</span>
+                         <span style="font-weight: 700; text-align: right;" id="descuentos-total" class="total-amount">$0</span>
+                     </div>
+                     
+                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                         <span style="font-weight: 600;">IVA (19%):</span>
+                         <span style="font-weight: 700; text-align: right;" id="iva-total" class="total-amount">$0</span>
                         </div>
                         
-                        <!-- Botones de acción -->
-                        <div class="text-center mt-4">
-                            <button type="submit" class="btn btn-primary me-3">
-                                <i class="fas fa-save me-2"></i>Guardar Orden
-                            </button>
-                            <a href="{% url 'compras:orden_compra_list' %}" class="btn btn-secondary">
-                                <i class="fas fa-times me-2"></i>Cancelar
-                            </a>
+                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                         <span style="font-weight: 600;">Imp. Específico:</span>
+                         <span style="font-weight: 700; text-align: right;" id="impuesto-esp-total" class="total-amount">$0</span>
                         </div>
-                    </form>
+                        
+                     <div style="display: flex; justify-content: space-between; padding: 12px 0; background: #e9ecef; margin: 10px -15px -15px -15px; border-radius: 0 0 7px 7px; font-size: 1.1rem;">
+                         <span style="font-weight: 800; color: #495057;">TOTAL:</span>
+                         <span style="font-weight: 800; color: #495057; text-align: right;" id="total-orden" class="total-amount">$0</span>
                 </div>
             </div>
         </div>
     </div>
 </div>
+                    </div>
+                </div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+// Variables globales
+let formCount = {{ formset.total_form_count }};
+const maxForms = 1000;
+
+// Función para agregar nuevo item - GLOBAL
+function addItemForm() {
+    console.log('addItemForm ejecutándose, formCount:', formCount);
+    if (formCount < maxForms) {
+        const emptyForm = document.querySelector('.item-form-compact').cloneNode(true);
+        const formIndex = formCount;
+        
+        // Actualizar nombres de campos
+        emptyForm.querySelectorAll('input, select, textarea').forEach(function(element) {
+            if (element.name) {
+                element.name = element.name.replace(/-\d+-/, '-' + formIndex + '-');
+                element.id = element.id.replace(/-\d+-/, '-' + formIndex + '-');
+            }
+            if (element.classList.contains('articulo-select')) {
+                element.setAttribute('data-index', formIndex);
+            }
+        });
+        
+        // Limpiar valores
+        emptyForm.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function(element) {
+            element.value = '';
+        });
+        
+        // Actualizar el botón de eliminar para el nuevo índice
+        const deleteBtn = emptyForm.querySelector('.delete-item-btn');
+        if (deleteBtn) {
+            deleteBtn.setAttribute('data-form-index', formIndex);
+        }
+        
+        // Insertar en el contenedor de items
+        const container = document.querySelector('.items-container');
+        container.appendChild(emptyForm);
+        
+        // Actualizar contador
+        formCount++;
+        document.getElementById('id_items-TOTAL_FORMS').value = formCount;
+        
+        console.log('Item agregado exitosamente');
+    }
+}
+
+// Función global para eliminar items
+function eliminarItem(button) {
+    console.log('*** ELIMINANDO ITEM - FUNCIÓN GLOBAL ***');
+    const itemForm = button.closest('.item-form-compact');
+    
+    if (!itemForm) {
+        console.error('No se encontró el formulario del item');
+        return;
+    }
+    
+    // Verificar si es un item existente (tiene checkbox DELETE)
+    const deleteCheckbox = itemForm.querySelector('input[name$="-DELETE"]');
+    if (deleteCheckbox) {
+        deleteCheckbox.checked = true;
+    } else {
+        // Si no tiene checkbox DELETE, es un item nuevo - crear uno
+        const formIndex = button.getAttribute('data-form-index');
+        const deleteInput = document.createElement('input');
+        deleteInput.type = 'hidden';
+        deleteInput.name = `items-${formIndex}-DELETE`;
+        deleteInput.value = 'on';
+        itemForm.appendChild(deleteInput);
+    }
+    
+    // Ocultar el formulario
+    itemForm.style.display = 'none';
+    
+    // Recalcular totales
+    setTimeout(function() {
+        calculateTotals();
+    }, 100);
+}
+
+// Función para calcular totales
+function calculateTotals() {
+    console.log('Calculando totales...');
+    let subtotal = 0;
+    
+    document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
+        const cantidadInput = form.querySelector('input[name*="cantidad_solicitada"]');
+        const precioInput = form.querySelector('input[name*="precio_unitario"]');
+        
+        const cantidad = parseInt(cantidadInput?.value) || 0;
+        const precioUnitario = parseInt(precioInput?.value) || 0;
+        
+        const subtotalItem = cantidad * precioUnitario;
+        
+        // Actualizar total del item
+        const totalField = form.querySelector('.item-total');
+        if (totalField && subtotalItem > 0) {
+            totalField.value = '$' + subtotalItem.toLocaleString('es-ES');
+        }
+        
+        subtotal += subtotalItem;
+    });
+    
+    // Calcular IVA de la orden (19% sobre el neto)
+    const ivaOrden = Math.round(subtotal * 0.19);
+    const impuestoEspecifico = 0;
+    
+    const totalOrden = subtotal + ivaOrden + impuestoEspecifico;
+    
+    // Actualizar totales en la interfaz
+    const subtotalElement = document.getElementById('subtotal-total');
+    const descuentosElement = document.getElementById('descuentos-total');
+    const ivaElement = document.getElementById('iva-total');
+    const impuestoEspElement = document.getElementById('impuesto-esp-total');
+    const totalElement = document.getElementById('total-orden');
+    
+    if (subtotalElement) subtotalElement.textContent = '$' + subtotal.toLocaleString('es-ES');
+    if (descuentosElement) descuentosElement.textContent = '$0';
+    if (ivaElement) ivaElement.textContent = '$' + ivaOrden.toLocaleString('es-ES');
+    if (impuestoEspElement) impuestoEspElement.textContent = '$' + impuestoEspecifico.toLocaleString('es-ES');
+    if (totalElement) totalElement.textContent = '$' + totalOrden.toLocaleString('es-ES');
+    
+    // Actualizar campos ocultos para envío al servidor
+    const subtotalHidden = document.getElementById('subtotal-hidden');
+    const descuentosHidden = document.getElementById('descuentos-hidden');
+    const impuestosHidden = document.getElementById('impuestos-hidden');
+    const totalHidden = document.getElementById('total-hidden');
+    
+    if (subtotalHidden) subtotalHidden.value = subtotal;
+    if (descuentosHidden) descuentosHidden.value = 0;
+    if (impuestosHidden) impuestosHidden.value = ivaOrden;
+    if (totalHidden) totalHidden.value = totalOrden;
+}
+
+// Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
-    let itemIndex = {{ formset.total_form_count }};
+    console.log('DOM cargado, inicializando...');
     
-    // Función para agregar nuevo item
-    document.getElementById('add-item').addEventListener('click', function() {
-        const container = document.getElementById('items-container');
-        const itemHtml = `
-            <div class="item-row" data-index="${itemIndex}">
-                <div class="row align-items-end">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Artículo *</label>
-                        <select name="items-${itemIndex}-articulo" class="form-select articulo-select" id="id_items-${itemIndex}-articulo" required>
-                            <option value="">Seleccionar artículo...</option>
-                            {% for articulo in articulos_empresa %}
-                            <option value="{{ articulo.pk }}">{{ articulo.nombre }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="articulo-info" id="articulo-info-${itemIndex}" style="display: none;"></div>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label class="form-label">Cantidad *</label>
-                        <input type="number" name="items-${itemIndex}-cantidad_solicitada" class="form-control cantidad-input" step="0.01" min="0.01" required>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label class="form-label">Precio Unitario *</label>
-                        <input type="number" name="items-${itemIndex}-precio_unitario" class="form-control precio-input" step="0.01" min="0" required>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label class="form-label">Descuento (%)</label>
-                        <input type="number" name="items-${itemIndex}-descuento_unitario" class="form-control descuento-input" step="0.01" min="0" max="100" value="0">
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label class="form-label">Subtotal</label>
-                        <input type="text" class="form-control subtotal-input" readonly style="background-color: #f8f9fc;">
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Especificaciones</label>
-                        <textarea name="items-${itemIndex}-especificaciones" class="form-control" rows="2"></textarea>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Fecha de Entrega Item</label>
-                        <input type="date" name="items-${itemIndex}-fecha_entrega_item" class="form-control">
-                    </div>
-                    <div class="col-md-4 mb-3 d-flex align-items-end">
-                        <button type="button" class="btn btn-danger remove-item" style="width: 100%;">
-                            <i class="fas fa-trash me-2"></i>Eliminar Item
-                        </button>
-                    </div>
-                </div>
-                <input type="hidden" name="items-${itemIndex}-id" value="">
-                <input type="hidden" name="items-${itemIndex}-DELETE" value="false">
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', itemHtml);
-        
-        // Actualizar el contador de forms
-        const totalFormsInput = document.querySelector('input[name="items-TOTAL_FORMS"]');
-        totalFormsInput.value = itemIndex + 1;
-        
-        itemIndex++;
-        calcularTotales();
-    });
+    // Event listener para el botón agregar
+    const addBtn = document.getElementById('addItemBtn');
+    if (addBtn) {
+        addBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            addItemForm();
+        });
+    }
     
-    // Función para eliminar item
+    // Event listener para eliminar items
     document.addEventListener('click', function(e) {
-        if (e.target.closest('.remove-item')) {
-            const itemRow = e.target.closest('.item-row');
-            const deleteInput = itemRow.querySelector('input[name$="-DELETE"]');
-            
-            if (deleteInput && deleteInput.value !== '') {
-                // Es un item existente, marcarlo para eliminación
-                deleteInput.value = 'true';
-                itemRow.style.display = 'none';
-            } else {
-                // Es un item nuevo, eliminarlo completamente
-                itemRow.remove();
-                actualizarIndices();
-            }
-            calcularTotales();
+        if (e.target.closest('.delete-item-btn')) {
+            eliminarItem(e.target.closest('.delete-item-btn'));
         }
     });
     
-    // Función para actualizar índices después de eliminar
-    function actualizarIndices() {
-        const items = document.querySelectorAll('.item-row');
-        let newIndex = 0;
-        
-        items.forEach(function(item) {
-            if (item.style.display !== 'none') {
-                const inputs = item.querySelectorAll('input, select, textarea');
-                inputs.forEach(function(input) {
-                    const name = input.name;
-                    if (name) {
-                        input.name = name.replace(/items-\d+-/, `items-${newIndex}-`);
-                        input.id = input.id.replace(/id_items-\d+_/, `id_items-${newIndex}_`);
-                    }
-                });
-                
-                const labels = item.querySelectorAll('label[for]');
-                labels.forEach(function(label) {
-                    const forAttr = label.getAttribute('for');
-                    if (forAttr) {
-                        label.setAttribute('for', forAttr.replace(/id_items-\d+_/, `id_items-${newIndex}_`));
-                    }
-                });
-                
-                item.setAttribute('data-index', newIndex);
-                newIndex++;
-            }
-        });
-        
-        // Actualizar el contador de forms
-        const totalFormsInput = document.querySelector('input[name="items-TOTAL_FORMS"]');
-        totalFormsInput.value = newIndex;
-        itemIndex = newIndex;
-    }
-    
-    // Función para calcular subtotales y totales
-    function calcularTotales() {
-        let subtotalTotal = 0;
-        let descuentosTotal = 0;
-        
-        document.querySelectorAll('.item-row').forEach(function(row) {
-            if (row.style.display !== 'none') {
-                const cantidad = parseFloat(row.querySelector('.cantidad-input').value) || 0;
-                const precio = parseFloat(row.querySelector('.precio-input').value) || 0;
-                const descuento = parseFloat(row.querySelector('.descuento-input').value) || 0;
-                
-                const subtotal = cantidad * precio;
-                const descuentoMonto = subtotal * (descuento / 100);
-                const total = subtotal - descuentoMonto;
-                
-                row.querySelector('.subtotal-input').value = '$' + total.toFixed(2);
-                
-                subtotalTotal += subtotal;
-                descuentosTotal += descuentoMonto;
-            }
-        });
-        
-        document.getElementById('subtotal-total').textContent = '$' + subtotalTotal.toFixed(2);
-        document.getElementById('descuentos-total').textContent = '$' + descuentosTotal.toFixed(2);
-        document.getElementById('total-orden').textContent = '$' + (subtotalTotal - descuentosTotal).toFixed(2);
-    }
-    
-    // Event listeners para cálculos automáticos
+    // Event listener para recalcular totales
     document.addEventListener('input', function(e) {
-        if (e.target.matches('.cantidad-input, .precio-input, .descuento-input')) {
-            calcularTotales();
+        if (e.target.name && (e.target.name.includes('cantidad_solicitada') || e.target.name.includes('precio_unitario'))) {
+            calculateTotals();
         }
     });
     
-    // Event listener para obtener información del artículo
-    document.addEventListener('change', function(e) {
-        if (e.target.matches('.articulo-select')) {
-            const articuloId = e.target.value;
-            const infoDiv = e.target.parentElement.querySelector('.articulo-info');
-            
-            if (articuloId) {
-                fetch(`/compras/get-articulo-info/${articuloId}/`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            infoDiv.innerHTML = `
-                                <small><strong>Stock:</strong> ${data.stock || 'N/A'} | 
-                                <strong>Precio:</strong> $${data.precio || 'N/A'}</small>
-                            `;
-                            infoDiv.style.display = 'block';
-                            
-                            // Auto-completar precio si está disponible
-                            const precioInput = e.target.closest('.item-row').querySelector('.precio-input');
-                            if (data.precio && !precioInput.value) {
-                                precioInput.value = data.precio;
-                                calcularTotales();
-                            }
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        infoDiv.style.display = 'none';
-                    });
-            } else {
-                infoDiv.style.display = 'none';
+    // Calcular totales iniciales
+    setTimeout(function() {
+        calculateTotals();
+    }, 500);
+    
+    // Formatear números existentes al cargar la página
+    function formatExistingNumbers() {
+        document.querySelectorAll('.total-amount').forEach(function(element) {
+            const text = element.textContent;
+            const match = text.match(/\$?(\d+)/);
+            if (match) {
+                const number = parseInt(match[1]);
+                const formatted = number.toLocaleString('es-ES');
+                element.textContent = text.replace(match[0], '$' + formatted);
             }
-        }
-    });
+        });
+    }
     
-    // Calcular totales al cargar la página
-    calcularTotales();
+    // Formatear números existentes
+    formatExistingNumbers();
+    
+    // Event listener para el envío del formulario
+    const form = document.getElementById('ordenForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            console.log('Formulario enviándose...');
+            
+            // Verificar que hay al menos un item
+            const items = document.querySelectorAll('.item-form-compact:not([style*="display: none"])');
+            if (items.length === 0) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Advertencia',
+                    text: 'Debe agregar al menos un artículo a la orden.',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+            
+            // Mostrar mensaje de procesamiento
+            Swal.fire({
+                title: 'Procesando...',
+                text: 'Guardando la orden de compra',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                willOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+        });
+    }
+    
+    // Manejar mensajes con SweetAlert2
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'success' %}
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Éxito!',
+                    text: '{{ message }}',
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+            {% elif message.tags == 'error' %}
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: '{{ message }}',
+                    confirmButtonText: 'Entendido'
+                });
+            {% elif message.tags == 'warning' %}
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Advertencia',
+                    text: '{{ message }}',
+                    confirmButtonText: 'Entendido'
+                });
+            {% else %}
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Información',
+                    text: '{{ message }}',
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+            {% endif %}
+        {% endfor %}
+    {% endif %}
 });
 </script>
 {% endblock %}

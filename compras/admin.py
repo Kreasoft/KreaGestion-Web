@@ -11,45 +11,45 @@ from .models import (
 class ItemOrdenCompraInline(admin.TabularInline):
     model = ItemOrdenCompra
     extra = 0
-    fields = ['articulo', 'cantidad_solicitada', 'precio_unitario', 'descuento_unitario', 'subtotal']
-    readonly_fields = ['subtotal']
+    fields = ['articulo', 'cantidad_solicitada', 'precio_unitario', 'descuento_porcentaje', 'impuesto_porcentaje', 'total_item']
+    readonly_fields = ['total_item']
     
-    def subtotal(self, obj):
+    def total_item(self, obj):
         if obj.pk:
-            return f"${obj.subtotal:,.2f}"
+            return f"${obj.total_item:,.0f}"
         return "-"
-    subtotal.short_description = "Subtotal"
+    total_item.short_description = "Total Item"
 
 
 @admin.register(OrdenCompra)
 class OrdenCompraAdmin(admin.ModelAdmin):
     list_display = [
-        'numero_orden', 'proveedor', 'fecha_orden', 'estado_badge', 
-        'prioridad_badge', 'total_formateado', 'fecha_creacion'
+        'numero_orden', 'proveedor', 'fecha_orden', 'estado_orden_badge', 
+        'estado_pago_badge', 'prioridad_badge', 'total_formateado', 'fecha_creacion'
     ]
-    list_filter = ['estado', 'prioridad', 'fecha_orden', 'fecha_creacion']
+    list_filter = ['estado_orden', 'estado_pago', 'prioridad', 'fecha_orden', 'fecha_creacion']
     search_fields = ['numero_orden', 'proveedor__nombre', 'proveedor__rut']
     readonly_fields = [
-        'numero_orden', 'subtotal', 'iva', 'total', 'fecha_creacion', 
-        'fecha_modificacion', 'aprobado_por', 'fecha_aprobacion'
+        'numero_orden', 'subtotal', 'descuentos_totales', 'impuestos_totales', 'total_orden', 
+        'fecha_creacion', 'fecha_modificacion', 'aprobado_por', 'fecha_aprobacion'
     ]
     inlines = [ItemOrdenCompraInline]
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('empresa', 'sucursal', 'proveedor', 'numero_orden')
+            'fields': ('empresa', 'sucursal', 'proveedor', 'bodega', 'numero_orden')
         }),
         ('Fechas', {
             'fields': ('fecha_orden', 'fecha_entrega_esperada', 'fecha_entrega_real')
         }),
         ('Estado y Prioridad', {
-            'fields': ('estado', 'prioridad')
+            'fields': ('estado_orden', 'estado_pago', 'prioridad')
         }),
         ('Condiciones', {
             'fields': ('condiciones_pago', 'plazo_entrega', 'observaciones')
         }),
         ('Totales', {
-            'fields': ('subtotal', 'iva', 'descuento', 'total'),
+            'fields': ('subtotal', 'descuentos_totales', 'impuestos_totales', 'total_orden'),
             'classes': ('collapse',)
         }),
         ('Auditoría', {
@@ -58,7 +58,7 @@ class OrdenCompraAdmin(admin.ModelAdmin):
         }),
     )
     
-    def estado_badge(self, obj):
+    def estado_orden_badge(self, obj):
         colors = {
             'borrador': 'secondary',
             'pendiente_aprobacion': 'warning',
@@ -69,12 +69,26 @@ class OrdenCompraAdmin(admin.ModelAdmin):
             'cancelada': 'danger',
             'cerrada': 'dark',
         }
-        color = colors.get(obj.estado, 'secondary')
+        color = colors.get(obj.estado_orden, 'secondary')
         return format_html(
             '<span class="badge bg-{}">{}</span>',
-            color, obj.get_estado_display()
+            color, obj.get_estado_orden_display()
         )
-    estado_badge.short_description = 'Estado'
+    estado_orden_badge.short_description = 'Estado Orden'
+    
+    def estado_pago_badge(self, obj):
+        colors = {
+            'pagada': 'success',
+            'credito': 'info',
+            'parcial': 'warning',
+            'vencida': 'danger',
+        }
+        color = colors.get(obj.estado_pago, 'secondary')
+        return format_html(
+            '<span class="badge bg-{}">{}</span>',
+            color, obj.get_estado_pago_display()
+        )
+    estado_pago_badge.short_description = 'Estado Pago'
     
     def prioridad_badge(self, obj):
         colors = {
@@ -91,7 +105,7 @@ class OrdenCompraAdmin(admin.ModelAdmin):
     prioridad_badge.short_description = 'Prioridad'
     
     def total_formateado(self, obj):
-        return f"${obj.total:,.2f}"
+        return f"${obj.total_orden:,.0f}"
     total_formateado.short_description = 'Total'
     
     def get_queryset(self, request):

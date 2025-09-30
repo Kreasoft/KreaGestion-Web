@@ -46,7 +46,8 @@ def orden_compra_list(request):
     # Aplicar filtros
     if search_form.is_valid():
         search = search_form.cleaned_data.get('search')
-        estado = search_form.cleaned_data.get('estado')
+        estado_orden = search_form.cleaned_data.get('estado_orden')
+        estado_pago = search_form.cleaned_data.get('estado_pago')
         prioridad = search_form.cleaned_data.get('prioridad')
         fecha_desde = search_form.cleaned_data.get('fecha_desde')
         fecha_hasta = search_form.cleaned_data.get('fecha_hasta')
@@ -54,12 +55,15 @@ def orden_compra_list(request):
         if search:
             ordenes = ordenes.filter(
                 Q(numero_orden__icontains=search) |
-                Q(proveedor__icontains=search) |
+                Q(proveedor__nombre__icontains=search) |
                 Q(items__articulo__nombre__icontains=search)
             ).distinct()
         
-        if estado:
-            ordenes = ordenes.filter(estado=estado)
+        if estado_orden:
+            ordenes = ordenes.filter(estado_orden=estado_orden)
+        
+        if estado_pago:
+            ordenes = ordenes.filter(estado_pago=estado_pago)
         
         if prioridad:
             ordenes = ordenes.filter(prioridad=prioridad)
@@ -81,10 +85,10 @@ def orden_compra_list(request):
     # Estadísticas
     stats = {
         'total_ordenes': ordenes.count(),
-        'pendientes_aprobacion': ordenes.filter(estado='pendiente_aprobacion').count(),
-        'en_proceso': ordenes.filter(estado='en_proceso').count(),
-        'completamente_recibidas': ordenes.filter(estado='completamente_recibida').count(),
-        'valor_total': ordenes.aggregate(total=Sum('total'))['total'] or Decimal('0.00'),
+        'pendientes_aprobacion': ordenes.filter(estado_orden='pendiente_aprobacion').count(),
+        'en_proceso': ordenes.filter(estado_orden='en_proceso').count(),
+        'completamente_recibidas': ordenes.filter(estado_orden='completamente_recibida').count(),
+        'valor_total': ordenes.aggregate(total=Sum('total_orden'))['total'] or Decimal('0.00'),
     }
     
     context = {
@@ -156,21 +160,36 @@ def orden_compra_create(request):
         form = OrdenCompraForm(request.POST, empresa=empresa)
         formset = ItemOrdenCompraFormSet(request.POST)
         
+        print("=== DEBUG FORMULARIO ===")
+        print("Form is valid:", form.is_valid())
+        if not form.is_valid():
+            print("Form errors:", form.errors)
+        print("Formset is valid:", formset.is_valid())
+        if not formset.is_valid():
+            print("Formset errors:", formset.errors)
+        print("POST data:", request.POST)
+        
         if form.is_valid() and formset.is_valid():
-            orden = form.save(commit=False)
-            orden.empresa = empresa
-            orden.creado_por = request.user
-            orden.save()
-            
-            # Guardar items
-            formset.instance = orden
-            formset.save()
-            
-            # Calcular totales
-            orden.calcular_totales()
-            
-            messages.success(request, f'Orden de compra {orden.numero_orden} creada exitosamente.')
-            return redirect('compras:orden_compra_detail', pk=orden.pk)
+            try:
+                orden = form.save(commit=False)
+                orden.empresa = empresa
+                orden.creado_por = request.user
+                orden.save()
+                
+                # Guardar items
+                formset.instance = orden
+                formset.save()
+                
+                # Calcular totales
+                orden.calcular_totales()
+                
+                messages.success(request, f'Orden de compra {orden.numero_orden} creada exitosamente.')
+                return redirect('compras:orden_compra_detail', pk=orden.pk)
+            except Exception as e:
+                print("Error al guardar:", str(e))
+                messages.error(request, f'Error al crear la orden: {str(e)}')
+        else:
+            messages.error(request, 'Por favor corrige los errores en el formulario.')
     else:
         form = OrdenCompraForm(empresa=empresa)
         formset = ItemOrdenCompraFormSet()
@@ -207,7 +226,7 @@ def orden_compra_update(request, pk):
     orden = get_object_or_404(OrdenCompra, pk=pk, empresa=empresa)
     
     # Verificar que se puede editar
-    if orden.estado not in ['borrador', 'pendiente_aprobacion']:
+    if orden.estado_orden not in ['borrador', 'pendiente_aprobacion']:
         messages.error(request, 'No se puede editar una orden que ya fue aprobada.')
         return redirect('compras:orden_compra_detail', pk=orden.pk)
     
@@ -263,7 +282,7 @@ def orden_compra_delete(request, pk):
     orden = get_object_or_404(OrdenCompra, pk=pk, empresa=empresa)
     
     # Verificar que se puede eliminar
-    if orden.estado not in ['borrador']:
+    if orden.estado_orden not in ['borrador']:
         messages.error(request, 'Solo se pueden eliminar órdenes en estado borrador.')
         return redirect('compras:orden_compra_detail', pk=orden.pk)
     
@@ -302,7 +321,7 @@ def orden_compra_aprobar(request, pk):
     orden = get_object_or_404(OrdenCompra, pk=pk, empresa=empresa)
     
     if orden.puede_aprobar():
-        orden.estado = 'aprobada'
+        orden.estado_orden = 'aprobada'
         orden.aprobado_por = request.user
         orden.fecha_aprobacion = timezone.now()
         orden.save()

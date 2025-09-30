@@ -690,28 +690,30 @@
                 </a>
             </div>
             
-            <!-- Documentos de Compra - Nuevo Módulo -->
-            <div class="nav-item">
-                <a href="{% url 'documentos:documento_compra_list' %}" class="nav-link {% if 'documentos' in request.resolver_match.namespace or request.resolver_match.url_name == 'documento_compra_list' or request.resolver_match.url_name == 'documento_compra_detail' or request.resolver_match.url_name == 'documento_compra_create' or request.resolver_match.url_name == 'documento_compra_update' or request.resolver_match.url_name == 'documento_compra_delete' %}active{% endif %}">
-                    <i class="nav-icon fas fa-file-invoice"></i>
-                    <span class="nav-text">Documentos de Compra</span>
-                </a>
-            </div>
             
-            <!-- Proveedores - Agregado -->
-            <div class="nav-item">
-                <a href="{% url 'proveedores:proveedor_list' %}" class="nav-link {% if request.resolver_match.url_name == 'proveedor_list' or request.resolver_match.url_name == 'proveedor_detail' or request.resolver_match.url_name == 'proveedor_create' or request.resolver_match.url_name == 'proveedor_update' or request.resolver_match.url_name == 'proveedor_delete' %}active{% endif %}">
-                    <i class="nav-icon fas fa-truck"></i>
-                    <span class="nav-text">Proveedores</span>
-                </a>
-            </div>
-            
-            <!-- Compras - Agregado -->
-            <div class="nav-item">
-                <a href="{% url 'compras:orden_compra_list' %}" class="nav-link {% if 'compras' in request.resolver_match.namespace or request.resolver_match.url_name == 'orden_compra_list' or request.resolver_match.url_name == 'orden_compra_detail' or request.resolver_match.url_name == 'orden_compra_create' or request.resolver_match.url_name == 'orden_compra_update' or request.resolver_match.url_name == 'orden_compra_delete' %}active{% endif %}">
+            <!-- Submenú de Compras -->
+            <div class="nav-item has-submenu">
+                <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#comprasSubmenu" aria-expanded="false">
                     <i class="nav-icon fas fa-shopping-cart"></i>
                     <span class="nav-text">Compras</span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
                 </a>
+                <div class="collapse submenu" id="comprasSubmenu">
+                    <div class="submenu-items">
+                        <a href="{% url 'documentos:documento_compra_list' %}" class="nav-link submenu-link {% if 'documentos' in request.resolver_match.namespace or request.resolver_match.url_name == 'documento_compra_list' or request.resolver_match.url_name == 'documento_compra_detail' or request.resolver_match.url_name == 'documento_compra_create' or request.resolver_match.url_name == 'documento_compra_update' or request.resolver_match.url_name == 'documento_compra_delete' %}active{% endif %}">
+                            <i class="fas fa-file-invoice me-2"></i>
+                            <span>Documentos de Compra</span>
+                        </a>
+                        <a href="{% url 'compras:orden_compra_list' %}" class="nav-link submenu-link {% if 'compras' in request.resolver_match.namespace or request.resolver_match.url_name == 'orden_compra_list' or request.resolver_match.url_name == 'orden_compra_detail' or request.resolver_match.url_name == 'orden_compra_create' or request.resolver_match.url_name == 'orden_compra_update' or request.resolver_match.url_name == 'orden_compra_delete' %}active{% endif %}">
+                            <i class="fas fa-shopping-cart me-2"></i>
+                            <span>Órdenes de Compra</span>
+                        </a>
+                        <a href="{% url 'proveedores:proveedor_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'proveedor_list' or request.resolver_match.url_name == 'proveedor_detail' or request.resolver_match.url_name == 'proveedor_create' or request.resolver_match.url_name == 'proveedor_update' or request.resolver_match.url_name == 'proveedor_delete' %}active{% endif %}">
+                            <i class="fas fa-truck me-2"></i>
+                            <span>Proveedores</span>
+                        </a>
+                    </div>
+                </div>
             </div>
             
             <!-- Submenú de Artículos -->
@@ -1005,6 +1007,23 @@
                 }
             }
             
+            // Auto-expand compras submenu
+            const comprasUrls = [
+                '/compras/',
+                '/documentos/',
+                '/proveedores/'
+            ];
+            
+            if (comprasUrls.some(url => currentUrl.startsWith(url))) {
+                const comprasSubmenu = document.getElementById('comprasSubmenu');
+                const comprasToggle = document.querySelector('[data-bs-target="#comprasSubmenu"]');
+                
+                if (comprasSubmenu && comprasToggle) {
+                    comprasSubmenu.classList.add('show');
+                    comprasToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+            
             // Función específica para enlaces del submenú de inventario
             const inventarioLinks = document.querySelectorAll('#inventarioSubmenu .submenu-link');
             inventarioLinks.forEach(link => {
@@ -1020,6 +1039,27 @@
                                 sidebar.classList.add('collapsed');
                                 mainContent.classList.add('expanded');
                                 console.log('Menú de inventario ocultado');
+                            }
+                        }, 100);
+                    }
+                });
+            });
+            
+            // Función específica para enlaces del submenú de compras
+            const comprasLinks = document.querySelectorAll('#comprasSubmenu .submenu-link');
+            comprasLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    console.log('Clic específico en enlace de compras:', this.href);
+                    if (window.innerWidth < 992) {
+                        setTimeout(function() {
+                            const sidebar = document.getElementById('sidebar');
+                            const mainContent = document.getElementById('mainContent');
+                            
+                            if (sidebar && mainContent) {
+                                sidebar.classList.remove('show');
+                                sidebar.classList.add('collapsed');
+                                mainContent.classList.add('expanded');
+                                console.log('Menú de compras ocultado');
                             }
                         }, 100);
                     }
