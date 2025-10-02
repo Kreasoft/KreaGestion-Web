@@ -321,28 +321,10 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "devolucion",
-                    models.ForeignKey(
-                        blank=True,
-                        null=True,
-                        on_delete=django.db.models.deletion.SET_NULL,
-                        to="ventas.devolucion",
-                    ),
-                ),
-                (
                     "empresa",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         to="empresas.empresa",
-                    ),
-                ),
-                (
-                    "venta",
-                    models.ForeignKey(
-                        blank=True,
-                        null=True,
-                        on_delete=django.db.models.deletion.SET_NULL,
-                        to="ventas.venta",
                     ),
                 ),
             ],

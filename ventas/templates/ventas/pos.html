@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Punto de Venta (POS) - GestionCloud</title>
+    
+    <!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- SweetAlert2 -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+        * {
+        margin: 0;
+        padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f8f9fc 0%, #e3e6f0 100%);
+            height: 100vh;
+        overflow: hidden;
+    }
+    
+    .pos-container {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Header del POS */
+    .pos-header {
+            background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
+        color: white;
+            padding: 12px 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+    }
+    
+    .pos-header h2 {
+        margin: 0;
+        font-weight: 600;
+            font-size: 1.3rem;
+    }
+    
+    .pos-info {
+        display: flex;
+            gap: 25px;
+        align-items: center;
+            margin-top: 8px;
+    }
+    
+    .pos-info-item {
+        display: flex;
+        align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+        opacity: 0.9;
+    }
+    
+    .pos-header-actions {
+        display: flex;
+        align-items: center;
+            gap: 8px;
+    }
+    
+    .pos-header-actions .btn {
+            border-radius: 6px;
+            padding: 6px 12px;
+        font-weight: 500;
+            font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+    
+    /* Contenido principal */
+    .pos-main-content {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+    }
+    
+    /* Panel izquierdo - Productos */
+    .pos-left-panel {
+            width: 50%;
+        background: white;
+        border-right: 2px solid #e3e6f0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+        /* Filtros y búsqueda */
+        .pos-filters {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e3e6f0;
+        }
+        
+        .pos-search {
+            margin-bottom: 10px;
+        }
+        
+        .pos-search input {
+            border-radius: 20px;
+        border: 2px solid #e3e6f0;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        transition: all 0.3s ease;
+        }
+        
+        .pos-search input:focus {
+            border-color: #17a2b8;
+            box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+        }
+        
+        .pos-category-filter {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .category-btn {
+            padding: 4px 12px;
+            border: 1px solid #dee2e6;
+        background: white;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .category-btn:hover, .category-btn.active {
+            background: #17a2b8;
+            color: white;
+            border-color: #17a2b8;
+        }
+        
+        /* Grid de productos compacto */
+        .pos-products-container {
+        flex: 1;
+        overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .pos-products-grid {
+        display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+    }
+    
+    .pos-product-card {
+        background: white;
+            border: 1px solid #e3e6f0;
+            border-radius: 8px;
+            padding: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+            min-height: 80px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .pos-product-card:hover {
+            border-color: #17a2b8;
+            box-shadow: 0 2px 8px rgba(23, 162, 184, 0.2);
+            transform: translateY(-1px);
+    }
+    
+    .pos-product-card.disabled {
+            opacity: 0.5;
+        cursor: not-allowed;
+        background: #f8f9fa;
+    }
+    
+    .pos-product-name {
+            font-size: 0.75rem;
+            font-weight: 500;
+        color: #2c3e50;
+            margin-bottom: 4px;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+    }
+    
+    .pos-product-price {
+            font-size: 0.8rem;
+            font-weight: 600;
+        color: #28a745;
+            margin-bottom: 2px;
+    }
+    
+    .pos-product-stock {
+            font-size: 0.7rem;
+        color: #6c757d;
+    }
+        
+        .pos-product-stock.text-danger {
+            color: #dc3545;
+    }
+    
+    /* Panel derecho - Carrito y Totales */
+    .pos-right-panel {
+            width: 50%;
+            background: white;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+        /* Lista de items del carrito - COMPACTA */
+        .pos-cart-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .pos-cart-header {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-bottom: 1px solid #e3e6f0;
+        font-weight: 600;
+            font-size: 0.9rem;
+        color: #2c3e50;
+    }
+    
+    .pos-cart-items {
+        flex: 1;
+        overflow-y: auto;
+            padding: 0;
+    }
+    
+    .pos-cart-item {
+        display: flex;
+        align-items: center;
+            padding: 8px 15px;
+            border-bottom: 1px solid #f1f3f4;
+            font-size: 0.85rem;
+            transition: background-color 0.2s ease;
+        }
+        
+        .pos-cart-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .pos-cart-item:last-child {
+            border-bottom: none;
+        }
+        
+        .cart-item-name {
+            flex: 1;
+            font-weight: 500;
+        color: #2c3e50;
+            margin-right: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .cart-item-price {
+            width: 80px;
+            text-align: right;
+            color: #28a745;
+            font-weight: 500;
+        }
+        
+        .cart-item-qty {
+            width: 80px;
+            text-align: center;
+            margin: 0 10px;
+        display: flex;
+        align-items: center;
+            justify-content: center;
+            gap: 5px;
+    }
+    
+        .cart-item-discount {
+            width: 50px;
+        text-align: center;
+            color: #dc3545;
+            font-size: 0.8rem;
+        }
+        
+        .cart-item-total {
+            width: 80px;
+            text-align: right;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .cart-item-actions {
+            width: 40px;
+            text-align: center;
+        }
+        
+        .cart-item-actions .btn {
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            border-radius: 4px;
+        }
+        
+        /* Panel de totales COMPACTO */
+        .pos-totals-panel {
+            background: #f8f9fa;
+        border-top: 2px solid #e3e6f0;
+            padding: 15px;
+        }
+        
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .totals-row.total-final {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #2c3e50;
+            border-top: 2px solid #e3e6f0;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        
+        .totals-label {
+        color: #6c757d;
+    }
+    
+        .totals-value {
+            font-weight: 600;
+        color: #2c3e50;
+    }
+    
+        .totals-value.total-final {
+        color: #28a745;
+            font-size: 1.2rem;
+    }
+    
+        /* Botones de acción */
+    .pos-actions {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #e3e6f0;
+        }
+        
+        .pos-actions .btn {
+            width: 100%;
+            margin-bottom: 8px;
+            padding: 12px;
+        font-weight: 600;
+            border-radius: 8px;
+        }
+        
+        .btn-process {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+        color: white;
+    }
+    
+        .btn-process:hover {
+            background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+        transform: translateY(-1px);
+    }
+    
+        .btn-clear {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            border: none;
+        color: white;
+    }
+    
+        .btn-clear:hover {
+            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+        transform: translateY(-1px);
+    }
+    
+        /* Scrollbar personalizado */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .pos-left-panel {
+                width: 45%;
+            }
+            .pos-right-panel {
+                width: 55%;
+            }
+        }
+        
+    @media (max-width: 768px) {
+        .pos-main-content {
+            flex-direction: column;
+        }
+        .pos-left-panel,
+        .pos-right-panel {
+            width: 100%;
+                height: 50%;
+            }
+    }
+</style>
+</head>
+<body>
+{% csrf_token %}
+<div class="pos-container">
+    <!-- Header del POS -->
+    <div class="pos-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="fas fa-cash-register me-2"></i>Punto de Venta (POS)</h2>
+                <div class="pos-info">
+                    <div class="pos-info-item">
+                        <i class="fas fa-hashtag"></i>
+                            <span>Venta #<span id="proximo-numero">{{ proximo_numero }}</span></span>
+                        </div>
+                        <div class="pos-info-item">
+                            <i class="fas fa-desktop"></i>
+                            <span id="estacion-actual">Estación: <span id="estacion-nombre">-</span></span>
+                        </div>
+                        <div class="pos-info-item">
+                            <i class="fas fa-user"></i>
+                            <span id="vendedor-actual">Vendedor: <span id="vendedor-nombre">-</span></span>
+                    </div>
+                    <div class="pos-info-item">
+                        <i class="fas fa-calendar"></i>
+                        <span id="current-date"></span>
+                    </div>
+                    <div class="pos-info-item">
+                        <i class="fas fa-clock"></i>
+                        <span id="current-time"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="pos-header-actions">
+                    <button class="btn btn-outline-light" onclick="window.print()" title="Imprimir">
+                    <i class="fas fa-print"></i>
+                </button>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-light" title="Volver al Sistema">
+                        <i class="fas fa-arrow-left me-1"></i>Salir
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contenido principal -->
+    <div class="pos-main-content">
+        <!-- Panel izquierdo - Productos -->
+        <div class="pos-left-panel">
+                <!-- Filtros y búsqueda -->
+                <div class="pos-filters">
+                    <div class="pos-search">
+                        <input type="text" id="pos-search" class="form-control" placeholder="Buscar productos...">
+                    </div>
+                    <div class="pos-category-filter">
+                        <button class="category-btn active" data-category="all">Todas</button>
+                        <!-- Las categorías se cargarán dinámicamente -->
+                    </div>
+            </div>
+            
+            <!-- Grid de productos -->
+                <div class="pos-products-container">
+            <div class="pos-products-grid" id="pos-products-grid">
+                {% for articulo in articulos %}
+                <div class="pos-product-card {% if articulo.stock_actual <= 0 %}disabled{% endif %}" 
+                     data-articulo-id="{{ articulo.id }}" 
+                     data-precio="{{ articulo.precio_venta }}"
+                             data-stock="{{ articulo.stock_actual|default:0 }}"
+                             data-categoria="{{ articulo.categoria|default:'sin-categoria' }}">
+                    <div class="pos-product-name">{{ articulo.nombre }}</div>
+                    <div class="pos-product-price">${{ articulo.precio_venta|floatformat:0 }}</div>
+                    <div class="pos-product-stock {% if articulo.stock_actual <= 0 %}text-danger{% endif %}">
+                        Stock: {{ articulo.stock_actual|default:"0" }}
+                    </div>
+                </div>
+                {% empty %}
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #6c757d;">
+                    <i class="fas fa-box-open fa-3x mb-3"></i>
+                    <p>No hay artículos disponibles</p>
+                </div>
+                {% endfor %}
+                    </div>
+            </div>
+        </div>
+        
+        <!-- Panel derecho - Carrito y Totales -->
+        <div class="pos-right-panel">
+                <!-- Lista de items del carrito -->
+                <div class="pos-cart-container">
+                <div class="pos-cart-header">
+                        <i class="fas fa-shopping-cart me-2"></i>Carrito de Venta
+                </div>
+                <div class="pos-cart-items" id="pos-cart-items">
+                        <!-- Los items se cargarán dinámicamente -->
+                    </div>
+                </div>
+                
+                <!-- Panel de totales compacto -->
+                <div class="pos-totals-panel">
+                    <div class="totals-row">
+                        <span class="totals-label">Subtotal:</span>
+                        <span class="totals-value" id="subtotal">$0</span>
+                        </div>
+                    <div class="totals-row">
+                        <span class="totals-label">Descuento:</span>
+                        <span class="totals-value" id="descuento">$0</span>
+                        </div>
+                    <div class="totals-row">
+                        <span class="totals-label">Neto:</span>
+                        <span class="totals-value" id="neto">$0</span>
+                        </div>
+                    <div class="totals-row">
+                        <span class="totals-label">IVA (19%):</span>
+                        <span class="totals-value" id="iva">$0</span>
+                        </div>
+                    <div class="totals-row total-final">
+                        <span class="totals-label">TOTAL:</span>
+                        <span class="totals-value total-final" id="total">$0</span>
+                    </div>
+                    </div>
+                    
+                    <!-- Botones de acción -->
+                    <div class="pos-actions">
+                    <button class="btn btn-process" id="btn-process">
+                        <i class="fas fa-check me-2"></i>Procesar Venta
+                        </button>
+                    <button class="btn btn-clear" id="btn-clear">
+                        <i class="fas fa-trash me-2"></i>Limpiar Carrito
+                        </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// Variables globales
+let cart = [];
+let currentSubtotal = 0;
+let currentDescuento = 0;
+let currentNeto = 0;
+let currentIva = 0;
+let currentTotal = 0;
+    let currentCategory = 'all';
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+        
+        // Cargar información de estación y vendedor
+        loadSessionInfo();
+    
+    // Event listeners
+    document.getElementById('pos-search').addEventListener('input', filterProducts);
+        document.getElementById('btn-process').addEventListener('click', processSale);
+        document.getElementById('btn-clear').addEventListener('click', clearCart);
+    
+    // Click en productos
+    document.querySelectorAll('.pos-product-card').forEach(card => {
+        card.addEventListener('click', function() {
+            if (this.classList.contains('disabled')) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin Stock',
+                    text: 'Este producto no tiene stock disponible',
+                    timer: 2000
+                });
+                return;
+            }
+            
+            const articuloId = this.dataset.articuloId;
+            const precio = parseFloat(this.dataset.precio);
+            const stock = parseInt(this.dataset.stock);
+            const nombre = this.querySelector('.pos-product-name').textContent;
+            
+            addToCart(articuloId, nombre, precio, stock);
+        });
+    });
+        
+        // Cargar categorías
+        loadCategories();
+    });
+
+    // Cargar información de la sesión
+    function loadSessionInfo() {
+        // Obtener información de la sesión desde el servidor
+        fetch('/ventas/pos/session-info/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('estacion-nombre').textContent = data.estacion_nombre;
+                    document.getElementById('vendedor-nombre').textContent = data.vendedor_nombre;
+                    
+                    // Guardar IDs para uso posterior
+                    window.currentEstacionId = data.estacion_id;
+                    window.currentVendedorId = data.vendedor_id;
+                    window.currentEstacion = data.estacion;
+                } else {
+                    // Si no hay sesión, redirigir a selección
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Sesión no encontrada',
+                        text: 'Debe seleccionar una estación de trabajo y vendedor',
+                        timer: 3000
+                    }).then(() => {
+                        window.location.href = '{% url "ventas:pos_seleccion" %}';
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar información de sesión:', error);
+                window.location.href = '{% url "ventas:pos_seleccion" %}';
+            });
+    }
+
+// Actualizar fecha y hora
+function updateDateTime() {
+    const now = new Date();
+        const dateStr = now.toLocaleDateString('es-CL');
+        const timeStr = now.toLocaleTimeString('es-CL');
+        
+        document.getElementById('current-date').textContent = dateStr;
+        document.getElementById('current-time').textContent = timeStr;
+    }
+
+    // Cargar categorías
+    function loadCategories() {
+        const categories = new Set();
+        document.querySelectorAll('.pos-product-card').forEach(card => {
+            const category = card.dataset.categoria;
+            if (category && category !== 'sin-categoria') {
+                categories.add(category);
+            }
+        });
+        
+        const categoryContainer = document.querySelector('.pos-category-filter');
+        categories.forEach(category => {
+            const btn = document.createElement('button');
+            btn.className = 'category-btn';
+            btn.textContent = category;
+            btn.dataset.category = category;
+            btn.addEventListener('click', () => filterByCategory(category));
+            categoryContainer.appendChild(btn);
+        });
+    }
+
+    // Filtrar por categoría
+    function filterByCategory(category) {
+        currentCategory = category;
+        
+        // Actualizar botones
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+        
+        // Filtrar productos
+        document.querySelectorAll('.pos-product-card').forEach(card => {
+            if (category === 'all' || card.dataset.categoria === category) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+}
+
+// Filtrar productos
+function filterProducts() {
+    const searchTerm = document.getElementById('pos-search').value.toLowerCase();
+    
+        document.querySelectorAll('.pos-product-card').forEach(card => {
+        const name = card.querySelector('.pos-product-name').textContent.toLowerCase();
+            const category = card.dataset.categoria;
+            
+            const matchesSearch = name.includes(searchTerm);
+            const matchesCategory = currentCategory === 'all' || category === currentCategory;
+            
+            if (matchesSearch && matchesCategory) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+// Agregar al carrito
+function addToCart(articuloId, nombre, precio, stock) {
+    // Asegurar que precio sea un número
+    precio = parseFloat(precio);
+    
+    const existingItem = cart.find(item => item.articuloId === articuloId);
+    
+    if (existingItem) {
+            if (existingItem.cantidad < stock) {
+                existingItem.cantidad += 1;
+                existingItem.total = parseFloat(existingItem.cantidad) * parseFloat(existingItem.precio);
+            } else {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Stock Insuficiente',
+                    text: 'No hay suficiente stock para este producto',
+                timer: 2000
+            });
+            return;
+        }
+    } else {
+        cart.push({
+            articuloId: articuloId,
+            nombre: nombre,
+            precio: parseFloat(precio),
+            cantidad: 1,
+                descuento: 0,
+                total: parseFloat(precio)
+        });
+    }
+    
+        updateCartDisplay();
+    updateTotals();
+}
+
+    // Actualizar display del carrito
+    function updateCartDisplay() {
+        const cartContainer = document.getElementById('pos-cart-items');
+        cartContainer.innerHTML = '';
+    
+    if (cart.length === 0) {
+            cartContainer.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-shopping-cart fa-2x mb-2"></i><p>Carrito vacío</p></div>';
+        return;
+    }
+    
+        cart.forEach((item, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'pos-cart-item';
+            itemDiv.innerHTML = `
+                <div class="cart-item-name">${item.nombre}</div>
+                <div class="cart-item-price">$${item.precio.toLocaleString()}</div>
+                <div class="cart-item-qty">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, -1)">-</button>
+                    <span>${item.cantidad}</span>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>
+            </div>
+                <div class="cart-item-discount">${item.descuento}%</div>
+                <div class="cart-item-total">$${item.total.toLocaleString()}</div>
+                <div class="cart-item-actions">
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${index})" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            `;
+            cartContainer.appendChild(itemDiv);
+        });
+    }
+
+    // Actualizar cantidad
+    function updateQuantity(index, change) {
+        const item = cart[index];
+        const newQuantity = item.cantidad + change;
+    
+    if (newQuantity <= 0) {
+            removeFromCart(index);
+        return;
+        }
+        
+        // Verificar stock (simplificado)
+        const stock = parseInt(document.querySelector(`[data-articulo-id="${item.articuloId}"]`).dataset.stock);
+        if (newQuantity > stock) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Stock Insuficiente',
+                text: 'No hay suficiente stock para este producto',
+            timer: 2000
+        });
+        return;
+        }
+        
+        item.cantidad = newQuantity;
+        item.total = parseFloat(item.cantidad) * parseFloat(item.precio);
+        
+        updateCartDisplay();
+    updateTotals();
+}
+
+    // Eliminar del carrito
+function removeFromCart(index) {
+    cart.splice(index, 1);
+        updateCartDisplay();
+    updateTotals();
+}
+
+// Actualizar totales
+function updateTotals() {
+        // Debug: verificar valores del carrito
+        console.log('Cart items:', cart);
+        cart.forEach((item, index) => {
+            console.log(`Item ${index}:`, {
+                total: item.total,
+                totalType: typeof item.total,
+                precio: item.precio,
+                precioType: typeof item.precio,
+                cantidad: item.cantidad,
+                cantidadType: typeof item.cantidad
+            });
+        });
+        
+        // Asegurar que todos los valores sean números
+        currentSubtotal = cart.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+        currentDescuento = 0; // Por ahora sin descuento
+    currentNeto = currentSubtotal - currentDescuento;
+    currentIva = currentNeto * 0.19;
+    currentTotal = currentNeto + currentIva;
+    
+    document.getElementById('subtotal').textContent = `$${currentSubtotal.toLocaleString()}`;
+    document.getElementById('descuento').textContent = `$${currentDescuento.toLocaleString()}`;
+    document.getElementById('neto').textContent = `$${currentNeto.toLocaleString()}`;
+    document.getElementById('iva').textContent = `$${currentIva.toLocaleString()}`;
+    document.getElementById('total').textContent = `$${currentTotal.toLocaleString()}`;
+}
+
+// Limpiar carrito
+function clearCart() {
+    Swal.fire({
+        title: '¿Limpiar carrito?',
+        text: 'Se eliminarán todos los productos del carrito',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, limpiar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            cart = [];
+                updateCartDisplay();
+            updateTotals();
+        }
+    });
+}
+
+    // Procesar venta
+    function processSale() {
+    if (cart.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Carrito Vacío',
+                text: 'Agrega productos al carrito antes de procesar la venta',
+                timer: 2000
+            });
+        return;
+    }
+    
+        if (!window.currentEstacion) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de Sesión',
+                text: 'No se encontró información de la estación de trabajo',
+                timer: 3000
+            });
+            return;
+        }
+        
+        // Mostrar selector de tipo de documento
+        showDocumentTypeSelector();
+    }
+    
+    // Mostrar selector de tipo de documento para preventa
+    function showDocumentTypeSelector() {
+        const tiposPermitidos = window.currentEstacion.tipos_documentos;
+        
+        if (tiposPermitidos.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Sin Documentos Permitidos',
+                text: 'Esta estación no puede emitir ningún tipo de documento',
+                timer: 3000
+            });
+        return;
+    }
+    
+        // Crear opciones de documentos
+        const opciones = tiposPermitidos.map(tipo => {
+            const nombres = {
+                'factura': 'Factura',
+                'boleta': 'Boleta',
+                'guia': 'Guía de Despacho',
+                'cotizacion': 'Cotización',
+                'vale': 'Vale Facturable'
+            };
+            return `<option value="${tipo}">${nombres[tipo]}</option>`;
+        }).join('');
+        
+        const html = `
+            <div class="mb-3">
+                <label class="form-label">Tipo de Documento a Emitir *</label>
+                <select id="tipo-documento" class="form-control" required>
+                    <option value="">Seleccionar tipo...</option>
+                    ${opciones}
+                </select>
+                <small class="text-muted">Este documento se emitirá posteriormente en el módulo de caja</small>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Buscar Cliente *</label>
+                <div class="input-group">
+                    <input type="text" id="busqueda-cliente" class="form-control" placeholder="RUT o nombre del cliente" required>
+                    <button type="button" class="btn btn-outline-secondary" onclick="buscarCliente()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <div id="resultados-busqueda" class="mt-2" style="display: none;">
+                    <div class="list-group" id="lista-clientes">
+                        <!-- Resultados de búsqueda aparecerán aquí -->
+                    </div>
+                </div>
+                <div id="cliente-info" class="mt-2" style="display: none;">
+                    <div class="alert alert-info">
+                        <strong id="cliente-nombre">-</strong><br>
+                        <small id="cliente-direccion">-</small>
+                    </div>
+                </div>
+                <div id="cliente-no-encontrado" class="mt-2" style="display: none;">
+                    <div class="alert alert-warning">
+                        <strong>Cliente no encontrado</strong><br>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="crearCliente()">
+                            <i class="fas fa-plus me-1"></i>Crear Cliente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        Swal.fire({
+            title: 'Procesar Preventa',
+            html: html,
+            showCancelButton: true,
+            confirmButtonText: 'Procesar Preventa',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#17a2b8',
+            cancelButtonColor: '#6c757d',
+            preConfirm: () => {
+                const tipoDocumento = document.getElementById('tipo-documento').value;
+                const rutCliente = document.getElementById('busqueda-cliente').value;
+                
+                if (!tipoDocumento || !rutCliente) {
+                    Swal.showValidationMessage('Debe seleccionar tipo de documento y buscar cliente');
+                    return false;
+                }
+                
+                if (!window.clienteSeleccionado) {
+                    Swal.showValidationMessage('Debe seleccionar un cliente de la lista');
+                    return false;
+                }
+                
+                return {
+                    tipo_documento: tipoDocumento,
+                    rut_cliente: rutCliente,
+                    cliente_id: window.clienteSeleccionado.id
+                };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                processPreventaWithData(result.value);
+            }
+        });
+        
+        // Agregar búsqueda en tiempo real
+        document.getElementById('busqueda-cliente').addEventListener('input', function() {
+            const busqueda = this.value.trim();
+            if (busqueda.length >= 2) {
+                buscarCliente();
+            } else {
+                document.getElementById('resultados-busqueda').style.display = 'none';
+                document.getElementById('cliente-info').style.display = 'none';
+                document.getElementById('cliente-no-encontrado').style.display = 'none';
+                window.clienteSeleccionado = null;
+            }
+        });
+    }
+    
+    // Validar RUT chileno
+    function validarRUT(rut) {
+        // Limpiar RUT
+        rut = rut.replace(/[^0-9kK]/g, '');
+        
+        if (rut.length < 8) return false;
+        
+        const dv = rut.slice(-1).toUpperCase();
+        const numero = rut.slice(0, -1);
+        
+        let suma = 0;
+        let multiplicador = 2;
+        
+        for (let i = numero.length - 1; i >= 0; i--) {
+            suma += parseInt(numero.charAt(i)) * multiplicador;
+            multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
+        }
+        
+        const resto = suma % 11;
+        const dvCalculado = resto < 2 ? resto : 11 - resto;
+        const dvEsperado = dv === 'K' ? 10 : parseInt(dv);
+        
+        return dvCalculado === dvEsperado;
+    }
+    
+    // Formatear RUT
+    function formatearRUT(rut) {
+        rut = rut.replace(/[^0-9kK]/g, '');
+        if (rut.length < 8) return rut;
+        
+        const numero = rut.slice(0, -1);
+        const dv = rut.slice(-1).toUpperCase();
+        
+        return numero.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv;
+    }
+    
+    // Buscar cliente por RUT o nombre
+    function buscarCliente() {
+        const busqueda = document.getElementById('busqueda-cliente').value.trim();
+        
+        if (!busqueda) {
+            document.getElementById('resultados-busqueda').style.display = 'none';
+            document.getElementById('cliente-info').style.display = 'none';
+            document.getElementById('cliente-no-encontrado').style.display = 'none';
+            return;
+        }
+        
+        // Limpiar resultados anteriores
+        document.getElementById('lista-clientes').innerHTML = '';
+        document.getElementById('resultados-busqueda').style.display = 'block';
+        document.getElementById('cliente-info').style.display = 'none';
+        document.getElementById('cliente-no-encontrado').style.display = 'none';
+    
+    // Mostrar loading
+        document.getElementById('lista-clientes').innerHTML = '<div class="list-group-item text-center"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
+        
+        fetch(`/ventas/pos/buscar-cliente/?q=${encodeURIComponent(busqueda)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.clientes && data.clientes.length > 0) {
+                    // Mostrar lista de clientes encontrados
+                    let html = '';
+                    data.clientes.forEach(cliente => {
+                        html += `
+                            <div class="list-group-item list-group-item-action" onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre}', '${cliente.rut}', '${cliente.direccion || ''}')">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">${cliente.nombre}</h6>
+                                    <small>${cliente.rut}</small>
+                                </div>
+                                <p class="mb-1">${cliente.direccion || 'Sin dirección'}</p>
+                            </div>
+                        `;
+                    });
+                    document.getElementById('lista-clientes').innerHTML = html;
+                } else {
+                    // No se encontraron clientes
+                    document.getElementById('resultados-busqueda').style.display = 'none';
+                    document.getElementById('cliente-no-encontrado').style.display = 'block';
+                    window.clienteSeleccionado = null;
+                }
+            })
+            .catch(error => {
+                console.error('Error al buscar cliente:', error);
+                document.getElementById('resultados-busqueda').style.display = 'none';
+                document.getElementById('cliente-no-encontrado').style.display = 'block';
+                window.clienteSeleccionado = null;
+            });
+    }
+    
+    function seleccionarCliente(id, nombre, rut, direccion) {
+        // Ocultar resultados de búsqueda
+        document.getElementById('resultados-busqueda').style.display = 'none';
+        
+        // Mostrar información del cliente seleccionado
+        document.getElementById('cliente-nombre').textContent = nombre;
+        document.getElementById('cliente-direccion').textContent = direccion || 'Sin dirección';
+        document.getElementById('cliente-info').style.display = 'block';
+        
+        // Guardar cliente seleccionado
+        window.clienteSeleccionado = {
+            id: id,
+            nombre: nombre,
+            rut: rut,
+            direccion: direccion
+        };
+        
+        // Actualizar el campo de búsqueda con el RUT
+        document.getElementById('busqueda-cliente').value = rut;
+    }
+    
+    // Crear cliente
+    function crearCliente() {
+        const rut = document.getElementById('busqueda-cliente').value;
+        const tipoDocumento = document.getElementById('tipo-documento').value;
+        
+        // Si es boleta, usar cliente automático
+        if (tipoDocumento === 'boleta') {
+            crearClienteBoleta();
+            return;
+        }
+        
+        // Para otros tipos, mostrar formulario de creación
+    Swal.fire({
+            title: 'Crear Cliente',
+            html: `
+                <div class="mb-3">
+                    <label class="form-label">RUT *</label>
+                    <input type="text" id="nuevo-rut" class="form-control" value="${rut}" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Nombre *</label>
+                    <input type="text" id="nuevo-nombre" class="form-control" placeholder="Nombre del cliente" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Giro *</label>
+                    <input type="text" id="nuevo-giro" class="form-control" placeholder="Giro del cliente" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Dirección</label>
+                    <input type="text" id="nueva-direccion" class="form-control" placeholder="Dirección del cliente">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Comuna *</label>
+                    <input type="text" id="nueva-comuna" class="form-control" placeholder="Comuna del cliente" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Ciudad *</label>
+                    <input type="text" id="nueva-ciudad" class="form-control" placeholder="Ciudad del cliente" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Teléfono</label>
+                    <input type="text" id="nuevo-telefono" class="form-control" placeholder="Teléfono del cliente">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="nuevo-email" class="form-control" placeholder="Email del cliente">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Crear Cliente',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#17a2b8',
+            preConfirm: () => {
+                const nombre = document.getElementById('nuevo-nombre').value;
+                const giro = document.getElementById('nuevo-giro').value;
+                const direccion = document.getElementById('nueva-direccion').value;
+                const comuna = document.getElementById('nueva-comuna').value;
+                const ciudad = document.getElementById('nueva-ciudad').value;
+                const telefono = document.getElementById('nuevo-telefono').value;
+                const email = document.getElementById('nuevo-email').value;
+                
+                if (!nombre) {
+                    Swal.showValidationMessage('El nombre es requerido');
+                    return false;
+                }
+                if (!giro) {
+                    Swal.showValidationMessage('El giro es requerido');
+                    return false;
+                }
+                if (!comuna) {
+                    Swal.showValidationMessage('La comuna es requerida');
+                    return false;
+                }
+                if (!ciudad) {
+                    Swal.showValidationMessage('La ciudad es requerida');
+                    return false;
+                }
+                
+                return {
+                    rut: rut,
+                    nombre: nombre,
+                    giro: giro,
+                    direccion: direccion,
+                    comuna: comuna,
+                    ciudad: ciudad,
+                    telefono: telefono,
+                    email: email
+                };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                crearClienteNuevo(result.value);
+            }
+        });
+    }
+    
+    // Crear cliente automático para boletas
+    function crearClienteBoleta() {
+        fetch('/ventas/pos/crear-cliente-boleta/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mostrar información del cliente creado
+                document.getElementById('cliente-nombre').textContent = data.cliente.nombre;
+                document.getElementById('cliente-direccion').textContent = data.cliente.direccion;
+                document.getElementById('cliente-info').style.display = 'block';
+                document.getElementById('cliente-no-encontrado').style.display = 'none';
+                window.clienteSeleccionado = data.cliente;
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Cliente Creado',
+                    text: 'Cliente automático para boletas creado exitosamente',
+                    timer: 2000
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Error al crear cliente',
+                    timer: 3000
+                });
+            }
+        });
+    }
+    
+    // Crear cliente nuevo
+    function crearClienteNuevo(datos) {
+        fetch('/ventas/pos/crear-cliente/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify(datos)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mostrar información del cliente creado
+                document.getElementById('cliente-nombre').textContent = data.cliente.nombre;
+                document.getElementById('cliente-direccion').textContent = data.cliente.direccion || 'Sin dirección';
+                document.getElementById('cliente-info').style.display = 'block';
+                document.getElementById('cliente-no-encontrado').style.display = 'none';
+                window.clienteSeleccionado = data.cliente;
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Cliente Creado',
+                    text: 'Cliente creado exitosamente',
+                    timer: 2000
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Error al crear cliente',
+                    timer: 3000
+                });
+            }
+        });
+    }
+    
+    // Procesar preventa con datos
+    function processPreventaWithData(data) {
+        if (!window.clienteSeleccionado) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Cliente Requerido',
+                text: 'Debe seleccionar o crear un cliente',
+                timer: 3000
+            });
+            return;
+        }
+        
+        const preventaData = {
+            estacion_id: window.currentEstacionId,
+            vendedor_id: window.currentVendedorId,
+            tipo_documento: data.tipo_documento,
+            cliente_id: window.clienteSeleccionado.id,
+            items: cart,
+            totales: {
+                subtotal: currentSubtotal,
+                descuento: currentDescuento,
+                neto: currentNeto,
+                iva: currentIva,
+                total: currentTotal
+            }
+        };
+    
+    // Mostrar loading
+    Swal.fire({
+            title: 'Procesando Preventa...',
+            text: 'Generando preventa',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+        // Enviar datos
+        fetch('/ventas/pos/procesar-preventa/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify(preventaData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Si es cotización, abrir ventana de impresión
+                if (data.tipo_documento === 'cotizacion') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Cotización Generada!',
+                        text: `Cotización #${data.numero_preventa} generada exitosamente`,
+                        timer: 2000
+                    }).then(() => {
+                        // Abrir ventana de impresión de la cotización
+                        window.open(`/ventas/cotizaciones/${data.preventa_id}/html/`, '_blank');
+                        
+                        // Limpiar carrito y recargar
+                        cart = [];
+                        updateCartDisplay();
+                        updateTotals();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Preventa Procesada!',
+                        text: `Preventa ${data.tipo_documento} #${data.numero_preventa} generada exitosamente`,
+                        timer: 3000
+                    }).then(() => {
+                        // Limpiar carrito y recargar
+                        cart = [];
+                        updateCartDisplay();
+                        updateTotals();
+                    });
+                }
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Error al procesar la preventa',
+                    timer: 3000
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error al procesar preventa:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: `Error al procesar la preventa: ${error.message}`,
+                timer: 3000
+            });
+        });
+}
+</script>
+</body>
+</html>

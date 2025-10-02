@@ -187,3 +187,17 @@ class AjusteStockFormCompleto(forms.ModelForm):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ titulo }} - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exchange-alt fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    {{ titulo }}
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">Detalle del movimiento de inventario</small>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{% url 'inventario:inventario_list' %}" class="btn" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3); font-family: 'Poppins', sans-serif;">
+                                <i class="fas fa-arrow-left me-2"></i> Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 20px;">
+                    <div class="row">
+                        <!-- Información del Movimiento -->
+                        <div class="col-lg-8">
+                            <div class="card" style="border: 1px solid #e3e6f0; border-radius: 15px; margin-bottom: 20px;">
+                                <div class="card-header" style="background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%); border-bottom: 1px solid #e3e6f0; border-radius: 15px 15px 0 0;">
+                                    <h6 class="mb-0" style="font-weight: 600; color: #495057; font-family: 'Poppins', sans-serif;">
+                                        <i class="fas fa-info-circle me-2"></i>Información del Movimiento
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 20px;">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="text-muted small" style="font-family: 'Poppins', sans-serif;">Artículo</label>
+                                            <p class="mb-0" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">{{ inventario.articulo.nombre }}</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="text-muted small" style="font-family: 'Poppins', sans-serif;">Tipo de Movimiento</label>
+                                            <p class="mb-0" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">
+                                                {% if inventario.tipo_movimiento == 'entrada' %}
+                                                    <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">Entrada</span>
+                                                {% elif inventario.tipo_movimiento == 'salida' %}
+                                                    <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white;">Salida</span>
+                                                {% elif inventario.tipo_movimiento == 'ajuste' %}
+                                                    <span class="badge" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: white;">Ajuste</span>
+                                                {% else %}
+                                                    <span class="badge" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color: white;">{{ inventario.get_tipo_movimiento_display }}</span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="text-muted small" style="font-family: 'Poppins', sans-serif;">Bodega</label>
+                                            <p class="mb-0" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">{{ inventario.bodega_destino.nombre }}</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="text-muted small" style="font-family: 'Poppins', sans-serif;">Cantidad</label>
+                                            <p class="mb-0" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">{{ inventario.cantidad }}</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="text-muted small" style="font-family: 'Poppins', sans-serif;">Fecha de Movimiento</label>
+                                            <p class="mb-0" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">{{ inventario.fecha_movimiento|date:"d/m/Y H:i" }}</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="text-muted small" style="font-family: 'Poppins', sans-serif;">Estado</label>
+                                            <p class="mb-0" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">
+                                                {% if inventario.estado == 'completado' %}
+                                                    <span class="badge bg-success">Completado</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ inventario.get_estado_display }}</span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        {% if inventario.observaciones %}
+                                        <div class="col-12 mb-3">
+                                            <label class="text-muted small" style="font-family: 'Poppins', sans-serif;">Observaciones</label>
+                                            <p class="mb-0" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">{{ inventario.observaciones }}</p>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Información del Sistema -->
+                        <div class="col-lg-4">
+                            <div class="card" style="border: 1px solid #e3e6f0; border-radius: 15px; margin-bottom: 20px;">
+                                <div class="card-header" style="background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%); border-bottom: 1px solid #e3e6f0; border-radius: 15px 15px 0 0;">
+                                    <h6 class="mb-0" style="font-weight: 600; color: #495057; font-family: 'Poppins', sans-serif;">
+                                        <i class="fas fa-cog me-2"></i>Información del Sistema
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 20px;">
+                                    <div class="mb-3">
+                                        <label class="text-muted small" style="font-family: 'Poppins', sans-serif;">Creado por</label>
+                                        <p class="mb-0" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">{{ inventario.creado_por.username }}</p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="text-muted small" style="font-family: 'Poppins', sans-serif;">Fecha de creación</label>
+                                        <p class="mb-0" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">{{ inventario.fecha_creacion|date:"d/m/Y H:i" }}</p>
+                                    </div>
+                                    {% if inventario.fecha_actualizacion %}
+                                    <div class="mb-3">
+                                        <label class="text-muted small" style="font-family: 'Poppins', sans-serif;">Última actualización</label>
+                                        <p class="mb-0" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif;">{{ inventario.fecha_actualizacion|date:"d/m/Y H:i" }}</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

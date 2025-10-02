@@ -4,7 +4,7 @@ from usuarios.decorators import requiere_empresa
 from articulos.models import Articulo
 from clientes.models import Cliente
 from inventario.models import Stock
-from ventas.models import Venta
+# from ventas.models import Venta  # Temporalmente deshabilitado
 from django.db.models import Sum, Q, F
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -27,15 +27,9 @@ def dashboard(request):
         cantidad__gt=0
     ).count()
     
-    # Ventas del mes actual (si existe el modelo Venta)
-    try:
-        inicio_mes = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        ventas_mes = Venta.objects.filter(
-            empresa=request.empresa,
-            fecha_venta__gte=inicio_mes
-        ).aggregate(total=Sum('total'))['total'] or 0
-    except:
-        ventas_mes = 0
+    # Ventas del mes actual (temporalmente deshabilitado)
+    ventas_mes = 0
+    inicio_mes = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     # Clientes nuevos este mes
     try:

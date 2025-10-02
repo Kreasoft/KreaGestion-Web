@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotización #{{ cotizacion.numero_venta }} - {{ cotizacion.empresa.razon_social }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: white;
+        }
+        
+        .quotation-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            font-size: 12px;
+        }
+        
+        /* Header */
+        .quotation-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #17a2b8;
+        }
+        
+        .company-logo {
+            max-width: 120px;
+            max-height: 60px;
+            margin-bottom: 10px;
+        }
+        
+        .quotation-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .quotation-number {
+            font-size: 1rem;
+            color: #17a2b8;
+            font-weight: 600;
+        }
+        
+        /* Company Info */
+        .company-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 3px solid #17a2b8;
+        }
+        
+        .company-name {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .company-details {
+            color: #6c757d;
+            line-height: 1.4;
+            font-size: 11px;
+        }
+        
+        /* Quotation Info */
+        .quotation-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .info-section {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .info-section h3 {
+            color: #17a2b8;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #17a2b8;
+            padding-bottom: 3px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            padding: 2px 0;
+            font-size: 11px;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #6c757d;
+        }
+        
+        .info-value {
+            color: #2c3e50;
+        }
+        
+        /* Products Table */
+        .products-section {
+            margin-bottom: 15px;
+        }
+        
+        .section-title {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+            background: #17a2b8;
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+        }
+        
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .products-table th {
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+            color: white;
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+        
+        .products-table td {
+            padding: 6px 8px;
+            text-align: center;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 11px;
+        }
+        
+        .products-table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .products-table tbody tr:hover {
+            background-color: #e3f2fd;
+        }
+        
+        .product-description {
+            text-align: left;
+            font-weight: 500;
+        }
+        
+        .product-price {
+            font-weight: 600;
+            color: #28a745;
+        }
+        
+        /* Totals */
+        .totals-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .totals-table {
+            width: 100%;
+            max-width: 300px;
+            margin-left: auto;
+        }
+        
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 11px;
+        }
+        
+        .totals-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 1rem;
+            color: #28a745;
+            border-top: 2px solid #28a745;
+            margin-top: 5px;
+            padding-top: 8px;
+        }
+        
+        .totals-label {
+            color: #6c757d;
+        }
+        
+        .totals-value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        /* Observations */
+        .observations {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .observations h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .observations p {
+            color: #856404;
+            margin: 0;
+        }
+        
+        /* Terms and Conditions */
+        .terms {
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .terms h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        
+        .terms ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .terms li {
+            margin-bottom: 5px;
+            color: #6c757d;
+        }
+        
+        /* Footer */
+        .quotation-footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
+            color: #6c757d;
+        }
+        
+        .validity {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 11px;
+        }
+        
+        .validity strong {
+            color: #0c5460;
+        }
+        
+        /* Print styles */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            
+            .quotation-container {
+                max-width: none;
+                margin: 0;
+                padding: 20px;
+            }
+            
+            .quotation-header {
+                page-break-inside: avoid;
+            }
+            
+            .products-table {
+                page-break-inside: avoid;
+            }
+            
+            .totals-section {
+                page-break-inside: avoid;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+        }
+        
+        /* Print button */
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .print-button:hover {
+            background: #117a8b;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button no-print" onclick="window.print()">
+        <i class="fas fa-print"></i> Imprimir
+    </button>
+    
+    <div class="quotation-container">
+        <!-- Header -->
+        <div class="quotation-header">
+            {% if cotizacion.empresa.logo %}
+                <img src="{{ cotizacion.empresa.logo.url }}" alt="Logo" class="company-logo">
+            {% endif %}
+            <div class="quotation-title">Cotización</div>
+            <div class="quotation-number">#{{ cotizacion.numero_venta }}</div>
+        </div>
+        
+        <!-- Company Info -->
+        <div class="company-info">
+            <div class="company-name">{{ cotizacion.empresa.razon_social }}</div>
+            <div class="company-details">
+                <strong>RUT:</strong> {{ cotizacion.empresa.rut }}<br>
+                <strong>Dirección:</strong> {{ cotizacion.empresa.direccion }}<br>
+                <strong>Ciudad:</strong> {{ cotizacion.empresa.comuna }}, {{ cotizacion.empresa.ciudad }}<br>
+                <strong>Teléfono:</strong> {{ cotizacion.empresa.telefono }}<br>
+                <strong>Email:</strong> {{ cotizacion.empresa.email }}
+            </div>
+        </div>
+        
+        <!-- Quotation and Client Info -->
+        <div class="quotation-info">
+            <div class="info-section">
+                <h3>Información de la Cotización</h3>
+                <div class="info-item">
+                    <span class="info-label">Número:</span>
+                    <span class="info-value">#{{ cotizacion.numero_venta }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Fecha:</span>
+                    <span class="info-value">{{ cotizacion.fecha|date:"d/m/Y" }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Vendedor:</span>
+                    <span class="info-value">{{ cotizacion.vendedor.nombre|default:"No asignado" }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Estación:</span>
+                    <span class="info-value">{{ cotizacion.estacion_trabajo.nombre|default:"No asignada" }}</span>
+                </div>
+            </div>
+            
+            {% if cotizacion.cliente %}
+            <div class="info-section">
+                <h3>Información del Cliente</h3>
+                <div class="info-item">
+                    <span class="info-label">Nombre:</span>
+                    <span class="info-value">{{ cotizacion.cliente.nombre }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">RUT:</span>
+                    <span class="info-value">{{ cotizacion.cliente.rut }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Dirección:</span>
+                    <span class="info-value">{{ cotizacion.cliente.direccion }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Ciudad:</span>
+                    <span class="info-value">{{ cotizacion.cliente.comuna }}, {{ cotizacion.cliente.ciudad }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Teléfono:</span>
+                    <span class="info-value">{{ cotizacion.cliente.telefono }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{ cotizacion.cliente.email }}</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Validity -->
+        <div class="validity">
+            <strong>Esta cotización tiene una validez de 30 días desde su emisión</strong><br>
+            <em>Válida hasta: {{ cotizacion.fecha|add:30|date:"d/m/Y" }}</em>
+        </div>
+        
+        <!-- Products -->
+        <div class="products-section">
+            <div class="section-title">Detalle de Productos</div>
+            <table class="products-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unit.</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detalle in detalles %}
+                    <tr>
+                        <td>{{ detalle.articulo.codigo }}</td>
+                        <td class="product-description">{{ detalle.articulo.descripcion }}</td>
+                        <td>{{ detalle.cantidad }}</td>
+                        <td class="product-price">${{ detalle.precio_unitario|floatformat:0 }}</td>
+                        <td class="product-price">${{ detalle.precio_total|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Totals -->
+        <div class="totals-section">
+            <h3 style="text-align: center; margin-bottom: 20px; color: #2c3e50;">Resumen de Totales</h3>
+            <div class="totals-table">
+                <div class="totals-row">
+                    <span class="totals-label">Subtotal:</span>
+                    <span class="totals-value">${{ cotizacion.subtotal|floatformat:0 }}</span>
+                </div>
+                <div class="totals-row">
+                    <span class="totals-label">Descuento:</span>
+                    <span class="totals-value">${{ cotizacion.descuento|floatformat:0 }}</span>
+                </div>
+                <div class="totals-row">
+                    <span class="totals-label">Neto:</span>
+                    <span class="totals-value">${{ cotizacion.neto|floatformat:0 }}</span>
+                </div>
+                <div class="totals-row">
+                    <span class="totals-label">IVA (19%):</span>
+                    <span class="totals-value">${{ cotizacion.iva|floatformat:0 }}</span>
+                </div>
+                <div class="totals-row">
+                    <span class="totals-label">Imp. Específico:</span>
+                    <span class="totals-value">${{ cotizacion.impuesto_especifico|floatformat:0 }}</span>
+                </div>
+                <div class="totals-row">
+                    <span class="totals-label">TOTAL:</span>
+                    <span class="totals-value">${{ cotizacion.total|floatformat:0 }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Observations -->
+        {% if cotizacion.observaciones %}
+        <div class="observations">
+            <h3>Observaciones</h3>
+            <p>{{ cotizacion.observaciones }}</p>
+        </div>
+        {% endif %}
+        
+        <!-- Terms and Conditions -->
+        <div class="terms">
+            <h3>Términos y Condiciones</h3>
+            <ul>
+                <li>Esta cotización tiene una validez de 30 días desde su emisión.</li>
+                <li>Los precios están expresados en pesos chilenos e incluyen IVA.</li>
+                <li>Los productos están sujetos a disponibilidad de stock.</li>
+                <li>El pago debe realizarse según las condiciones acordadas.</li>
+                <li>Cualquier modificación debe ser aprobada por escrito.</li>
+                <li>Los precios pueden variar sin previo aviso.</li>
+            </ul>
+        </div>
+        
+        <!-- Footer -->
+        <div class="quotation-footer">
+            <p><strong>{{ cotizacion.empresa.razon_social }}</strong></p>
+            <p>Gracias por su confianza en nuestros servicios</p>
+            <p><em>Documento generado el {{ "now"|date:"d/m/Y H:i" }}</em></p>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-print when page loads
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

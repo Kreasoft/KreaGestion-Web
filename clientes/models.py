@@ -234,9 +234,9 @@ class CuentaCorrienteCliente(models.Model):
     fecha = models.DateField(default=timezone.now, verbose_name="Fecha del Movimiento")
     tipo_movimiento = models.CharField(max_length=20, choices=TIPO_MOVIMIENTO_CHOICES, verbose_name="Tipo de Movimiento")
     
-    # Referencias
-    venta = models.ForeignKey('ventas.Venta', on_delete=models.SET_NULL, null=True, blank=True)
-    devolucion = models.ForeignKey('ventas.Devolucion', on_delete=models.SET_NULL, null=True, blank=True)
+    # Referencias (temporalmente comentadas)
+    # venta = models.ForeignKey('ventas.Venta', on_delete=models.SET_NULL, null=True, blank=True)
+    # devolucion = models.ForeignKey('ventas.Devolucion', on_delete=models.SET_NULL, null=True, blank=True)
     # documento_tributario = models.ForeignKey('documentos.DocumentoTributario', on_delete=models.SET_NULL, null=True, blank=True)
     
     # Montos

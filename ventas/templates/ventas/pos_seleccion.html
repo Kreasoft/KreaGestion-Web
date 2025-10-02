@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar POS - GestionCloud</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- SweetAlert2 -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f8f9fc 0%, #e3e6f0 100%);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .pos-seleccion-container {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .pos-seleccion-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .pos-seleccion-header {
+            margin-bottom: 30px;
+        }
+        
+        .pos-seleccion-header h1 {
+            color: #2c3e50;
+            font-weight: 700;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .pos-seleccion-header p {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        .form-control {
+            border: 2px solid #e3e6f0;
+            border-radius: 12px;
+            padding: 12px 15px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            border-color: #17a2b8;
+            box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+        }
+        
+        .btn-iniciar {
+            background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
+            border: none;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        .btn-iniciar:hover {
+            background: linear-gradient(135deg, #117a8b 0%, #0f6674 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(23, 162, 184, 0.4);
+        }
+        
+        .btn-volver {
+            background: transparent;
+            border: 2px solid #6c757d;
+            color: #6c757d;
+            padding: 10px 30px;
+            border-radius: 12px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin-top: 15px;
+        }
+        
+        .btn-volver:hover {
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+        }
+        
+        .estacion-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .estacion-info h6 {
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .documentos-permitidos {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .badge-documento {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .badge-factura { background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; }
+        .badge-boleta { background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color: white; }
+        .badge-guia { background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529; }
+        .badge-cotizacion { background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); color: white; }
+        .badge-vale { background: linear-gradient(135deg, #fd7e14 0%, #e55a00 100%); color: white; }
+    </style>
+</head>
+<body>
+    <div class="pos-seleccion-container">
+        <div class="pos-seleccion-card">
+            <div class="pos-seleccion-header">
+                <i class="fas fa-cash-register fa-3x mb-3" style="color: #17a2b8;"></i>
+                <h1>Iniciar Punto de Venta</h1>
+                <p>Selecciona la estación de trabajo y el vendedor para comenzar</p>
+            </div>
+            
+            <form id="formIniciarPOS">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-desktop me-2"></i>Estación de Trabajo *
+                    </label>
+                    <select name="estacion_id" id="estacion_id" class="form-control" required>
+                        <option value="">Seleccionar estación...</option>
+                        {% for estacion in estaciones %}
+                        <option value="{{ estacion.id }}" 
+                                data-puede-facturar="{{ estacion.puede_facturar|yesno:'true,false' }}"
+                                data-puede-boletar="{{ estacion.puede_boletar|yesno:'true,false' }}"
+                                data-puede-guia="{{ estacion.puede_guia|yesno:'true,false' }}"
+                                data-puede-cotizar="{{ estacion.puede_cotizar|yesno:'true,false' }}"
+                                data-puede-vale="{{ estacion.puede_vale|yesno:'true,false' }}">
+                            {{ estacion.numero }} - {{ estacion.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    
+                    <!-- Información de la estación seleccionada -->
+                    <div id="estacion-info" class="estacion-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Documentos Permitidos:</h6>
+                        <div id="documentos-permitidos" class="documentos-permitidos">
+                            <!-- Se llena dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-user me-2"></i>Vendedor *
+                    </label>
+                    <select name="vendedor_id" id="vendedor_id" class="form-control" required>
+                        <option value="">Seleccionar vendedor...</option>
+                        {% for vendedor in vendedores %}
+                        <option value="{{ vendedor.id }}">
+                            {{ vendedor.codigo }} - {{ vendedor.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-iniciar">
+                    <i class="fas fa-play me-2"></i>Iniciar POS
+                </button>
+                
+                <a href="{% url 'dashboard' %}" class="btn-volver">
+                    <i class="fas fa-arrow-left me-2"></i>Volver al Sistema
+                </a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const estacionSelect = document.getElementById('estacion_id');
+        const estacionInfo = document.getElementById('estacion-info');
+        const documentosPermitidos = document.getElementById('documentos-permitidos');
+        
+        // Mostrar información de la estación seleccionada
+        estacionSelect.addEventListener('change', function() {
+            const option = this.options[this.selectedIndex];
+            
+            if (option.value) {
+                // Mostrar información
+                estacionInfo.style.display = 'block';
+                
+                // Limpiar documentos anteriores
+                documentosPermitidos.innerHTML = '';
+                
+                // Agregar documentos permitidos
+                if (option.dataset.puedeFacturar === 'true') {
+                    documentosPermitidos.innerHTML += '<span class="badge-documento badge-factura"><i class="fas fa-file-invoice me-1"></i>Factura</span>';
+                }
+                if (option.dataset.puedeBoletar === 'true') {
+                    documentosPermitidos.innerHTML += '<span class="badge-documento badge-boleta"><i class="fas fa-receipt me-1"></i>Boleta</span>';
+                }
+                if (option.dataset.puedeGuia === 'true') {
+                    documentosPermitidos.innerHTML += '<span class="badge-documento badge-guia"><i class="fas fa-truck me-1"></i>Guía</span>';
+                }
+                if (option.dataset.puedeCotizar === 'true') {
+                    documentosPermitidos.innerHTML += '<span class="badge-documento badge-cotizacion"><i class="fas fa-calculator me-1"></i>Cotización</span>';
+                }
+                if (option.dataset.puedeVale === 'true') {
+                    documentosPermitidos.innerHTML += '<span class="badge-documento badge-vale"><i class="fas fa-ticket-alt me-1"></i>Vale</span>';
+                }
+            } else {
+                estacionInfo.style.display = 'none';
+            }
+        });
+        
+        // Manejar envío del formulario
+        document.getElementById('formIniciarPOS').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const estacionId = document.getElementById('estacion_id').value;
+            const vendedorId = document.getElementById('vendedor_id').value;
+            
+            if (!estacionId || !vendedorId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Selección Requerida',
+                    text: 'Debe seleccionar una estación de trabajo y un vendedor',
+                    timer: 3000
+                });
+                return;
+            }
+            
+            // Mostrar loading
+            Swal.fire({
+                title: 'Iniciando POS...',
+                text: 'Configurando estación de trabajo',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // Enviar datos
+            const formData = new FormData(this);
+            
+            fetch('{% url "ventas:pos_iniciar" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡POS Iniciado!',
+                        text: data.message,
+                        timer: 2000
+                    }).then(() => {
+                        window.location.href = data.redirect_url;
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message,
+                        timer: 3000
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error al iniciar el POS',
+                    timer: 3000
+                });
+            });
+        });
+    });
+    </script>
+</body>
+</html>
+
+

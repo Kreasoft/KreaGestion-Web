@@ -1,3 +1,1468 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from django.urls import reverse
+from django.template.loader import get_template
+from decimal import Decimal
+from usuarios.decorators import requiere_empresa
+from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo
+from .forms import VendedorForm, FormaPagoForm, EstacionTrabajoForm
+import io
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 
-# Create your views here.
+
+# ========== VENDEDORES ==========
+
+@login_required
+@requiere_empresa
+def vendedor_list(request):
+    """Lista de vendedores"""
+    vendedores = Vendedor.objects.filter(empresa=request.empresa).order_by('codigo')
+    
+    # Búsqueda
+    search = request.GET.get('search', '')
+    if search:
+        vendedores = vendedores.filter(
+            Q(codigo__icontains=search) |
+            Q(nombre__icontains=search)
+        )
+    
+    # Paginación
+    paginator = Paginator(vendedores, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+    }
+    
+    return render(request, 'ventas/vendedor_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def vendedor_create(request):
+    """Crear nuevo vendedor"""
+    if request.method == 'POST':
+        form = VendedorForm(request.POST)
+        if form.is_valid():
+            vendedor = form.save(commit=False)
+            vendedor.empresa = request.empresa
+            vendedor.save()
+            messages.success(request, f'Vendedor {vendedor.nombre} creado exitosamente.')
+            return redirect('ventas:vendedor_list')
+        else:
+            messages.error(request, 'Error al crear el vendedor. Por favor verifica los datos.')
+            return redirect('ventas:vendedor_list')
+    else:
+        return redirect('ventas:vendedor_list')
+
+
+@login_required
+@requiere_empresa
+def vendedor_detail(request, pk):
+    """Detalle de vendedor - Fragmento para modal"""
+    vendedor = get_object_or_404(Vendedor, pk=pk, empresa=request.empresa)
+    
+    html = f"""
+    <div class="row">
+        <div class="col-6 mb-3">
+            <label class="text-muted small">Código</label>
+            <p class="mb-0" style="font-weight: 600; color: #2c3e50;">{vendedor.codigo}</p>
+        </div>
+        <div class="col-6 mb-3">
+            <label class="text-muted small">Nombre</label>
+            <p class="mb-0" style="font-weight: 600; color: #2c3e50;">{vendedor.nombre}</p>
+        </div>
+        <div class="col-6 mb-3">
+            <label class="text-muted small">% Comisión</label>
+            <p class="mb-0" style="font-weight: 600; color: #2c3e50;">{vendedor.porcentaje_comision}%</p>
+        </div>
+        <div class="col-6 mb-3">
+            <label class="text-muted small">Estado</label>
+            <p class="mb-0">
+                {'<span class="badge bg-success">Activo</span>' if vendedor.activo else '<span class="badge bg-danger">Inactivo</span>'}
+            </p>
+        </div>
+    </div>
+    """
+    
+    from django.http import HttpResponse
+    return HttpResponse(html)
+
+
+@login_required
+@requiere_empresa
+def vendedor_update(request, pk):
+    """Editar vendedor - Fragmento para modal"""
+    vendedor = get_object_or_404(Vendedor, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = VendedorForm(request.POST, instance=vendedor)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Vendedor {vendedor.nombre} actualizado exitosamente.')
+            from django.http import JsonResponse
+            return JsonResponse({'success': True})
+        else:
+            from django.http import JsonResponse
+            return JsonResponse({'success': False, 'errors': form.errors})
+    
+    from django.middleware.csrf import get_token
+    csrf_token = get_token(request)
+    
+    html = f"""
+    <form method="post" action="/ventas/vendedores/{vendedor.id}/editar/" id="formEditarVendedorSubmit">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{csrf_token}">
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Código *</label>
+            <input type="text" name="codigo" class="form-control" value="{vendedor.codigo}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Nombre *</label>
+            <input type="text" name="nombre" class="form-control" value="{vendedor.nombre}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">% Comisión</label>
+            <div class="input-group">
+                <input type="number" name="porcentaje_comision" class="form-control" min="0" max="100" step="0.01" value="{vendedor.porcentaje_comision}">
+                <span class="input-group-text">%</span>
+            </div>
+        </div>
+        <div class="mb-3">
+            <div class="form-check form-switch">
+                <input type="checkbox" name="activo" class="form-check-input" id="activoEditar" {'checked' if vendedor.activo else ''}>
+                <label class="form-check-label" for="activoEditar">Vendedor activo</label>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-2"></i>Cancelar
+            </button>
+            <button type="submit" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white;">
+                <i class="fas fa-save me-2"></i>Guardar Cambios
+            </button>
+        </div>
+    </form>
+    """
+    
+    from django.http import HttpResponse
+    return HttpResponse(html)
+
+
+@login_required
+@requiere_empresa
+def vendedor_delete(request, pk):
+    """Eliminar vendedor"""
+    vendedor = get_object_or_404(Vendedor, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        nombre = vendedor.nombre
+        vendedor.delete()
+        from django.http import JsonResponse
+        return JsonResponse({'success': True, 'message': f'Vendedor {nombre} eliminado exitosamente.'})
+    
+    from django.http import JsonResponse
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
+
+# ========== FORMAS DE PAGO ==========
+
+@login_required
+@requiere_empresa
+def formapago_list(request):
+    """Lista de formas de pago"""
+    formas_pago = FormaPago.objects.filter(empresa=request.empresa).order_by('codigo')
+    
+    # Búsqueda
+    search = request.GET.get('search', '')
+    if search:
+        formas_pago = formas_pago.filter(
+            Q(codigo__icontains=search) |
+            Q(nombre__icontains=search)
+        )
+    
+    # Paginación
+    paginator = Paginator(formas_pago, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+    }
+    
+    return render(request, 'ventas/formapago_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def formapago_create(request):
+    """Crear nueva forma de pago"""
+    if request.method == 'POST':
+        form = FormaPagoForm(request.POST)
+        if form.is_valid():
+            forma_pago = form.save(commit=False)
+            forma_pago.empresa = request.empresa
+            forma_pago.save()
+            messages.success(request, f'Forma de pago {forma_pago.nombre} creada exitosamente.')
+            return redirect('ventas:formapago_list')
+    else:
+        form = FormaPagoForm()
+    
+    context = {
+        'form': form,
+        'titulo': 'Crear Forma de Pago',
+    }
+    
+    return render(request, 'ventas/formapago_form.html', context)
+
+
+@login_required
+@requiere_empresa
+def formapago_detail(request, pk):
+    """Detalle de forma de pago - Fragmento para modal"""
+    forma_pago = get_object_or_404(FormaPago, pk=pk, empresa=request.empresa)
+    
+    html = f"""
+    <div class="row">
+        <div class="col-6 mb-3">
+            <label class="text-muted small">Código</label>
+            <p class="mb-0" style="font-weight: 600; color: #2c3e50;">{forma_pago.codigo}</p>
+        </div>
+        <div class="col-6 mb-3">
+            <label class="text-muted small">Nombre</label>
+            <p class="mb-0" style="font-weight: 600; color: #2c3e50;">{forma_pago.nombre}</p>
+        </div>
+        <div class="col-6 mb-3">
+            <label class="text-muted small">Es Cuenta Corriente</label>
+            <p class="mb-0">
+                {'<span class="badge" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529;"><i class="fas fa-check me-1"></i>Sí</span>' if forma_pago.es_cuenta_corriente else '<span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #545b62 100%); color: white;"><i class="fas fa-times me-1"></i>No</span>'}
+            </p>
+        </div>
+        <div class="col-6 mb-3">
+            <label class="text-muted small">Requiere Cheque</label>
+            <p class="mb-0">
+                {'<span class="badge" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color: white;"><i class="fas fa-check me-1"></i>Sí</span>' if forma_pago.requiere_cheque else '<span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #545b62 100%); color: white;"><i class="fas fa-times me-1"></i>No</span>'}
+            </p>
+        </div>
+        <div class="col-6 mb-3">
+            <label class="text-muted small">Estado</label>
+            <p class="mb-0">
+                {'<span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">Activo</span>' if forma_pago.activo else '<span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white;">Inactivo</span>'}
+            </p>
+        </div>
+        <div class="col-6 mb-3">
+            <label class="text-muted small">Fecha de Creación</label>
+            <p class="mb-0" style="font-weight: 600; color: #2c3e50;">{forma_pago.fecha_creacion.strftime('%d/%m/%Y %H:%M')}</p>
+        </div>
+    </div>
+    """
+    
+    from django.http import HttpResponse
+    return HttpResponse(html)
+
+
+@login_required
+@requiere_empresa
+def formapago_update(request, pk):
+    """Editar forma de pago - Fragmento para modal"""
+    forma_pago = get_object_or_404(FormaPago, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = FormaPagoForm(request.POST, instance=forma_pago)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Forma de pago {forma_pago.nombre} actualizada exitosamente.')
+            from django.http import JsonResponse
+            return JsonResponse({'success': True})
+        else:
+            from django.http import JsonResponse
+            return JsonResponse({'success': False, 'errors': form.errors})
+    
+    from django.middleware.csrf import get_token
+    csrf_token = get_token(request)
+    
+    html = f"""
+    <form method="post" action="/ventas/formas-pago/{forma_pago.id}/editar/" id="formEditarFormaPagoSubmit">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{csrf_token}">
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Código *</label>
+            <input type="text" name="codigo" class="form-control" value="{forma_pago.codigo}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Nombre *</label>
+            <input type="text" name="nombre" class="form-control" value="{forma_pago.nombre}" required>
+        </div>
+        <div class="mb-3">
+            <div class="form-check form-switch">
+                <input type="checkbox" name="es_cuenta_corriente" class="form-check-input" id="esCuentaCorrienteEditar" {'checked' if forma_pago.es_cuenta_corriente else ''}>
+                <label class="form-check-label" for="esCuentaCorrienteEditar">
+                    Es Cuenta Corriente
+                    <small class="text-muted d-block">Si está marcado, la factura pasa a cuenta corriente del cliente</small>
+                </label>
+            </div>
+        </div>
+        <div class="mb-3">
+            <div class="form-check form-switch">
+                <input type="checkbox" name="requiere_cheque" class="form-check-input" id="requiereChequeEditar" {'checked' if forma_pago.requiere_cheque else ''}>
+                <label class="form-check-label" for="requiereChequeEditar">
+                    Requiere Cheque
+                    <small class="text-muted d-block">Si está marcado, se debe registrar información del cheque</small>
+                </label>
+            </div>
+        </div>
+        <div class="mb-3">
+            <div class="form-check form-switch">
+                <input type="checkbox" name="activo" class="form-check-input" id="activoEditar" {'checked' if forma_pago.activo else ''}>
+                <label class="form-check-label" for="activoEditar">Forma de pago activa</label>
+            </div>
+        </div>
+    </form>
+    """
+    
+    from django.http import HttpResponse
+    return HttpResponse(html)
+
+
+@login_required
+@requiere_empresa
+def formapago_delete(request, pk):
+    """Eliminar forma de pago"""
+    forma_pago = get_object_or_404(FormaPago, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        nombre = forma_pago.nombre
+        forma_pago.delete()
+        messages.success(request, f'Forma de pago {nombre} eliminada exitosamente.')
+        return redirect('ventas:formapago_list')
+    
+    context = {
+        'forma_pago': forma_pago,
+    }
+    
+    return render(request, 'ventas/formapago_confirm_delete.html', context)
+
+
+# ========== POS (PUNTO DE VENTA) ==========
+
+@login_required
+@requiere_empresa
+def pos_main(request):
+    """Vista principal del POS"""
+    # Obtener datos necesarios
+    clientes = Cliente.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    formas_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    
+    # Crear venta en borrador si no existe
+    venta_actual, created = Venta.objects.get_or_create(
+        empresa=request.empresa,
+        numero_venta='TEMP',
+        defaults={
+            'fecha': timezone.now().date(),
+            'usuario_creacion': request.user,
+            'estado': 'borrador'
+        }
+    )
+    
+    context = {
+        'clientes': clientes,
+        'vendedores': vendedores,
+        'formas_pago': formas_pago,
+        'venta_actual': venta_actual,
+    }
+    
+    return render(request, 'ventas/pos_main.html', context)
+
+
+@login_required
+@requiere_empresa
+def pos_buscar_articulo(request):
+    """API para buscar artículos por código de barras, código o descripción"""
+    query = request.GET.get('q', '').strip()
+    
+    if not query:
+        return JsonResponse({'articulos': []})
+    
+    # Buscar por código de barras, código o descripción
+    articulos = Articulo.objects.filter(
+        empresa=request.empresa,
+        activo=True
+    ).filter(
+        Q(codigo_barras__icontains=query) |
+        Q(codigo__icontains=query) |
+        Q(descripcion__icontains=query)
+    ).order_by('descripcion')[:10]
+    
+    results = []
+    for articulo in articulos:
+        results.append({
+            'id': articulo.id,
+            'codigo': articulo.codigo,
+            'codigo_barras': articulo.codigo_barras or '',
+            'descripcion': articulo.descripcion,
+            'precio': float(articulo.precio_venta),
+            'stock': float(articulo.stock_disponible),
+            'impuesto_especifico': float(articulo.impuesto_especifico or 0),
+        })
+    
+    return JsonResponse({'articulos': results})
+
+
+@login_required
+@requiere_empresa
+def pos_agregar_articulo(request):
+    """API para agregar un artículo a la venta actual"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'})
+    
+    articulo_id = request.POST.get('articulo_id')
+    cantidad = request.POST.get('cantidad', '1')
+    venta_id = request.POST.get('venta_id')
+    
+    try:
+        articulo = Articulo.objects.get(id=articulo_id, empresa=request.empresa)
+        venta = Venta.objects.get(id=venta_id, empresa=request.empresa)
+        cantidad = Decimal(cantidad)
+        
+        if cantidad <= 0:
+            return JsonResponse({'success': False, 'error': 'La cantidad debe ser mayor a 0'})
+        
+        # Verificar si el artículo ya está en la venta
+        detalle_existente = VentaDetalle.objects.filter(venta=venta, articulo=articulo).first()
+        
+        if detalle_existente:
+            # Actualizar cantidad
+            detalle_existente.cantidad += cantidad
+            detalle_existente.save()
+        else:
+            # Crear nuevo detalle
+            VentaDetalle.objects.create(
+                venta=venta,
+                articulo=articulo,
+                cantidad=cantidad,
+                precio_unitario=articulo.precio_venta
+            )
+        
+        return JsonResponse({'success': True})
+        
+    except Articulo.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Artículo no encontrado'})
+    except Venta.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Venta no encontrada'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@requiere_empresa
+def pos_actualizar_detalle(request):
+    """API para actualizar un detalle de la venta"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'})
+    
+    detalle_id = request.POST.get('detalle_id')
+    cantidad = request.POST.get('cantidad')
+    
+    try:
+        detalle = VentaDetalle.objects.get(id=detalle_id, venta__empresa=request.empresa)
+        cantidad = Decimal(cantidad)
+        
+        if cantidad <= 0:
+            return JsonResponse({'success': False, 'error': 'La cantidad debe ser mayor a 0'})
+        
+        detalle.cantidad = cantidad
+        detalle.save()
+        
+        return JsonResponse({'success': True})
+        
+    except VentaDetalle.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Detalle no encontrado'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@requiere_empresa
+def pos_eliminar_detalle(request):
+    """API para eliminar un detalle de la venta"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'})
+    
+    detalle_id = request.POST.get('detalle_id')
+    
+    try:
+        detalle = VentaDetalle.objects.get(id=detalle_id, venta__empresa=request.empresa)
+        detalle.delete()
+        
+        return JsonResponse({'success': True})
+        
+    except VentaDetalle.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Detalle no encontrado'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@requiere_empresa
+def pos_actualizar_venta(request):
+    """API para actualizar datos de la venta (cliente, vendedor, etc.)"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'})
+    
+    venta_id = request.POST.get('venta_id')
+    cliente_id = request.POST.get('cliente_id', '')
+    vendedor_id = request.POST.get('vendedor_id', '')
+    forma_pago_id = request.POST.get('forma_pago_id', '')
+    descuento = request.POST.get('descuento', '0')
+    
+    try:
+        venta = Venta.objects.get(id=venta_id, empresa=request.empresa)
+        
+        # Actualizar campos
+        if cliente_id:
+            cliente = Cliente.objects.get(id=cliente_id, empresa=request.empresa)
+            venta.cliente = cliente
+        else:
+            venta.cliente = None
+            
+        if vendedor_id:
+            vendedor = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa)
+            venta.vendedor = vendedor
+        else:
+            venta.vendedor = None
+            
+        if forma_pago_id:
+            forma_pago = FormaPago.objects.get(id=forma_pago_id, empresa=request.empresa)
+            venta.forma_pago = forma_pago
+        else:
+            venta.forma_pago = None
+        
+        venta.descuento = Decimal(descuento)
+        venta.save()
+        
+        return JsonResponse({'success': True})
+        
+    except Venta.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Venta no encontrada'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@requiere_empresa
+def pos_detalles_venta(request, venta_id):
+    """API para obtener los detalles de una venta"""
+    try:
+        venta = Venta.objects.get(id=venta_id, empresa=request.empresa)
+        detalles = VentaDetalle.objects.filter(venta=venta).select_related('articulo')
+        
+        detalles_data = []
+        for detalle in detalles:
+            detalles_data.append({
+                'id': detalle.id,
+                'cantidad': float(detalle.cantidad),
+                'precio_unitario': float(detalle.precio_unitario),
+                'precio_total': float(detalle.precio_total),
+                'impuesto_especifico': float(detalle.impuesto_especifico),
+                'articulo': {
+                    'codigo': detalle.articulo.codigo,
+                    'descripcion': detalle.articulo.descripcion,
+                }
+            })
+        
+        totales_data = {
+            'subtotal': float(venta.subtotal),
+            'descuento': float(venta.descuento),
+            'neto': float(venta.neto),
+            'iva': float(venta.iva),
+            'impuesto_especifico': float(venta.impuesto_especifico),
+            'total': float(venta.total),
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'detalles': detalles_data,
+            'totales': totales_data
+        })
+        
+    except Venta.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Venta no encontrada'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+# ========== PUNTO DE VENTA (POS) ==========
+
+@login_required
+@requiere_empresa
+def pos_view(request):
+    """Vista principal del Punto de Venta"""
+    from articulos.models import Articulo
+    from clientes.models import Cliente
+    
+    # Obtener datos para el POS
+    articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')[:50]  # Limitar para performance
+    clientes = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')[:50]  # Limitar para performance
+    vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    formas_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True).order_by('numero')
+    
+    # Generar próximo número de venta
+    ultima_venta = Venta.objects.filter(empresa=request.empresa).order_by('-numero_venta').first()
+    if ultima_venta:
+        try:
+            numero_actual = int(ultima_venta.numero_venta)
+            proximo_numero = f"{numero_actual + 1:06d}"
+        except ValueError:
+            proximo_numero = "000001"
+    else:
+        proximo_numero = "000001"
+    
+    context = {
+        'articulos': articulos,
+        'clientes': clientes,
+        'vendedores': vendedores,
+        'formas_pago': formas_pago,
+        'estaciones': estaciones,
+        'proximo_numero': proximo_numero,
+    }
+    
+    return render(request, 'ventas/pos.html', context)
+
+
+@login_required
+@requiere_empresa
+def pos_seleccion_estacion(request):
+    """Vista para seleccionar estación de trabajo y vendedor"""
+    estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True).order_by('numero')
+    vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    
+    context = {
+        'estaciones': estaciones,
+        'vendedores': vendedores,
+    }
+    
+    return render(request, 'ventas/pos_seleccion.html', context)
+
+
+@login_required
+@requiere_empresa
+def pos_iniciar(request):
+    """Iniciar POS con estación y vendedor seleccionados"""
+    if request.method == 'POST':
+        estacion_id = request.POST.get('estacion_id')
+        vendedor_id = request.POST.get('vendedor_id')
+        
+        if not estacion_id or not vendedor_id:
+            return JsonResponse({'success': False, 'message': 'Debe seleccionar estación y vendedor'})
+        
+        try:
+            estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa, activo=True)
+            vendedor = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa, activo=True)
+            
+            # Guardar en sesión
+            request.session['pos_estacion_id'] = estacion.id
+            request.session['pos_vendedor_id'] = vendedor.id
+            request.session['pos_estacion_nombre'] = estacion.nombre
+            request.session['pos_vendedor_nombre'] = vendedor.nombre
+            
+            return JsonResponse({
+                'success': True, 
+                'message': f'POS iniciado - Estación: {estacion.nombre}, Vendedor: {vendedor.nombre}',
+                'redirect_url': reverse('ventas:pos_view')
+            })
+            
+        except (EstacionTrabajo.DoesNotExist, Vendedor.DoesNotExist):
+            return JsonResponse({'success': False, 'message': 'Estación o vendedor no válidos'})
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
+
+@login_required
+@requiere_empresa
+def pos_session_info(request):
+    """Obtener información de la sesión del POS"""
+    estacion_id = request.session.get('pos_estacion_id')
+    vendedor_id = request.session.get('pos_vendedor_id')
+    estacion_nombre = request.session.get('pos_estacion_nombre')
+    vendedor_nombre = request.session.get('pos_vendedor_nombre')
+    
+    if not estacion_id or not vendedor_id:
+        return JsonResponse({'success': False, 'message': 'Sesión no encontrada'})
+    
+    try:
+        estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa, activo=True)
+        vendedor = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa, activo=True)
+        
+        return JsonResponse({
+            'success': True,
+            'estacion_id': estacion.id,
+            'vendedor_id': vendedor.id,
+            'estacion_nombre': estacion_nombre,
+            'vendedor_nombre': vendedor_nombre,
+            'estacion': {
+                'id': estacion.id,
+                'numero': estacion.numero,
+                'nombre': estacion.nombre,
+                'tipos_documentos': estacion.get_tipos_documentos_permitidos(),
+                            'correlativo_ticket': estacion.correlativo_ticket,
+                'max_items': {
+                    'factura': estacion.max_items_factura,
+                    'boleta': estacion.max_items_boleta,
+                    'guia': estacion.max_items_guia,
+                    'cotizacion': estacion.max_items_cotizacion,
+                    'vale': estacion.max_items_vale,
+                }
+            }
+        })
+        
+    except (EstacionTrabajo.DoesNotExist, Vendedor.DoesNotExist):
+        return JsonResponse({'success': False, 'message': 'Estación o vendedor no válidos'})
+
+
+@login_required
+@requiere_empresa
+def pos_buscar_cliente(request):
+    """Buscar cliente por RUT o nombre"""
+    q = request.GET.get('q', '').strip()
+    
+    if not q:
+        return JsonResponse({'success': False, 'message': 'Término de búsqueda requerido'})
+    
+    try:
+        from clientes.models import Cliente
+        from django.db.models import Q
+        
+        # Búsqueda con filtro de empresa correcto
+        if hasattr(request, 'empresa') and request.empresa:
+            # Primero buscar en la empresa actual
+            clientes = Cliente.objects.filter(
+                Q(rut__icontains=q) | Q(nombre__icontains=q),
+                empresa=request.empresa,
+                estado='activo'
+            ).order_by('nombre')[:10]
+            
+            # Si no hay clientes en esta empresa, mover todos los clientes a esta empresa
+            if clientes.count() == 0:
+                Cliente.objects.filter(estado='activo').update(empresa=request.empresa)
+                
+                # Buscar de nuevo
+                clientes = Cliente.objects.filter(
+                    Q(rut__icontains=q) | Q(nombre__icontains=q),
+                    empresa=request.empresa,
+                    estado='activo'
+                ).order_by('nombre')[:10]
+        else:
+            # Si no hay empresa, devolver error
+            return JsonResponse({'success': False, 'message': 'No se pudo identificar la empresa'})
+        
+        if clientes.exists():
+            clientes_data = []
+            for cliente in clientes:
+                clientes_data.append({
+                    'id': cliente.id,
+                    'rut': cliente.rut,
+                    'nombre': cliente.nombre,
+                    'giro': cliente.giro,
+                    'direccion': cliente.direccion,
+                    'comuna': cliente.comuna,
+                    'ciudad': cliente.ciudad,
+                    'telefono': cliente.telefono,
+                    'email': cliente.email
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'clientes': clientes_data
+            })
+        else:
+            return JsonResponse({'success': False, 'message': 'No se encontraron clientes'})
+            
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error en la búsqueda: {str(e)}'})
+
+
+@login_required
+@requiere_empresa
+def pos_crear_cliente_boleta(request):
+    """Crear cliente automático para boletas"""
+    if request.method == 'POST':
+        try:
+            from clientes.models import Cliente
+            
+            # Verificar si ya existe el cliente de boleta
+            cliente_boleta, created = Cliente.objects.get_or_create(
+                rut='66666666-6',
+                empresa=request.empresa,
+                defaults={
+                    'nombre': 'CLIENTE BOLETA',
+                    'giro': 'Consumidor Final',
+                    'direccion': request.empresa.direccion or 'Sin dirección',
+                    'comuna': request.empresa.comuna or 'Santiago',
+                    'ciudad': request.empresa.ciudad or 'Santiago',
+                    'telefono': request.empresa.telefono or '',
+                    'email': request.empresa.email or '',
+                    'estado': 'activo'
+                }
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'cliente': {
+                    'id': cliente_boleta.id,
+                    'rut': cliente_boleta.rut,
+                    'nombre': cliente_boleta.nombre,
+                    'giro': cliente_boleta.giro,
+                    'direccion': cliente_boleta.direccion,
+                    'comuna': cliente_boleta.comuna,
+                    'ciudad': cliente_boleta.ciudad,
+                    'telefono': cliente_boleta.telefono,
+                    'email': cliente_boleta.email
+                },
+                'created': created
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Error al crear cliente: {str(e)}'})
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
+
+@login_required
+@requiere_empresa
+def pos_crear_cliente(request):
+    """Crear nuevo cliente"""
+    if request.method == 'POST':
+        try:
+            import json
+            from clientes.models import Cliente
+            
+            data = json.loads(request.body)
+            
+            # Validar datos requeridos
+            if not data.get('rut') or not data.get('nombre'):
+                return JsonResponse({'success': False, 'message': 'RUT y nombre son requeridos'})
+            
+            # Crear cliente
+            cliente = Cliente.objects.create(
+                empresa=request.empresa,
+                rut=data['rut'],
+                nombre=data['nombre'],
+                giro=data.get('giro', ''),
+                direccion=data.get('direccion', ''),
+                comuna=data.get('comuna', ''),
+                ciudad=data.get('ciudad', ''),
+                telefono=data.get('telefono', ''),
+                email=data.get('email', ''),
+                estado='activo'
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'cliente': {
+                    'id': cliente.id,
+                    'rut': cliente.rut,
+                    'nombre': cliente.nombre,
+                    'giro': cliente.giro,
+                    'direccion': cliente.direccion,
+                    'comuna': cliente.comuna,
+                    'ciudad': cliente.ciudad,
+                    'telefono': cliente.telefono,
+                    'email': cliente.email
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Error al crear cliente: {str(e)}'})
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
+
+@login_required
+@requiere_empresa
+def pos_procesar_preventa(request):
+    """Procesar preventa"""
+    print("=== INICIANDO PROCESAMIENTO DE PREVENTA ===")
+    print(f"DEBUG - Método: {request.method}")
+    print(f"DEBUG - Usuario: {request.user}")
+    print(f"DEBUG - Empresa: {request.empresa}")
+    
+    if request.method == 'POST':
+        try:
+            import json
+            from clientes.models import Cliente
+            from articulos.models import Articulo
+            
+            print("DEBUG - Parseando JSON...")
+            data = json.loads(request.body)
+            print("DEBUG - JSON parseado correctamente")
+            
+            # Obtener estación y vendedor
+            print("DEBUG - Buscando estación...")
+            estacion = EstacionTrabajo.objects.get(id=data['estacion_id'], empresa=request.empresa)
+            print(f"DEBUG - Estación encontrada: {estacion.nombre}")
+            
+            print("DEBUG - Buscando vendedor...")
+            vendedor = Vendedor.objects.get(id=data['vendedor_id'], empresa=request.empresa)
+            print(f"DEBUG - Vendedor encontrado: {vendedor.nombre}")
+            
+            print("DEBUG - Buscando cliente...")
+            cliente = Cliente.objects.get(id=data['cliente_id'], empresa=request.empresa)
+            print(f"DEBUG - Cliente encontrado: {cliente.nombre}")
+            
+            # Generar número de preventa usando correlativo de ticket de la estación
+            numero_ticket = estacion.incrementar_correlativo_ticket()
+            proximo_numero = f"{int(numero_ticket):06d}"
+            
+            # Debug: verificar datos recibidos
+            print(f"DEBUG - Datos recibidos:")
+            print(f"  Estacion ID: {data['estacion_id']} (tipo: {type(data['estacion_id'])})")
+            print(f"  Vendedor ID: {data['vendedor_id']} (tipo: {type(data['vendedor_id'])})")
+            print(f"  Cliente ID: {data['cliente_id']} (tipo: {type(data['cliente_id'])})")
+            print(f"  Items: {len(data['items'])}")
+            for i, item in enumerate(data['items']):
+                print(f"    Item {i}: {item}")
+            print(f"  Totales: {data['totales']}")
+            
+            # Convertir valores a Decimal para evitar errores de tipo
+            from decimal import Decimal
+            
+            # Crear preventa
+            preventa = Venta.objects.create(
+                empresa=request.empresa,
+                numero_venta=proximo_numero,
+                cliente=cliente,
+                vendedor=vendedor,
+                estacion_trabajo=estacion,
+                tipo_documento=data['tipo_documento'],
+                subtotal=Decimal(str(data['totales']['subtotal'])),
+                descuento=Decimal(str(data['totales']['descuento'])),
+                neto=Decimal(str(data['totales']['neto'])),
+                iva=Decimal(str(data['totales']['iva'])),
+                impuesto_especifico=Decimal('0.00'),
+                total=Decimal(str(data['totales']['total'])),
+                estado='borrador',
+                estado_cotizacion='pendiente' if data['tipo_documento'] == 'cotizacion' else None,
+                usuario_creacion=request.user
+            )
+            
+            # Crear detalles
+            print("DEBUG - Creando detalles de venta...")
+            for i, item in enumerate(data['items']):
+                print(f"DEBUG - Procesando item {i}: {item}")
+                print(f"DEBUG - Buscando artículo ID: {item['articuloId']}")
+                articulo = Articulo.objects.get(id=item['articuloId'], empresa=request.empresa)
+                print(f"DEBUG - Artículo encontrado: {articulo.nombre}")
+                
+                print(f"DEBUG - Creando VentaDetalle...")
+                print(f"DEBUG - Valores a crear:")
+                print(f"  cantidad: {Decimal(str(item['cantidad']))}")
+                print(f"  precio_unitario: {Decimal(str(item['precio']))}")
+                print(f"  precio_total: {Decimal(str(item['total']))}")
+                
+                try:
+                    VentaDetalle.objects.create(
+                        venta=preventa,
+                        articulo=articulo,
+                        cantidad=Decimal(str(item['cantidad'])),
+                        precio_unitario=Decimal(str(item['precio'])),
+                        precio_total=Decimal(str(item['total'])),
+                        impuesto_especifico=Decimal('0.00')
+                    )
+                    print(f"DEBUG - VentaDetalle creado exitosamente")
+                except Exception as e:
+                    print(f"ERROR al crear VentaDetalle: {e}")
+                    print(f"Tipo de error: {type(e)}")
+                    raise e
+            
+            return JsonResponse({
+                'success': True,
+                'numero_preventa': proximo_numero,
+                'tipo_documento': data['tipo_documento'],
+                'preventa_id': preventa.id
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Error al procesar preventa: {str(e)}'})
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
+
+# ========== ESTACIONES DE TRABAJO ==========
+
+@login_required
+@requiere_empresa
+def estaciontrabajo_list(request):
+    """Lista de estaciones de trabajo"""
+    estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa).order_by('numero')
+    
+    # Búsqueda
+    search = request.GET.get('search', '')
+    if search:
+        estaciones = estaciones.filter(
+            Q(numero__icontains=search) |
+            Q(nombre__icontains=search)
+        )
+    
+    # Paginación
+    paginator = Paginator(estaciones, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+    }
+    
+    return render(request, 'ventas/estaciontrabajo_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def estaciontrabajo_create(request):
+    """Crear nueva estación de trabajo"""
+    if request.method == 'POST':
+        form = EstacionTrabajoForm(request.POST)
+        if form.is_valid():
+            estacion = form.save(commit=False)
+            estacion.empresa = request.empresa
+            estacion.save()
+            response = JsonResponse({'success': True, 'message': 'Estación de trabajo creada exitosamente'})
+            response['Content-Type'] = 'application/json'
+            return response
+        else:
+            response = JsonResponse({'success': False, 'errors': form.errors})
+            response['Content-Type'] = 'application/json'
+            return response
+    
+    form = EstacionTrabajoForm()
+    return render(request, 'ventas/estaciontrabajo_form.html', {'form': form, 'title': 'Nueva Estación de Trabajo'})
+
+
+@login_required
+@requiere_empresa
+def estaciontrabajo_detail(request, pk):
+    """Detalle de estación de trabajo"""
+    try:
+        estacion = EstacionTrabajo.objects.get(pk=pk, empresa=request.empresa)
+        return render(request, 'ventas/estaciontrabajo_detail.html', {'estacion': estacion})
+    except EstacionTrabajo.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Estación de trabajo no encontrada'})
+
+
+@login_required
+@requiere_empresa
+def estaciontrabajo_edit(request, pk):
+    """Editar estación de trabajo"""
+    try:
+        estacion = EstacionTrabajo.objects.get(pk=pk, empresa=request.empresa)
+        
+        if request.method == 'POST':
+            form = EstacionTrabajoForm(request.POST, instance=estacion)
+            if form.is_valid():
+                form.save()
+                response = JsonResponse({'success': True, 'message': 'Estación de trabajo actualizada exitosamente'})
+                response['Content-Type'] = 'application/json'
+                return response
+            else:
+                response = JsonResponse({'success': False, 'errors': form.errors})
+                response['Content-Type'] = 'application/json'
+                return response
+        
+        # Para peticiones GET, devolver HTML del formulario
+        form = EstacionTrabajoForm(instance=estacion)
+        return render(request, 'ventas/estaciontrabajo_form.html', {'form': form, 'title': 'Editar Estación de Trabajo', 'estacion': estacion})
+    
+    except EstacionTrabajo.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Estación de trabajo no encontrada'})
+
+
+@login_required
+@requiere_empresa
+def estaciontrabajo_delete(request, pk):
+    """Eliminar estación de trabajo"""
+    if request.method == 'POST':
+        try:
+            estacion = EstacionTrabajo.objects.get(pk=pk, empresa=request.empresa)
+            estacion.delete()
+            response = JsonResponse({'success': True, 'message': 'Estación de trabajo eliminada exitosamente'})
+            response['Content-Type'] = 'application/json'
+            return response
+        except EstacionTrabajo.DoesNotExist:
+            response = JsonResponse({'success': False, 'message': 'Estación de trabajo no encontrada'})
+            response['Content-Type'] = 'application/json'
+            return response
+    
+    response = JsonResponse({'success': False, 'message': 'Método no permitido'})
+    response['Content-Type'] = 'application/json'
+    return response
+
+
+# ========== COTIZACIONES ==========
+
+@login_required
+@requiere_empresa
+def cotizacion_list(request):
+    """Lista de cotizaciones"""
+    cotizaciones = Venta.objects.filter(
+        empresa=request.empresa,
+        tipo_documento='cotizacion'
+    ).order_by('-fecha_creacion')
+    
+    # Filtro por estado - por defecto excluir rechazadas
+    estado = request.GET.get('estado', '')
+    if estado:
+        cotizaciones = cotizaciones.filter(estado_cotizacion=estado)
+    else:
+        # Por defecto, excluir las rechazadas
+        cotizaciones = cotizaciones.exclude(estado_cotizacion='rechazada')
+    
+    # Búsqueda
+    search = request.GET.get('search', '')
+    if search:
+        cotizaciones = cotizaciones.filter(
+            Q(numero_venta__icontains=search) |
+            Q(cliente__nombre__icontains=search) |
+            Q(cliente__rut__icontains=search)
+        )
+    
+    # Paginación
+    paginator = Paginator(cotizaciones, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Opciones de estado para el filtro
+    ESTADO_CHOICES = [
+        ('', 'Todos los estados'),
+        ('pendiente', 'Pendiente'),
+        ('enviada', 'Enviada'),
+        ('aceptada', 'Aceptada'),
+        ('rechazada', 'Rechazada'),
+        ('vencida', 'Vencida'),
+        ('convertida', 'Convertida'),
+    ]
+    
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+        'estado': estado,
+        'estado_choices': ESTADO_CHOICES,
+    }
+    
+    return render(request, 'ventas/cotizacion_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def cotizacion_detail(request, pk):
+    """Detalle de cotización"""
+    cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
+    detalles = VentaDetalle.objects.filter(venta=cotizacion).select_related('articulo')
+    
+    context = {
+        'cotizacion': cotizacion,
+        'detalles': detalles,
+    }
+    
+    return render(request, 'ventas/cotizacion_detail.html', context)
+
+
+@login_required
+@requiere_empresa
+def cotizacion_pdf(request, pk):
+    """Generar PDF de cotización"""
+    cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
+    detalles = VentaDetalle.objects.filter(venta=cotizacion).select_related('articulo')
+    
+    # Crear buffer para el PDF
+    buffer = io.BytesIO()
+    
+    # Crear documento PDF
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=72,
+        leftMargin=72,
+        topMargin=72,
+        bottomMargin=18
+    )
+    
+    # Estilos
+    styles = getSampleStyleSheet()
+    
+    # Estilo personalizado para el título
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#2c3e50')
+    )
+    
+    # Estilo para subtítulos
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceAfter=12,
+        textColor=colors.HexColor('#34495e')
+    )
+    
+    # Estilo para texto normal
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=6
+    )
+    
+    # Contenido del PDF
+    story = []
+    
+    # Logo de la empresa (si existe)
+    if cotizacion.empresa.logo:
+        try:
+            logo_path = cotizacion.empresa.logo.path
+            logo = Image(logo_path, width=2*inch, height=1*inch)
+            logo.hAlign = 'CENTER'
+            story.append(logo)
+            story.append(Spacer(1, 20))
+        except:
+            pass
+    
+    # Título
+    story.append(Paragraph("COTIZACIÓN", title_style))
+    story.append(Spacer(1, 20))
+    
+    # Información de la empresa
+    empresa_info = f"""
+    <b>{cotizacion.empresa.razon_social}</b><br/>
+    RUT: {cotizacion.empresa.rut}<br/>
+    {cotizacion.empresa.direccion}<br/>
+    {cotizacion.empresa.comuna}, {cotizacion.empresa.ciudad}<br/>
+    Teléfono: {cotizacion.empresa.telefono}<br/>
+    Email: {cotizacion.empresa.email}
+    """
+    story.append(Paragraph(empresa_info, normal_style))
+    story.append(Spacer(1, 20))
+    
+    # Información de la cotización
+    cotizacion_info = f"""
+    <b>Número de Cotización:</b> {cotizacion.numero_venta}<br/>
+    <b>Fecha:</b> {cotizacion.fecha.strftime('%d/%m/%Y')}<br/>
+    <b>Válida hasta:</b> {(cotizacion.fecha + timezone.timedelta(days=30)).strftime('%d/%m/%Y')}<br/>
+    <b>Vendedor:</b> {cotizacion.vendedor.nombre if cotizacion.vendedor else 'No asignado'}
+    """
+    story.append(Paragraph(cotizacion_info, normal_style))
+    story.append(Spacer(1, 20))
+    
+    # Información del cliente
+    if cotizacion.cliente:
+        cliente_info = f"""
+        <b>Cliente:</b><br/>
+        {cotizacion.cliente.nombre}<br/>
+        RUT: {cotizacion.cliente.rut}<br/>
+        {cotizacion.cliente.direccion}<br/>
+        {cotizacion.cliente.comuna}, {cotizacion.cliente.ciudad}<br/>
+        Teléfono: {cotizacion.cliente.telefono}<br/>
+        Email: {cotizacion.cliente.email}
+        """
+        story.append(Paragraph(cliente_info, normal_style))
+        story.append(Spacer(1, 20))
+    
+    # Tabla de productos
+    story.append(Paragraph("DETALLE DE PRODUCTOS", subtitle_style))
+    
+    # Datos de la tabla
+    table_data = [['Código', 'Descripción', 'Cantidad', 'Precio Unit.', 'Total']]
+    
+    for detalle in detalles:
+        table_data.append([
+            detalle.articulo.codigo,
+            detalle.articulo.descripcion,
+            str(detalle.cantidad),
+            f"${detalle.precio_unitario:,.0f}".replace(',', '.'),
+            f"${detalle.precio_total:,.0f}".replace(',', '.')
+        ])
+    
+    # Crear tabla
+    table = Table(table_data, colWidths=[1*inch, 3*inch, 0.8*inch, 1*inch, 1*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+    ]))
+    
+    story.append(table)
+    story.append(Spacer(1, 20))
+    
+    # Totales
+    totales_data = [
+        ['', '', '', 'Subtotal:', f"${cotizacion.subtotal:,.0f}".replace(',', '.')],
+        ['', '', '', 'Descuento:', f"${cotizacion.descuento:,.0f}".replace(',', '.')],
+        ['', '', '', 'Neto:', f"${cotizacion.neto:,.0f}".replace(',', '.')],
+        ['', '', '', 'IVA (19%):', f"${cotizacion.iva:,.0f}".replace(',', '.')],
+        ['', '', '', 'Imp. Específico:', f"${cotizacion.impuesto_especifico:,.0f}".replace(',', '.')],
+        ['', '', '', 'TOTAL:', f"${cotizacion.total:,.0f}".replace(',', '.')],
+    ]
+    
+    totales_table = Table(totales_data, colWidths=[1*inch, 3*inch, 0.8*inch, 1*inch, 1*inch])
+    totales_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, -1), (-1, -1), 12),
+        ('LINEABOVE', (0, -1), (-1, -1), 2, colors.black),
+    ]))
+    
+    story.append(totales_table)
+    story.append(Spacer(1, 30))
+    
+    # Observaciones
+    if cotizacion.observaciones:
+        story.append(Paragraph("OBSERVACIONES", subtitle_style))
+        story.append(Paragraph(cotizacion.observaciones, normal_style))
+        story.append(Spacer(1, 20))
+    
+    # Términos y condiciones
+    terminos = """
+    <b>TÉRMINOS Y CONDICIONES:</b><br/>
+    • Esta cotización tiene una validez de 30 días desde su emisión.<br/>
+    • Los precios están expresados en pesos chilenos e incluyen IVA.<br/>
+    • Los productos están sujetos a disponibilidad de stock.<br/>
+    • El pago debe realizarse según las condiciones acordadas.<br/>
+    • Cualquier modificación debe ser aprobada por escrito.
+    """
+    story.append(Paragraph(terminos, normal_style))
+    
+    # Construir PDF
+    doc.build(story)
+    
+    # Obtener el PDF del buffer
+    pdf = buffer.getvalue()
+    buffer.close()
+    
+    # Crear respuesta HTTP
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="cotizacion_{cotizacion.numero_venta}.pdf"'
+    
+    return response
+
+
+@login_required
+@requiere_empresa
+def cotizacion_html(request, pk):
+    """Vista HTML de cotización"""
+    cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
+    detalles = VentaDetalle.objects.filter(venta=cotizacion).select_related('articulo')
+    
+    context = {
+        'cotizacion': cotizacion,
+        'detalles': detalles,
+    }
+    
+    return render(request, 'ventas/cotizacion_html.html', context)
+
+
+@login_required
+@requiere_empresa
+def cotizacion_cambiar_estado(request, pk):
+    """Cambiar estado de una cotización"""
+    cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
+    
+    if request.method == 'POST':
+        nuevo_estado = request.POST.get('estado')
+        if nuevo_estado in ['pendiente', 'enviada', 'aceptada', 'rechazada', 'vencida']:
+            cotizacion.estado_cotizacion = nuevo_estado
+            cotizacion.save()
+            
+            messages.success(request, f'Estado de cotización actualizado a: {cotizacion.get_estado_cotizacion_display()}')
+            return redirect('ventas:cotizacion_detail', pk=cotizacion.pk)
+    
+    context = {
+        'cotizacion': cotizacion,
+        'estados': Venta.ESTADO_COTIZACION_CHOICES
+    }
+    
+    return render(request, 'ventas/cotizacion_cambiar_estado.html', context)
+
+
+@login_required
+@requiere_empresa
+def cotizacion_convertir_venta(request, pk):
+    """Convertir cotización en venta"""
+    cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
+    
+    if request.method == 'POST':
+        tipo_venta = request.POST.get('tipo_venta')
+        
+        if tipo_venta in ['factura', 'boleta', 'guia']:
+            # Crear nueva venta basada en la cotización
+            nueva_venta = Venta.objects.create(
+                empresa=cotizacion.empresa,
+                numero_venta=f"V{cotizacion.numero_venta}",
+                cliente=cotizacion.cliente,
+                vendedor=cotizacion.vendedor,
+                estacion_trabajo=cotizacion.estacion_trabajo,
+                tipo_documento=tipo_venta,
+                subtotal=cotizacion.subtotal,
+                descuento=cotizacion.descuento,
+                neto=cotizacion.neto,
+                iva=cotizacion.iva,
+                impuesto_especifico=cotizacion.impuesto_especifico,
+                total=cotizacion.total,
+                estado='confirmada',
+                observaciones=f"Convertida desde cotización #{cotizacion.numero_venta}",
+                usuario_creacion=request.user
+            )
+            
+            # Copiar detalles
+            for detalle in cotizacion.ventadetalle_set.all():
+                VentaDetalle.objects.create(
+                    venta=nueva_venta,
+                    articulo=detalle.articulo,
+                    cantidad=detalle.cantidad,
+                    precio_unitario=detalle.precio_unitario,
+                    precio_total=detalle.precio_total,
+                    impuesto_especifico=detalle.impuesto_especifico
+                )
+            
+            # Actualizar estado de la cotización
+            cotizacion.estado_cotizacion = 'convertida'
+            cotizacion.save()
+            
+            messages.success(request, f'Cotización convertida en {tipo_venta} #{nueva_venta.numero_venta}')
+            return redirect('ventas:cotizacion_detail', pk=cotizacion.pk)
+    
+    context = {
+        'cotizacion': cotizacion,
+        'tipos_venta': [
+            ('factura', 'Factura'),
+            ('boleta', 'Boleta'),
+            ('guia', 'Guía de Despacho'),
+        ]
+    }
+    
+    return render(request, 'ventas/cotizacion_convertir_venta.html', context)

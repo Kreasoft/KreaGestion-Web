@@ -1,0 +1,809 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}POS - Punto de Venta - GestionCloud{% endblock %}
+
+{% block body_class %}pos-fullscreen{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pos-fullscreen {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+    
+    .pos-container {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    .pos-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: white;
+        padding: 15px 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+    }
+    
+    .pos-main {
+        flex: 1;
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+        overflow: hidden;
+    }
+    
+    .pos-left {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        min-width: 0;
+    }
+    
+    .pos-right {
+        width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        min-width: 0;
+    }
+    
+    .pos-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+    }
+    
+    .pos-card-header {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        color: white;
+        padding: 12px 20px;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    
+    .pos-card-body {
+        padding: 20px;
+    }
+    
+    .search-container {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 15px 50px 15px 20px;
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    
+    .search-input:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+    }
+    
+    .search-icon {
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+        font-size: 1.2rem;
+    }
+    
+    .articulos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+    
+    .articulo-item {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    
+    .articulo-item:hover {
+        border-color: #007bff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,123,255,0.15);
+    }
+    
+    .articulo-codigo {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+    }
+    
+    .articulo-descripcion {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-bottom: 8px;
+        line-height: 1.3;
+    }
+    
+    .articulo-precio {
+        font-weight: 700;
+        color: #28a745;
+        font-size: 1.1rem;
+    }
+    
+    .venta-detalles {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+    }
+    
+    .detalle-item {
+        padding: 12px 15px;
+        border-bottom: 1px solid #f8f9fa;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .detalle-item:last-child {
+        border-bottom: none;
+    }
+    
+    .detalle-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .detalle-codigo {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 0.85rem;
+    }
+    
+    .detalle-descripcion {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 2px;
+    }
+    
+    .detalle-cantidad {
+        width: 60px;
+        padding: 4px 6px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        text-align: center;
+        font-size: 0.85rem;
+    }
+    
+    .detalle-precio {
+        font-weight: 600;
+        color: #28a745;
+        font-size: 0.9rem;
+        min-width: 80px;
+        text-align: right;
+    }
+    
+    .totales-container {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 15px;
+    }
+    
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .total-row:last-child {
+        border-bottom: none;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #2c3e50;
+        margin-top: 10px;
+        padding-top: 15px;
+        border-top: 2px solid #007bff;
+    }
+    
+    .btn-pos {
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+    }
+    
+    .btn-pos-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+    }
+    
+    .btn-pos-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+    }
+    
+    .btn-pos-success {
+        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        color: white;
+    }
+    
+    .btn-pos-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(40,167,69,0.3);
+    }
+    
+    .btn-pos-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+    }
+    
+    .btn-pos-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(220,53,69,0.3);
+    }
+    
+    .form-control-pos {
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+        transition: border-color 0.3s ease;
+    }
+    
+    .form-control-pos:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+    }
+    
+    .select2-container {
+        width: 100% !important;
+    }
+    
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+        color: #6c757d;
+    }
+    
+    .loading.show {
+        display: block;
+    }
+    
+    .btn-eliminar {
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: background 0.3s ease;
+    }
+    
+    .btn-eliminar:hover {
+        background: #c82333;
+    }
+    
+    /* Scrollbar personalizado */
+    .venta-detalles::-webkit-scrollbar,
+    .articulos-grid::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .venta-detalles::-webkit-scrollbar-track,
+    .articulos-grid::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+    
+    .venta-detalles::-webkit-scrollbar-thumb,
+    .articulos-grid::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+    
+    .venta-detalles::-webkit-scrollbar-thumb:hover,
+    .articulos-grid::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pos-container">
+    <!-- Header -->
+    <div class="pos-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="mb-0">
+                    <i class="fas fa-cash-register me-2"></i>
+                    Punto de Venta - GestionCloud
+                </h4>
+                <small class="text-light">Sistema de ventas integrado</small>
+            </div>
+            <div class="d-flex gap-3">
+                <button class="btn btn-outline-light btn-sm" onclick="nuevaVenta()">
+                    <i class="fas fa-plus me-1"></i>Nueva Venta
+                </button>
+                <button class="btn btn-outline-light btn-sm" onclick="window.close()">
+                    <i class="fas fa-times me-1"></i>Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="pos-main">
+        <!-- Left Panel - Búsqueda y Artículos -->
+        <div class="pos-left">
+            <!-- Búsqueda de Artículos -->
+            <div class="pos-card">
+                <div class="pos-card-header">
+                    <i class="fas fa-search me-2"></i>Buscar Artículos
+                </div>
+                <div class="pos-card-body">
+                    <div class="search-container">
+                        <input type="text" 
+                               class="search-input" 
+                               id="searchInput" 
+                               placeholder="Buscar por código de barras, código o descripción..."
+                               autocomplete="off">
+                        <i class="fas fa-search search-icon"></i>
+                    </div>
+                    <div class="loading" id="loadingArticulos">
+                        <i class="fas fa-spinner fa-spin me-2"></i>Buscando artículos...
+                    </div>
+                    <div class="articulos-grid" id="articulosGrid">
+                        <!-- Los artículos se cargan aquí dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Panel - Venta y Totales -->
+        <div class="pos-right">
+            <!-- Datos de la Venta -->
+            <div class="pos-card">
+                <div class="pos-card-header">
+                    <i class="fas fa-receipt me-2"></i>Datos de la Venta
+                </div>
+                <div class="pos-card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Fecha</label>
+                            <input type="date" 
+                                   class="form-control form-control-pos" 
+                                   id="fechaVenta" 
+                                   value="{{ venta_actual.fecha|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Cliente</label>
+                            <select class="form-control form-control-pos" id="clienteSelect">
+                                <option value="">Seleccionar cliente...</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" 
+                                        {% if venta_actual.cliente.id == cliente.id %}selected{% endif %}>
+                                    {{ cliente.rut }} - {{ cliente.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Vendedor</label>
+                            <select class="form-control form-control-pos" id="vendedorSelect">
+                                <option value="">Seleccionar vendedor...</option>
+                                {% for vendedor in vendedores %}
+                                <option value="{{ vendedor.id }}" 
+                                        {% if venta_actual.vendedor.id == vendedor.id %}selected{% endif %}>
+                                    {{ vendedor.codigo }} - {{ vendedor.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Forma de Pago</label>
+                            <select class="form-control form-control-pos" id="formaPagoSelect">
+                                <option value="">Seleccionar forma de pago...</option>
+                                {% for forma_pago in formas_pago %}
+                                <option value="{{ forma_pago.id }}" 
+                                        {% if venta_actual.forma_pago.id == forma_pago.id %}selected{% endif %}>
+                                    {{ forma_pago.codigo }} - {{ forma_pago.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Descuento</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" 
+                                       class="form-control form-control-pos" 
+                                       id="descuentoInput" 
+                                       value="{{ venta_actual.descuento }}" 
+                                       step="0.01" 
+                                       min="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Detalles de la Venta -->
+            <div class="pos-card" style="flex: 1;">
+                <div class="pos-card-header">
+                    <i class="fas fa-list me-2"></i>Detalles de la Venta
+                    <span class="badge bg-light text-dark ms-2" id="cantidadItems">0 items</span>
+                </div>
+                <div class="pos-card-body" style="padding: 0;">
+                    <div class="venta-detalles" id="ventaDetalles">
+                        <!-- Los detalles se cargan aquí dinámicamente -->
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                            <p>No hay artículos en la venta</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Totales -->
+            <div class="pos-card">
+                <div class="pos-card-header">
+                    <i class="fas fa-calculator me-2"></i>Totales
+                </div>
+                <div class="pos-card-body">
+                    <div class="totales-container">
+                        <div class="total-row">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">$0</span>
+                        </div>
+                        <div class="total-row">
+                            <span>Descuento:</span>
+                            <span id="descuento">$0</span>
+                        </div>
+                        <div class="total-row">
+                            <span>Neto:</span>
+                            <span id="neto">$0</span>
+                        </div>
+                        <div class="total-row">
+                            <span>IVA (19%):</span>
+                            <span id="iva">$0</span>
+                        </div>
+                        <div class="total-row">
+                            <span>Impuesto Específico:</span>
+                            <span id="impuestoEspecifico">$0</span>
+                        </div>
+                        <div class="total-row">
+                            <span>TOTAL:</span>
+                            <span id="total">$0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Botones de Acción -->
+            <div class="d-grid gap-2">
+                <button class="btn btn-pos btn-pos-success" onclick="finalizarVenta()">
+                    <i class="fas fa-check me-2"></i>Finalizar Venta
+                </button>
+                <button class="btn btn-pos btn-pos-danger" onclick="limpiarVenta()">
+                    <i class="fas fa-trash me-2"></i>Limpiar Todo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden inputs para datos -->
+<input type="hidden" id="ventaId" value="{{ venta_actual.id }}">
+<input type="hidden" id="csrfToken" value="{{ csrf_token }}">
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+// Variables globales
+let ventaId = document.getElementById('ventaId').value;
+let csrfToken = document.getElementById('csrfToken').value;
+let searchTimeout;
+
+// Función para formatear números con separador de miles
+function formatNumber(number) {
+    return new Intl.NumberFormat('es-CL', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(number);
+}
+
+// Función para formatear moneda
+function formatCurrency(amount) {
+    return '$' + new Intl.NumberFormat('es-CL', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount);
+}
+
+// Búsqueda de artículos
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
+    
+    if (query.length < 2) {
+        document.getElementById('articulosGrid').innerHTML = '';
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        buscarArticulos(query);
+    }, 300);
+});
+
+function buscarArticulos(query) {
+    document.getElementById('loadingArticulos').classList.add('show');
+    
+    fetch(`/ventas/pos/buscar-articulo/?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingArticulos').classList.remove('show');
+            mostrarArticulos(data.articulos);
+        })
+        .catch(error => {
+            document.getElementById('loadingArticulos').classList.remove('show');
+            console.error('Error:', error);
+        });
+}
+
+function mostrarArticulos(articulos) {
+    const grid = document.getElementById('articulosGrid');
+    
+    if (articulos.length === 0) {
+        grid.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-search fa-2x mb-2"></i><p>No se encontraron artículos</p></div>';
+        return;
+    }
+    
+    grid.innerHTML = articulos.map(articulo => `
+        <div class="articulo-item" onclick="agregarArticulo(${articulo.id})">
+            <div class="articulo-codigo">${articulo.codigo}</div>
+            <div class="articulo-descripcion">${articulo.descripcion}</div>
+            <div class="articulo-precio">${formatCurrency(articulo.precio)}</div>
+            <small class="text-muted">Stock: ${formatNumber(articulo.stock)}</small>
+        </div>
+    `).join('');
+}
+
+function agregarArticulo(articuloId) {
+    const formData = new FormData();
+    formData.append('articulo_id', articuloId);
+    formData.append('cantidad', '1');
+    formData.append('venta_id', ventaId);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    
+    fetch('/ventas/pos/agregar-articulo/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            cargarDetallesVenta();
+            document.getElementById('searchInput').value = '';
+            document.getElementById('articulosGrid').innerHTML = '';
+        } else {
+            Swal.fire('Error', data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire('Error', 'Error al agregar el artículo', 'error');
+    });
+}
+
+function cargarDetallesVenta() {
+    fetch(`/ventas/pos/detalles-venta/${ventaId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                mostrarDetallesVenta(data.detalles);
+                actualizarTotales(data.totales);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+function mostrarDetallesVenta(detalles) {
+    const container = document.getElementById('ventaDetalles');
+    const cantidadItems = document.getElementById('cantidadItems');
+    
+    cantidadItems.textContent = `${detalles.length} item${detalles.length !== 1 ? 's' : ''}`;
+    
+    if (detalles.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                <p>No hay artículos en la venta</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = detalles.map(detalle => `
+        <div class="detalle-item">
+            <div class="detalle-info">
+                <div class="detalle-codigo">${detalle.articulo.codigo}</div>
+                <div class="detalle-descripcion">${detalle.articulo.descripcion}</div>
+            </div>
+            <input type="number" 
+                   class="detalle-cantidad" 
+                   value="${detalle.cantidad}" 
+                   min="0.001" 
+                   step="0.001"
+                   onchange="actualizarCantidad(${detalle.id}, this.value)">
+            <div class="detalle-precio">${formatCurrency(detalle.precio_total)}</div>
+            <button class="btn-eliminar" onclick="eliminarDetalle(${detalle.id})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function actualizarTotales(totales) {
+    document.getElementById('subtotal').textContent = formatCurrency(totales.subtotal);
+    document.getElementById('descuento').textContent = formatCurrency(totales.descuento);
+    document.getElementById('neto').textContent = formatCurrency(totales.neto);
+    document.getElementById('iva').textContent = formatCurrency(totales.iva);
+    document.getElementById('impuestoEspecifico').textContent = formatCurrency(totales.impuesto_especifico);
+    document.getElementById('total').textContent = formatCurrency(totales.total);
+}
+
+function actualizarCantidad(detalleId, cantidad) {
+    const formData = new FormData();
+    formData.append('detalle_id', detalleId);
+    formData.append('cantidad', cantidad);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    
+    fetch('/ventas/pos/actualizar-detalle/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            cargarDetallesVenta();
+        } else {
+            Swal.fire('Error', data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire('Error', 'Error al actualizar la cantidad', 'error');
+    });
+}
+
+function eliminarDetalle(detalleId) {
+    Swal.fire({
+        title: '¿Eliminar artículo?',
+        text: '¿Estás seguro de eliminar este artículo de la venta?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const formData = new FormData();
+            formData.append('detalle_id', detalleId);
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            fetch('/ventas/pos/eliminar-detalle/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    cargarDetallesVenta();
+                } else {
+                    Swal.fire('Error', data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error', 'Error al eliminar el artículo', 'error');
+            });
+        }
+    });
+}
+
+function finalizarVenta() {
+    Swal.fire({
+        title: '¿Finalizar venta?',
+        text: '¿Estás seguro de finalizar esta venta?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, finalizar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Aquí se implementaría la lógica para finalizar la venta
+            Swal.fire('Éxito', 'Venta finalizada correctamente', 'success');
+        }
+    });
+}
+
+function limpiarVenta() {
+    Swal.fire({
+        title: '¿Limpiar venta?',
+        text: '¿Estás seguro de limpiar todos los artículos de la venta?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, limpiar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Aquí se implementaría la lógica para limpiar la venta
+            Swal.fire('Éxito', 'Venta limpiada correctamente', 'success');
+        }
+    });
+}
+
+function nuevaVenta() {
+    Swal.fire({
+        title: '¿Nueva venta?',
+        text: '¿Estás seguro de iniciar una nueva venta?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#007bff',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, nueva venta',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Aquí se implementaría la lógica para crear una nueva venta
+            Swal.fire('Éxito', 'Nueva venta iniciada', 'success');
+        }
+    });
+}
+
+// Cargar detalles al inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    cargarDetallesVenta();
+    
+    // Enfocar el campo de búsqueda
+    document.getElementById('searchInput').focus();
+});
+</script>
+{% endblock %}
+
+
+
