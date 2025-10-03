@@ -254,6 +254,25 @@ class Articulo(models.Model):
             return Decimal(value_str)
         except:
             return Decimal('0')
+    
+    @property
+    def stock_actual(self):
+        """Retorna el stock actual del artículo (suma de todas las sucursales)"""
+        try:
+            from empresas.models import Sucursal
+            # Obtener todas las sucursales de la empresa
+            sucursales = Sucursal.objects.filter(empresa=self.empresa, estado='activa')
+            
+            # Sumar el stock de todas las sucursales
+            total_stock = 0
+            for sucursal in sucursales:
+                stock_obj = self.stock_articulos.filter(sucursal=sucursal).first()
+                if stock_obj:
+                    total_stock += float(stock_obj.cantidad_disponible)
+            
+            return int(total_stock)
+        except:
+            return 0
 
 
 class StockArticulo(models.Model):

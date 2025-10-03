@@ -32,4 +32,8 @@ urlpatterns = [
     # Cálculos de Precios
     path('calcular-precios/', views.calcular_precios_articulo, name='calcular_precios_articulo'),
     
+    # Impuesto específico de categoría
+    path('categoria/<int:categoria_id>/impuesto-especifico/', views.categoria_impuesto_especifico, name='categoria_impuesto_especifico'),
+    path('buscar-por-codigo-barras/', views.buscar_por_codigo_barras, name='buscar_por_codigo_barras'),
+    
 ]

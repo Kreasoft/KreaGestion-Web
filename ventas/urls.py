@@ -46,11 +46,15 @@ urlpatterns = [
     path('pos/crear-cliente/', views.pos_crear_cliente, name='pos_crear_cliente'),
     path('pos/procesar-preventa/', views.pos_procesar_preventa, name='pos_procesar_preventa'),
     
+    # Vales
+    path('vales/<int:pk>/html/', views.vale_html, name='vale_html'),
+    
     # Cotizaciones
     path('cotizaciones/', views.cotizacion_list, name='cotizacion_list'),
     path('cotizaciones/<int:pk>/', views.cotizacion_detail, name='cotizacion_detail'),
     path('cotizaciones/<int:pk>/pdf/', views.cotizacion_pdf, name='cotizacion_pdf'),
     path('cotizaciones/<int:pk>/html/', views.cotizacion_html, name='cotizacion_html'),
+    path('cotizaciones/<int:pk>/debug/', views.cotizacion_html_debug, name='cotizacion_html_debug'),
     path('cotizaciones/<int:pk>/cambiar-estado/', views.cotizacion_cambiar_estado, name='cotizacion_cambiar_estado'),
     path('cotizaciones/<int:pk>/convertir-venta/', views.cotizacion_convertir_venta, name='cotizacion_convertir_venta'),
 ]

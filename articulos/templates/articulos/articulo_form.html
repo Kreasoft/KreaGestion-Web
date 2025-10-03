@@ -267,16 +267,19 @@
                                         <!-- Impuesto Específico -->
                                         <div class="col-md-2">
                                             <div class="mb-3">
-                                                <label class="form-label">
+                                                <label for="{{ form.impuesto_especifico.id_for_label }}" class="form-label">
                                                     <i class="fas fa-receipt me-1"></i>Impuesto Específico
                                                 </label>
                                                 <div class="input-group">
                                                     <div class="input-group-text" style="background-color: #fff3cd; border-color: #ffc107;">
                                                         <i class="fas fa-file-invoice-dollar" style="color: #856404;"></i>
                                                     </div>
-                                                    <input type="text" id="id_impuesto_especifico" class="form-control" placeholder="0.00" oninput="calcularPrecios()" style="border-left: none;">
+                                                    {{ form.impuesto_especifico|add_class:"form-control"|attr:"placeholder:0.00"|attr:"oninput:calcularPrecios()"|attr:"style:border-left: none;" }}
                                                 </div>
-                                                <div class="form-text">Impuesto específico (opcional)</div>
+                                                <div class="form-text">Impuesto específico (se llena automáticamente)</div>
+                                                {% if form.impuesto_especifico.errors %}
+                                                    <div class="text-danger">{{ form.impuesto_especifico.errors.0 }}</div>
+                                                {% endif %}
                                             </div>
                                         </div>
                                         
@@ -556,8 +559,53 @@ function removeLogoPreview() {
         }
     }
 
+    // Variable global para almacenar el porcentaje de impuesto específico
+    let impuestoEspecificoPorcentaje = 0;
+    
+    // Función para obtener impuesto específico de la categoría
+    function obtenerImpuestoEspecificoCategoria() {
+        const categoriaSelect = document.getElementById('id_categoria');
+        const categoriaId = categoriaSelect.value;
+        
+        if (!categoriaId) {
+            impuestoEspecificoPorcentaje = 0;
+            const impuestoField = document.getElementById('id_impuesto_especifico');
+            if (impuestoField) {
+                impuestoField.value = '0.00';
+            }
+            calcularPrecios();
+            return;
+        }
+        
+        // Obtener el impuesto específico de la categoría desde el servidor
+        fetch(`/articulos/categoria/${categoriaId}/impuesto-especifico/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.impuesto_especifico_porcentaje) {
+                    impuestoEspecificoPorcentaje = parseFloat(data.impuesto_especifico_porcentaje);
+                    console.log('Impuesto específico aplicado:', impuestoEspecificoPorcentaje + '%');
+                    calcularPrecios();
+                } else {
+                    impuestoEspecificoPorcentaje = 0;
+                    const impuestoField = document.getElementById('id_impuesto_especifico');
+                    if (impuestoField) {
+                        impuestoField.value = '0.00';
+                    }
+                    calcularPrecios();
+                }
+            })
+            .catch(error => {
+                console.error('Error al obtener impuesto específico:', error);
+                impuestoEspecificoPorcentaje = 0;
+                calcularPrecios();
+            });
+    }
+
     // Función para calcular precios automáticamente (CÁLCULO CIRCULAR)
     function calcularPrecios() {
+        console.log('=== INICIO calcularPrecios ===');
+        console.log('impuestoEspecificoPorcentaje:', impuestoEspecificoPorcentaje);
+        
         // Función para convertir formato chileno a número
         function parseChileanNumber(value) {
             if (!value) return 0;
@@ -571,63 +619,145 @@ function removeLogoPreview() {
         const precioCosto = parseChileanNumber(document.getElementById('id_precio_costo').value);
         const precioNeto = parseChileanNumber(document.getElementById('id_precio_venta').value);
         const precioFinal = parseChileanNumber(document.getElementById('id_precio_final').value);
-        const impuestoEspecifico = parseChileanNumber(document.getElementById('id_impuesto_especifico')?.value || 0);
+        
+        console.log('Valores iniciales - Costo:', precioCosto, 'Neto:', precioNeto, 'Final:', precioFinal);
+        
+        // Calcular el valor monetario del impuesto específico basado en el precio neto
+        const impuestoEspecificoValor = precioNeto * (impuestoEspecificoPorcentaje / 100);
+        console.log('Impuesto específico calculado:', impuestoEspecificoValor);
         
         let iva, margenCalculado, nuevoPrecioNeto, nuevoPrecioFinal;
         
         // CÁLCULO CIRCULAR: Si se modifica Precio Final, calcular hacia atrás
         if (precioFinal > 0) {
+            console.log('Calculando desde Precio Final hacia atrás');
             // Calcular Precio Neto desde Precio Final
             // Precio Final = Precio Neto + IVA + Impuesto Específico
-            // Precio Final = Precio Neto + (Precio Neto * 0.19) + Impuesto Específico
-            // Precio Final = Precio Neto * (1 + 0.19) + Impuesto Específico
-            // Precio Final = Precio Neto * 1.19 + Impuesto Específico
-            // Precio Neto = (Precio Final - Impuesto Específico) / 1.19
+            // Precio Final = Precio Neto + (Precio Neto * 0.19) + (Precio Neto * impuestoEspecificoPorcentaje/100)
+            // Precio Final = Precio Neto * (1 + 0.19 + impuestoEspecificoPorcentaje/100)
+            // Precio Neto = Precio Final / (1 + 0.19 + impuestoEspecificoPorcentaje/100)
             
-            nuevoPrecioNeto = (precioFinal - impuestoEspecifico) / 1.19;
+            const factorTotal = 1 + 0.19 + (impuestoEspecificoPorcentaje / 100);
+            nuevoPrecioNeto = precioFinal / factorTotal;
             iva = nuevoPrecioNeto * 0.19;
+            
+            console.log('Factor total:', factorTotal, 'Nuevo precio neto:', nuevoPrecioNeto, 'IVA:', iva);
             
             // Actualizar Precio Neto si es diferente
             if (Math.abs(precioNeto - nuevoPrecioNeto) > 0.01) {
-                document.getElementById('id_precio_venta').value = nuevoPrecioNeto.toFixed(2);
+                document.getElementById('id_precio_venta').value = nuevoPrecioNeto.toFixed(2).replace('.', ',');
+                console.log('Actualizado precio neto a:', nuevoPrecioNeto.toFixed(2).replace('.', ','));
             }
         }
         // Si se modifica Precio Neto, calcular hacia adelante
         else if (precioNeto > 0) {
+            console.log('Calculando desde Precio Neto hacia adelante');
             iva = precioNeto * 0.19;
-            nuevoPrecioFinal = precioNeto + iva + impuestoEspecifico;
+            const impuestoEspecificoCalculado = precioNeto * (impuestoEspecificoPorcentaje / 100);
+            nuevoPrecioFinal = precioNeto + iva + impuestoEspecificoCalculado;
+            
+            console.log('IVA:', iva, 'Impuesto específico:', impuestoEspecificoCalculado, 'Nuevo precio final:', nuevoPrecioFinal);
             
             // Actualizar Precio Final si es diferente
             if (Math.abs(precioFinal - nuevoPrecioFinal) > 0.01) {
-                document.getElementById('id_precio_final').value = nuevoPrecioFinal.toFixed(2);
+                document.getElementById('id_precio_final').value = nuevoPrecioFinal.toFixed(2).replace('.', ',');
+                console.log('Actualizado precio final a:', nuevoPrecioFinal.toFixed(2).replace('.', ','));
             }
         }
         
-        // Calcular margen si hay precio de costo y precio neto
-        const precioNetoActual = parseFloat(document.getElementById('id_precio_venta').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-        if (precioCosto > 0 && precioNetoActual > 0) {
-            margenCalculado = ((precioNetoActual - precioCosto) / precioCosto) * 100;
-            document.getElementById('id_margen_porcentaje').value = margenCalculado.toFixed(2);
+        // Calcular margen si hay precio de costo y precio final
+        const precioFinalActual = parseFloat(document.getElementById('id_precio_final').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+        if (precioCosto > 0 && precioFinalActual > 0) {
+            margenCalculado = ((precioFinalActual - precioCosto) / precioCosto) * 100;
+            document.getElementById('id_margen_porcentaje').value = margenCalculado.toFixed(2).replace('.', ',');
+            console.log('Margen calculado:', margenCalculado);
+        }
+        
+        // Actualizar el campo de impuesto específico con el valor monetario calculado
+        const impuestoField = document.getElementById('id_impuesto_especifico');
+        if (impuestoField) {
+            impuestoField.value = impuestoEspecificoValor.toFixed(2).replace('.', ',');
+            console.log('Actualizado campo impuesto específico a:', impuestoEspecificoValor.toFixed(2).replace('.', ','));
         }
         
         // Actualizar displays con valores finales
-        const precioNetoDisplay = parseFloat(document.getElementById('id_precio_venta').value) || 0;
-        const precioFinalDisplay = parseFloat(document.getElementById('id_precio_final').value) || 0;
+        const precioNetoDisplay = parseFloat(document.getElementById('id_precio_venta').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+        const precioFinalDisplay = parseFloat(document.getElementById('id_precio_final').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
         const ivaDisplay = precioNetoDisplay * 0.19;
+        const impuestoEspecificoDisplay = precioNetoDisplay * (impuestoEspecificoPorcentaje / 100);
         
-        // Formatear números correctamente
+        console.log('Displays - Neto:', precioNetoDisplay, 'Final:', precioFinalDisplay, 'IVA:', ivaDisplay, 'Imp. Esp:', impuestoEspecificoDisplay);
+        
+        // Formatear números correctamente (sin decimales para valores finales)
         function formatearNumero(num) {
+            return '$' + Math.round(num).toLocaleString('es-CL');
+        }
+        
+        function formatearNumeroConDecimales(num) {
             return '$' + num.toFixed(2).replace('.', ',');
         }
         
-        document.getElementById('precio_neto_display').textContent = formatearNumero(precioNetoDisplay);
-        document.getElementById('iva_display').textContent = formatearNumero(ivaDisplay);
-        document.getElementById('impuesto_especifico_display').textContent = formatearNumero(impuestoEspecifico);
-        document.getElementById('precio_final_display').textContent = '$' + Math.round(precioFinalDisplay).toLocaleString('es-CL');
+        document.getElementById('precio_neto_display').textContent = formatearNumeroConDecimales(precioNetoDisplay);
+        document.getElementById('iva_display').textContent = formatearNumeroConDecimales(ivaDisplay);
+        document.getElementById('impuesto_especifico_display').textContent = formatearNumeroConDecimales(impuestoEspecificoDisplay);
+        document.getElementById('precio_final_display').textContent = formatearNumero(precioFinalDisplay);
+        
+        console.log('=== FIN calcularPrecios ===');
+    }
+
+    // Función para buscar artículo por código de barras
+    function buscarArticuloPorCodigoBarras(codigo) {
+        fetch(`/articulos/buscar-por-codigo-barras/?codigo=${encodeURIComponent(codigo)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.articulo) {
+                    console.log('Artículo encontrado:', data.articulo);
+                    
+                    // Llenar los campos con los datos del artículo encontrado
+                    document.getElementById('id_nombre').value = data.articulo.nombre;
+                    document.getElementById('id_descripcion').value = data.articulo.descripcion || '';
+                    document.getElementById('id_precio_costo').value = data.articulo.precio_costo || '0';
+                    document.getElementById('id_precio_venta').value = data.articulo.precio_venta || '0';
+                    document.getElementById('id_precio_final').value = data.articulo.precio_final || '0';
+                    document.getElementById('id_margen_porcentaje').value = data.articulo.margen_porcentaje || '0';
+                    
+                    // Seleccionar la categoría
+                    const categoriaSelect = document.getElementById('id_categoria');
+                    if (categoriaSelect && data.articulo.categoria_id) {
+                        categoriaSelect.value = data.articulo.categoria_id;
+                        // Obtener impuesto específico de la categoría
+                        obtenerImpuestoEspecificoCategoria();
+                    }
+                    
+                    // Seleccionar unidad de medida
+                    const unidadSelect = document.getElementById('id_unidad_medida');
+                    if (unidadSelect && data.articulo.unidad_medida_id) {
+                        unidadSelect.value = data.articulo.unidad_medida_id;
+                    }
+                    
+                    // Recalcular precios
+                    calcularPrecios();
+                    
+                    // Mostrar mensaje de éxito
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Artículo Encontrado',
+                        text: `Se cargaron los datos del artículo: ${data.articulo.nombre}`,
+                        timer: 2000
+                    });
+                } else {
+                    console.log('No se encontró artículo con código:', codigo);
+                }
+            })
+            .catch(error => {
+                console.error('Error al buscar artículo:', error);
+            });
     }
 
     // Calcular precios al cargar la página y cuando cambien los valores
 document.addEventListener('DOMContentLoaded', function() {
+        const categoriaSelect = document.getElementById('id_categoria');
+        
         calcularPrecios();
         
         // Agregar event listeners para recalcular automáticamente
@@ -640,6 +770,32 @@ document.addEventListener('DOMContentLoaded', function() {
         const impuestoEspecificoField = document.getElementById('id_impuesto_especifico');
         if (impuestoEspecificoField) {
             impuestoEspecificoField.addEventListener('input', calcularPrecios);
+        }
+        
+        // Event listener para categoría - obtener impuesto específico automáticamente
+        if (categoriaSelect) {
+            // Obtener impuesto específico al cargar la página (para edición)
+            if (categoriaSelect.value) {
+                console.log('Cargando impuesto específico para categoría:', categoriaSelect.value);
+                obtenerImpuestoEspecificoCategoria();
+            }
+            
+            categoriaSelect.addEventListener('change', function() {
+                console.log('Categoría cambiada a:', this.value);
+                obtenerImpuestoEspecificoCategoria();
+            });
+        }
+        
+        // Event listener para código de barras - buscar artículo existente
+        const codigoBarrasField = document.getElementById('id_codigo_barras');
+        if (codigoBarrasField) {
+            codigoBarrasField.addEventListener('input', function() {
+                const codigo = this.value.trim();
+                if (codigo.length >= 8) { // Códigos de barras típicos tienen al menos 8 dígitos
+                    console.log('Buscando artículo con código de barras:', codigo);
+                    buscarArticuloPorCodigoBarras(codigo);
+                }
+            });
         }
 });
 

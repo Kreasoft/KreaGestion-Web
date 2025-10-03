@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Punto de Venta (POS) - GestionCloud</title>
     
+    {% load articulo_filters %}
+    
     <!-- Bootstrap CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -489,11 +491,11 @@
                 {% for articulo in articulos %}
                 <div class="pos-product-card {% if articulo.stock_actual <= 0 %}disabled{% endif %}" 
                      data-articulo-id="{{ articulo.id }}" 
-                     data-precio="{{ articulo.precio_venta }}"
+                     data-precio="{{ articulo.precio_final_calculado }}"
                              data-stock="{{ articulo.stock_actual|default:0 }}"
                              data-categoria="{{ articulo.categoria|default:'sin-categoria' }}">
                     <div class="pos-product-name">{{ articulo.nombre }}</div>
-                    <div class="pos-product-price">${{ articulo.precio_venta|floatformat:0 }}</div>
+                    <div class="pos-product-price">${{ articulo.precio_final_calculado|floatformat:0|add:0|floatformat:0 }}</div>
                     <div class="pos-product-stock {% if articulo.stock_actual <= 0 %}text-danger{% endif %}">
                         Stock: {{ articulo.stock_actual|default:"0" }}
                     </div>
@@ -538,6 +540,10 @@
                         <span class="totals-label">IVA (19%):</span>
                         <span class="totals-value" id="iva">$0</span>
                         </div>
+                    <div class="totals-row">
+                        <span class="totals-label">Impuesto Específico:</span>
+                        <span class="totals-value" id="impuesto_especifico">$0</span>
+                        </div>
                     <div class="totals-row total-final">
                         <span class="totals-label">TOTAL:</span>
                         <span class="totals-value total-final" id="total">$0</span>
@@ -572,6 +578,7 @@ let currentTotal = 0;
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('*** DOMContentLoaded INICIADO ***');
     updateDateTime();
     setInterval(updateDateTime, 1000);
         
@@ -583,10 +590,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('btn-process').addEventListener('click', processSale);
         document.getElementById('btn-clear').addEventListener('click', clearCart);
     
-    // Click en productos
-    document.querySelectorAll('.pos-product-card').forEach(card => {
-        card.addEventListener('click', function() {
-            if (this.classList.contains('disabled')) {
+    // Click en productos (usando event delegation)
+    document.addEventListener('click', function(e) {
+        console.log('*** CLICK DETECTADO ***', e.target);
+        
+        if (e.target.closest('.pos-product-card')) {
+            console.log('*** PRODUCTO ENCONTRADO ***');
+            const card = e.target.closest('.pos-product-card');
+            
+            if (card.classList.contains('disabled')) {
+                console.log('*** PRODUCTO DESHABILITADO ***');
                 Swal.fire({
                     icon: 'warning',
                     title: 'Sin Stock',
@@ -596,18 +609,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            const articuloId = this.dataset.articuloId;
-            const precio = parseFloat(this.dataset.precio);
-            const stock = parseInt(this.dataset.stock);
-            const nombre = this.querySelector('.pos-product-name').textContent;
+            const articuloId = card.dataset.articuloId;
+            const precio = parseFloat(card.dataset.precio);
+            const stock = parseInt(card.dataset.stock);
+            const nombre = card.querySelector('.pos-product-name').textContent;
             
+            console.log('*** AGREGANDO AL CARRITO ***', { articuloId, nombre, precio, stock });
             addToCart(articuloId, nombre, precio, stock);
-        });
+        } else {
+            console.log('*** NO ES UN PRODUCTO ***');
+        }
     });
-        
-        // Cargar categorías
-        loadCategories();
-    });
+    
+    // Cargar categorías
+    loadCategories();
 
     // Cargar información de la sesión
     function loadSessionInfo() {
@@ -713,6 +728,8 @@ function filterProducts() {
 
 // Agregar al carrito
 function addToCart(articuloId, nombre, precio, stock) {
+    console.log('*** FUNCIÓN addToCart LLAMADA ***', { articuloId, nombre, precio, stock });
+    
     // Asegurar que precio sea un número
     precio = parseFloat(precio);
     
@@ -732,13 +749,33 @@ function addToCart(articuloId, nombre, precio, stock) {
             return;
         }
     } else {
+    // El precio ya incluye IVA e impuesto específico, necesitamos calcular el desglose
+    // Precio final = precio neto + IVA + impuesto específico
+    // Para COCA COLA: 1800 = 1313.87 + 249.63 + 236.50
+    // Calculamos el precio neto: precio_final / 1.37 (1 + 0.19 + 0.18)
+    const precioNeto = precio / 1.37;
+    const iva = precioNeto * 0.19;
+    const impuestoEspecifico = precioNeto * 0.18;
+    
+    // Debug: verificar cálculos
+    console.log('DEBUG - Cálculos en addToCart:', {
+        precio: precio,
+        precioNeto: precioNeto,
+        iva: iva,
+        impuestoEspecifico: impuestoEspecifico,
+        total: precioNeto + iva + impuestoEspecifico
+    });
+        
         cart.push({
             articuloId: articuloId,
             nombre: nombre,
-            precio: parseFloat(precio),
+            precio: parseFloat(precio), // Precio final con impuestos
+            precio_neto: precioNeto,
+            iva: iva,
+            impuesto_especifico: impuestoEspecifico,
             cantidad: 1,
-                descuento: 0,
-                total: parseFloat(precio)
+            descuento: 0,
+            total: parseFloat(precio)
         });
     }
     
@@ -761,14 +798,14 @@ function addToCart(articuloId, nombre, precio, stock) {
             itemDiv.className = 'pos-cart-item';
             itemDiv.innerHTML = `
                 <div class="cart-item-name">${item.nombre}</div>
-                <div class="cart-item-price">$${item.precio.toLocaleString()}</div>
+                <div class="cart-item-price">$${formatChileanNumber(item.precio)}</div>
                 <div class="cart-item-qty">
                     <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, -1)">-</button>
                     <span>${item.cantidad}</span>
                     <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>
             </div>
                 <div class="cart-item-discount">${item.descuento}%</div>
-                <div class="cart-item-total">$${item.total.toLocaleString()}</div>
+                <div class="cart-item-total">$${formatChileanNumber(item.total)}</div>
                 <div class="cart-item-actions">
                     <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${index})" title="Eliminar">
                         <i class="fas fa-trash"></i>
@@ -830,18 +867,51 @@ function updateTotals() {
             });
         });
         
-        // Asegurar que todos los valores sean números
-        currentSubtotal = cart.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
-        currentDescuento = 0; // Por ahora sin descuento
-    currentNeto = currentSubtotal - currentDescuento;
-    currentIva = currentNeto * 0.19;
-    currentTotal = currentNeto + currentIva;
+    // Los precios ya incluyen IVA e impuesto específico
+    currentSubtotal = cart.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+    currentDescuento = 0; // Por ahora sin descuento
     
-    document.getElementById('subtotal').textContent = `$${currentSubtotal.toLocaleString()}`;
-    document.getElementById('descuento').textContent = `$${currentDescuento.toLocaleString()}`;
-    document.getElementById('neto').textContent = `$${currentNeto.toLocaleString()}`;
-    document.getElementById('iva').textContent = `$${currentIva.toLocaleString()}`;
-    document.getElementById('total').textContent = `$${currentTotal.toLocaleString()}`;
+    // CÁLCULO SIMPLE Y CORRECTO
+    // Para cada item: precio final = precio neto + IVA + impuesto específico
+    // precio neto = precio final / 1.37
+    currentNeto = 0;
+    currentIva = 0;
+    currentImpuestoEspecifico = 0;
+    
+    cart.forEach(item => {
+        const precioFinal = parseFloat(item.precio);
+        const precioNeto = precioFinal / 1.37;
+        const iva = precioNeto * 0.19;
+        const impEsp = precioNeto * 0.18;
+        
+        currentNeto += precioNeto * parseFloat(item.cantidad);
+        currentIva += iva * parseFloat(item.cantidad);
+        currentImpuestoEspecifico += impEsp * parseFloat(item.cantidad);
+    });
+    
+    // El total es el subtotal (ya incluye todos los impuestos)
+    currentTotal = currentSubtotal;
+    
+    // Debug: verificar cálculos
+    console.log('DEBUG - Cálculos:', {
+        currentSubtotal: currentSubtotal,
+        currentIva: currentIva,
+        currentImpuestoEspecifico: currentImpuestoEspecifico,
+        currentNeto: currentNeto,
+        currentTotal: currentTotal
+    });
+    
+    document.getElementById('subtotal').textContent = `$${formatChileanNumber(currentSubtotal)}`;
+    document.getElementById('descuento').textContent = `$${formatChileanNumber(currentDescuento)}`;
+    document.getElementById('neto').textContent = `$${formatChileanNumber(currentNeto)}`;
+    document.getElementById('iva').textContent = `$${formatChileanNumber(currentIva)}`;
+    document.getElementById('impuesto_especifico').textContent = `$${formatChileanNumber(currentImpuestoEspecifico)}`;
+    document.getElementById('total').textContent = `$${formatChileanNumber(currentTotal)}`;
+}
+
+// Formatear números con separadores de miles (formato chileno)
+function formatChileanNumber(num) {
+    return Math.round(num).toLocaleString('es-CL');
 }
 
 // Limpiar carrito
@@ -1092,26 +1162,6 @@ function clearCart() {
             });
     }
     
-    function seleccionarCliente(id, nombre, rut, direccion) {
-        // Ocultar resultados de búsqueda
-        document.getElementById('resultados-busqueda').style.display = 'none';
-        
-        // Mostrar información del cliente seleccionado
-        document.getElementById('cliente-nombre').textContent = nombre;
-        document.getElementById('cliente-direccion').textContent = direccion || 'Sin dirección';
-        document.getElementById('cliente-info').style.display = 'block';
-        
-        // Guardar cliente seleccionado
-        window.clienteSeleccionado = {
-            id: id,
-            nombre: nombre,
-            rut: rut,
-            direccion: direccion
-        };
-        
-        // Actualizar el campo de búsqueda con el RUT
-        document.getElementById('busqueda-cliente').value = rut;
-    }
     
     // Crear cliente
     function crearCliente() {
@@ -1306,6 +1356,7 @@ function clearCart() {
                 descuento: currentDescuento,
                 neto: currentNeto,
                 iva: currentIva,
+                impuesto_especifico: currentImpuestoEspecifico,
                 total: currentTotal
             }
         };
@@ -1353,6 +1404,21 @@ function clearCart() {
                         updateCartDisplay();
                         updateTotals();
                     });
+                } else if (data.tipo_documento === 'vale') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Vale Generado!',
+                        text: `Vale #${data.numero_preventa} generado exitosamente`,
+                        timer: 2000
+                    }).then(() => {
+                        // Abrir ventana de impresión del vale
+                        window.open(`/ventas/vales/${data.preventa_id}/html/`, '_blank');
+                        
+                        // Limpiar carrito y recargar
+                        cart = [];
+                        updateCartDisplay();
+                        updateTotals();
+                    });
                 } else {
                     Swal.fire({
                         icon: 'success',
@@ -1384,6 +1450,32 @@ function clearCart() {
                 timer: 3000
             });
         });
+}
+
+// Cerrar función DOMContentLoaded
+console.log('*** DOMContentLoaded FINALIZADO ***');
+});
+
+// Función global para seleccionar cliente
+function seleccionarCliente(id, nombre, rut, direccion) {
+    // Ocultar resultados de búsqueda
+    document.getElementById('resultados-busqueda').style.display = 'none';
+    
+    // Mostrar información del cliente seleccionado
+    document.getElementById('cliente-nombre').textContent = nombre;
+    document.getElementById('cliente-direccion').textContent = direccion || 'Sin dirección';
+    document.getElementById('cliente-info').style.display = 'block';
+    
+    // Guardar cliente seleccionado
+    window.clienteSeleccionado = {
+        id: id,
+        nombre: nombre,
+        rut: rut,
+        direccion: direccion
+    };
+    
+    // Actualizar el campo de búsqueda con el RUT
+    document.getElementById('busqueda-cliente').value = rut;
 }
 </script>
 </body>

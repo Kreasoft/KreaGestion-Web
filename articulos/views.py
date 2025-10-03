@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 from decimal import Decimal
 from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico
 from inventario.models import Stock
@@ -15,11 +16,8 @@ from empresas.decorators import requiere_empresa
 @login_required
 def articulo_list(request):
     """Lista de artículos"""
-    # Para superusuarios, mostrar todos los artículos
-    if request.user.is_superuser:
-        articulos = Articulo.objects.all().order_by('-fecha_creacion')
-    else:
-        articulos = Articulo.objects.filter(empresa=request.empresa).order_by('-fecha_creacion')
+    # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
+    articulos = Articulo.objects.filter(empresa=request.empresa).order_by('-fecha_creacion')
     
     # Filtros
     search = request.GET.get('search', '')
@@ -143,7 +141,7 @@ def articulo_update(request, pk):
         articulo = get_object_or_404(Articulo, pk=pk, empresa=request.empresa)
     
     if request.method == 'POST':
-        form = ArticuloForm(request.POST, instance=articulo)
+        form = ArticuloForm(request.POST, instance=articulo, initial={'empresa': request.empresa})
         if form.is_valid():
             articulo = form.save(commit=False)
             articulo.save()
@@ -156,7 +154,7 @@ def articulo_update(request, pk):
                 for error in errors:
                     messages.error(request, f'{field}: {error}')
     else:
-        form = ArticuloForm(instance=articulo)
+        form = ArticuloForm(instance=articulo, initial={'empresa': request.empresa})
     
     context = {
         'form': form,
@@ -196,11 +194,8 @@ def articulo_delete(request, pk):
 @login_required
 def categoria_list(request):
     """Lista de categorías"""
-    # Para superusuarios, mostrar todas las categorías
-    if request.user.is_superuser:
-        categorias = CategoriaArticulo.objects.all().order_by('nombre')
-    else:
-        categorias = CategoriaArticulo.objects.filter(empresa=request.empresa).order_by('nombre')
+    # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
+    categorias = CategoriaArticulo.objects.filter(empresa=request.empresa).order_by('nombre')
     
     # Calcular estadísticas
     total_categorias = categorias.count()
@@ -209,10 +204,7 @@ def categoria_list(request):
     categorias_exentas = categorias.filter(exenta_iva=True).count()
     
     # Obtener impuestos específicos para el modal
-    if request.user.is_superuser:
-        impuestos_especificos = ImpuestoEspecifico.objects.filter(activa=True).order_by('nombre')
-    else:
-        impuestos_especificos = ImpuestoEspecifico.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
+    impuestos_especificos = ImpuestoEspecifico.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
     
     context = {
         'categorias': categorias,
@@ -231,7 +223,7 @@ def categoria_list(request):
 def categoria_create(request):
     """Crear nueva categoría"""
     if request.method == 'POST':
-        form = CategoriaArticuloForm(request.POST)
+        form = CategoriaArticuloForm(request.POST, initial={'empresa': request.empresa})
         if form.is_valid():
             categoria = form.save(commit=False)
             categoria.empresa = request.empresa
@@ -239,7 +231,7 @@ def categoria_create(request):
             messages.success(request, f'Categoría "{categoria.nombre}" creada exitosamente.')
             return redirect('articulos:categoria_list')
     else:
-        form = CategoriaArticuloForm()
+        form = CategoriaArticuloForm(initial={'empresa': request.empresa})
     
     context = {
         'form': form,
@@ -261,13 +253,13 @@ def categoria_update(request, pk):
         categoria = get_object_or_404(CategoriaArticulo, pk=pk, empresa=request.empresa)
     
     if request.method == 'POST':
-        form = CategoriaArticuloForm(request.POST, instance=categoria)
+        form = CategoriaArticuloForm(request.POST, instance=categoria, initial={'empresa': request.empresa})
         if form.is_valid():
             form.save()
             messages.success(request, f'Categoría "{categoria.nombre}" actualizada exitosamente.')
             return redirect('articulos:categoria_list')
     else:
-        form = CategoriaArticuloForm(instance=categoria)
+        form = CategoriaArticuloForm(instance=categoria, initial={'empresa': request.empresa})
     
     context = {
         'form': form,
@@ -308,11 +300,8 @@ def categoria_delete(request, pk):
 @login_required
 def unidad_medida_list(request):
     """Lista de unidades de medida"""
-    # Para superusuarios, mostrar todas las unidades
-    if request.user.is_superuser:
-        unidades = UnidadMedida.objects.all().order_by('nombre')
-    else:
-        unidades = UnidadMedida.objects.filter(empresa=request.empresa).order_by('nombre')
+    # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
+    unidades = UnidadMedida.objects.filter(empresa=request.empresa).order_by('nombre')
     
     context = {
         'unidades': unidades,
@@ -403,11 +392,8 @@ def unidad_medida_delete(request, pk):
 @login_required
 def impuesto_especifico_list(request):
     """Lista de impuestos específicos"""
-    # Para superusuarios, mostrar todos los impuestos
-    if request.user.is_superuser:
-        impuestos = ImpuestoEspecifico.objects.all().order_by('nombre')
-    else:
-        impuestos = ImpuestoEspecifico.objects.filter(empresa=request.empresa).order_by('nombre')
+    # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
+    impuestos = ImpuestoEspecifico.objects.filter(empresa=request.empresa).order_by('nombre')
     
     context = {
         'impuestos': impuestos,
@@ -422,7 +408,7 @@ def impuesto_especifico_list(request):
 def impuesto_especifico_create(request):
     """Crear impuesto específico"""
     if request.method == 'POST':
-        form = ImpuestoEspecificoForm(request.POST)
+        form = ImpuestoEspecificoForm(request.POST, initial={'empresa': request.empresa})
         if form.is_valid():
             impuesto = form.save(commit=False)
             impuesto.empresa = request.empresa
@@ -430,7 +416,7 @@ def impuesto_especifico_create(request):
             messages.success(request, f'Impuesto "{impuesto.nombre}" creado exitosamente.')
             return redirect('articulos:impuesto_especifico_list')
     else:
-        form = ImpuestoEspecificoForm()
+        form = ImpuestoEspecificoForm(initial={'empresa': request.empresa})
     
     context = {
         'form': form,
@@ -452,13 +438,13 @@ def impuesto_especifico_update(request, pk):
         impuesto = get_object_or_404(ImpuestoEspecifico, pk=pk, empresa=request.empresa)
     
     if request.method == 'POST':
-        form = ImpuestoEspecificoForm(request.POST, instance=impuesto)
+        form = ImpuestoEspecificoForm(request.POST, instance=impuesto, initial={'empresa': request.empresa})
         if form.is_valid():
             form.save()
             messages.success(request, f'Impuesto "{impuesto.nombre}" actualizado exitosamente.')
             return redirect('articulos:impuesto_especifico_list')
     else:
-        form = ImpuestoEspecificoForm(instance=impuesto)
+        form = ImpuestoEspecificoForm(instance=impuesto, initial={'empresa': request.empresa})
     
     context = {
         'form': form,
@@ -558,3 +544,80 @@ def calcular_precios_articulo(request):
         return JsonResponse({
             'error': f'Error en el cálculo de precios: {str(e)}'
         }, status=400)
+
+
+@login_required
+@requiere_empresa
+def categoria_impuesto_especifico(request, categoria_id):
+    """Vista AJAX para obtener el impuesto específico de una categoría"""
+    try:
+        categoria = get_object_or_404(CategoriaArticulo, pk=categoria_id, empresa=request.empresa)
+        
+        if categoria.impuesto_especifico:
+            impuesto_porcentaje = categoria.impuesto_especifico.get_porcentaje_decimal()
+            return JsonResponse({
+                'success': True,
+                'impuesto_especifico_porcentaje': str(impuesto_porcentaje),
+                'impuesto_especifico_valor': '0.00',  # Se calculará en el frontend
+                'nombre_impuesto': categoria.impuesto_especifico.nombre
+            })
+        else:
+            return JsonResponse({
+                'success': True,
+                'impuesto_especifico_porcentaje': '0.00',
+                'impuesto_especifico_valor': '0.00',
+                'nombre_impuesto': 'Ninguno'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@login_required
+@requiere_empresa
+def buscar_por_codigo_barras(request):
+    """Vista AJAX para buscar artículo por código de barras"""
+    try:
+        codigo = request.GET.get('codigo', '').strip()
+        
+        if not codigo:
+            return JsonResponse({
+                'success': False,
+                'message': 'Código de barras requerido'
+            })
+        
+        # Buscar artículo por código de barras en la empresa actual
+        articulo = Articulo.objects.filter(
+            codigo_barras=codigo,
+            empresa=request.empresa,
+            activo=True
+        ).first()
+        
+        if articulo:
+            return JsonResponse({
+                'success': True,
+                'articulo': {
+                    'id': articulo.id,
+                    'nombre': articulo.nombre,
+                    'descripcion': articulo.descripcion,
+                    'precio_costo': str(articulo.precio_costo),
+                    'precio_venta': str(articulo.precio_venta),
+                    'precio_final': str(articulo.precio_final),
+                    'margen_porcentaje': str(articulo.margen_porcentaje),
+                    'categoria_id': articulo.categoria.id if articulo.categoria else None,
+                    'unidad_medida_id': articulo.unidad_medida.id if articulo.unidad_medida else None,
+                }
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': 'No se encontró artículo con ese código de barras'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })

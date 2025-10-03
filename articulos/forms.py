@@ -40,8 +40,11 @@ class ArticuloForm(forms.ModelForm):
         
         # Filtrar categorías y unidades por empresa
         empresa = None
-        if isinstance(getattr(self, 'initial', None), dict) and 'empresa' in self.initial:
-            empresa = self.initial.get('empresa')
+        
+        # Obtener empresa de initial (para formularios nuevos)
+        if 'initial' in kwargs and isinstance(kwargs['initial'], dict) and 'empresa' in kwargs['initial']:
+            empresa = kwargs['initial']['empresa']
+        # Obtener empresa de la instancia (para formularios de edición)
         elif hasattr(self, 'instance') and self.instance and getattr(self.instance, 'empresa', None):
             empresa = self.instance.empresa
         
@@ -177,8 +180,11 @@ class CategoriaArticuloForm(forms.ModelForm):
         
         # Filtrar impuestos específicos por empresa
         empresa = None
-        if isinstance(getattr(self, 'initial', None), dict) and 'empresa' in self.initial:
-            empresa = self.initial.get('empresa')
+        
+        # Obtener empresa de initial (para formularios nuevos)
+        if 'initial' in kwargs and isinstance(kwargs['initial'], dict) and 'empresa' in kwargs['initial']:
+            empresa = kwargs['initial']['empresa']
+        # Obtener empresa de la instancia (para formularios de edición)
         elif hasattr(self, 'instance') and self.instance and getattr(self.instance, 'empresa', None):
             empresa = self.instance.empresa
         
@@ -243,6 +249,12 @@ class ImpuestoEspecificoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['nombre'].required = True
         self.fields['porcentaje'].required = True
+        
+        # Obtener empresa de initial (para formularios nuevos)
+        if 'initial' in kwargs and isinstance(kwargs['initial'], dict) and 'empresa' in kwargs['initial']:
+            empresa = kwargs['initial']['empresa']
+            # No hay campos que filtrar por empresa en este formulario
+            # pero podemos usar la empresa para validaciones si es necesario
     
     def clean_nombre(self):
         nombre = self.cleaned_data['nombre']

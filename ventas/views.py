@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, Http404
 from django.utils import timezone
 from django.urls import reverse
 from django.template.loader import get_template
@@ -614,8 +614,22 @@ def pos_view(request):
     from articulos.models import Articulo
     from clientes.models import Cliente
     
-    # Obtener datos para el POS
-    articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')[:50]  # Limitar para performance
+    # Obtener datos para el POS con impuesto específico incluido
+    articulos_queryset = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')[:50]  # Limitar para performance
+    
+    # Calcular precios finales directamente en la vista
+    articulos = []
+    for articulo in articulos_queryset:
+        precio_neto = float(articulo.precio_venta)
+        iva = precio_neto * 0.19
+        impuesto_especifico = 0.0
+        if articulo.categoria and articulo.categoria.impuesto_especifico:
+            porcentaje_decimal = float(articulo.categoria.impuesto_especifico.get_porcentaje_decimal()) / 100
+            impuesto_especifico = precio_neto * porcentaje_decimal
+        
+        precio_final = round(precio_neto + iva + impuesto_especifico)
+        articulo.precio_final_calculado = precio_final
+        articulos.append(articulo)
     clientes = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')[:50]  # Limitar para performance
     vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
     formas_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
@@ -910,6 +924,7 @@ def pos_procesar_preventa(request):
             print("DEBUG - Parseando JSON...")
             data = json.loads(request.body)
             print("DEBUG - JSON parseado correctamente")
+            print(f"DEBUG - Totales recibidos: {data['totales']}")
             
             # Obtener estación y vendedor
             print("DEBUG - Buscando estación...")
@@ -942,6 +957,10 @@ def pos_procesar_preventa(request):
             from decimal import Decimal
             
             # Crear preventa
+            # Calcular el neto correctamente (precio sin impuestos)
+            subtotal = Decimal(str(data['totales']['subtotal']))
+            neto_calculado = subtotal / Decimal('1.37')  # Precio sin impuestos
+            
             preventa = Venta.objects.create(
                 empresa=request.empresa,
                 numero_venta=proximo_numero,
@@ -949,11 +968,11 @@ def pos_procesar_preventa(request):
                 vendedor=vendedor,
                 estacion_trabajo=estacion,
                 tipo_documento=data['tipo_documento'],
-                subtotal=Decimal(str(data['totales']['subtotal'])),
+                subtotal=subtotal,
                 descuento=Decimal(str(data['totales']['descuento'])),
-                neto=Decimal(str(data['totales']['neto'])),
+                neto=neto_calculado,
                 iva=Decimal(str(data['totales']['iva'])),
-                impuesto_especifico=Decimal('0.00'),
+                impuesto_especifico=Decimal(str(data['totales']['impuesto_especifico'])),
                 total=Decimal(str(data['totales']['total'])),
                 estado='borrador',
                 estado_cotizacion='pendiente' if data['tipo_documento'] == 'cotizacion' else None,
@@ -1049,8 +1068,7 @@ def estaciontrabajo_create(request):
             response['Content-Type'] = 'application/json'
             return response
     
-    form = EstacionTrabajoForm()
-    return render(request, 'ventas/estaciontrabajo_form.html', {'form': form, 'title': 'Nueva Estación de Trabajo'})
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
 
 @login_required
@@ -1110,6 +1128,28 @@ def estaciontrabajo_delete(request, pk):
     response = JsonResponse({'success': False, 'message': 'Método no permitido'})
     response['Content-Type'] = 'application/json'
     return response
+
+
+# ========== VALES ==========
+
+@login_required
+@requiere_empresa
+def vale_html(request, pk):
+    """Vista para imprimir vale de venta con código de barras"""
+    try:
+        venta = Venta.objects.get(pk=pk, empresa=request.empresa, tipo_documento='vale')
+        detalles = VentaDetalle.objects.filter(venta=venta)
+        
+        context = {
+            'venta': venta,
+            'detalles': detalles,
+            'empresa': request.empresa,
+        }
+        
+        return render(request, 'ventas/vale_html.html', context)
+    
+    except Venta.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Vale no encontrado'})
 
 
 # ========== COTIZACIONES ==========
@@ -1371,11 +1411,77 @@ def cotizacion_pdf(request, pk):
     return response
 
 
+def cotizacion_html_debug(request, pk):
+    """Vista HTML de cotización - VERSIÓN DEBUG SIN DECORADORES"""
+    print(f"DEBUG - Buscando cotización ID: {pk}")
+    print(f"DEBUG - Usuario: {request.user}")
+    print(f"DEBUG - Usuario autenticado: {request.user.is_authenticated}")
+    print(f"DEBUG - Es superusuario: {request.user.is_superuser}")
+    
+    # Verificar si tiene empresa
+    if hasattr(request, 'empresa'):
+        print(f"DEBUG - Empresa: {request.empresa}")
+    else:
+        print("DEBUG - No tiene empresa asignada")
+    
+    try:
+        # Buscar sin filtros primero
+        cotizacion = Venta.objects.get(pk=pk)
+        print(f"DEBUG - Cotización encontrada: {cotizacion.numero_venta}")
+        print(f"DEBUG - Empresa de la cotización: {cotizacion.empresa.nombre}")
+        print(f"DEBUG - Tipo de documento: {cotizacion.tipo_documento}")
+        
+        # Verificar si es cotización
+        if cotizacion.tipo_documento != 'cotizacion':
+            print(f"DEBUG - ERROR: No es una cotización, es: {cotizacion.tipo_documento}")
+            raise Http404("No es una cotización")
+        
+        # Verificar empresa si no es superusuario
+        if not request.user.is_superuser and hasattr(request, 'empresa') and request.empresa:
+            if cotizacion.empresa != request.empresa:
+                print(f"DEBUG - ERROR: Empresa no coincide. Usuario: {request.empresa.nombre}, Cotización: {cotizacion.empresa.nombre}")
+                raise Http404("Empresa no coincide")
+        
+    except Venta.DoesNotExist:
+        print("DEBUG - Cotización no existe en absoluto")
+        raise Http404("Cotización no encontrada")
+    
+    detalles = VentaDetalle.objects.filter(venta=cotizacion).select_related('articulo')
+    
+    context = {
+        'cotizacion': cotizacion,
+        'detalles': detalles,
+    }
+    
+    return render(request, 'ventas/cotizacion_html.html', context)
+
 @login_required
-@requiere_empresa
 def cotizacion_html(request, pk):
     """Vista HTML de cotización"""
-    cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
+    print(f"DEBUG - Buscando cotización ID: {pk}")
+    print(f"DEBUG - Usuario: {request.user}")
+    print(f"DEBUG - Es superusuario: {request.user.is_superuser}")
+    
+    try:
+        # Buscar la cotización
+        cotizacion = Venta.objects.get(pk=pk, tipo_documento='cotizacion')
+        print(f"DEBUG - Cotización encontrada: {cotizacion.numero_venta}")
+        print(f"DEBUG - Empresa de la cotización: {cotizacion.empresa.nombre}")
+        
+        # Verificar permisos de empresa
+        if not request.user.is_superuser:
+            if hasattr(request, 'empresa') and request.empresa:
+                if cotizacion.empresa != request.empresa:
+                    print(f"DEBUG - ERROR: Empresa no coincide. Usuario: {request.empresa.nombre}, Cotización: {cotizacion.empresa.nombre}")
+                    raise Http404("No tiene permisos para acceder a esta cotización")
+            else:
+                print("DEBUG - ERROR: Usuario no tiene empresa asignada")
+                raise Http404("No tiene permisos para acceder a esta cotización")
+        
+    except Venta.DoesNotExist:
+        print("DEBUG - Cotización no existe")
+        raise Http404("Cotización no encontrada")
+    
     detalles = VentaDetalle.objects.filter(venta=cotizacion).select_related('articulo')
     
     context = {
