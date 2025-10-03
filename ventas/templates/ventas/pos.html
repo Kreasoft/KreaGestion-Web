@@ -80,6 +80,102 @@
         transition: all 0.3s ease;
     }
     
+    /* Campo de código de barras */
+    .pos-barcode-section {
+        background: #f8f9fa;
+        padding: 10px 20px;
+        border-bottom: 2px solid #e3e6f0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .pos-barcode-input {
+        flex: 1;
+        max-width: 300px;
+    }
+    
+    .pos-barcode-input input {
+        width: 100%;
+        padding: 8px 15px;
+        border: 2px solid #17a2b8;
+        border-radius: 25px;
+        font-size: 1rem;
+        font-weight: 500;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .pos-barcode-input input:focus {
+        outline: none;
+        border-color: #138496;
+        box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+        transform: scale(1.02);
+    }
+    
+    .pos-barcode-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9rem;
+    }
+    
+    .pos-barcode-label i {
+        color: #17a2b8;
+        font-size: 1.1rem;
+    }
+    
+    .pos-barcode-status {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    .pos-barcode-status.ready {
+        color: #28a745;
+    }
+    
+    .pos-barcode-status.scanning {
+        color: #ffc107;
+        animation: pulse 1s infinite;
+    }
+    
+    .pos-barcode-status.disabled {
+        color: #6c757d;
+        opacity: 0.6;
+    }
+    
+    .pos-barcode-toggle {
+        background: #17a2b8;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .pos-barcode-toggle:hover {
+        background: #138496;
+    }
+    
+    .pos-barcode-toggle:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
     /* Contenido principal */
     .pos-main-content {
         flex: 1;
@@ -469,7 +565,29 @@
             </div>
         </div>
     </div>
-    
+
+    <!-- Sección de código de barras -->
+    <div class="pos-barcode-section">
+        <div class="pos-barcode-label">
+            <i class="fas fa-barcode"></i>
+            <span>Escanea código de barras:</span>
+        </div>
+        <div class="pos-barcode-input">
+            <input type="text" 
+                   id="barcode-input" 
+                   placeholder="Escanea o escribe código de barras..."
+                   autocomplete="off"
+                   autofocus>
+        </div>
+        <div class="pos-barcode-status ready" id="barcode-status">
+            <i class="fas fa-check-circle"></i>
+            <span>Listo para escanear</span>
+        </div>
+        <button class="pos-barcode-toggle" id="barcode-toggle" onclick="toggleBarcodeMode()" style="background: #17a2b8;">
+            <i class="fas fa-barcode"></i> Modo Escaneo
+        </button>
+    </div>
+
     <!-- Contenido principal -->
     <div class="pos-main-content">
         <!-- Panel izquierdo - Productos -->
@@ -576,6 +694,10 @@ let currentIva = 0;
 let currentTotal = 0;
     let currentCategory = 'all';
 
+// Array de artículos disponibles en el POS - se llena desde Django
+let articulos = [];
+window.articulos = articulos;
+
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
     console.log('*** DOMContentLoaded INICIADO ***');
@@ -589,6 +711,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('pos-search').addEventListener('input', filterProducts);
         document.getElementById('btn-process').addEventListener('click', processSale);
         document.getElementById('btn-clear').addEventListener('click', clearCart);
+    
+    // Cargar artículos desde el DOM
+    loadArticulosFromDOM();
+    
+    // Configurar el sistema de código de barras
+    setupBarcodeSystem();
     
     // Click en productos (usando event delegation)
     document.addEventListener('click', function(e) {
@@ -911,8 +1039,14 @@ function updateTotals() {
 
 // Formatear números con separadores de miles (formato chileno)
 function formatChileanNumber(num) {
+    if (typeof num === 'string') {
+        num = parseFloat(num);
+    }
     return Math.round(num).toLocaleString('es-CL');
 }
+
+// Hacer la función global para que esté disponible en todo momento
+window.formatChileanNumber = formatChileanNumber;
 
 // Limpiar carrito
 function clearCart() {
@@ -1455,6 +1589,558 @@ function clearCart() {
 // Cerrar función DOMContentLoaded
 console.log('*** DOMContentLoaded FINALIZADO ***');
 });
+
+// ===== FUNCIONES AUXILIARES =====
+
+// Cargar artículos desde el DOM
+function loadArticulosFromDOM() {
+    console.log('*** CARGANDO ARTÍCULOS DESDE DOM ***');
+    
+    const productCards = document.querySelectorAll('.pos-product-card');
+    articulos = [];
+    
+    productCards.forEach(card => {
+        const articulo = {
+            id: parseInt(card.dataset.articuloId),
+            nombre: card.querySelector('.pos-product-name').textContent.trim(),
+            precio: parseFloat(card.dataset.precio),
+            stock: parseInt(card.dataset.stock),
+            categoria: card.dataset.categoria
+        };
+        articulos.push(articulo);
+    });
+    
+    window.articulos = articulos;
+    console.log('*** ARTÍCULOS CARGADOS: ', articulos.length, ' ***');
+}
+
+// ===== SISTEMA DE CÓDIGOS DE BARRAS =====
+
+// Variables globales para códigos de barras
+let barcodeTimeout;
+let isScanning = false;
+let barcodeMode = true; // Por defecto activado para escaneo continuo
+let lastProcessedCode = ''; // Para evitar procesar el mismo código repetidamente
+let lastProcessedTime = 0; // Timestamp del último procesamiento
+
+// Configurar el sistema de códigos de barras
+function setupBarcodeSystem() {
+    console.log('*** CONFIGURANDO SISTEMA DE CÓDIGOS DE BARRAS ***');
+    
+    const barcodeInput = document.getElementById('barcode-input');
+    const barcodeStatus = document.getElementById('barcode-status');
+    
+    // Mantener el foco siempre en el campo de código de barras
+    function focusBarcodeInput() {
+        barcodeInput.focus();
+        console.log('*** FOCO EN CÓDIGO DE BARRAS ***');
+    }
+    
+    // Event listener para detección de escaneo
+    barcodeInput.addEventListener('input', function(e) {
+        const value = e.target.value.trim();
+        
+        // Limpiar timeout anterior
+        if (barcodeTimeout) {
+            clearTimeout(barcodeTimeout);
+            console.log('*** TIMEOUT ANTERIOR LIMPIADO ***');
+        }
+        
+        // Solo procesar si el valor tiene al menos 8 caracteres (código de barras mínimo)
+        if (value.length >= 8) {
+            console.log('*** ENTRADA DETECTADA: ' + value + ' ***');
+            
+            // Cambiar estado a "escaneando"
+            setBarcodeStatus('scanning', 'Escaneando...', 'fas fa-spinner fa-spin');
+            
+            // Esperar un poco más para capturar todo el código
+            barcodeTimeout = setTimeout(() => {
+                console.log('*** EJECUTANDO TIMEOUT PARA: ' + value + ' ***');
+                processBarcode(value);
+            }, 300); // Aumentar tiempo para evitar duplicados
+        }
+    });
+    
+    // Event listener para Enter (manualmente escrito)
+    barcodeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = this.value.trim();
+            if (value.length >= 4) { // Mínimo 4 caracteres para procesar manualmente
+                processBarcode(value);
+            }
+        }
+    });
+    
+    // Establecer foco inicial para escaneo
+    focusBarcodeInput();
+    
+    // Mantener foco después de buscar productos
+    // Mantener foco siempre en el campo de código de barras
+    barcodeInput.addEventListener('blur', function() {
+        // Siempre restaurar foco después de un breve delay
+        setTimeout(() => {
+            focusBarcodeInput();
+        }, 200);
+    });
+    
+    // No modificar processSale si no existe aún
+    // Se manejará después de que se defina
+    
+    console.log('*** SISTEMA DE CÓDIGOS DE BARRAS CONFIGURADO ***');
+    
+    // Configurar funciones después de que estén definidas
+    setTimeout(() => {
+        setupBarcodeSystemLate();
+    }, 1000);
+    
+    // Event listener global para restaurar foco después de cualquier interacción
+    document.addEventListener('click', function(e) {
+        // Si se hace clic en un producto o botón, restaurar foco después
+        if (e.target.closest('.pos-product-card') || 
+            e.target.closest('.btn') || 
+            e.target.closest('button')) {
+            setTimeout(() => {
+                const barcodeInput = document.getElementById('barcode-input');
+                if (barcodeInput && !barcodeInput.disabled) {
+                    barcodeInput.focus();
+                    console.log('*** FOCO RESTAURADO DESPUÉS DE CLICK ***');
+                }
+            }, 300);
+        }
+    });
+}
+
+// Configurar funciones tardías del sistema de códigos de barras
+function setupBarcodeSystemLate() {
+    console.log('*** CONFIGURANDO FUNCIONES TARDÍAS ***');
+    
+    // Modificar processSale si existe
+    if (typeof processSale === 'function') {
+        const originalProcessSale = processSale;
+        window.processSale = function() {
+            const result = originalProcessSale();
+            // Solo restaurar foco después de una venta exitosa si el modo está activado
+            if (barcodeMode) {
+                setTimeout(() => {
+                    if (document.activeElement === document.body) {
+                        document.getElementById('barcode-input').focus();
+                    }
+                }, 500);
+            }
+            return result;
+        };
+        console.log('*** PROCESSSALE CONFIGURADO ***');
+    }
+    
+    // Modificar updateCartDisplay si existe
+    if (typeof updateCartDisplay === 'function') {
+        const originalUpdateCartDisplay = updateCartDisplay;
+        window.updateCartDisplay = function() {
+            originalUpdateCartDisplay();
+            // Restaurar foco si el modo está activado
+            if (barcodeMode) {
+                setTimeout(() => {
+                    if (document.activeElement === document.body) {
+                        document.getElementById('barcode-input').focus();
+                    }
+                }, 100);
+            }
+        };
+        console.log('*** UPDATECARTDISPLAY CONFIGURADO ***');
+    }
+}
+
+// Procesar el código de barras escaneado
+function processBarcode(codigo) {
+    console.log('*** PROCESANDO CÓDIGO: ' + codigo + ' ***');
+    console.log('*** isScanning actual: ' + isScanning + ' ***');
+    
+    // Verificar si ya se procesó este código recientemente (dentro de 2 segundos)
+    const currentTime = Date.now();
+    if (codigo === lastProcessedCode && (currentTime - lastProcessedTime) < 2000) {
+        console.log('*** CÓDIGO YA PROCESADO RECIENTEMENTE - IGNORANDO ***');
+        return;
+    }
+    
+    if (isScanning) {
+        console.log('*** YA SE ESTÁ PROCESANDO UN CÓDIGO - IGNORANDO ***');
+        return;
+    }
+    
+    isScanning = true;
+    lastProcessedCode = codigo;
+    lastProcessedTime = currentTime;
+    console.log('*** MARCANDO COMO ESCANEANDO ***');
+    setBarcodeStatus('scanning', 'Buscando producto...', 'fas fa-search');
+    
+    // Buscar artículo por código de barras
+    fetch(`/articulos/buscar-por-codigo-barras/?codigo=${encodeURIComponent(codigo)}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log('*** RESPUESTA BÚSQUEDA: ', data, ' ***');
+            
+            if (data.success && data.articulo) {
+                console.log('*** PRODUCTO ENCONTRADO: ', data.articulo, ' ***');
+                
+                // Buscar el producto en la lista de productos del POS
+                const productos = window.articulos || [];
+                const producto = productos.find(p => p.id == data.articulo.id);
+                
+                if (producto) {
+                    // Agregar al carrito usando el precio del POS
+                    addToCart(
+                        data.articulo.id,
+                        data.articulo.nombre,
+                        producto.precio, // Usar el precio calculado del POS
+                        1 // Cantidad por defecto
+                    );
+                    
+                    setBarcodeStatus('ready', 'Producto agregado', 'fas fa-check-circle');
+                    
+                    // Limpiar el campo después de un breve delay
+                    setTimeout(() => {
+                        clearBarcodeInput();
+                        setBarcodeStatus('ready', 'Listo para escanear', 'fas fa-check-circle');
+                    }, 1000);
+                    
+                } else {
+                    setBarcodeStatus('error', 'Producto no encontrado en POS', 'fas fa-exclamation-triangle');
+                    setTimeout(() => {
+                        clearBarcodeInput();
+                        setBarcodeStatus('ready', 'Listo para escanear', 'fas fa-check-circle');
+                    }, 2000);
+                }
+            } else {
+                console.log('*** PRODUCTO NO ENCONTRADO ***');
+                setBarcodeStatus('error', 'Producto no encontrado', 'fas fa-exclamation-triangle');
+                setTimeout(() => {
+                    clearBarcodeInput();
+                    setBarcodeStatus('ready', 'Listo para escanear', 'fas fa-check-circle');
+                    // Restaurar foco solo si no hay otra interacción
+                    setTimeout(() => {
+                        if (document.activeElement === document.body || 
+                            document.activeElement === document.getElementById('barcode-input')) {
+                            document.getElementById('barcode-input').focus();
+                        }
+                    }, 100);
+                }, 2000);
+            }
+        })
+        .catch(error => {
+            console.error('*** ERROR AL BUSCAR: ', error, ' ***');
+            setBarcodeStatus('error', 'Error de conexión', 'fas fa-exclamation-triangle');
+            setTimeout(() => {
+                clearBarcodeInput();
+                setBarcodeStatus('ready', 'Listo para escanear', 'fas fa-check-circle');
+                // Restaurar foco solo si no hay otra interacción
+                setTimeout(() => {
+                    if (document.activeElement === document.body || 
+                        document.activeElement === document.getElementById('barcode-input')) {
+                        document.getElementById('barcode-input').focus();
+                    }
+                }, 100);
+            }, 2000);
+        })
+        .finally(() => {
+            console.log('*** FINALIZANDO ESCANEO - RESETEANDO isScanning ***');
+            isScanning = false;
+        });
+}
+
+// Cambiar el estado visual del código de barras
+function setBarcodeStatus(type, message, icon) {
+    const status = document.getElementById('barcode-status');
+    status.className = `pos-barcode-status ${type}`;
+    status.innerHTML = `<i class="${icon}"></i><span>${message}</span>`;
+}
+
+// Limpiar el campo de código de barras
+function clearBarcodeInput() {
+    const input = document.getElementById('barcode-input');
+    input.value = '';
+    console.log('*** CAMPO DE CÓDIGO DE BARRAS LIMPIADO ***');
+    
+    // Solo hacer foco si el modo está activado
+    if (barcodeMode) {
+        setTimeout(() => {
+            if (document.activeElement === document.body) {
+                input.focus();
+            }
+        }, 100);
+    }
+}
+
+// Alternar modo de escaneo
+function toggleBarcodeMode() {
+    barcodeMode = !barcodeMode;
+    const barcodeInput = document.getElementById('barcode-input');
+    const barcodeStatus = document.getElementById('barcode-status');
+    const barcodeToggle = document.getElementById('barcode-toggle');
+    
+    if (barcodeMode) {
+        // Activar modo escaneo
+        barcodeInput.disabled = false;
+        setBarcodeStatus('ready', 'Listo para escanear', 'fas fa-check-circle');
+        barcodeToggle.innerHTML = '<i class="fas fa-barcode"></i> Modo Escaneo';
+        barcodeToggle.style.background = '#17a2b8';
+        console.log('*** MODO ESCANEO ACTIVADO ***');
+        // Solo hacer foco si no hay otra interacción
+        setTimeout(() => {
+            if (document.activeElement === document.body) {
+                barcodeInput.focus();
+            }
+        }, 100);
+    } else {
+        // Desactivar modo escaneo
+        barcodeInput.disabled = true;
+        barcodeInput.blur();
+        setBarcodeStatus('disabled', 'Modo escaneo desactivado', 'fas fa-ban');
+        barcodeToggle.innerHTML = '<i class="fas fa-mouse-pointer"></i> Modo Manual';
+        barcodeToggle.style.background = '#28a745';
+        console.log('*** MODO ESCANEO DESACTIVADO ***');
+    }
+}
+
+// Función global para agregar producto al carrito desde cualquier lugar
+function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1) {
+    console.log('*** AGREGANDO AL CARRITO DESDE CUALQUIER LUGAR ***');
+    
+    // Verificar si ya existe en el carrito
+    const existingItemIndex = cart.findIndex(item => item.articuloId == articuloId);
+    
+    if (existingItemIndex !== -1) {
+        // Si ya existe, incrementar cantidad
+        cart[existingItemIndex].cantidad += cantidad;
+        cart[existingItemIndex].total = cart[existingItemIndex].precio * cart[existingItemIndex].cantidad;
+        console.log('*** CANTIDAD INCREMENTADA: ', cart[existingItemIndex], ' ***');
+    } else {
+        // Agregar nuevo item al carrito
+        const newItem = {
+            articuloId: articuloId,
+            nombre: nombre,
+            precio: precio,
+            cantidad: cantidad,
+            descuento: 0,
+            total: precio * cantidad
+        };
+        cart.push(newItem);
+        console.log('*** NUEVO ITEM AGREGADO: ', newItem, ' ***');
+    }
+    
+    // Actualizar visualización
+    if (typeof updateCartDisplay === 'function') {
+        updateCartDisplay();
+    } else {
+        updateCartDisplayManual();
+    }
+    
+    if (typeof updateTotals === 'function') {
+        updateTotals();
+    } else {
+        updateTotalsManual();
+    }
+    
+    // Restaurar foco en código de barras después de un breve delay
+    setTimeout(() => {
+        const barcodeInput = document.getElementById('barcode-input');
+        if (barcodeInput) {
+            barcodeInput.focus();
+            console.log('*** FOCO RESTAURADO EN CÓDIGO DE BARRAS ***');
+        }
+    }, 100);
+}
+
+// Función para agregar producto al carrito (si no existe ya)
+function addToCart(articuloId, nombre, precio, cantidad = 1) {
+    console.log('*** AGREGANDO AL CARRITO: ', {articuloId, nombre, precio, cantidad}, ' ***');
+    console.log('*** CARRITO ANTES: ', cart.length, ' items ***');
+    
+    // Verificar si ya existe en el carrito
+    const existingItemIndex = cart.findIndex(item => item.articuloId == articuloId);
+    
+    if (existingItemIndex !== -1) {
+        // Si ya existe, incrementar cantidad
+        cart[existingItemIndex].cantidad += cantidad;
+        cart[existingItemIndex].total = cart[existingItemIndex].precio * cart[existingItemIndex].cantidad;
+        console.log('*** CANTIDAD INCREMENTADA: ', cart[existingItemIndex], ' ***');
+    } else {
+        // Agregar nuevo item al carrito
+        const newItem = {
+            articuloId: articuloId,
+            nombre: nombre,
+            precio: precio,
+            cantidad: cantidad,
+            descuento: 0,
+            total: precio * cantidad
+        };
+        cart.push(newItem);
+        console.log('*** NUEVO ITEM AGREGADO: ', newItem, ' ***');
+    }
+    
+    console.log('*** CARRITO DESPUÉS: ', cart.length, ' items ***');
+    console.log('*** CARRITO COMPLETO: ', cart, ' ***');
+    
+    // Actualizar la visualización (verificar que las funciones existan)
+    console.log('*** VERIFICANDO FUNCIONES DE ACTUALIZACIÓN ***');
+    console.log('updateCartDisplay existe:', typeof updateCartDisplay === 'function');
+    console.log('updateTotals existe:', typeof updateTotals === 'function');
+    
+    if (typeof updateCartDisplay === 'function') {
+        console.log('*** LLAMANDO updateCartDisplay ***');
+        updateCartDisplay();
+    } else {
+        console.log('*** updateCartDisplay NO DISPONIBLE - ACTUALIZANDO MANUALMENTE ***');
+        updateCartDisplayManual();
+    }
+    
+    if (typeof updateTotals === 'function') {
+        console.log('*** LLAMANDO updateTotals ***');
+        updateTotals();
+    } else {
+        console.log('*** updateTotals NO DISPONIBLE - ACTUALIZANDO MANUALMENTE ***');
+        updateTotalsManual();
+    }
+    
+    console.log('*** CARRITO ACTUALIZADO ***');
+}
+
+// Función manual para actualizar la visualización del carrito
+function updateCartDisplayManual() {
+    console.log('*** ACTUALIZANDO CARRITO MANUALMENTE ***');
+    
+    const cartContainer = document.getElementById('pos-cart-items');
+    if (!cartContainer) {
+        console.log('*** ERROR: No se encontró el contenedor del carrito ***');
+        return;
+    }
+    
+    // Limpiar el contenedor
+    cartContainer.innerHTML = '';
+    
+    if (cart.length === 0) {
+        cartContainer.innerHTML = '<div class="pos-cart-empty">No hay productos en el carrito</div>';
+        return;
+    }
+    
+    // Agregar cada item del carrito
+    cart.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'pos-cart-item';
+        itemDiv.innerHTML = `
+            <div class="cart-item-name">${item.nombre}</div>
+            <div class="cart-item-price">$${window.formatChileanNumber ? window.formatChileanNumber(item.precio) : Math.round(item.precio).toLocaleString('es-CL')}</div>
+            <div class="cart-item-qty">
+                <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, -1)">-</button>
+                <span>${item.cantidad}</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>
+            </div>
+            <div class="cart-item-discount">${item.descuento}%</div>
+            <div class="cart-item-total">$${window.formatChileanNumber ? window.formatChileanNumber(item.total) : Math.round(item.total).toLocaleString('es-CL')}</div>
+            <div class="cart-item-actions">
+                <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${index})" title="Eliminar">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        cartContainer.appendChild(itemDiv);
+    });
+    
+    console.log('*** CARRITO VISUALIZADO MANUALMENTE ***');
+}
+
+// Función manual para actualizar los totales
+function updateTotalsManual() {
+    console.log('*** ACTUALIZANDO TOTALES MANUALMENTE ***');
+    
+    // Calcular totales
+    let subtotal = 0;
+    let descuento = 0;
+    let neto = 0;
+    let iva = 0;
+    let impuestoEspecifico = 0;
+    
+    cart.forEach(item => {
+        const precioFinal = parseFloat(item.precio);
+        const precioNeto = precioFinal / 1.37;
+        const ivaItem = precioNeto * 0.19;
+        const impEspItem = precioNeto * 0.18;
+        
+        subtotal += precioFinal * parseFloat(item.cantidad);
+        neto += precioNeto * parseFloat(item.cantidad);
+        iva += ivaItem * parseFloat(item.cantidad);
+        impuestoEspecifico += impEspItem * parseFloat(item.cantidad);
+    });
+    
+    const total = subtotal;
+    
+    // Actualizar elementos en el DOM
+    const updateElement = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) {
+            const formattedValue = window.formatChileanNumber ? window.formatChileanNumber(value) : Math.round(value).toLocaleString('es-CL');
+            element.textContent = `$${formattedValue}`;
+        } else {
+            console.log(`*** ERROR: Elemento ${id} no encontrado ***`);
+        }
+    };
+    
+    updateElement('subtotal', subtotal);
+    updateElement('descuento', descuento);
+    updateElement('neto', neto);
+    updateElement('iva', iva);
+    updateElement('impuesto_especifico', impuestoEspecifico);
+    updateElement('total', total);
+    
+    console.log('*** TOTALES ACTUALIZADOS MANUALMENTE ***');
+    console.log('Subtotal:', subtotal);
+    console.log('Total:', total);
+}
+
+// Función para actualizar cantidad de un item en el carrito
+function updateQuantity(index, change) {
+    if (cart[index]) {
+        cart[index].cantidad += change;
+        if (cart[index].cantidad <= 0) {
+            cart.splice(index, 1);
+        } else {
+            cart[index].total = cart[index].precio * cart[index].cantidad;
+        }
+        
+        // Actualizar visualización
+        if (typeof updateCartDisplay === 'function') {
+            updateCartDisplay();
+        } else {
+            updateCartDisplayManual();
+        }
+        
+        if (typeof updateTotals === 'function') {
+            updateTotals();
+        } else {
+            updateTotalsManual();
+        }
+    }
+}
+
+// Función para remover un item del carrito
+function removeFromCart(index) {
+    if (cart[index]) {
+        cart.splice(index, 1);
+        
+        // Actualizar visualización
+        if (typeof updateCartDisplay === 'function') {
+            updateCartDisplay();
+        } else {
+            updateCartDisplayManual();
+        }
+        
+        if (typeof updateTotals === 'function') {
+            updateTotals();
+        } else {
+            updateTotalsManual();
+        }
+    }
+}
 
 // Función global para seleccionar cliente
 function seleccionarCliente(id, nombre, rut, direccion) {
