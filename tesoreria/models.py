@@ -1,0 +1,85 @@
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
+from django.utils import timezone
+from decimal import Decimal
+from empresas.models import Empresa
+from proveedores.models import Proveedor
+from documentos.models import DocumentoCompra
+
+
+class CuentaCorrienteProveedor(models.Model):
+    """Modelo para gestionar la cuenta corriente de proveedores"""
+    
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa", related_name="cuentas_corrientes_proveedores")
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, verbose_name="Proveedor", related_name="cuentas_corrientes")
+    
+    # Saldos
+    saldo_total = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Saldo Total")
+    saldo_pendiente = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Saldo Pendiente")
+    saldo_vencido = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Saldo Vencido")
+    
+    # Auditoría
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    fecha_modificacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Modificación")
+    
+    class Meta:
+        verbose_name = "Cuenta Corriente Proveedor"
+        verbose_name_plural = "Cuentas Corrientes Proveedores"
+        unique_together = ['empresa', 'proveedor']
+        ordering = ['proveedor__nombre']
+    
+    def __str__(self):
+        return f"CC {self.proveedor.nombre} - {self.empresa.nombre}"
+    
+    def calcular_saldos(self):
+        """Calcula los saldos basado en los documentos"""
+        documentos = self.documentos.all()
+        
+        self.saldo_total = sum(doc.saldo_pendiente for doc in documentos)
+        self.saldo_pendiente = sum(doc.saldo_pendiente for doc in documentos if doc.estado_pago == 'credito')
+        self.saldo_vencido = sum(doc.saldo_pendiente for doc in documentos if doc.estado_pago == 'vencida')
+        
+        self.save()
+
+
+class MovimientoCuentaCorriente(models.Model):
+    """Modelo para registrar movimientos en la cuenta corriente"""
+    
+    TIPO_MOVIMIENTO_CHOICES = [
+        ('debe', 'Debe'),
+        ('haber', 'Haber'),
+    ]
+    
+    ESTADO_MOVIMIENTO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('confirmado', 'Confirmado'),
+        ('anulado', 'Anulado'),
+    ]
+    
+    cuenta_corriente = models.ForeignKey(CuentaCorrienteProveedor, on_delete=models.CASCADE, 
+                                       related_name='movimientos', verbose_name="Cuenta Corriente")
+    documento_compra = models.ForeignKey(DocumentoCompra, on_delete=models.CASCADE, 
+                                       blank=True, null=True, verbose_name="Documento de Compra", related_name="movimientos_cuenta_corriente")
+    
+    # Información del movimiento
+    tipo_movimiento = models.CharField(max_length=10, choices=TIPO_MOVIMIENTO_CHOICES, verbose_name="Tipo de Movimiento")
+    monto = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0.01)], verbose_name="Monto")
+    saldo_anterior = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Saldo Anterior")
+    saldo_nuevo = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Saldo Nuevo")
+    
+    # Estado y observaciones
+    estado = models.CharField(max_length=20, choices=ESTADO_MOVIMIENTO_CHOICES, default='confirmado', verbose_name="Estado")
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    
+    # Auditoría
+    fecha_movimiento = models.DateTimeField(default=timezone.now, verbose_name="Fecha del Movimiento")
+    registrado_por = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Registrado por")
+    
+    class Meta:
+        verbose_name = "Movimiento de Cuenta Corriente"
+        verbose_name_plural = "Movimientos de Cuenta Corriente"
+        ordering = ['-fecha_movimiento']
+    
+    def __str__(self):
+        return f"{self.get_tipo_movimiento_display()} - {self.monto} - {self.fecha_movimiento.strftime('%d/%m/%Y')}"

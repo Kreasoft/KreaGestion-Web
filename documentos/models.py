@@ -23,23 +23,29 @@ class DocumentoCompra(models.Model):
     ]
     
     ESTADO_DOCUMENTO_CHOICES = [
-        ('borrador', 'Borrador'),
-        ('pendiente', 'Pendiente'),
-        ('aprobado', 'Aprobado'),
-        ('rechazado', 'Rechazado'),
+        ('activo', 'Activo'),
         ('anulado', 'Anulado'),
     ]
     
     ESTADO_PAGO_CHOICES = [
-        ('pagada', 'Pagada'),
+        ('pendiente', 'Pendiente'),
         ('credito', 'Crédito'),
-        ('parcial', 'Pago Parcial'),
-        ('vencida', 'Vencida'),
+        ('pagada', 'Pagada'),
     ]
     
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
     proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, verbose_name="Proveedor")
     bodega = models.ForeignKey(Bodega, on_delete=models.CASCADE, verbose_name="Bodega")
+    
+    # Vinculación con Orden de Compra (OPCIONAL)
+    orden_compra = models.ForeignKey(
+        'compras.OrdenCompra',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='documentos_asociados',
+        verbose_name="Orden de Compra Asociada"
+    )
     
     # Información del documento
     tipo_documento = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, verbose_name="Tipo de Documento")
@@ -48,8 +54,8 @@ class DocumentoCompra(models.Model):
     fecha_vencimiento = models.DateField(blank=True, null=True, verbose_name="Fecha de Vencimiento")
     
     # Estados
-    estado_documento = models.CharField(max_length=20, choices=ESTADO_DOCUMENTO_CHOICES, default='borrador', verbose_name="Estado del Documento")
-    estado_pago = models.CharField(max_length=20, choices=ESTADO_PAGO_CHOICES, default='credito', verbose_name="Estado de Pago")
+    estado_documento = models.CharField(max_length=20, choices=ESTADO_DOCUMENTO_CHOICES, default='activo', verbose_name="Estado del Documento")
+    estado_pago = models.CharField(max_length=20, choices=ESTADO_PAGO_CHOICES, default='pendiente', verbose_name="Estado de Pago")
     
     # Totales
     subtotal = models.IntegerField(default=0, verbose_name="Subtotal")
@@ -104,29 +110,25 @@ class DocumentoCompra(models.Model):
             self.estado_pago = 'credito'
         
         self.save()
-    
-    def puede_editar(self):
-        """Verifica si el documento puede ser editado"""
-        return self.estado_documento in ['borrador', 'pendiente']
-    
-    def puede_aprobar(self):
-        """Verifica si el documento puede ser aprobado"""
-        return self.estado_documento == 'pendiente'
-    
-    def debe_ir_a_cuenta_corriente(self):
-        """Verifica si el documento debe ir a cuenta corriente"""
-        return self.estado_pago in ['credito', 'parcial'] and self.estado_documento == 'aprobado'
+        
+        # Si el documento está activo y es a crédito, registrarlo en cuenta corriente
+        if self.estado_documento == 'activo' and self.estado_pago == 'credito':
+            self.registrar_en_cuenta_corriente()
     
     def registrar_en_cuenta_corriente(self):
-        """Registra el documento en cuenta corriente"""
-        if self.debe_ir_a_cuenta_corriente() and not self.en_cuenta_corriente:
-            # Aquí se integraría con el módulo de tesorería
-            # Por ahora solo marcamos el flag
+        """Registra el documento en cuenta corriente si corresponde"""
+        if not self.en_cuenta_corriente:
             self.en_cuenta_corriente = True
             self.fecha_registro_cc = timezone.now()
             self.save()
-            return True
-        return False
+    
+    def puede_editar(self):
+        """Verifica si el documento puede ser editado"""
+        return True
+    
+    def debe_ir_a_cuenta_corriente(self):
+        """Verifica si el documento debe ir a cuenta corriente"""
+        return self.estado_pago == 'credito' and self.estado_documento == 'activo'
 
 
 class ItemDocumentoCompra(models.Model):
@@ -187,8 +189,7 @@ class HistorialPagoDocumento(models.Model):
     
     documento_compra = models.ForeignKey(DocumentoCompra, on_delete=models.CASCADE, related_name='historial_pagos', verbose_name="Documento de Compra")
     fecha_pago = models.DateTimeField(default=timezone.now, verbose_name="Fecha de Pago")
-    monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0.01)], verbose_name="Monto Pagado")
-    metodo_pago = models.CharField(max_length=50, verbose_name="Método de Pago")
+    monto_total_pagado = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0.01)], verbose_name="Monto Total Pagado", default=0)
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     registrado_por = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Registrado por")
     
@@ -198,4 +199,35 @@ class HistorialPagoDocumento(models.Model):
         ordering = ['-fecha_pago']
     
     def __str__(self):
-        return f"Pago {self.monto_pagado} - {self.fecha_pago.strftime('%d/%m/%Y')}"
+        return f"Pago {self.monto_total_pagado} - {self.fecha_pago.strftime('%d/%m/%Y')}"
+
+
+class FormaPagoPago(models.Model):
+    """Formas de pago específicas dentro de un pago"""
+    
+    pago = models.ForeignKey(HistorialPagoDocumento, on_delete=models.CASCADE, related_name='formas_pago', verbose_name="Pago")
+    forma_pago = models.ForeignKey('ventas.FormaPago', on_delete=models.CASCADE, verbose_name="Forma de Pago", default=1)
+    monto = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0.01)], verbose_name="Monto")
+    
+    # Información adicional para cheques
+    numero_cheque = models.CharField(max_length=50, blank=True, verbose_name="Número de Cheque")
+    banco_cheque = models.CharField(max_length=100, blank=True, verbose_name="Banco del Cheque")
+    fecha_vencimiento_cheque = models.DateField(null=True, blank=True, verbose_name="Fecha de Vencimiento")
+    
+    # Información adicional para transferencias
+    numero_transferencia = models.CharField(max_length=50, blank=True, verbose_name="Número de Transferencia")
+    banco_transferencia = models.CharField(max_length=100, blank=True, verbose_name="Banco de Transferencia")
+    
+    # Información adicional para tarjetas
+    numero_tarjeta = models.CharField(max_length=20, blank=True, verbose_name="Número de Tarjeta")
+    codigo_autorizacion = models.CharField(max_length=20, blank=True, verbose_name="Código de Autorización")
+    
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    
+    class Meta:
+        verbose_name = "Forma de Pago"
+        verbose_name_plural = "Formas de Pago"
+        ordering = ['id']
+    
+    def __str__(self):
+        return f"{self.forma_pago.nombre} - {self.monto}"

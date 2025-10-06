@@ -375,6 +375,11 @@ def editar_empresa_activa(request):
 			configuracion.siguiente_ajuste = int(request.POST.get('siguiente_ajuste', 1))
 			configuracion.formato_ajustes = request.POST.get('formato_ajustes', '{prefijo}-{000}')
 			
+			# Configuración de órdenes de compra
+			configuracion.prefijo_orden_compra = request.POST.get('prefijo_orden_compra', 'OC')
+			configuracion.siguiente_orden_compra = int(request.POST.get('siguiente_orden_compra', 1))
+			configuracion.formato_orden_compra = request.POST.get('formato_orden_compra', '{prefijo}-{000}')
+			
 			configuracion.save()
 			print(f"DEBUG - Solo configuración guardada: {configuracion}")
 			messages.success(request, 'Configuración de folios actualizada correctamente.')
@@ -388,6 +393,11 @@ def editar_empresa_activa(request):
 				configuracion.prefijo_ajustes = request.POST.get('prefijo_ajustes', configuracion.prefijo_ajustes)
 				configuracion.siguiente_ajuste = int(request.POST.get('siguiente_ajuste', configuracion.siguiente_ajuste))
 				configuracion.formato_ajustes = request.POST.get('formato_ajustes', configuracion.formato_ajustes)
+				
+				# Configuración de órdenes de compra
+				configuracion.prefijo_orden_compra = request.POST.get('prefijo_orden_compra', configuracion.prefijo_orden_compra)
+				configuracion.siguiente_orden_compra = int(request.POST.get('siguiente_orden_compra', configuracion.siguiente_orden_compra))
+				configuracion.formato_orden_compra = request.POST.get('formato_orden_compra', configuracion.formato_orden_compra)
 			
 			print(f"DEBUG - Form válido: {form.is_valid()}")
 			print(f"DEBUG - Configuración: {configuracion.prefijo_ajustes}, {configuracion.siguiente_ajuste}, {configuracion.formato_ajustes}")

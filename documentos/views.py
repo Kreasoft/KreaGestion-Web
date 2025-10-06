@@ -25,10 +25,25 @@ def documento_compra_list(request):
     """Lista de documentos de compra"""
     # Obtener la empresa del usuario
     if request.user.is_superuser:
-        empresa = Empresa.objects.first()
+        # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        
+        if not empresa:
+            empresa = Empresa.objects.first()
+        
         if not empresa:
             messages.error(request, 'No hay empresas configuradas en el sistema.')
             return redirect('dashboard')
+            
+        # Guardar empresa en sesión
+        request.session['empresa_activa'] = empresa.id
     else:
         try:
             empresa = request.user.perfil.empresa
@@ -110,10 +125,25 @@ def documento_compra_create(request):
     """Crear nuevo documento de compra"""
     # Obtener la empresa del usuario
     if request.user.is_superuser:
-        empresa = Empresa.objects.first()
+        # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        
+        if not empresa:
+            empresa = Empresa.objects.first()
+        
         if not empresa:
             messages.error(request, 'No hay empresas configuradas en el sistema.')
             return redirect('dashboard')
+            
+        # Guardar empresa en sesión
+        request.session['empresa_activa'] = empresa.id
     else:
         try:
             empresa = request.user.perfil.empresa
@@ -144,6 +174,17 @@ def documento_compra_create(request):
                 documento = form.save(commit=False)
                 documento.empresa = empresa
                 documento.creado_por = request.user
+                
+                # Vincular con Orden de Compra si se proporcionó
+                orden_compra_id = request.POST.get('orden_compra_id')
+                if orden_compra_id:
+                    from compras.models import OrdenCompra
+                    try:
+                        orden_compra = OrdenCompra.objects.get(pk=orden_compra_id, empresa=empresa)
+                        documento.orden_compra = orden_compra
+                    except OrdenCompra.DoesNotExist:
+                        pass
+                
                 documento.save()
                 
                 # Guardar items
@@ -153,8 +194,13 @@ def documento_compra_create(request):
                 # Calcular totales
                 documento.calcular_totales()
                 
+                # Si hay OC asociada, marcarla como completada
+                if documento.orden_compra:
+                    documento.orden_compra.estado_orden = 'completada'
+                    documento.orden_compra.save()
+                
                 messages.success(request, f'Documento {documento.get_tipo_documento_display()} {documento.numero_documento} creado exitosamente.')
-                return redirect('documentos:documento_compra_detail', pk=documento.pk)
+                return redirect('documentos:documento_compra_list')
             except Exception as e:
                 print(f"ERROR AL GUARDAR: {e}")
                 messages.error(request, f'Error al guardar el documento: {str(e)}')
@@ -176,12 +222,12 @@ def documento_compra_create(request):
 
 
 @login_required
-@requiere_empresa
 def documento_compra_detail(request, pk):
     """Detalle de documento de compra"""
     documento = get_object_or_404(DocumentoCompra, pk=pk)
     
-    # Verificar que el usuario tenga acceso a la empresa del documento
+    # Para superusuarios, permitir ver documentos de cualquier empresa
+    # Para usuarios normales, verificar que tenga acceso a la empresa del documento
     if not request.user.is_superuser:
         try:
             if request.user.perfil.empresa != documento.empresa:
@@ -203,12 +249,12 @@ def documento_compra_detail(request, pk):
 
 
 @login_required
-@requiere_empresa
 def documento_compra_update(request, pk):
     """Editar documento de compra"""
     documento = get_object_or_404(DocumentoCompra, pk=pk)
     
-    # Verificar que el usuario tenga acceso a la empresa del documento
+    # Para superusuarios, permitir editar documentos de cualquier empresa
+    # Para usuarios normales, verificar que tenga acceso a la empresa del documento
     if not request.user.is_superuser:
         try:
             if request.user.perfil.empresa != documento.empresa:
@@ -237,10 +283,14 @@ def documento_compra_update(request, pk):
             documento.calcular_totales()
             
             messages.success(request, f'Documento {documento.get_tipo_documento_display()} {documento.numero_documento} actualizado exitosamente.')
-            return redirect('documentos:documento_compra_detail', pk=documento.pk)
+            return redirect('documentos:documento_compra_list')
     else:
         form = DocumentoCompraForm(instance=documento, empresa=documento.empresa)
+        # Inicializar formset con los items existentes
         formset = ItemDocumentoCompraFormSet(instance=documento)
+        # Si no hay items, agregar uno vacío
+        if not formset.forms:
+            formset = ItemDocumentoCompraFormSet(instance=documento, queryset=documento.items.all())
     
     context = {
         'form': form,
@@ -255,12 +305,12 @@ def documento_compra_update(request, pk):
 
 
 @login_required
-@requiere_empresa
 def documento_compra_delete(request, pk):
     """Eliminar documento de compra"""
     documento = get_object_or_404(DocumentoCompra, pk=pk)
     
-    # Verificar que el usuario tenga acceso a la empresa del documento
+    # Para superusuarios, permitir eliminar documentos de cualquier empresa
+    # Para usuarios normales, verificar que tenga acceso a la empresa del documento
     if not request.user.is_superuser:
         try:
             if request.user.perfil.empresa != documento.empresa:
@@ -291,33 +341,34 @@ def documento_compra_delete(request, pk):
 
 @login_required
 @requiere_empresa
-def documento_compra_aprobar(request, pk):
-    """Aprobar documento de compra"""
+def documento_compra_cambiar_estado_pago(request, pk):
+    """Cambiar estado de pago del documento"""
     documento = get_object_or_404(DocumentoCompra, pk=pk)
     
     # Verificar que el usuario tenga acceso a la empresa del documento
     if not request.user.is_superuser:
         try:
             if request.user.perfil.empresa != documento.empresa:
-                messages.error(request, 'No tienes permisos para aprobar este documento.')
+                messages.error(request, 'No tienes permisos para modificar este documento.')
                 return redirect('documentos:documento_compra_list')
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
             return redirect('dashboard')
     
-    if not documento.puede_aprobar():
-        messages.error(request, 'Este documento no puede ser aprobado.')
-        return redirect('documentos:documento_compra_detail', pk=documento.pk)
-    
-    documento.estado_documento = 'aprobado'
-    documento.save()
-    
-    # Registrar en cuenta corriente si corresponde
-    if documento.debe_ir_a_cuenta_corriente():
-        documento.registrar_en_cuenta_corriente()
-        messages.success(request, f'Documento {documento.get_tipo_documento_display()} {documento.numero_documento} aprobado y registrado en cuenta corriente.')
-    else:
-        messages.success(request, f'Documento {documento.get_tipo_documento_display()} {documento.numero_documento} aprobado exitosamente.')
+    if request.method == 'POST':
+        nuevo_estado = request.POST.get('estado_pago')
+        if nuevo_estado in ['pendiente', 'credito', 'pagada']:
+            documento.estado_pago = nuevo_estado
+            documento.save()
+            
+            # Si cambia a crédito, registrar en cuenta corriente
+            if nuevo_estado == 'credito' and documento.estado_documento == 'activo':
+                documento.registrar_en_cuenta_corriente()
+                messages.success(request, f'Documento {documento.get_tipo_documento_display()} {documento.numero_documento} cambiado a Crédito y registrado en cuenta corriente.')
+            else:
+                messages.success(request, f'Estado de pago del documento {documento.get_tipo_documento_display()} {documento.numero_documento} actualizado.')
+        else:
+            messages.error(request, 'Estado de pago inválido.')
     
     return redirect('documentos:documento_compra_detail', pk=documento.pk)
 
@@ -390,3 +441,147 @@ def get_articulo_info(request, articulo_id):
         })
     except Articulo.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Artículo no encontrado'})
+
+
+@login_required
+@requiere_empresa
+def buscar_proveedor_por_rut(request):
+    """Buscar proveedor por RUT via AJAX"""
+    from proveedores.models import Proveedor
+    
+    rut = request.GET.get('rut', '').strip()
+    
+    if not rut:
+        return JsonResponse({'success': False, 'message': 'RUT no proporcionado'})
+    
+    # Obtener empresa del usuario
+    if request.user.is_superuser:
+        empresa_id = request.session.get('empresa_activa')
+        empresa = Empresa.objects.filter(id=empresa_id).first()
+    else:
+        try:
+            empresa = request.user.perfil.empresa
+        except:
+            return JsonResponse({'success': False, 'message': 'Usuario sin empresa asociada'})
+    
+    try:
+        proveedor = Proveedor.objects.get(rut=rut, empresa=empresa)
+        return JsonResponse({
+            'success': True,
+            'id': proveedor.id,
+            'nombre': proveedor.nombre,
+            'rut': proveedor.rut,
+            'direccion': proveedor.direccion or '',
+            'telefono': proveedor.telefono or '',
+            'email': proveedor.email or ''
+        })
+    except Proveedor.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'No se encontró proveedor con ese RUT'
+        })
+
+
+@login_required
+@requiere_empresa
+def ordenes_compra_disponibles(request):
+    """Listar órdenes de compra disponibles para un proveedor via AJAX"""
+    from compras.models import OrdenCompra
+    
+    proveedor_id = request.GET.get('proveedor_id')
+    
+    if not proveedor_id:
+        return JsonResponse({'success': False, 'message': 'ID de proveedor no proporcionado'})
+    
+    # Obtener empresa del usuario
+    if request.user.is_superuser:
+        empresa_id = request.session.get('empresa_activa')
+        empresa = Empresa.objects.filter(id=empresa_id).first()
+    else:
+        try:
+            empresa = request.user.perfil.empresa
+        except:
+            return JsonResponse({'success': False, 'message': 'Usuario sin empresa asociada'})
+    
+    # Buscar OCs del proveedor que NO estén completadas
+    ordenes = OrdenCompra.objects.filter(
+        proveedor_id=proveedor_id,
+        empresa=empresa,
+        estado_orden__in=['en_proceso', 'aprobada']  # Solo no completadas
+    ).order_by('-fecha_orden')
+    
+    ordenes_data = []
+    for oc in ordenes:
+        ordenes_data.append({
+            'id': oc.id,
+            'numero_orden': oc.numero_orden,
+            'fecha_orden': oc.fecha_orden.strftime('%d/%m/%Y'),
+            'total_orden': oc.total_orden,
+            'items_count': oc.items.count(),
+            'estado': oc.get_estado_orden_display(),
+            'bodega_id': oc.bodega_id if oc.bodega else None,
+            'bodega_nombre': oc.bodega.nombre if oc.bodega else ''
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'ordenes': ordenes_data,
+        'count': len(ordenes_data)
+    })
+
+
+@login_required
+@requiere_empresa
+def orden_compra_detalle_json(request, pk):
+    """Obtener detalle completo de una orden de compra via AJAX"""
+    from compras.models import OrdenCompra
+    
+    # Obtener empresa del usuario
+    if request.user.is_superuser:
+        empresa_id = request.session.get('empresa_activa')
+        empresa = Empresa.objects.filter(id=empresa_id).first()
+    else:
+        try:
+            empresa = request.user.perfil.empresa
+        except:
+            return JsonResponse({'success': False, 'message': 'Usuario sin empresa asociada'})
+    
+    try:
+        orden = OrdenCompra.objects.get(pk=pk, empresa=empresa)
+        
+        items_data = []
+        for item in orden.items.all():
+            items_data.append({
+                'articulo_id': item.articulo_id,
+                'articulo_codigo': item.articulo.codigo,
+                'articulo_nombre': item.articulo.nombre,
+                'cantidad_solicitada': item.cantidad_solicitada,
+                'precio_unitario': item.precio_unitario,
+                'descuento_porcentaje': item.descuento_porcentaje if item.descuento_porcentaje else 0,
+                'impuesto_porcentaje': item.impuesto_porcentaje if item.impuesto_porcentaje else 19,
+                'subtotal': item.get_subtotal()
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'orden': {
+                'id': orden.id,
+                'numero_orden': orden.numero_orden,
+                'proveedor_id': orden.proveedor_id,
+                'proveedor_nombre': orden.proveedor.nombre,
+                'bodega_id': orden.bodega_id if orden.bodega else None,
+                'bodega_nombre': orden.bodega.nombre if orden.bodega else '',
+                'fecha_orden': orden.fecha_orden.strftime('%d/%m/%Y'),
+                'subtotal': orden.subtotal,
+                'descuentos_totales': orden.descuentos_totales,
+                'impuestos_totales': orden.impuestos_totales,
+                'total_orden': orden.total_orden,
+                'observaciones': orden.observaciones or ''
+            },
+            'items': items_data
+        })
+    except OrdenCompra.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Orden de compra no encontrada'
+        })

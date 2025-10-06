@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 from .models import (
     OrdenCompra, ItemOrdenCompra, RecepcionMercancia, 
-    ItemRecepcion, CuentaCorrienteProveedor
+    ItemRecepcion
 )
 
 
@@ -178,61 +178,6 @@ class RecepcionMercanciaAdmin(admin.ModelAdmin):
         empresa = request.session.get('empresa_activa')
         if empresa:
             return qs.filter(orden_compra__empresa=empresa)
-        return qs.none()
-
-
-@admin.register(CuentaCorrienteProveedor)
-class CuentaCorrienteProveedorAdmin(admin.ModelAdmin):
-    list_display = [
-        'proveedor', 'fecha', 'tipo_movimiento_badge', 'monto', 
-        'saldo_nuevo', 'descripcion', 'fecha_creacion'
-    ]
-    list_filter = ['tipo_movimiento', 'fecha', 'fecha_creacion']
-    search_fields = ['proveedor__nombre', 'descripcion', 'factura_proveedor']
-    readonly_fields = ['saldo_anterior', 'saldo_nuevo', 'fecha_creacion']
-    
-    fieldsets = (
-        ('Información Básica', {
-            'fields': ('empresa', 'proveedor', 'fecha', 'tipo_movimiento')
-        }),
-        ('Referencias', {
-            'fields': ('orden_compra', 'factura_proveedor')
-        }),
-        ('Montos', {
-            'fields': ('monto', 'saldo_anterior', 'saldo_nuevo')
-        }),
-        ('Descripción', {
-            'fields': ('descripcion', 'observaciones')
-        }),
-        ('Auditoría', {
-            'fields': ('creado_por', 'fecha_creacion'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def tipo_movimiento_badge(self, obj):
-        colors = {
-            'compra': 'danger',
-            'pago': 'success',
-            'nota_credito': 'info',
-            'nota_debito': 'warning',
-            'ajuste': 'secondary',
-        }
-        color = colors.get(obj.tipo_movimiento, 'secondary')
-        return format_html(
-            '<span class="badge bg-{}">{}</span>',
-            color, obj.get_tipo_movimiento_display()
-        )
-    tipo_movimiento_badge.short_description = 'Tipo'
-    
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        # Filtrar por empresa si no es superusuario
-        empresa = request.session.get('empresa_activa')
-        if empresa:
-            return qs.filter(empresa=empresa)
         return qs.none()
 
 

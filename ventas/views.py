@@ -621,7 +621,14 @@ def pos_view(request):
     articulos = []
     for articulo in articulos_queryset:
         precio_neto = float(articulo.precio_venta)
-        iva = precio_neto * 0.19
+        
+        # Calcular IVA solo si la categoría NO está exenta
+        if articulo.categoria and articulo.categoria.exenta_iva:
+            iva = 0.0
+        else:
+            iva = precio_neto * 0.19
+        
+        # Calcular impuesto específico si aplica
         impuesto_especifico = 0.0
         if articulo.categoria and articulo.categoria.impuesto_especifico:
             porcentaje_decimal = float(articulo.categoria.impuesto_especifico.get_porcentaje_decimal()) / 100
@@ -1067,7 +1074,7 @@ def estaciontrabajo_create(request):
             response = JsonResponse({'success': False, 'errors': form.errors})
             response['Content-Type'] = 'application/json'
             return response
-    
+
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
 
@@ -1088,7 +1095,7 @@ def estaciontrabajo_edit(request, pk):
     """Editar estación de trabajo"""
     try:
         estacion = EstacionTrabajo.objects.get(pk=pk, empresa=request.empresa)
-        
+
         if request.method == 'POST':
             form = EstacionTrabajoForm(request.POST, instance=estacion)
             if form.is_valid():
@@ -1100,11 +1107,129 @@ def estaciontrabajo_edit(request, pk):
                 response = JsonResponse({'success': False, 'errors': form.errors})
                 response['Content-Type'] = 'application/json'
                 return response
-        
-        # Para peticiones GET, devolver HTML del formulario
+
+        # Para peticiones GET, devolver HTML del formulario modal
         form = EstacionTrabajoForm(instance=estacion)
-        return render(request, 'ventas/estaciontrabajo_form.html', {'form': form, 'title': 'Editar Estación de Trabajo', 'estacion': estacion})
-    
+
+        from django.middleware.csrf import get_token
+        csrf_token = get_token(request)
+
+        html = f"""
+        <form method="post" action="/ventas/estaciones-trabajo/{estacion.id}/editar/" id="formEditarEstacionSubmit">
+            <input type="hidden" name="csrfmiddlewaretoken" value="{csrf_token}">
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Número de Estación *</label>
+                        <input type="text" name="numero" class="form-control" value="{estacion.numero}" required maxlength="10">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Nombre *</label>
+                        <input type="text" name="nombre" class="form-control" value="{estacion.nombre}" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" style="font-weight: 600;">Descripción</label>
+                <textarea name="descripcion" class="form-control" rows="3">{estacion.descripcion}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" style="font-weight: 600;">Correlativo de Ticket</label>
+                <input type="number" name="correlativo_ticket" class="form-control" value="{estacion.correlativo_ticket}" min="1">
+                <div class="form-text">Número inicial para el correlativo único de tickets</div>
+            </div>
+
+            <!-- Tipos de documentos permitidos -->
+            <div class="mb-4">
+                <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
+                    <i class="fas fa-file-alt me-2"></i>Tipos de Documentos Permitidos
+                </h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" name="puede_facturar" class="form-check-input" id="puedeFacturarEditar" {'checked' if estacion.puede_facturar else ''}>
+                            <label class="form-check-label" for="puedeFacturarEditar">
+                                <i class="fas fa-file-invoice me-2"></i>Puede Emitir Facturas
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" name="puede_boletar" class="form-check-input" id="puedeBoletarEditar" {'checked' if estacion.puede_boletar else ''}>
+                            <label class="form-check-label" for="puedeBoletarEditar">
+                                <i class="fas fa-receipt me-2"></i>Puede Emitir Boletas
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" name="puede_guia" class="form-check-input" id="puedeGuiaEditar" {'checked' if estacion.puede_guia else ''}>
+                            <label class="form-check-label" for="puedeGuiaEditar">
+                                <i class="fas fa-truck me-2"></i>Puede Emitir Guías
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" name="puede_cotizar" class="form-check-input" id="puedeCotizarEditar" {'checked' if estacion.puede_cotizar else ''}>
+                            <label class="form-check-label" for="puedeCotizarEditar">
+                                <i class="fas fa-calculator me-2"></i>Puede Emitir Cotizaciones
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" name="puede_vale" class="form-check-input" id="puedeValeEditar" {'checked' if estacion.puede_vale else ''}>
+                            <label class="form-check-label" for="puedeValeEditar">
+                                <i class="fas fa-ticket-alt me-2"></i>Puede Emitir Vales
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Límites de items -->
+            <div class="mb-4">
+                <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
+                    <i class="fas fa-list-ol me-2"></i>Límites de Items por Documento
+                </h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Máx. Items Factura</label>
+                            <input type="number" name="max_items_factura" class="form-control" value="{estacion.max_items_factura}" min="1" max="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Máx. Items Boleta</label>
+                            <input type="number" name="max_items_boleta" class="form-control" value="{estacion.max_items_boleta}" min="1" max="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Máx. Items Guía</label>
+                            <input type="number" name="max_items_guia" class="form-control" value="{estacion.max_items_guia}" min="1" max="100">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Máx. Items Cotización</label>
+                            <input type="number" name="max_items_cotizacion" class="form-control" value="{estacion.max_items_cotizacion}" min="1" max="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Máx. Items Vale</label>
+                            <input type="number" name="max_items_vale" class="form-control" value="{estacion.max_items_vale}" min="1" max="100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-check form-switch">
+                <input type="checkbox" name="activo" class="form-check-input" id="activoEditar" {'checked' if estacion.activo else ''}>
+                <label class="form-check-label" for="activoEditar">Estación activa</label>
+            </div>
+        </form>
+        """
+
+        from django.http import HttpResponse
+        return HttpResponse(html)
+
     except EstacionTrabajo.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Estación de trabajo no encontrada'})
 

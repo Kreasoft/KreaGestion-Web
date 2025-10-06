@@ -1,7 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
 from django.core.exceptions import ValidationError
-from .models import DocumentoCompra, ItemDocumentoCompra, HistorialPagoDocumento
+from .models import DocumentoCompra, ItemDocumentoCompra, HistorialPagoDocumento, FormaPagoPago
 from proveedores.models import Proveedor
 from articulos.models import Articulo
 from bodegas.models import Bodega
@@ -19,15 +19,15 @@ class DocumentoCompraForm(forms.ModelForm):
             'observaciones'
         ]
         widgets = {
-            'tipo_documento': forms.Select(attrs={'class': 'form-select'}),
-            'proveedor': forms.Select(attrs={'class': 'form-select'}),
-            'bodega': forms.Select(attrs={'class': 'form-select'}),
-            'numero_documento': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 0001-00012345'}),
-            'fecha_emision': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'fecha_vencimiento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'estado_documento': forms.Select(attrs={'class': 'form-select'}),
-            'estado_pago': forms.Select(attrs={'class': 'form-select'}),
-            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Ingrese observaciones adicionales sobre el documento...'}),
+            'tipo_documento': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'proveedor': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'bodega': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'numero_documento': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Ej: 0001-00012345'}),
+            'fecha_emision': forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
+            'fecha_vencimiento': forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
+            'estado_documento': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'estado_pago': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 2, 'placeholder': 'Observaciones...'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -47,6 +47,13 @@ class DocumentoCompraForm(forms.ModelForm):
         if not self.instance.pk and not self.initial.get('fecha_emision'):
             from datetime import date
             self.initial['fecha_emision'] = date.today()
+        
+        # Asegurar que los campos de fecha tengan los valores correctos al editar
+        if self.instance.pk:
+            if self.instance.fecha_emision:
+                self.initial['fecha_emision'] = self.instance.fecha_emision
+            if self.instance.fecha_vencimiento:
+                self.initial['fecha_vencimiento'] = self.instance.fecha_vencimiento
     
     def clean_numero_documento(self):
         numero_documento = self.cleaned_data.get('numero_documento')
@@ -123,7 +130,7 @@ ItemDocumentoCompraFormSet = inlineformset_factory(
     DocumentoCompra,
     ItemDocumentoCompra,
     form=ItemDocumentoCompraForm,
-    extra=1,
+    extra=0,
     can_delete=True,
     min_num=1,
     validate_min=True
@@ -133,31 +140,41 @@ ItemDocumentoCompraFormSet = inlineformset_factory(
 class HistorialPagoDocumentoForm(forms.ModelForm):
     """Formulario para registrar pagos de documentos"""
     
-    METODO_PAGO_CHOICES = [
-        ('efectivo', 'Efectivo'),
-        ('transferencia', 'Transferencia Bancaria'),
-        ('cheque', 'Cheque'),
-        ('tarjeta_credito', 'Tarjeta de Crédito'),
-        ('tarjeta_debito', 'Tarjeta de Débito'),
-        ('otro', 'Otro'),
-    ]
-    
-    metodo_pago = forms.ChoiceField(choices=METODO_PAGO_CHOICES, widget=forms.Select(attrs={'class': 'form-select'}))
-    
     class Meta:
         model = HistorialPagoDocumento
-        fields = ['fecha_pago', 'monto_pagado', 'metodo_pago', 'observaciones']
+        fields = ['fecha_pago', 'monto_total_pagado', 'observaciones']
         widgets = {
             'fecha_pago': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
-            'monto_pagado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'}),
+            'monto_total_pagado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
     
-    def clean_monto_pagado(self):
-        monto = self.cleaned_data.get('monto_pagado')
+    def clean_monto_total_pagado(self):
+        monto = self.cleaned_data.get('monto_total_pagado')
         if monto and monto <= 0:
             raise ValidationError('El monto debe ser mayor a 0.')
         return monto
+
+
+class FormaPagoPagoForm(forms.ModelForm):
+    """Formulario para formas de pago específicas"""
+    
+    class Meta:
+        model = FormaPagoPago
+        fields = ['forma_pago', 'monto', 'numero_cheque', 'banco_cheque', 'fecha_vencimiento_cheque', 
+                 'numero_transferencia', 'banco_transferencia', 'numero_tarjeta', 'codigo_autorizacion', 'observaciones']
+        widgets = {
+            'forma_pago': forms.Select(attrs={'class': 'form-select'}),
+            'monto': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'}),
+            'numero_cheque': forms.TextInput(attrs={'class': 'form-control'}),
+            'banco_cheque': forms.TextInput(attrs={'class': 'form-control'}),
+            'fecha_vencimiento_cheque': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'numero_transferencia': forms.TextInput(attrs={'class': 'form-control'}),
+            'banco_transferencia': forms.TextInput(attrs={'class': 'form-control'}),
+            'numero_tarjeta': forms.TextInput(attrs={'class': 'form-control'}),
+            'codigo_autorizacion': forms.TextInput(attrs={'class': 'form-control'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
 
 
 class BusquedaDocumentoForm(forms.Form):
@@ -176,19 +193,15 @@ class BusquedaDocumentoForm(forms.Form):
     
     ESTADO_DOCUMENTO_CHOICES = [
         ('', 'Todos los estados'),
-        ('borrador', 'Borrador'),
-        ('pendiente', 'Pendiente'),
-        ('aprobado', 'Aprobado'),
-        ('rechazado', 'Rechazado'),
+        ('activo', 'Activo'),
         ('anulado', 'Anulado'),
     ]
     
     ESTADO_PAGO_CHOICES = [
         ('', 'Todos los estados de pago'),
-        ('pagada', 'Pagada'),
+        ('pendiente', 'Pendiente'),
         ('credito', 'Crédito'),
-        ('parcial', 'Pago Parcial'),
-        ('vencida', 'Vencida'),
+        ('pagada', 'Pagada'),
     ]
     
     search = forms.CharField(

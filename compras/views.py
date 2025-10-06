@@ -18,24 +18,46 @@ from articulos.models import Articulo
 from usuarios.decorators import requiere_empresa
 
 
+def obtener_empresa_usuario(request):
+    """Obtener la empresa del usuario con lógica de sesión para superusuarios"""
+    if request.user.is_superuser:
+        # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        
+        if not empresa:
+            empresa = Empresa.objects.first()
+        
+        if not empresa:
+            return None, 'No hay empresas configuradas en el sistema.'
+            
+        # Guardar empresa en sesión
+        request.session['empresa_activa'] = empresa.id
+        return empresa, None
+    else:
+        # Para usuarios normales, usar su empresa asociada
+        try:
+            empresa = request.user.perfil.empresa
+            return empresa, None
+        except:
+            return None, 'Usuario no tiene empresa asociada.'
+
+
 @login_required
 @requiere_empresa
 def orden_compra_list(request):
     """Lista de órdenes de compra"""
     # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
-        if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
-    else:
-        # Para usuarios normales, usar su empresa asociada
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('dashboard')
     
     # Formulario de búsqueda
     search_form = BusquedaOrdenForm(request.GET)
@@ -106,19 +128,10 @@ def orden_compra_list(request):
 def orden_compra_detail(request, pk):
     """Detalle de una orden de compra"""
     # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
-        if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
-    else:
-        # Para usuarios normales, usar su empresa asociada
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('dashboard')
     orden = get_object_or_404(OrdenCompra, pk=pk, empresa=empresa)
     
     # Items de la orden
@@ -142,19 +155,10 @@ def orden_compra_detail(request, pk):
 def orden_compra_create(request):
     """Crear nueva orden de compra"""
     # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
-        if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
-    else:
-        # Para usuarios normales, usar su empresa asociada
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('dashboard')
     
     if request.method == 'POST':
         form = OrdenCompraForm(request.POST, empresa=empresa)
@@ -174,6 +178,25 @@ def orden_compra_create(request):
                 orden = form.save(commit=False)
                 orden.empresa = empresa
                 orden.creado_por = request.user
+
+                # Generar número de orden usando ConfiguracionEmpresa
+                try:
+                    from empresas.models import ConfiguracionEmpresa
+                    configuracion = ConfiguracionEmpresa.objects.get(empresa=empresa)
+                    orden.numero_orden = configuracion.generar_numero_orden_compra()
+                except Exception as e:
+                    print(f"Error generando número: {e}")
+                    # Fallback: usar el del formulario o generar uno simple
+                    ultima_orden = OrdenCompra.objects.filter(empresa=empresa).order_by('-id').first()
+                    if ultima_orden and '-' in ultima_orden.numero_orden:
+                        try:
+                            numero = int(ultima_orden.numero_orden.split('-')[-1]) + 1
+                        except ValueError:
+                            numero = 1
+                    else:
+                        numero = 1
+                    orden.numero_orden = f"OC-{numero:06d}"
+
                 orden.save()
                 
                 # Guardar items
@@ -210,41 +233,54 @@ def orden_compra_create(request):
 def orden_compra_update(request, pk):
     """Editar orden de compra"""
     # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
-        if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
-    else:
-        # Para usuarios normales, usar su empresa asociada
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('dashboard')
     orden = get_object_or_404(OrdenCompra, pk=pk, empresa=empresa)
     
-    # Verificar que se puede editar
-    if orden.estado_orden not in ['borrador', 'pendiente_aprobacion']:
-        messages.error(request, 'No se puede editar una orden que ya fue aprobada.')
+    # Verificar que se puede editar - NO se pueden editar órdenes completadas
+    if orden.estado_orden == 'completada':
+        messages.error(request, 'No se puede editar una orden completada.')
         return redirect('compras:orden_compra_detail', pk=orden.pk)
     
     if request.method == 'POST':
+        print("=== DEBUG ORDEN COMPRA UPDATE ===")
+        print("POST data recibido:", request.POST)
+        
         form = OrdenCompraForm(request.POST, instance=orden, empresa=empresa)
         formset = ItemOrdenCompraFormSet(request.POST, instance=orden)
         
+        print("Form is valid:", form.is_valid())
+        if not form.is_valid():
+            print("Form errors:", form.errors)
+        
+        print("Formset is valid:", formset.is_valid())
+        if not formset.is_valid():
+            print("Formset errors:", formset.errors)
+            print("Formset non_form_errors:", formset.non_form_errors())
+        
         if form.is_valid() and formset.is_valid():
-            orden = form.save()
-            
-            # Guardar items
-            formset.save()
-            
-            # Calcular totales
-            orden.calcular_totales()
-            
-            messages.success(request, f'Orden de compra {orden.numero_orden} actualizada exitosamente.')
-            return redirect('compras:orden_compra_detail', pk=orden.pk)
+            try:
+                orden = form.save()
+                print("Orden guardada:", orden.pk)
+                
+                # Guardar items
+                formset.save()
+                print("Formset guardado exitosamente")
+                
+                # Calcular totales
+                orden.calcular_totales()
+                print("Totales calculados")
+                
+                messages.success(request, f'Orden de compra {orden.numero_orden} actualizada exitosamente.')
+                return redirect('compras:orden_compra_detail', pk=orden.pk)
+            except Exception as e:
+                print("Error al guardar:", str(e))
+                messages.error(request, f'Error al actualizar la orden: {str(e)}')
+        else:
+            print("Formulario no válido - no se guarda")
+            messages.error(request, 'Por favor corrige los errores en el formulario.')
     else:
         form = OrdenCompraForm(instance=orden, empresa=empresa)
         formset = ItemOrdenCompraFormSet(instance=orden)
@@ -266,38 +302,32 @@ def orden_compra_update(request, pk):
 def orden_compra_delete(request, pk):
     """Eliminar orden de compra"""
     # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
-        if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
-    else:
-        # Para usuarios normales, usar su empresa asociada
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
-    orden = get_object_or_404(OrdenCompra, pk=pk, empresa=empresa)
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error})
     
-    # Verificar que se puede eliminar
-    if orden.estado_orden not in ['borrador']:
-        messages.error(request, 'Solo se pueden eliminar órdenes en estado borrador.')
-        return redirect('compras:orden_compra_detail', pk=orden.pk)
-    
-    if request.method == 'POST':
-        numero_orden = orden.numero_orden
-        orden.delete()
-        messages.success(request, f'Orden de compra {numero_orden} eliminada exitosamente.')
-        return redirect('compras:orden_compra_list')
-    
-    context = {
-        'orden': orden,
-        'empresa': empresa,
-    }
-    
-    return render(request, 'compras/orden_compra_confirm_delete.html', context)
+    try:
+        orden = get_object_or_404(OrdenCompra, pk=pk, empresa=empresa)
+        
+        # Verificar que se puede eliminar - NO se pueden eliminar órdenes completadas
+        if orden.estado_orden == 'completada':
+            return JsonResponse({
+                'success': False, 
+                'message': 'No se pueden eliminar órdenes completadas.'
+            })
+        
+        if request.method == 'POST':
+            numero_orden = orden.numero_orden
+            orden.delete()
+            return JsonResponse({
+                'success': True,
+                'message': f'Orden de compra {numero_orden} eliminada exitosamente.'
+            })
+        
+        return JsonResponse({'success': False, 'message': 'Método no permitido'})
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
 
 
 @login_required
@@ -305,19 +335,10 @@ def orden_compra_delete(request, pk):
 def orden_compra_aprobar(request, pk):
     """Aprobar una orden de compra"""
     # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
-        if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
-    else:
-        # Para usuarios normales, usar su empresa asociada
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('dashboard')
     orden = get_object_or_404(OrdenCompra, pk=pk, empresa=empresa)
     
     if orden.puede_aprobar():
@@ -353,91 +374,80 @@ def get_articulo_info(request):
         return JsonResponse({'error': 'Artículo no encontrado'}, status=404)
 
 
-@login_required
-@requiere_empresa
-def recepcion_create(request, orden_id):
-    """Crear recepción de mercancía"""
-    # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
-        if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
-    else:
-        # Para usuarios normales, usar su empresa asociada
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
-    orden = get_object_or_404(OrdenCompra, pk=orden_id, empresa=empresa)
-    
-    if not orden.puede_recibir():
-        messages.error(request, 'Esta orden no puede recibir mercancías.')
-        return redirect('compras:orden_compra_detail', pk=orden.pk)
-    
-    if request.method == 'POST':
-        form = RecepcionMercanciaForm(request.POST, orden_compra=orden)
-        formset = ItemRecepcionFormSet(request.POST)
-        
-        if form.is_valid() and formset.is_valid():
-            recepcion = form.save(commit=False)
-            recepcion.orden_compra = orden
-            recepcion.recibido_por = request.user
-            recepcion.save()
-            
-            # Guardar items
-            formset.instance = recepcion
-            formset.save()
-            
-            messages.success(request, f'Recepción {recepcion.numero_recepcion} creada exitosamente.')
-            return redirect('compras:orden_compra_detail', pk=orden.pk)
-    else:
-        form = RecepcionMercanciaForm(orden_compra=orden)
-        formset = ItemRecepcionFormSet()
-        
-        # Pre-poblar el formset con items de la orden
-        formset.extra = len(orden.items.filter(cantidad_recibida__lt=F('cantidad_solicitada')))
-    
-    context = {
-        'form': form,
-        'formset': formset,
-        'orden': orden,
-        'empresa': empresa,
-        'titulo': 'Crear Recepción de Mercancía',
-        'items_orden': orden.items.filter(cantidad_recibida__lt=F('cantidad_solicitada')),
-    }
-    
-    return render(request, 'compras/recepcion_form.html', context)
+# =============================================================================
+# FUNCIONALIDAD DE RECEPCIÓN DESHABILITADA - No se usa por el momento
+# =============================================================================
+# Las recepciones se reemplazan por el flujo: OC → Documento de Compra
+# El Documento de Compra actualiza stock automáticamente y marca OC como completada
+# =============================================================================
+
+# @login_required
+# @requiere_empresa
+# def recepcion_create(request, orden_id):
+#     """Crear recepción de mercancía"""
+#     # Obtener la empresa del usuario
+#     empresa, error = obtener_empresa_usuario(request)
+#     if error:
+#         messages.error(request, error)
+#         return redirect('dashboard')
+#     orden = get_object_or_404(OrdenCompra, pk=orden_id, empresa=empresa)
+#     
+#     if not orden.puede_recibir():
+#         messages.error(request, 'Esta orden no puede recibir mercancías.')
+#         return redirect('compras:orden_compra_detail', pk=orden.pk)
+#     
+#     if request.method == 'POST':
+#         form = RecepcionMercanciaForm(request.POST, orden_compra=orden)
+#         formset = ItemRecepcionFormSet(request.POST)
+#         
+#         if form.is_valid() and formset.is_valid():
+#             recepcion = form.save(commit=False)
+#             recepcion.orden_compra = orden
+#             recepcion.recibido_por = request.user
+#             recepcion.save()
+#             
+#             # Guardar items
+#             formset.instance = recepcion
+#             formset.save()
+#             
+#             messages.success(request, f'Recepción {recepcion.numero_recepcion} creada exitosamente.')
+#             return redirect('compras:orden_compra_detail', pk=orden.pk)
+#     else:
+#         form = RecepcionMercanciaForm(orden_compra=orden)
+#         formset = ItemRecepcionFormSet()
+#         
+#         # Pre-poblar el formset con items de la orden
+#         formset.extra = len(orden.items.filter(cantidad_recibida__lt=F('cantidad_solicitada')))
+#     
+#     context = {
+#         'form': form,
+#         'formset': formset,
+#         'orden': orden,
+#         'empresa': empresa,
+#         'titulo': 'Crear Recepción de Mercancía',
+#         'items_orden': orden.items.filter(cantidad_recibida__lt=F('cantidad_solicitada')),
+#     }
+#     
+#     return render(request, 'compras/recepcion_form.html', context)
 
 
-@login_required
-@requiere_empresa
-def recepcion_detail(request, pk):
-    """Detalle de una recepción"""
-    # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
-        if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
-    else:
-        # Para usuarios normales, usar su empresa asociada
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
-    recepcion = get_object_or_404(RecepcionMercancia, pk=pk, orden_compra__empresa=empresa)
-    
-    items = recepcion.items.all()
-    
-    context = {
-        'recepcion': recepcion,
-        'items': items,
-        'empresa': empresa,
-    }
-    
-    return render(request, 'compras/recepcion_detail.html', context)
+# @login_required
+# @requiere_empresa
+# def recepcion_detail(request, pk):
+#     """Detalle de una recepción"""
+#     # Obtener la empresa del usuario
+#     empresa, error = obtener_empresa_usuario(request)
+#     if error:
+#         messages.error(request, error)
+#         return redirect('dashboard')
+#     recepcion = get_object_or_404(RecepcionMercancia, pk=pk, orden_compra__empresa=empresa)
+#     
+#     items = recepcion.items.all()
+#     
+#     context = {
+#         'recepcion': recepcion,
+#         'items': items,
+#         'empresa': empresa,
+#     }
+#     
+#     return render(request, 'compras/recepcion_detail.html', context)

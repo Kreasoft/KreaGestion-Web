@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import DocumentoCompra, ItemDocumentoCompra, HistorialPagoDocumento
+from .models import DocumentoCompra, ItemDocumentoCompra, HistorialPagoDocumento, FormaPagoPago
 
 
 class ItemDocumentoCompraInline(admin.TabularInline):
@@ -10,11 +10,18 @@ class ItemDocumentoCompraInline(admin.TabularInline):
     readonly_fields = ['total_item']
 
 
+class FormaPagoPagoInline(admin.TabularInline):
+    model = FormaPagoPago
+    extra = 0
+    fields = ['forma_pago', 'monto', 'numero_cheque', 'banco_cheque', 'numero_transferencia', 'banco_transferencia']
+
+
 class HistorialPagoDocumentoInline(admin.TabularInline):
     model = HistorialPagoDocumento
     extra = 0
-    fields = ['fecha_pago', 'monto_pagado', 'metodo_pago', 'observaciones', 'registrado_por']
+    fields = ['fecha_pago', 'monto_total_pagado', 'observaciones', 'registrado_por']
     readonly_fields = ['registrado_por']
+    inlines = [FormaPagoPagoInline]
 
 
 @admin.register(DocumentoCompra)
@@ -117,20 +124,21 @@ class ItemDocumentoCompraAdmin(admin.ModelAdmin):
 @admin.register(HistorialPagoDocumento)
 class HistorialPagoDocumentoAdmin(admin.ModelAdmin):
     list_display = [
-        'documento_compra', 'fecha_pago', 'monto_pagado', 
-        'metodo_pago', 'registrado_por'
+        'documento_compra', 'fecha_pago', 'monto_total_pagado', 
+        'registrado_por'
     ]
     list_filter = [
-        'metodo_pago', 'fecha_pago', 'documento_compra__empresa'
+        'fecha_pago', 'documento_compra__empresa'
     ]
     search_fields = [
         'documento_compra__numero_documento', 'observaciones'
     ]
     readonly_fields = ['registrado_por']
+    inlines = [FormaPagoPagoInline]
     
     fieldsets = (
         ('Información del Pago', {
-            'fields': ('documento_compra', 'fecha_pago', 'monto_pagado', 'metodo_pago')
+            'fields': ('documento_compra', 'fecha_pago', 'monto_total_pagado')
         }),
         ('Información Adicional', {
             'fields': ('observaciones', 'registrado_por')
@@ -148,5 +156,51 @@ class HistorialPagoDocumentoAdmin(admin.ModelAdmin):
             return queryset
         try:
             return queryset.filter(documento_compra__empresa=request.user.perfil.empresa)
+        except:
+            return queryset.none()
+
+
+@admin.register(FormaPagoPago)
+class FormaPagoPagoAdmin(admin.ModelAdmin):
+    list_display = [
+        'pago', 'forma_pago', 'monto', 'numero_cheque', 
+        'banco_cheque', 'numero_transferencia'
+    ]
+    list_filter = [
+        'forma_pago', 'pago__documento_compra__empresa'
+    ]
+    search_fields = [
+        'pago__documento_compra__numero_documento', 
+        'numero_cheque', 'numero_transferencia', 'numero_tarjeta'
+    ]
+    
+    fieldsets = (
+        ('Información de la Forma de Pago', {
+            'fields': ('pago', 'forma_pago', 'monto')
+        }),
+        ('Información de Cheque', {
+            'fields': ('numero_cheque', 'banco_cheque', 'fecha_vencimiento_cheque'),
+            'classes': ('collapse',)
+        }),
+        ('Información de Transferencia', {
+            'fields': ('numero_transferencia', 'banco_transferencia'),
+            'classes': ('collapse',)
+        }),
+        ('Información de Tarjeta', {
+            'fields': ('numero_tarjeta', 'codigo_autorizacion'),
+            'classes': ('collapse',)
+        }),
+        ('Información Adicional', {
+            'fields': ('observaciones',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.is_superuser:
+            return queryset
+        try:
+            return queryset.filter(pago__documento_compra__empresa=request.user.perfil.empresa)
         except:
             return queryset.none()

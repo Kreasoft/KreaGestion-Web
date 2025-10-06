@@ -559,8 +559,9 @@ function removeLogoPreview() {
         }
     }
 
-    // Variable global para almacenar el porcentaje de impuesto específico
+    // Variables globales para almacenar información de la categoría
     let impuestoEspecificoPorcentaje = 0;
+    let categoriaExentaIva = false;
     
     // Función para obtener impuesto específico de la categoría
     function obtenerImpuestoEspecificoCategoria() {
@@ -569,6 +570,7 @@ function removeLogoPreview() {
         
         if (!categoriaId) {
             impuestoEspecificoPorcentaje = 0;
+            categoriaExentaIva = false;
             const impuestoField = document.getElementById('id_impuesto_especifico');
             if (impuestoField) {
                 impuestoField.value = '0.00';
@@ -583,10 +585,14 @@ function removeLogoPreview() {
             .then(data => {
                 if (data.impuesto_especifico_porcentaje) {
                     impuestoEspecificoPorcentaje = parseFloat(data.impuesto_especifico_porcentaje);
+                    categoriaExentaIva = data.exenta_iva || false;
                     console.log('Impuesto específico aplicado:', impuestoEspecificoPorcentaje + '%');
+                    console.log('Categoría exenta de IVA:', categoriaExentaIva);
                     calcularPrecios();
                 } else {
                     impuestoEspecificoPorcentaje = 0;
+                    categoriaExentaIva = data.exenta_iva || false;
+                    console.log('Categoría exenta de IVA:', categoriaExentaIva);
                     const impuestoField = document.getElementById('id_impuesto_especifico');
                     if (impuestoField) {
                         impuestoField.value = '0.00';
@@ -597,6 +603,7 @@ function removeLogoPreview() {
             .catch(error => {
                 console.error('Error al obtener impuesto específico:', error);
                 impuestoEspecificoPorcentaje = 0;
+                categoriaExentaIva = false;
                 calcularPrecios();
             });
     }
@@ -637,9 +644,9 @@ function removeLogoPreview() {
             // Precio Final = Precio Neto * (1 + 0.19 + impuestoEspecificoPorcentaje/100)
             // Precio Neto = Precio Final / (1 + 0.19 + impuestoEspecificoPorcentaje/100)
             
-            const factorTotal = 1 + 0.19 + (impuestoEspecificoPorcentaje / 100);
+            const factorTotal = 1 + (categoriaExentaIva ? 0 : 0.19) + (impuestoEspecificoPorcentaje / 100);
             nuevoPrecioNeto = precioFinal / factorTotal;
-            iva = nuevoPrecioNeto * 0.19;
+            iva = categoriaExentaIva ? 0 : nuevoPrecioNeto * 0.19;
             
             console.log('Factor total:', factorTotal, 'Nuevo precio neto:', nuevoPrecioNeto, 'IVA:', iva);
             
@@ -652,7 +659,7 @@ function removeLogoPreview() {
         // Si se modifica Precio Neto, calcular hacia adelante
         else if (precioNeto > 0) {
             console.log('Calculando desde Precio Neto hacia adelante');
-            iva = precioNeto * 0.19;
+            iva = categoriaExentaIva ? 0 : precioNeto * 0.19;
             const impuestoEspecificoCalculado = precioNeto * (impuestoEspecificoPorcentaje / 100);
             nuevoPrecioFinal = precioNeto + iva + impuestoEspecificoCalculado;
             
@@ -683,7 +690,7 @@ function removeLogoPreview() {
         // Actualizar displays con valores finales
         const precioNetoDisplay = parseFloat(document.getElementById('id_precio_venta').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
         const precioFinalDisplay = parseFloat(document.getElementById('id_precio_final').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-        const ivaDisplay = precioNetoDisplay * 0.19;
+        const ivaDisplay = categoriaExentaIva ? 0 : precioNetoDisplay * 0.19;
         const impuestoEspecificoDisplay = precioNetoDisplay * (impuestoEspecificoPorcentaje / 100);
         
         console.log('Displays - Neto:', precioNetoDisplay, 'Final:', precioFinalDisplay, 'IVA:', ivaDisplay, 'Imp. Esp:', impuestoEspecificoDisplay);

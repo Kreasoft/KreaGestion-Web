@@ -20,16 +20,16 @@ class OrdenCompraForm(forms.ModelForm):
             'subtotal', 'descuentos_totales', 'impuestos_totales', 'total_orden'
         ]
         widgets = {
-            'proveedor': forms.Select(attrs={'class': 'form-select'}),
-            'bodega': forms.Select(attrs={'class': 'form-select'}),
-            'numero_orden': forms.TextInput(attrs={'class': 'form-control', 'readonly': True}),
-            'fecha_orden': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'fecha_entrega_esperada': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'estado_orden': forms.Select(attrs={'class': 'form-select'}),
-            'prioridad': forms.Select(attrs={'class': 'form-select'}),
-            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'condiciones_pago': forms.TextInput(attrs={'class': 'form-control'}),
-            'plazo_entrega': forms.TextInput(attrs={'class': 'form-control'}),
+            'proveedor': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'bodega': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'numero_orden': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'readonly': True, 'placeholder': 'Se generará automáticamente'}),
+            'fecha_orden': forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
+            'fecha_entrega_esperada': forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
+            'estado_orden': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'prioridad': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 2}),
+            'condiciones_pago': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+            'plazo_entrega': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
             'subtotal': forms.HiddenInput(),
             'descuentos_totales': forms.HiddenInput(),
             'impuestos_totales': forms.HiddenInput(),
@@ -45,17 +45,32 @@ class OrdenCompraForm(forms.ModelForm):
             self.fields['proveedor'].queryset = Proveedor.objects.filter(empresa=self.empresa)
             self.fields['bodega'].queryset = Bodega.objects.filter(empresa=self.empresa)
         
-        # Generar número de orden automáticamente
-        if not self.instance.pk:
-            ultima_orden = OrdenCompra.objects.filter(empresa=self.empresa).order_by('-numero_orden').first()
-            if ultima_orden:
-                try:
-                    numero = int(ultima_orden.numero_orden) + 1
-                except ValueError:
+        # Generar número de orden automáticamente SOLO para nuevas órdenes
+        if not self.instance.pk and self.empresa:
+            try:
+                from empresas.models import ConfiguracionEmpresa
+                configuracion = ConfiguracionEmpresa.objects.get(empresa=self.empresa)
+                # NO incrementar el contador aquí, solo mostrar el próximo número
+                numero_preview = f"{configuracion.prefijo_orden_compra}-{configuracion.siguiente_orden_compra:06d}"
+                self.fields['numero_orden'].initial = numero_preview
+                # NO guardamos numero_orden_generado aquí
+            except Exception as e:
+                print(f"Error obteniendo número de orden: {e}")
+                # Fallback al método anterior si no hay configuración
+                ultima_orden = OrdenCompra.objects.filter(empresa=self.empresa).order_by('-id').first()
+                if ultima_orden:
+                    try:
+                        # Intentar extraer el número del formato OC-000001
+                        if '-' in ultima_orden.numero_orden:
+                            numero = int(ultima_orden.numero_orden.split('-')[-1]) + 1
+                        else:
+                            numero = int(ultima_orden.numero_orden) + 1
+                    except ValueError:
+                        numero = 1
+                else:
                     numero = 1
-            else:
-                numero = 1
-            self.fields['numero_orden'].initial = f"{numero:06d}"
+                numero_formateado = f"OC-{numero:06d}"
+                self.fields['numero_orden'].initial = numero_formateado
 
 
 class ItemOrdenCompraForm(forms.ModelForm):
@@ -68,13 +83,13 @@ class ItemOrdenCompraForm(forms.ModelForm):
             'descuento_porcentaje', 'impuesto_porcentaje', 'especificaciones', 'fecha_entrega_item'
         ]
         widgets = {
-            'articulo': forms.Select(attrs={'class': 'form-select articulo-select'}),
-            'cantidad_solicitada': forms.NumberInput(attrs={'class': 'form-control cantidad-input', 'min': '1'}),
-            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control precio-input', 'min': '0'}),
-            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control descuento-input', 'min': '0', 'max': '100', 'value': '0'}),
-            'impuesto_porcentaje': forms.NumberInput(attrs={'class': 'form-control impuesto-input', 'min': '0', 'max': '100', 'value': '19'}),
-            'especificaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'fecha_entrega_item': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'articulo': forms.Select(attrs={'class': 'form-select form-select-sm articulo-select'}),
+            'cantidad_solicitada': forms.NumberInput(attrs={'class': 'form-control form-control-sm cantidad-input', 'min': '1'}),
+            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control form-control-sm precio-input', 'min': '0'}),
+            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm descuento-input', 'min': '0', 'max': '100', 'value': '0'}),
+            'impuesto_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm impuesto-input', 'min': '0', 'max': '100', 'value': '19'}),
+            'especificaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 2}),
+            'fecha_entrega_item': forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -245,7 +260,7 @@ class BusquedaOrdenForm(forms.Form):
         max_length=100,
         required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
+            'class': 'form-control form-control-sm',
             'placeholder': 'Buscar por número, proveedor o artículo...'
         })
     )
@@ -253,22 +268,22 @@ class BusquedaOrdenForm(forms.Form):
     estado_orden = forms.ChoiceField(
         choices=ESTADO_ORDEN_CHOICES,
         required=False,
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.Select(attrs={'class': 'form-select form-select-sm'})
     )
     
     
     prioridad = forms.ChoiceField(
         choices=PRIORIDAD_CHOICES,
         required=False,
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.Select(attrs={'class': 'form-select form-select-sm'})
     )
     
     fecha_desde = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+        widget=forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'})
     )
     
     fecha_hasta = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+        widget=forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'})
     )

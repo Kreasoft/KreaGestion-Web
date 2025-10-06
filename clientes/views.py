@@ -10,23 +10,45 @@ from empresas.models import Empresa
 from empresas.decorators import requiere_empresa
 
 
-@login_required
-def cliente_list(request):
-    """Lista de clientes con estadísticas"""
-    # Obtener la empresa del usuario
+def obtener_empresa_usuario(request):
+    """Obtener la empresa del usuario con lógica de sesión para superusuarios"""
     if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
+        # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        
         if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
+            empresa = Empresa.objects.first()
+        
+        if not empresa:
+            return None, 'No hay empresas configuradas en el sistema.'
+            
+        # Guardar empresa en sesión
+        request.session['empresa_activa'] = empresa.id
+        return empresa, None
     else:
         # Para usuarios normales, usar su empresa asociada
         try:
             empresa = request.user.perfil.empresa
+            return empresa, None
         except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return None, 'Usuario no tiene empresa asociada.'
+
+
+@login_required
+def cliente_list(request):
+    """Lista de clientes con estadísticas"""
+    # Obtener la empresa del usuario
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('dashboard')
     
     # Filtros
     search = request.GET.get('search', '')
@@ -91,14 +113,10 @@ def cliente_list(request):
 def cliente_detail(request, pk):
     """Detalle de cliente"""
     # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        empresa = Empresa.objects.first()
-    else:
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('clientes:cliente_list')
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('clientes:cliente_list')
     
     cliente = get_object_or_404(Cliente, pk=pk, empresa=empresa)
     
@@ -178,14 +196,10 @@ def cliente_create(request):
 def cliente_update(request, pk):
     """Editar cliente"""
     # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        empresa = Empresa.objects.first()
-    else:
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('clientes:cliente_list')
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('clientes:cliente_list')
     
     cliente = get_object_or_404(Cliente, pk=pk, empresa=empresa)
     
@@ -231,14 +245,10 @@ def cliente_update(request, pk):
 def cliente_delete(request, pk):
     """Eliminar cliente"""
     # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        empresa = Empresa.objects.first()
-    else:
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('clientes:cliente_list')
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('clientes:cliente_list')
     
     cliente = get_object_or_404(Cliente, pk=pk, empresa=empresa)
     

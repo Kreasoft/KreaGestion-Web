@@ -13,14 +13,10 @@ class OrdenCompra(models.Model):
     """Modelo para gestionar órdenes de compra a proveedores"""
     
     ESTADO_ORDEN_CHOICES = [
-        ('borrador', 'Borrador'),
-        ('pendiente_aprobacion', 'Pendiente de Aprobación'),
-        ('aprobada', 'Aprobada'),
         ('en_proceso', 'En Proceso'),
-        ('parcialmente_recibida', 'Parcialmente Recibida'),
-        ('completamente_recibida', 'Completamente Recibida'),
+        ('aprobada', 'Aprobada'),
+        ('completada', 'Completada'),
         ('cancelada', 'Cancelada'),
-        ('cerrada', 'Cerrada'),
     ]
     
     ESTADO_PAGO_CHOICES = [
@@ -49,7 +45,7 @@ class OrdenCompra(models.Model):
     fecha_entrega_real = models.DateField(blank=True, null=True, verbose_name="Fecha de Entrega Real")
     
     # Estados
-    estado_orden = models.CharField(max_length=30, choices=ESTADO_ORDEN_CHOICES, default='borrador', verbose_name="Estado de la Orden")
+    estado_orden = models.CharField(max_length=30, choices=ESTADO_ORDEN_CHOICES, default='en_proceso', verbose_name="Estado de la Orden")
     estado_pago = models.CharField(max_length=20, choices=ESTADO_PAGO_CHOICES, default='credito', verbose_name="Estado de Pago")
     prioridad = models.CharField(max_length=20, choices=PRIORIDAD_CHOICES, default='normal', verbose_name="Prioridad")
     
@@ -87,6 +83,9 @@ class OrdenCompra(models.Model):
     
     def calcular_totales(self):
         """Calcula los totales de la orden de compra basado en sus items"""
+        # Marcar que estamos calculando totales para evitar bucles infinitos
+        self._calculando_totales = True
+        
         items = self.items.all()
         
         self.subtotal = sum(item.get_subtotal() for item in items)
@@ -100,6 +99,9 @@ class OrdenCompra(models.Model):
         # El estado de pago se maneja en el modelo CuentaCorrienteProveedor
         
         self.save()
+        
+        # Limpiar la marca
+        delattr(self, '_calculando_totales')
     
     def get_estado_display_color(self):
         """Retorna el color CSS para el estado de la orden"""
@@ -192,7 +194,10 @@ class ItemOrdenCompra(models.Model):
         self.impuesto_monto = round((self.subtotal - self.descuento_monto) * (self.impuesto_porcentaje / 100))
         self.total_item = self.subtotal - self.descuento_monto + self.impuesto_monto
         super().save(*args, **kwargs)
-        self.orden_compra.calcular_totales()
+        
+        # Solo calcular totales si no estamos en medio de un cálculo de totales
+        if not hasattr(self.orden_compra, '_calculando_totales'):
+            self.orden_compra.calcular_totales()
     
     def get_subtotal(self):
         """Retorna el subtotal del item"""
@@ -324,78 +329,3 @@ class ItemRecepcion(models.Model):
         orden.save()
 
 
-class CuentaCorrienteProveedor(models.Model):
-    """Modelo para gestionar la cuenta corriente de proveedores"""
-    
-    TIPO_MOVIMIENTO_CHOICES = [
-        ('compra', 'Compra'),
-        ('pago', 'Pago'),
-        ('nota_credito', 'Nota de Crédito'),
-        ('nota_debito', 'Nota de Débito'),
-        ('ajuste', 'Ajuste'),
-    ]
-    
-    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
-    proveedor = models.CharField(max_length=200, verbose_name="Proveedor")  # Temporal
-    
-    # Información del movimiento
-    fecha = models.DateField(default=timezone.now, verbose_name="Fecha del Movimiento")
-    tipo_movimiento = models.CharField(max_length=20, choices=TIPO_MOVIMIENTO_CHOICES, verbose_name="Tipo de Movimiento")
-    
-    # Referencias
-    orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.SET_NULL, null=True, blank=True)
-    factura_proveedor = models.CharField(max_length=50, blank=True, verbose_name="Número de Factura del Proveedor")
-    
-    # Montos
-    monto = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Monto")
-    saldo_anterior = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Saldo Anterior")
-    saldo_nuevo = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Saldo Nuevo")
-    
-    # Información adicional
-    descripcion = models.TextField(verbose_name="Descripción")
-    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
-    
-    # Auditoría
-    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        verbose_name = "Movimiento de Cuenta Corriente de Proveedor"
-        verbose_name_plural = "Movimientos de Cuenta Corriente de Proveedores"
-        ordering = ['-fecha', '-id']
-    
-    def __str__(self):
-        return f"{self.proveedor} - {self.tipo_movimiento} - {self.monto}"
-    
-    def save(self, *args, **kwargs):
-        """Calcula el saldo nuevo al guardar"""
-        if not self.pk:  # Solo para nuevos registros
-            # Obtener el último saldo del proveedor
-            ultimo_movimiento = CuentaCorrienteProveedor.objects.filter(
-                empresa=self.empresa,
-                proveedor=self.proveedor
-            ).order_by('-fecha', '-id').first()
-            
-            if ultimo_movimiento:
-                self.saldo_anterior = ultimo_movimiento.saldo_nuevo
-            else:
-                self.saldo_anterior = Decimal('0.00')
-            
-            # Calcular saldo nuevo según el tipo de movimiento
-            if self.tipo_movimiento in ['compra', 'nota_debito', 'ajuste']:
-                self.saldo_nuevo = self.saldo_anterior + self.monto
-            else:  # pago, nota_credito
-                self.saldo_nuevo = self.saldo_anterior - self.monto
-        
-        super().save(*args, **kwargs)
-    
-    def get_tipo_movimiento_display_color(self):
-        """Retorna el color CSS para el tipo de movimiento"""
-        colores = {
-            'compra': 'danger',
-            'pago': 'success',
-            'nota_credito': 'info',
-            'nota_debito': 'warning',
-            'ajuste': 'secondary',
-        }
-        return colores.get(self.tipo_movimiento, 'secondary')

@@ -46,7 +46,7 @@ class FormaPagoForm(forms.ModelForm):
 
 class EstacionTrabajoForm(forms.ModelForm):
     """Formulario para crear y editar estaciones de trabajo"""
-    
+
     class Meta:
         model = EstacionTrabajo
         fields = ['numero', 'nombre', 'descripcion', 'correlativo_ticket', 'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale', 'max_items_factura', 'max_items_boleta', 'max_items_guia', 'max_items_cotizacion', 'max_items_vale', 'activo']
@@ -71,11 +71,7 @@ class EstacionTrabajoForm(forms.ModelForm):
             'numero': 'Número de Estación',
             'nombre': 'Nombre de la Estación',
             'descripcion': 'Descripción',
-            'correlativo_factura': 'Correlativo Factura',
-            'correlativo_boleta': 'Correlativo Boleta',
-            'correlativo_guia': 'Correlativo Guía',
-            'correlativo_cotizacion': 'Correlativo Cotización',
-            'correlativo_vale': 'Correlativo Vale',
+            'correlativo_ticket': 'Correlativo de Ticket',
             'puede_facturar': 'Puede Emitir Facturas',
             'puede_boletar': 'Puede Emitir Boletas',
             'puede_guia': 'Puede Emitir Guías',

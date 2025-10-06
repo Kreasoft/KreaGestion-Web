@@ -174,6 +174,11 @@ class ConfiguracionEmpresa(models.Model):
     siguiente_ajuste = models.IntegerField(default=1, verbose_name="Siguiente Número Ajuste")
     formato_ajustes = models.CharField(max_length=20, default='{prefijo}-{000}', verbose_name="Formato Ajustes")
     
+    # Configuración de órdenes de compra
+    prefijo_orden_compra = models.CharField(max_length=10, default='OC', verbose_name="Prefijo Órdenes de Compra")
+    siguiente_orden_compra = models.IntegerField(default=1, verbose_name="Siguiente Número Orden de Compra")
+    formato_orden_compra = models.CharField(max_length=20, default='{prefijo}-{000}', verbose_name="Formato Órdenes de Compra")
+    
     # Configuración de impresión
     imprimir_logo = models.BooleanField(default=True, verbose_name="Imprimir Logo en Documentos")
     pie_pagina_documentos = models.TextField(blank=True, verbose_name="Pie de Página en Documentos")
@@ -211,10 +216,19 @@ class ConfiguracionEmpresa(models.Model):
         self.save()
         
         # Formatear el número según el formato configurado
-        formato = self.formato_ajustes
-        numero_formateado = formato.format(
-            prefijo=self.prefijo_ajustes,
-            numero=numero
-        ).replace('{000}', f"{numero:03d}")
+        # Formato esperado: Aju-{000} donde {000} será reemplazado por el número con ceros
+        numero_formateado = f"{self.prefijo_ajustes}-{numero:06d}"
+        
+        return numero_formateado
+    
+    def generar_numero_orden_compra(self):
+        """Genera el siguiente número de orden de compra"""
+        numero = self.siguiente_orden_compra
+        self.siguiente_orden_compra += 1
+        self.save()
+        
+        # Formatear el número según el formato configurado
+        # Formato esperado: OC-{000} donde {000} será reemplazado por el número con ceros
+        numero_formateado = f"{self.prefijo_orden_compra}-{numero:06d}"
         
         return numero_formateado

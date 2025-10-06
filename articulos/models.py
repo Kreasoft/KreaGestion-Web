@@ -257,21 +257,15 @@ class Articulo(models.Model):
     
     @property
     def stock_actual(self):
-        """Retorna el stock actual del artículo (suma de todas las sucursales)"""
+        """Retorna el stock actual del artículo (suma de todas las bodegas)"""
         try:
-            from empresas.models import Sucursal
-            # Obtener todas las sucursales de la empresa
-            sucursales = Sucursal.objects.filter(empresa=self.empresa, estado='activa')
-            
-            # Sumar el stock de todas las sucursales
-            total_stock = 0
-            for sucursal in sucursales:
-                stock_obj = self.stock_articulos.filter(sucursal=sucursal).first()
-                if stock_obj:
-                    total_stock += float(stock_obj.cantidad_disponible)
-            
+            from inventario.models import Stock
+            # Obtener el stock total de todas las bodegas
+            stocks = Stock.objects.filter(articulo=self, empresa=self.empresa)
+            total_stock = sum(float(stock.cantidad) for stock in stocks)
             return int(total_stock)
-        except:
+        except Exception as e:
+            print(f"DEBUG - Error calculando stock para artículo {self.id}: {e}")
             return 0
 
 

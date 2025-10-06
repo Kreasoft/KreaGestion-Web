@@ -52,6 +52,7 @@ LOCAL_APPS = [
 	'compras.apps.ComprasConfig',
 	'reportes.apps.ReportesConfig',
 	'usuarios.apps.UsuariosConfig',
+	'tesoreria.apps.TesoreriaConfig',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

@@ -35,5 +35,6 @@ urlpatterns = [
     # Impuesto específico de categoría
     path('categoria/<int:categoria_id>/impuesto-especifico/', views.categoria_impuesto_especifico, name='categoria_impuesto_especifico'),
     path('buscar-por-codigo-barras/', views.buscar_por_codigo_barras, name='buscar_por_codigo_barras'),
+    path('stock-actual/', views.stock_actual, name='stock_actual'),
     
 ]

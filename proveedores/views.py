@@ -15,11 +15,25 @@ def proveedor_list(request):
     """Lista de proveedores con estadísticas"""
     # Obtener la empresa del usuario
     if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
+        # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        
+        if not empresa:
+            empresa = Empresa.objects.first()
+        
         if not empresa:
             messages.error(request, 'No hay empresas configuradas en el sistema.')
             return redirect('dashboard')
+            
+        # Guardar empresa en sesión
+        request.session['empresa_activa'] = empresa.id
     else:
         # Para usuarios normales, usar su empresa asociada
         try:
@@ -94,7 +108,18 @@ def proveedor_detail(request, pk):
     """Detalle de proveedor"""
     # Obtener la empresa del usuario
     if request.user.is_superuser:
-        empresa = Empresa.objects.first()
+        # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        
+        if not empresa:
+            empresa = Empresa.objects.first()
     else:
         try:
             empresa = request.user.perfil.empresa
@@ -128,8 +153,19 @@ def proveedor_create(request):
     """Crear nuevo proveedor"""
     # Obtener la empresa del usuario
     if request.user.is_superuser:
-        # Para superusuarios, usar la primera empresa disponible
-        empresa = Empresa.objects.first()
+        # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        
+        if not empresa:
+            empresa = Empresa.objects.first()
+        
         if not empresa:
             messages.error(request, 'No hay empresas configuradas en el sistema.')
             return redirect('proveedores:proveedor_list')

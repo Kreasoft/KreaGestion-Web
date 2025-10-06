@@ -19,9 +19,9 @@ urlpatterns = [
     path('ordenes/<int:pk>/eliminar/', views.orden_compra_delete, name='orden_compra_delete'),
     path('ordenes/<int:pk>/aprobar/', views.orden_compra_aprobar, name='orden_compra_aprobar'),
     
-    # Recepciones
-    path('ordenes/<int:orden_id>/recepcion/crear/', views.recepcion_create, name='recepcion_create'),
-    path('recepciones/<int:pk>/', views.recepcion_detail, name='recepcion_detail'),
+    # Recepciones (DESHABILITADO - No se usa por el momento)
+    # path('ordenes/<int:orden_id>/recepcion/crear/', views.recepcion_create, name='recepcion_create'),
+    # path('recepciones/<int:pk>/', views.recepcion_detail, name='recepcion_detail'),
     
     # AJAX endpoints
     path('ajax/articulo-info/', views.get_articulo_info, name='get_articulo_info'),

@@ -6,6 +6,7 @@ from django.db.models import Q, Sum
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from decimal import Decimal
+import json
 from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico
 from inventario.models import Stock
 from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm
@@ -493,8 +494,20 @@ def calcular_precios_articulo(request):
         impuesto_especifico = Decimal(request.POST.get('impuesto_especifico', '0'))
         modo = request.POST.get('modo', 'margen')  # 'margen', 'precio_venta', 'precio_final'
         
+        # Obtener información de la categoría para determinar si está exenta de IVA
+        categoria_id = request.POST.get('categoria_id')
+        exenta_iva = False
+        
+        if categoria_id:
+            try:
+                from .models import CategoriaArticulo
+                categoria = CategoriaArticulo.objects.get(pk=categoria_id, empresa=request.user.empresa)
+                exenta_iva = categoria.exenta_iva
+            except CategoriaArticulo.DoesNotExist:
+                pass
+        
         # Factores de impuestos
-        factor_iva = Decimal('1.19')  # IVA 19%
+        factor_iva = Decimal('1.00') if exenta_iva else Decimal('1.19')  # IVA 0% o 19%
         factor_especifico = (Decimal('1') + impuesto_especifico / Decimal('100')) if impuesto_especifico > 0 else Decimal('1')
         factor_total = factor_iva * factor_especifico
         
@@ -528,7 +541,8 @@ def calcular_precios_articulo(request):
         margen_porcentaje = round(margen_porcentaje, 2)
         
         # Calcular impuestos
-        valor_iva = round(precio_neto * Decimal('0.19'), 2)
+        iva_porcentaje = Decimal('0.00') if exenta_iva else Decimal('0.19')
+        valor_iva = round(precio_neto * iva_porcentaje, 2)
         valor_impuesto_especifico = round(precio_neto * (impuesto_especifico / Decimal('100')), 2)
         
         return JsonResponse({
@@ -559,14 +573,16 @@ def categoria_impuesto_especifico(request, categoria_id):
                 'success': True,
                 'impuesto_especifico_porcentaje': str(impuesto_porcentaje),
                 'impuesto_especifico_valor': '0.00',  # Se calculará en el frontend
-                'nombre_impuesto': categoria.impuesto_especifico.nombre
+                'nombre_impuesto': categoria.impuesto_especifico.nombre,
+                'exenta_iva': categoria.exenta_iva
             })
         else:
             return JsonResponse({
                 'success': True,
                 'impuesto_especifico_porcentaje': '0.00',
                 'impuesto_especifico_valor': '0.00',
-                'nombre_impuesto': 'Ninguno'
+                'nombre_impuesto': 'Ninguno',
+                'exenta_iva': categoria.exenta_iva
             })
             
     except Exception as e:
@@ -617,6 +633,101 @@ def buscar_por_codigo_barras(request):
             })
             
     except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+
+@csrf_exempt
+@login_required
+def stock_actual(request):
+    """Vista para obtener stock actual de múltiples artículos"""
+    try:
+        print(f"DEBUG - stock_actual: Usuario: {request.user}")
+        print(f"DEBUG - stock_actual: Empresa: {getattr(request, 'empresa', None)}")
+        
+        if request.method != 'POST':
+            return JsonResponse({
+                'success': False,
+                'message': 'Método no permitido'
+            })
+        
+        # Parsear JSON
+        data = json.loads(request.body)
+        articulo_ids = data.get('articulo_ids', [])
+        
+        print(f"DEBUG - stock_actual: IDs recibidos: {articulo_ids}")
+        
+        if not articulo_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'IDs de artículos requeridos'
+            })
+        
+        # Obtener stock actual de los artículos
+        stocks = {}
+        
+        # Si es superusuario, buscar en todas las empresas
+        if request.user.is_superuser:
+            for articulo_id in articulo_ids:
+                try:
+                    # Buscar el artículo sin filtro de empresa
+                    articulo = Articulo.objects.get(
+                        id=articulo_id,
+                        activo=True
+                    )
+                    
+                    # Obtener stock actual
+                    stock_actual = articulo.stock_actual
+                    stocks[articulo_id] = stock_actual
+                    print(f"DEBUG - stock_actual: Artículo {articulo_id} stock: {stock_actual}")
+                    
+                except Articulo.DoesNotExist:
+                    stocks[articulo_id] = 0
+                    print(f"DEBUG - stock_actual: Artículo {articulo_id} no encontrado")
+        else:
+            # Usuario normal, filtrar por empresa
+            empresa = getattr(request, 'empresa', None)
+            if not empresa:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Empresa no encontrada'
+                })
+            
+            for articulo_id in articulo_ids:
+                try:
+                    # Buscar el artículo
+                    articulo = Articulo.objects.get(
+                        id=articulo_id,
+                        empresa=empresa,
+                        activo=True
+                    )
+                    
+                    # Obtener stock actual
+                    stock_actual = articulo.stock_actual
+                    stocks[articulo_id] = stock_actual
+                    print(f"DEBUG - stock_actual: Artículo {articulo_id} stock: {stock_actual}")
+                    
+                except Articulo.DoesNotExist:
+                    stocks[articulo_id] = 0
+                    print(f"DEBUG - stock_actual: Artículo {articulo_id} no encontrado")
+        
+        print(f"DEBUG - stock_actual: Stocks finales: {stocks}")
+        
+        return JsonResponse({
+            'success': True,
+            'stocks': stocks
+        })
+        
+    except json.JSONDecodeError as e:
+        print(f"DEBUG - stock_actual: Error JSON: {e}")
+        return JsonResponse({
+            'success': False,
+            'message': 'JSON inválido'
+        })
+    except Exception as e:
+        print(f"DEBUG - stock_actual: Error general: {e}")
         return JsonResponse({
             'success': False,
             'error': str(e)

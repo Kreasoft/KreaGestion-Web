@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Usuarios - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-users fa-lg text-white me-2"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.2rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    Gestión de Usuarios
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">Administra usuarios y roles de la empresa</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <a href="#" class="btn btn-sm btn-outline-light me-2" onclick="alert('Función de crear usuario pendiente')">
+                                <i class="fas fa-plus me-1"></i> Nuevo Usuario
+                            </a>
+                            <a href="#" class="btn btn-sm btn-outline-light" onclick="alert('Función de gestión de grupos pendiente')">
+                                <i class="fas fa-user-tag me-1"></i> Grupos
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Estadísticas -->
+                <div class="card-body" style="padding: 10px 15px;">
+                    <div class="row mb-2">
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #D2B48C 0%, #DEB887 100%); border: none; box-shadow: 0 2px 8px rgba(210, 180, 140, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body text-center" style="padding: 0.75rem;">
+                                    <i class="fas fa-users fa-2x mb-2"></i>
+                                    <h4 style="color: #8B4513; font-family: 'Poppins', sans-serif;">{{ stats.total_usuarios }}</h4>
+                                    <small style="color: #8B4513; font-family: 'Poppins', sans-serif;">Total Usuarios</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #D2B48C 0%, #DEB887 100%); border: none; box-shadow: 0 2px 8px rgba(210, 180, 140, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body text-center" style="padding: 0.75rem;">
+                                    <i class="fas fa-user-check fa-2x mb-2"></i>
+                                    <h4 style="color: #8B4513; font-family: 'Poppins', sans-serif;">{{ stats.usuarios_activos }}</h4>
+                                    <small style="color: #8B4513; font-family: 'Poppins', sans-serif;">Usuarios Activos</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #D2B48C 0%, #DEB887 100%); border: none; box-shadow: 0 2px 8px rgba(210, 180, 140, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body text-center" style="padding: 0.75rem;">
+                                    <i class="fas fa-user-times fa-2x mb-2"></i>
+                                    <h4 style="color: #8B4513; font-family: 'Poppins', sans-serif;">{{ stats.usuarios_inactivos }}</h4>
+                                    <small style="color: #8B4513; font-family: 'Poppins', sans-serif;">Usuarios Inactivos</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #D2B48C 0%, #DEB887 100%); border: none; box-shadow: 0 2px 8px rgba(210, 180, 140, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body text-center" style="padding: 0.75rem;">
+                                    <i class="fas fa-crown fa-2x mb-2"></i>
+                                    <h4 style="color: #8B4513; font-family: 'Poppins', sans-serif;">{{ stats.superusuarios }}</h4>
+                                    <small style="color: #8B4513; font-family: 'Poppins', sans-serif;">Superusuarios</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Filtros -->
+                    <form method="get" class="mb-3">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" name="search" class="form-control form-control-sm" 
+                                           placeholder="Buscar usuarios..." value="{{ search }}">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="estado" class="form-select form-select-sm">
+                                    <option value="">Todos los estados</option>
+                                    <option value="activo" {% if estado == 'activo' %}selected{% endif %}>Activos</option>
+                                    <option value="inactivo" {% if estado == 'inactivo' %}selected{% endif %}>Inactivos</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="grupo" class="form-select form-select-sm">
+                                    <option value="">Todos los grupos</option>
+                                    {% for grupo_option in grupos %}
+                                        <option value="{{ grupo_option.id }}" {% if grupo == grupo_option.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ grupo_option.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                    <i class="fas fa-filter me-1"></i> Filtrar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <!-- Lista de Usuarios -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead style="background: linear-gradient(135deg, #D2B48C 0%, #DEB887 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(210, 180, 140, 0.2);">
+                                <tr>
+                                    <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Usuario</th>
+                                    <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Email</th>
+                                    <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Grupo</th>
+                                    <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Estado</th>
+                                    <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Último Acceso</th>
+                                    <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for usuario in page_obj %}
+                                <tr style="border-bottom: 1px solid #e3e6f0;">
+                                    <td style="border: none; padding: 10px 12px; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2">
+                                                {% if usuario.is_superuser %}
+                                                    <i class="fas fa-crown text-warning" title="Superusuario"></i>
+                                                {% else %}
+                                                    <i class="fas fa-user text-muted"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <strong style="color: #2c3e50;">{{ usuario.get_full_name|default:usuario.username }}</strong>
+                                                <br><small class="text-muted">@{{ usuario.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="border: none; padding: 10px 12px; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">
+                                        {{ usuario.email|default:"Sin email" }}
+                                    </td>
+                                    <td style="border: none; padding: 10px 12px;">
+                                        <select class="form-select form-select-sm grupo-select" data-user-id="{{ usuario.id }}" style="min-width: 120px;">
+                                            <option value="">Sin grupo</option>
+                                            {% for grupo_option in grupos %}
+                                                <option value="{{ grupo_option.id }}" 
+                                                    {% if usuario.groups.first.id == grupo_option.id %}selected{% endif %}>
+                                                    {{ grupo_option.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="border: none; padding: 10px 12px;">
+                                        {% if usuario.is_active and usuario.perfil.es_activo %}
+                                            <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; font-size: 0.65rem; padding: 0.25rem 0.5rem; border-radius: 15px; font-weight: 500;">
+                                                Activo
+                                            </span>
+                                        {% else %}
+                                            <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; font-size: 0.65rem; padding: 0.25rem 0.5rem; border-radius: 15px; font-weight: 500;">
+                                                Inactivo
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="border: none; padding: 10px 12px; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">
+                                        {{ usuario.last_login|date:"d/m/Y H:i"|default:"Nunca" }}
+                                    </td>
+                                    <td style="border: none; padding: 10px 12px;">
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary toggle-estado" 
+                                                    data-user-id="{{ usuario.id }}" 
+                                                    data-current-state="{% if usuario.is_active %}active{% else %}inactive{% endif %}"
+                                                    title="{% if usuario.is_active %}Desactivar{% else %}Activar{% endif %} Usuario">
+                                                <i class="fas fa-{% if usuario.is_active %}user-times{% else %}user-check{% endif %}"></i>
+                                            </button>
+                                            {% if not usuario.is_superuser %}
+                                                <button class="btn btn-sm btn-outline-secondary" 
+                                                        onclick="alert('Función de editar usuario pendiente')"
+                                                        title="Editar Usuario">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <div style="background: white; border-radius: 20px; padding: 3rem 2rem; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border: 1px solid #e3e6f0;">
+                                            <div class="mb-4" style="opacity: 0.6;">
+                                                <i class="fas fa-users fa-4x text-muted"></i>
+                                            </div>
+                                            <h3 class="text-muted mb-3" style="font-family: 'Poppins', sans-serif;">No hay usuarios</h3>
+                                            <p class="text-muted mb-4" style="font-family: 'Poppins', sans-serif;">No se encontraron usuarios con los filtros aplicados</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginación -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Paginación de usuarios">
+                        <ul class="pagination justify-content-center pagination-sm">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if grupo %}&grupo={{ grupo }}{% endif %}">
+                                        <i class="fas fa-angle-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if grupo %}&grupo={{ grupo }}{% endif %}">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if grupo %}&grupo={{ grupo }}{% endif %}">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if grupo %}&grupo={{ grupo }}{% endif %}">
+                                        <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle estado de usuario
+    document.querySelectorAll('.toggle-estado').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const currentState = this.dataset.currentState;
+            
+            if (confirm(`¿Estás seguro de que deseas ${currentState === 'active' ? 'desactivar' : 'activar'} este usuario?`)) {
+                fetch(`/usuarios/${userId}/toggle-estado/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al cambiar el estado del usuario');
+                });
+            }
+        });
+    });
+    
+    // Cambiar grupo de usuario
+    document.querySelectorAll('.grupo-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const userId = this.dataset.userId;
+            const grupoId = this.value;
+            
+            fetch(`/usuarios/${userId}/asignar-grupo/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `grupo_id=${grupoId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mostrar mensaje de éxito
+                    const toast = document.createElement('div');
+                    toast.className = 'toast-notification';
+                    toast.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #28a745; color: white; padding: 10px 20px; border-radius: 5px; z-index: 9999;';
+                    toast.textContent = data.message;
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al asignar grupo al usuario');
+            });
+        });
+    });
+});
+</script>
+
+{% endblock %}

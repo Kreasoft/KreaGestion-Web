@@ -610,8 +610,11 @@
                 <div class="pos-product-card {% if articulo.stock_actual <= 0 %}disabled{% endif %}" 
                      data-articulo-id="{{ articulo.id }}" 
                      data-precio="{{ articulo.precio_final_calculado }}"
-                             data-stock="{{ articulo.stock_actual|default:0 }}"
-                             data-categoria="{{ articulo.categoria|default:'sin-categoria' }}">
+                     data-precio-neto="{{ articulo.precio_venta }}"
+                     data-stock="{{ articulo.stock_actual|default:0 }}"
+                     data-categoria="{{ articulo.categoria|default:'sin-categoria' }}"
+                     data-categoria-exenta-iva="{% if articulo.categoria.exenta_iva %}true{% else %}false{% endif %}"
+                     data-impuesto-especifico="{% if articulo.categoria.impuesto_especifico %}{{ articulo.categoria.impuesto_especifico.get_porcentaje_decimal }}{% else %}0{% endif %}">
                     <div class="pos-product-name">{{ articulo.nombre }}</div>
                     <div class="pos-product-price">${{ articulo.precio_final_calculado|floatformat:0|add:0|floatformat:0 }}</div>
                     <div class="pos-product-stock {% if articulo.stock_actual <= 0 %}text-danger{% endif %}">
@@ -691,6 +694,7 @@ let currentSubtotal = 0;
 let currentDescuento = 0;
 let currentNeto = 0;
 let currentIva = 0;
+let currentImpuestoEspecifico = 0;
 let currentTotal = 0;
     let currentCategory = 'all';
 
@@ -742,8 +746,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const stock = parseInt(card.dataset.stock);
             const nombre = card.querySelector('.pos-product-name').textContent;
             
-            console.log('*** AGREGANDO AL CARRITO ***', { articuloId, nombre, precio, stock });
-            addToCart(articuloId, nombre, precio, stock);
+            // Obtener información de impuestos del producto
+            const categoriaExentaIva = card.dataset.categoriaExentaIva === 'true';
+            const impuestoEspecifico = parseFloat(card.dataset.impuestoEspecifico || '0');
+            const precioNeto = parseFloat(card.dataset.precioNeto || precio);
+            
+            console.log('*** AGREGANDO AL CARRITO ***', { articuloId: articuloId, nombre: nombre, precio: precio, stock: stock, categoriaExentaIva: categoriaExentaIva, impuestoEspecifico: impuestoEspecifico, precioNeto: precioNeto });
+            addToCart(articuloId, nombre, precio, stock, categoriaExentaIva, impuestoEspecifico, precioNeto);
         } else {
             console.log('*** NO ES UN PRODUCTO ***');
         }
@@ -855,16 +864,20 @@ function filterProducts() {
 }
 
 // Agregar al carrito
-function addToCart(articuloId, nombre, precio, stock) {
-    console.log('*** FUNCIÓN addToCart LLAMADA ***', { articuloId, nombre, precio, stock });
+function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva = false, impuestoEspecifico = 0, precioNeto = null) {
+    console.log('*** FUNCIÓN addToCart LLAMADA ***', { articuloId: articuloId, nombre: nombre, precio: precio, stock: stock, categoriaExentaIva: categoriaExentaIva, impuestoEspecifico: impuestoEspecifico, precioNeto: precioNeto });
     
     // Asegurar que precio sea un número
     precio = parseFloat(precio);
     
     const existingItem = cart.find(item => item.articuloId === articuloId);
     
+    // Obtener stock actual del DOM
+    const card = document.querySelector(`[data-articulo-id="${articuloId}"]`);
+    const stockActual = card ? parseInt(card.dataset.stock) : stock;
+    
     if (existingItem) {
-            if (existingItem.cantidad < stock) {
+            if (existingItem.cantidad < stockActual) {
                 existingItem.cantidad += 1;
                 existingItem.total = parseFloat(existingItem.cantidad) * parseFloat(existingItem.precio);
             } else {
@@ -877,30 +890,46 @@ function addToCart(articuloId, nombre, precio, stock) {
             return;
         }
     } else {
-    // El precio ya incluye IVA e impuesto específico, necesitamos calcular el desglose
-    // Precio final = precio neto + IVA + impuesto específico
-    // Para COCA COLA: 1800 = 1313.87 + 249.63 + 236.50
-    // Calculamos el precio neto: precio_final / 1.37 (1 + 0.19 + 0.18)
-    const precioNeto = precio / 1.37;
-    const iva = precioNeto * 0.19;
-    const impuestoEspecifico = precioNeto * 0.18;
-    
-    // Debug: verificar cálculos
-    console.log('DEBUG - Cálculos en addToCart:', {
-        precio: precio,
-        precioNeto: precioNeto,
-        iva: iva,
-        impuestoEspecifico: impuestoEspecifico,
-        total: precioNeto + iva + impuestoEspecifico
-    });
+        // Calcular impuestos correctamente según la categoría
+        let precioNetoCalculado, ivaCalculado, impuestoEspecificoCalculado;
+        
+        if (precioNeto && !categoriaExentaIva) {
+            // Si tenemos precio neto y NO está exenta de IVA
+            precioNetoCalculado = precioNeto;
+            ivaCalculado = precioNeto * 0.19;
+            impuestoEspecificoCalculado = precioNeto * (impuestoEspecifico / 100);
+        } else if (precioNeto && categoriaExentaIva) {
+            // Si tenemos precio neto y SÍ está exenta de IVA
+            precioNetoCalculado = precioNeto;
+            ivaCalculado = 0;
+            impuestoEspecificoCalculado = precioNeto * (impuestoEspecifico / 100);
+        } else {
+            // Fallback: calcular desde el precio final (método anterior)
+            const factorTotal = 1 + (categoriaExentaIva ? 0 : 0.19) + (impuestoEspecifico / 100);
+            precioNetoCalculado = precio / factorTotal;
+            ivaCalculado = categoriaExentaIva ? 0 : precioNetoCalculado * 0.19;
+            impuestoEspecificoCalculado = precioNetoCalculado * (impuestoEspecifico / 100);
+        }
+        
+        // Debug: verificar cálculos
+        console.log('DEBUG - Cálculos en addToCart:', {
+            precio: precio,
+            precioNeto: precioNetoCalculado,
+            iva: ivaCalculado,
+            impuestoEspecifico: impuestoEspecificoCalculado,
+            categoriaExentaIva: categoriaExentaIva,
+            impuestoEspecificoPorcentaje: impuestoEspecifico
+        });
         
         cart.push({
             articuloId: articuloId,
             nombre: nombre,
             precio: parseFloat(precio), // Precio final con impuestos
-            precio_neto: precioNeto,
-            iva: iva,
-            impuesto_especifico: impuestoEspecifico,
+            precio_neto: precioNetoCalculado,
+            iva: ivaCalculado,
+            impuesto_especifico: impuestoEspecificoCalculado,
+            categoriaExentaIva: categoriaExentaIva,
+            impuestoEspecifico: impuestoEspecifico,
             cantidad: 1,
             descuento: 0,
             total: parseFloat(precio)
@@ -1007,10 +1036,10 @@ function updateTotals() {
     currentImpuestoEspecifico = 0;
     
     cart.forEach(item => {
-        const precioFinal = parseFloat(item.precio);
-        const precioNeto = precioFinal / 1.37;
-        const iva = precioNeto * 0.19;
-        const impEsp = precioNeto * 0.18;
+        // Usar los datos ya calculados del carrito
+        const precioNeto = parseFloat(item.precio_neto || 0);
+        const iva = parseFloat(item.iva || 0);
+        const impEsp = parseFloat(item.impuesto_especifico || 0);
         
         currentNeto += precioNeto * parseFloat(item.cantidad);
         currentIva += iva * parseFloat(item.cantidad);
@@ -1050,6 +1079,10 @@ window.formatChileanNumber = formatChileanNumber;
 
 // Limpiar carrito
 function clearCart() {
+    // Desactivar temporalmente el modo escaneo
+    const wasScanningMode = barcodeMode;
+    barcodeMode = false;
+    
     Swal.fire({
         title: '¿Limpiar carrito?',
         text: 'Se eliminarán todos los productos del carrito',
@@ -1062,23 +1095,49 @@ function clearCart() {
     }).then((result) => {
         if (result.isConfirmed) {
             cart = [];
-                updateCartDisplay();
+            updateCartDisplay();
             updateTotals();
+        }
+        
+        // Restaurar modo escaneo si estaba activo
+        if (wasScanningMode) {
+            setTimeout(() => {
+                barcodeMode = true;
+                const barcodeInput = document.getElementById('barcode-input');
+                if (barcodeInput) {
+                    barcodeInput.focus();
+                }
+            }, 1000);
         }
     });
 }
 
     // Procesar venta
     function processSale() {
-    if (cart.length === 0) {
+        // Desactivar temporalmente el modo escaneo
+        const wasScanningMode = barcodeMode;
+        barcodeMode = false;
+        
+        if (cart.length === 0) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Carrito Vacío',
                 text: 'Agrega productos al carrito antes de procesar la venta',
                 timer: 2000
+            }).then(() => {
+                // Restaurar modo escaneo si estaba activo
+                if (wasScanningMode) {
+                    setTimeout(() => {
+                        barcodeMode = true;
+                        const barcodeInput = document.getElementById('barcode-input');
+                        if (barcodeInput) {
+                            barcodeInput.focus();
+                        }
+                    }, 1000);
+                }
             });
-        return;
-    }
+            return;
+        }
     
         if (!window.currentEstacion) {
             Swal.fire({
@@ -1479,6 +1538,27 @@ function clearCart() {
             return;
         }
         
+        // Calcular totales actuales
+        let subtotal = 0;
+        let descuento = 0;
+        let neto = 0;
+        let iva = 0;
+        let impuestoEspecifico = 0;
+        
+        cart.forEach(item => {
+            const precioFinal = parseFloat(item.precio);
+            const precioNeto = parseFloat(item.precio_neto || 0);
+            const ivaItem = parseFloat(item.iva || 0);
+            const impEspItem = parseFloat(item.impuesto_especifico || 0);
+            
+            subtotal += precioFinal * parseFloat(item.cantidad);
+            neto += precioNeto * parseFloat(item.cantidad);
+            iva += ivaItem * parseFloat(item.cantidad);
+            impuestoEspecifico += impEspItem * parseFloat(item.cantidad);
+        });
+        
+        const total = subtotal;
+        
         const preventaData = {
             estacion_id: window.currentEstacionId,
             vendedor_id: window.currentVendedorId,
@@ -1486,12 +1566,12 @@ function clearCart() {
             cliente_id: window.clienteSeleccionado.id,
             items: cart,
             totales: {
-                subtotal: currentSubtotal,
-                descuento: currentDescuento,
-                neto: currentNeto,
-                iva: currentIva,
-                impuesto_especifico: currentImpuestoEspecifico,
-                total: currentTotal
+                subtotal: subtotal,
+                descuento: descuento,
+                neto: neto,
+                iva: iva,
+                impuesto_especifico: impuestoEspecifico,
+                total: total
             }
         };
     
@@ -1537,6 +1617,20 @@ function clearCart() {
                         cart = [];
                         updateCartDisplay();
                         updateTotals();
+                        
+                        // Actualizar stock después de la venta
+                        updateStockFromServer();
+                        
+                        // Restaurar modo escaneo si estaba activo
+                        if (wasScanningMode) {
+                            setTimeout(() => {
+                                barcodeMode = true;
+                                const barcodeInput = document.getElementById('barcode-input');
+                                if (barcodeInput) {
+                                    barcodeInput.focus();
+                                }
+                            }, 2000);
+                        }
                     });
                 } else if (data.tipo_documento === 'vale') {
                     Swal.fire({
@@ -1552,6 +1646,20 @@ function clearCart() {
                         cart = [];
                         updateCartDisplay();
                         updateTotals();
+                        
+                        // Actualizar stock después de la venta
+                        updateStockFromServer();
+                        
+                        // Restaurar modo escaneo si estaba activo
+                        if (wasScanningMode) {
+                            setTimeout(() => {
+                                barcodeMode = true;
+                                const barcodeInput = document.getElementById('barcode-input');
+                                if (barcodeInput) {
+                                    barcodeInput.focus();
+                                }
+                            }, 2000);
+                        }
                     });
                 } else {
                     Swal.fire({
@@ -1564,6 +1672,20 @@ function clearCart() {
                         cart = [];
                         updateCartDisplay();
                         updateTotals();
+                        
+                        // Actualizar stock después de la venta
+                        updateStockFromServer();
+                        
+                        // Restaurar modo escaneo si estaba activo
+                        if (wasScanningMode) {
+                            setTimeout(() => {
+                                barcodeMode = true;
+                                const barcodeInput = document.getElementById('barcode-input');
+                                if (barcodeInput) {
+                                    barcodeInput.focus();
+                                }
+                            }, 2000);
+                        }
                     });
                 }
             } else {
@@ -1612,6 +1734,85 @@ function loadArticulosFromDOM() {
     
     window.articulos = articulos;
     console.log('*** ARTÍCULOS CARGADOS: ', articulos.length, ' ***');
+    
+    // Actualizar stock en tiempo real
+    updateStockFromServer();
+}
+
+// Función para actualizar stock desde servidor
+function updateStockFromServer() {
+    console.log('*** ACTUALIZANDO STOCK DESDE SERVIDOR ***');
+    
+    // Obtener IDs de artículos
+    const articuloIds = articulos.map(a => a.id);
+    
+    if (articuloIds.length === 0) return;
+    
+    // Hacer petición AJAX para obtener stock actual
+    fetch('/articulos/stock-actual/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+        },
+        body: JSON.stringify({
+            articulo_ids: articuloIds
+        })
+    })
+    .then(response => {
+        console.log('*** RESPUESTA STOCK: ', response.status, ' ***');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('*** DATOS STOCK RECIBIDOS: ', data, ' ***');
+        
+        if (data.success && data.stocks) {
+            console.log('*** STOCK ACTUALIZADO: ', data.stocks, ' ***');
+            
+            // Actualizar cada tarjeta de producto
+            document.querySelectorAll('.pos-product-card').forEach(card => {
+                const articuloId = parseInt(card.dataset.articuloId);
+                const stockActual = data.stocks[articuloId] || 0;
+                
+                console.log(`*** ACTUALIZANDO ARTÍCULO ${articuloId}: stock ${stockActual} ***`);
+                
+                // Actualizar data-stock
+                card.dataset.stock = stockActual;
+                
+                // Actualizar display de stock
+                const stockElement = card.querySelector('.pos-product-stock');
+                if (stockElement) {
+                    stockElement.textContent = `Stock: ${stockActual}`;
+                    stockElement.className = `pos-product-stock ${stockActual <= 0 ? 'text-danger' : ''}`;
+                }
+                
+                // Actualizar clase disabled
+                if (stockActual <= 0) {
+                    card.classList.add('disabled');
+                    console.log(`*** ARTÍCULO ${articuloId} DESHABILITADO (sin stock) ***`);
+                } else {
+                    card.classList.remove('disabled');
+                    console.log(`*** ARTÍCULO ${articuloId} HABILITADO (con stock: ${stockActual}) ***`);
+                }
+                
+                // Actualizar array de artículos
+                const articulo = articulos.find(a => a.id === articuloId);
+                if (articulo) {
+                    articulo.stock = stockActual;
+                }
+            });
+            
+            console.log('*** STOCK VISUALIZACIÓN ACTUALIZADA ***');
+        } else {
+            console.log('*** ERROR AL ACTUALIZAR STOCK: ', data.message || data.error, ' ***');
+        }
+    })
+    .catch(error => {
+        console.error('*** ERROR AL ACTUALIZAR STOCK: ', error.message || error, ' ***');
+    });
 }
 
 // ===== SISTEMA DE CÓDIGOS DE BARRAS =====
@@ -1678,10 +1879,24 @@ function setupBarcodeSystem() {
     // Mantener foco después de buscar productos
     // Mantener foco siempre en el campo de código de barras
     barcodeInput.addEventListener('blur', function() {
-        // Siempre restaurar foco después de un breve delay
+        // Solo restaurar foco si no se está interactuando con otros elementos
         setTimeout(() => {
-            focusBarcodeInput();
-        }, 200);
+            const activeElement = document.activeElement;
+            const isInteractingWithForm = activeElement && (
+                activeElement.tagName === 'SELECT' ||
+                activeElement.tagName === 'INPUT' ||
+                activeElement.tagName === 'TEXTAREA' ||
+                activeElement.closest('.swal2-container') ||
+                activeElement.closest('#tipo-documento') ||
+                activeElement.closest('#estacion-trabajo') ||
+                activeElement.closest('#busqueda-cliente')
+            );
+            
+            if (!isInteractingWithForm && barcodeMode) {
+                focusBarcodeInput();
+                console.log('*** FOCO RESTAURADO DESPUÉS DE BLUR ***');
+            }
+        }, 500); // Aumentar delay para permitir interacción completa
     });
     
     // No modificar processSale si no existe aún
@@ -1696,15 +1911,37 @@ function setupBarcodeSystem() {
     
     // Event listener global para restaurar foco después de cualquier interacción
     document.addEventListener('click', function(e) {
-        // Si se hace clic en un producto o botón, restaurar foco después
-        if (e.target.closest('.pos-product-card') || 
-            e.target.closest('.btn') || 
-            e.target.closest('button')) {
+        // Excluir botones de cerrar documento y otros botones críticos
+        const isExcludedElement = e.target.closest('#btn-cerrar-documento') || 
+                                  e.target.closest('.btn-cerrar') ||
+                                  e.target.closest('#btn-clear') ||
+                                  e.target.closest('#btn-process') ||
+                                  e.target.closest('#tipo-documento') ||
+                                  e.target.closest('#estacion-trabajo') ||
+                                  e.target.closest('#busqueda-cliente') ||
+                                  e.target.closest('.form-control') ||
+                                  e.target.closest('.form-select') ||
+                                  e.target.closest('select') ||
+                                  e.target.closest('input[type="text"]') ||
+                                  e.target.closest('input[type="number"]') ||
+                                  e.target.closest('input[type="email"]') ||
+                                  e.target.closest('textarea') ||
+                                  e.target.closest('.swal2-container') ||
+                                  e.target.closest('.swal2-popup') ||
+                                  e.target.closest('button[onclick*="cerrar"]') ||
+                                  e.target.closest('button[onclick*="limpiar"]') ||
+                                  e.target.closest('button[onclick*="clearCart"]') ||
+                                  e.target.closest('button[onclick*="processSale"]') ||
+                                  e.target.closest('.btn-danger') ||
+                                  e.target.closest('.btn-warning');
+        
+        // Solo restaurar foco para productos específicamente
+        if (!isExcludedElement && e.target.closest('.pos-product-card')) {
             setTimeout(() => {
                 const barcodeInput = document.getElementById('barcode-input');
-                if (barcodeInput && !barcodeInput.disabled) {
+                if (barcodeInput && !barcodeInput.disabled && barcodeMode) {
                     barcodeInput.focus();
-                    console.log('*** FOCO RESTAURADO DESPUÉS DE CLICK ***');
+                    console.log('*** FOCO RESTAURADO DESPUÉS DE CLICK EN PRODUCTO ***');
                 }
             }, 300);
         }
@@ -1793,7 +2030,7 @@ function processBarcode(codigo) {
                         data.articulo.id,
                         data.articulo.nombre,
                         producto.precio, // Usar el precio calculado del POS
-                        1 // Cantidad por defecto
+                        producto.stock // Usar el stock actualizado
                     );
                     
                     setBarcodeStatus('ready', 'Producto agregado', 'fas fa-check-circle');
@@ -1906,27 +2143,23 @@ function toggleBarcodeMode() {
 function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1) {
     console.log('*** AGREGANDO AL CARRITO DESDE CUALQUIER LUGAR ***');
     
-    // Verificar si ya existe en el carrito
-    const existingItemIndex = cart.findIndex(item => item.articuloId == articuloId);
+    // Buscar el producto en la lista de productos para obtener información de categoría
+    const productos = window.articulos || [];
+    const producto = productos.find(p => p.id == articuloId);
     
-    if (existingItemIndex !== -1) {
-        // Si ya existe, incrementar cantidad
-        cart[existingItemIndex].cantidad += cantidad;
-        cart[existingItemIndex].total = cart[existingItemIndex].precio * cart[existingItemIndex].cantidad;
-        console.log('*** CANTIDAD INCREMENTADA: ', cart[existingItemIndex], ' ***');
-    } else {
-        // Agregar nuevo item al carrito
-        const newItem = {
-            articuloId: articuloId,
-            nombre: nombre,
-            precio: precio,
-            cantidad: cantidad,
-            descuento: 0,
-            total: precio * cantidad
-        };
-        cart.push(newItem);
-        console.log('*** NUEVO ITEM AGREGADO: ', newItem, ' ***');
+    let categoriaExentaIva = false;
+    let impuestoEspecifico = 0;
+    let precioNeto = null;
+    
+    if (producto) {
+        categoriaExentaIva = producto.categoria && producto.categoria.exenta_iva;
+        impuestoEspecifico = producto.categoria && producto.categoria.impuesto_especifico ? 
+                            parseFloat(producto.categoria.impuesto_especifico.get_porcentaje_decimal) : 0;
+        precioNeto = parseFloat(producto.precio_venta || precio);
     }
+    
+    // Usar la función addToCart con toda la información
+    addToCart(articuloId, nombre, precio, 1000, categoriaExentaIva, impuestoEspecifico, precioNeto);
     
     // Actualizar visualización
     if (typeof updateCartDisplay === 'function') {
@@ -1953,7 +2186,7 @@ function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1) {
 
 // Función para agregar producto al carrito (si no existe ya)
 function addToCart(articuloId, nombre, precio, cantidad = 1) {
-    console.log('*** AGREGANDO AL CARRITO: ', {articuloId, nombre, precio, cantidad}, ' ***');
+    console.log('*** AGREGANDO AL CARRITO: ', {articuloId: articuloId, nombre: nombre, precio: precio, cantidad: cantidad}, ' ***');
     console.log('*** CARRITO ANTES: ', cart.length, ' items ***');
     
     // Verificar si ya existe en el carrito
@@ -2062,9 +2295,9 @@ function updateTotalsManual() {
     
     cart.forEach(item => {
         const precioFinal = parseFloat(item.precio);
-        const precioNeto = precioFinal / 1.37;
-        const ivaItem = precioNeto * 0.19;
-        const impEspItem = precioNeto * 0.18;
+        const precioNeto = parseFloat(item.precio_neto || 0);
+        const ivaItem = parseFloat(item.iva || 0);
+        const impEspItem = parseFloat(item.impuesto_especifico || 0);
         
         subtotal += precioFinal * parseFloat(item.cantidad);
         neto += precioNeto * parseFloat(item.cantidad);
@@ -2105,6 +2338,10 @@ function updateQuantity(index, change) {
             cart.splice(index, 1);
         } else {
             cart[index].total = cart[index].precio * cart[index].cantidad;
+            // Recalcular impuestos según la cantidad
+            cart[index].precio_neto_total = cart[index].precio_neto * cart[index].cantidad;
+            cart[index].iva_total = cart[index].iva * cart[index].cantidad;
+            cart[index].impuesto_especifico_total = cart[index].impuesto_especifico * cart[index].cantidad;
         }
         
         // Actualizar visualización
