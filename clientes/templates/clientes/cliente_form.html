@@ -32,6 +32,29 @@
 
                 <!-- Formulario con pestañas -->
                 <div class="card-body p-0">
+                    <!-- Área de mensajes -->
+                    {% if messages %}
+                    <div class="alert-container" style="padding: 15px; margin: 0;">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" style="margin-bottom: 10px;">
+                            <strong>
+                                {% if message.tags == 'success' %}
+                                    <i class="fas fa-check-circle me-2"></i>¡Éxito!
+                                {% elif message.tags == 'error' %}
+                                    <i class="fas fa-exclamation-circle me-2"></i>Error:
+                                {% elif message.tags == 'warning' %}
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Advertencia:
+                                {% else %}
+                                    <i class="fas fa-info-circle me-2"></i>Información:
+                                {% endif %}
+                            </strong>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
                     <form method="post" id="clienteForm">
                         {% csrf_token %}
                         
@@ -406,8 +429,14 @@
                                     </a>
                                 </div>
                                 <div class="col-md-6 text-end">
-                                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #4A90A4 0%, #6BB6C7 100%); border: none; color: white; padding: 10px 30px; border-radius: 25px; font-weight: 600;">
-                                        <i class="fas fa-save me-2"></i>{{ submit_text }}
+                                    <button type="submit" id="btnSubmit" class="btn" style="background: linear-gradient(135deg, #4A90A4 0%, #6BB6C7 100%); border: none; color: white; padding: 10px 30px; border-radius: 25px; font-weight: 600;">
+                                        <span id="btnText">
+                                            <i class="fas fa-save me-2"></i>{{ submit_text }}
+                                        </span>
+                                        <span id="btnSpinner" style="display: none;">
+                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                            Guardando...
+                                        </span>
                                     </button>
                                 </div>
                             </div>
@@ -457,6 +486,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const rutIcon = document.getElementById('rut-icon');
     const rutError = document.getElementById('rut-error');
     const rutHelp = document.getElementById('rut-help');
+    const btnSubmit = document.getElementById('btnSubmit');
+    const btnText = document.getElementById('btnText');
+    const btnSpinner = document.getElementById('btnSpinner');
     
     // Validación en tiempo real del RUT
     if (rutInput) {
@@ -610,6 +642,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     form.addEventListener('submit', function(e) {
+        // Mostrar spinner
+        if (btnSubmit && btnText && btnSpinner) {
+            btnText.style.display = 'none';
+            btnSpinner.style.display = 'inline-block';
+            btnSubmit.disabled = true;
+        }
+        
         // Validar campos requeridos en la primera pestaña
         const requiredFields = ['rut', 'nombre', 'direccion', 'comuna', 'ciudad', 'region', 'telefono'];
         let firstInvalidField = null;
@@ -628,6 +667,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (firstInvalidField) {
             e.preventDefault();
+            
+            // Restaurar botón
+            if (btnSubmit && btnText && btnSpinner) {
+                btnText.style.display = 'inline-block';
+                btnSpinner.style.display = 'none';
+                btnSubmit.disabled = false;
+            }
             
             // Activar la primera pestaña
             const firstTab = document.querySelector('#datos-basicos-tab');

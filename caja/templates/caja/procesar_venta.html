@@ -1,0 +1,649 @@
+{% extends "base.html" %}
+{% load static %}
+{% load articulo_filters %}
+{% load l10n %}
+
+{% block title %}Procesar Ticket{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Información del Ticket -->
+        <div class="col-md-6">
+            <div class="card shadow-lg mb-4" style="border: none; border-radius: 15px;">
+                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; padding: 20px;">
+                    <h5 class="mb-0">
+                        <i class="fas fa-receipt me-2"></i>Ticket #{{ ticket.numero_venta }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Cliente</small>
+                            <p class="mb-0 fw-bold">{{ ticket.cliente.nombre|default:"Sin cliente" }}</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Vendedor</small>
+                            <p class="mb-0 fw-bold">{{ ticket.vendedor.nombre|default:"Sin vendedor" }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Fecha</small>
+                            <p class="mb-0">{{ ticket.fecha_creacion|date:"d/m/Y H:i" }}</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Estación</small>
+                            <p class="mb-0">{{ ticket.estacion_trabajo.nombre|default:"-" }}</p>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="mb-3">Detalle de Artículos</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Artículo</th>
+                                    <th style="text-align: center;">Cant.</th>
+                                    <th style="text-align: right;">P. Unit.</th>
+                                    <th style="text-align: right;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for detalle in detalles %}
+                                <tr>
+                                    <td>{{ detalle.articulo.nombre }}</td>
+                                    <td style="text-align: center;">{{ detalle.cantidad }}</td>
+                                    <td style="text-align: right;">${{ detalle.precio_unitario|format_price }}</td>
+                                    <td style="text-align: right;">${{ detalle.precio_total|format_price }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr>
+
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Subtotal</small>
+                            <p class="mb-1">${{ ticket.subtotal|format_price }}</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Descuento</small>
+                            <p class="mb-1">${{ ticket.descuento|format_price }}</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Neto</small>
+                            <p class="mb-1">${{ ticket.neto|format_price }}</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">IVA</small>
+                            <p class="mb-1">${{ ticket.iva|format_price }}</p>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <small class="text-muted">TOTAL A PAGAR</small>
+                            <h3 class="text-success mb-0" style="font-weight: 700;">${{ ticket.total|format_price }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario de Procesamiento -->
+        <div class="col-md-6">
+            <div class="card shadow-lg" style="border: none; border-radius: 15px;">
+                <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px;">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cash-register me-2"></i>Procesar Pago
+                    </h5>
+                    <small>Caja: {{ apertura_activa.caja.nombre }}</small>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="formProcesar">
+                        {% csrf_token %}
+                        {{ form.ticket_id }}
+
+                        <!-- Tipo de Documento -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-file-invoice me-2"></i>Tipo de Documento
+                            </label>
+
+                            <!-- Información de Facturación Electrónica -->
+                            {% if empresa.facturacion_electronica %}
+                                <div class="alert alert-info py-2 mb-3">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <strong>Facturación Electrónica Activa</strong>
+                                            {% if disponibilidad_folios %}
+                                                <br>
+                                                {% for tipo, datos in disponibilidad_folios.items %}
+                                                    {% if tipo in 'boleta,factura' %}
+                                                        {% if datos.disponible %}
+                                                            <span class="badge bg-success me-1">{{ tipo|title }}: {{ datos.folios_disponibles }} folios disponibles</span>
+                                                        {% else %}
+                                                            <span class="badge bg-danger me-1">{{ tipo|title }}: Sin folios disponibles</span>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endif %}
+                                        </div>
+                                        <a href="{% url 'facturacion_electronica:caf_list' %}" class="btn btn-sm btn-outline-info" target="_blank">
+                                            <i class="fas fa-external-link-alt"></i> Ver CAF
+                                        </a>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning py-2 mb-3">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            <strong>Facturación Electrónica No Configurada</strong><br>
+                                            <small>Configure la facturación electrónica en la empresa para generar documentos tributarios automáticamente.</small>
+                                        </div>
+                                        <a href="{% url 'empresas:editar_empresa_activa' %}" class="btn btn-sm btn-outline-warning" target="_blank">
+                                            <i class="fas fa-cog"></i> Configurar
+                                        </a>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <div class="row">
+                                <div class="col-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="tipo_documento" id="tipo_boleta" value="boleta" {% if tipo_documento_planeado == 'boleta' or tipo_documento_planeado == None %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_boleta">
+                                            Boleta
+                                            {% if empresa.facturacion_electronica and disponibilidad_folios.boleta.disponible %}
+                                                {% if disponibilidad_folios.boleta.folios_disponibles <= 10 %}
+                                                    <span class="badge bg-warning text-dark ms-1" title="Quedan pocos folios">⚠️ {{ disponibilidad_folios.boleta.folios_disponibles }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-success ms-1" title="{{ disponibilidad_folios.boleta.folios_disponibles }} folios disponibles">✓</span>
+                                                {% endif %}
+                                            {% elif empresa.facturacion_electronica %}
+                                                <span class="badge bg-danger ms-1" title="Sin folios disponibles">✗</span>
+                                            {% endif %}
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="tipo_documento" id="tipo_factura" value="factura" {% if tipo_documento_planeado == 'factura' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_factura">
+                                            Factura
+                                            {% if empresa.facturacion_electronica and disponibilidad_folios.factura.disponible %}
+                                                {% if disponibilidad_folios.factura.folios_disponibles <= 10 %}
+                                                    <span class="badge bg-warning text-dark ms-1" title="Quedan pocos folios">⚠️ {{ disponibilidad_folios.factura.folios_disponibles }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-success ms-1" title="{{ disponibilidad_folios.factura.folios_disponibles }} folios disponibles">✓</span>
+                                                {% endif %}
+                                            {% elif empresa.facturacion_electronica %}
+                                                <span class="badge bg-danger ms-1" title="Sin folios disponibles">✗</span>
+                                            {% endif %}
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="tipo_documento" id="tipo_guia" value="guia" {% if tipo_documento_planeado == 'guia' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_guia">
+                                            Guía
+                                            <span class="badge bg-secondary ms-1">Manual</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Información adicional sobre documentos -->
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <small class="text-muted">
+                                        <strong>Boleta:</strong> Para ventas a personas naturales (consumidores finales)<br>
+                                        <strong>Factura:</strong> Para empresas y ventas a crédito<br>
+                                        <strong>Guía:</strong> Para despachos de mercadería
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Formas de Pago Múltiples -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-credit-card me-2"></i>Formas de Pago
+                            </label>
+                            
+                            <div id="formas-pago-container">
+                                <!-- Primera forma de pago (por defecto) -->
+                                <div class="forma-pago-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
+                                    <div class="row align-items-end">
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Forma de Pago</label>
+                                            <select class="form-select forma-pago-select" name="forma_pago_1" required>
+                                                <option value="">Seleccione...</option>
+                                                {% for fp in form.forma_pago.field.queryset %}
+                                                <option value="{{ fp.id }}" data-requiere-cheque="{{ fp.requiere_cheque }}">{{ fp.nombre }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label small">Monto <span class="text-muted">(Total: ${{ ticket.total|floatformat:0 }})</span></label>
+                                            <input type="number" class="form-control monto-pago" name="monto_pago_1" step="1" min="0" placeholder="{{ ticket.total|floatformat:0 }}" value="{{ ticket.total|floatformat:0 }}" required>
+                                        </div>
+                                        <div class="col-md-1">
+                                            <button type="button" class="btn btn-sm btn-danger remove-pago" style="display: none;">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <!-- Campos para cheque (ocultos inicialmente) -->
+                                    <div class="campos-cheque mt-3" style="display: none;">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <label class="form-label small">Número de Cheque</label>
+                                                <input type="text" class="form-control" name="numero_cheque_1" placeholder="Número">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label small">Banco</label>
+                                                <input type="text" class="form-control" name="banco_1" placeholder="Banco">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label small">Fecha</label>
+                                                <input type="date" class="form-control" name="fecha_cheque_1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Botón para agregar otra forma de pago -->
+                            <button type="button" class="btn btn-outline-success btn-sm" id="btn-agregar-pago">
+                                <i class="fas fa-plus me-1"></i>Agregar Otra Forma de Pago
+                            </button>
+
+                            <!-- Resumen de pagos -->
+                            <div class="mt-3 p-3" style="background: #e7f3ff; border-radius: 8px;">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Total a Pagar:</small>
+                                        <div class="fw-bold text-primary" style="font-size: 1.2rem;">
+                                            $<span id="total-venta">{{ ticket.total|format_price }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Total Pagado:</small>
+                                        <div class="fw-bold" style="font-size: 1.2rem;" id="total-pagado-display">
+                                            $<span id="total-pagado">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-2" id="diferencia-pago" style="display: none;">
+                                    <small class="text-muted">Diferencia:</small>
+                                    <div class="fw-bold" style="font-size: 1.1rem;" id="diferencia-display"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Observaciones -->
+                        <div class="mb-3">
+                            <label for="{{ form.observaciones.id_for_label }}" class="form-label">
+                                <i class="fas fa-comment me-2"></i>Observaciones
+                            </label>
+                            {{ form.observaciones }}
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg" id="btn-procesar">
+                                <i class="fas fa-check me-2"></i>Procesar Pago
+                            </button>
+                            <a href="{% url 'caja:procesar_venta_buscar' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+console.log('🔵 Script de procesar venta cargado');
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🟢 DOM Content Loaded - Inicializando...');
+    
+    const totalVenta = {{ ticket.total|unlocalize }};
+    console.log('💰 Total Venta:', totalVenta);
+    let contadorPagos = 1;
+    
+    // Verificar que el formulario existe
+    const formulario = document.getElementById('formProcesar');
+    console.log('📋 Formulario encontrado:', formulario ? 'SÍ' : 'NO');
+    
+    if (!formulario) {
+        console.error('❌ ERROR: No se encontró el formulario con ID "formProcesar"');
+        return;
+    }
+    
+    // Preparar opciones de formas de pago
+    const formasPagoOptions = [
+        {% for fp in form.forma_pago.field.queryset %}
+        {
+            id: '{{ fp.id }}',
+            nombre: '{{ fp.nombre|escapejs }}',
+            requiereCheque: '{{ fp.requiere_cheque }}'
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    // Formatear números con separador de miles
+    function formatearNumero(numero) {
+        return Math.round(numero).toLocaleString('es-CL');
+    }
+    
+    // Calcular total pagado
+    function calcularTotalPagado() {
+        let total = 0;
+        document.querySelectorAll('.monto-pago').forEach(input => {
+            const valor = parseFloat(input.value) || 0;
+            total += valor;
+        });
+        return total;
+    }
+    
+    // Actualizar resumen de pagos
+    function actualizarResumen() {
+        const totalPagado = calcularTotalPagado();
+        const diferencia = totalPagado - totalVenta;
+        
+        // Actualizar total pagado
+        document.getElementById('total-pagado').textContent = formatearNumero(totalPagado);
+        
+        // Cambiar color según si alcanza o no
+        const displayPagado = document.getElementById('total-pagado-display');
+        if (totalPagado >= totalVenta) {
+            displayPagado.style.color = '#28a745'; // Verde
+        } else {
+            displayPagado.style.color = '#dc3545'; // Rojo
+        }
+        
+        // Mostrar diferencia
+        const divDiferencia = document.getElementById('diferencia-pago');
+        const displayDiferencia = document.getElementById('diferencia-display');
+        
+        if (diferencia !== 0) {
+            divDiferencia.style.display = 'block';
+            if (diferencia > 0) {
+                displayDiferencia.textContent = '+ $' + formatearNumero(diferencia);
+                displayDiferencia.style.color = '#28a745';
+                displayDiferencia.title = 'Cambio a entregar';
+            } else {
+                displayDiferencia.textContent = '- $' + formatearNumero(Math.abs(diferencia));
+                displayDiferencia.style.color = '#dc3545';
+                displayDiferencia.title = 'Falta por pagar';
+            }
+        } else {
+            divDiferencia.style.display = 'none';
+        }
+    }
+    
+    // Manejar cambio en forma de pago (mostrar/ocultar campos de cheque)
+    function setupFormaPagoChange(item) {
+        const select = item.querySelector('.forma-pago-select');
+        const camposCheque = item.querySelector('.campos-cheque');
+        
+        select.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const requiereCheque = selectedOption.getAttribute('data-requiere-cheque') === 'True';
+            
+            if (requiereCheque) {
+                camposCheque.style.display = 'block';
+            } else {
+                camposCheque.style.display = 'none';
+            }
+        });
+    }
+    
+    // Manejar cambio en monto
+    function setupMontoChange(input) {
+        input.addEventListener('input', actualizarResumen);
+    }
+    
+    // Configurar primera forma de pago
+    const primerItem = document.querySelector('.forma-pago-item');
+    setupFormaPagoChange(primerItem);
+    setupMontoChange(primerItem.querySelector('.monto-pago'));
+    
+    // Agregar otra forma de pago
+    document.getElementById('btn-agregar-pago').addEventListener('click', function() {
+        contadorPagos++;
+        const container = document.getElementById('formas-pago-container');
+        
+        // Generar opciones de formas de pago
+        let optionsHTML = '<option value="">Seleccione...</option>';
+        formasPagoOptions.forEach(fp => {
+            optionsHTML += `<option value="${fp.id}" data-requiere-cheque="${fp.requiereCheque}">${fp.nombre}</option>`;
+        });
+        
+        // Calcular monto restante
+        const totalPagado = calcularTotalPagado();
+        const montoRestante = totalVenta - totalPagado;
+        const montoSugerido = montoRestante > 0 ? montoRestante.toFixed(0) : '0';
+        
+        const nuevoItem = document.createElement('div');
+        nuevoItem.className = 'forma-pago-item mb-3 p-3';
+        nuevoItem.style.cssText = 'background: #f8f9fa; border-radius: 8px; border-left: 4px solid #ffc107;';
+        nuevoItem.innerHTML = `
+            <div class="row align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label small">Forma de Pago</label>
+                    <select class="form-select forma-pago-select" name="forma_pago_${contadorPagos}" required>
+                        ${optionsHTML}
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small">Monto <span class="text-muted">(Saldo: $${formatearNumero(montoRestante)})</span></label>
+                    <input type="number" class="form-control monto-pago" name="monto_pago_${contadorPagos}" step="1" min="0" placeholder="${montoSugerido}" value="${montoSugerido}" required>
+                </div>
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-sm btn-danger remove-pago">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="campos-cheque mt-3" style="display: none;">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label small">Número de Cheque</label>
+                        <input type="text" class="form-control" name="numero_cheque_${contadorPagos}" placeholder="Número">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Banco</label>
+                        <input type="text" class="form-control" name="banco_${contadorPagos}" placeholder="Banco">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Fecha</label>
+                        <input type="date" class="form-control" name="fecha_cheque_${contadorPagos}">
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(nuevoItem);
+        
+        // Configurar eventos del nuevo item
+        setupFormaPagoChange(nuevoItem);
+        setupMontoChange(nuevoItem.querySelector('.monto-pago'));
+        
+        // Configurar botón de eliminar
+        nuevoItem.querySelector('.remove-pago').addEventListener('click', function() {
+            nuevoItem.remove();
+            actualizarResumen();
+            
+            // Si solo queda uno, ocultar botón de eliminar
+            const items = document.querySelectorAll('.forma-pago-item');
+            if (items.length === 1) {
+                items[0].querySelector('.remove-pago').style.display = 'none';
+            }
+        });
+        
+        // Mostrar botones de eliminar si hay más de uno
+        const items = document.querySelectorAll('.forma-pago-item');
+        if (items.length > 1) {
+            items.forEach(item => {
+                item.querySelector('.remove-pago').style.display = 'inline-block';
+            });
+        }
+        
+        // Actualizar resumen con el nuevo monto
+        actualizarResumen();
+    });
+    
+    // Validar antes de enviar
+    document.getElementById('formProcesar').addEventListener('submit', function(e) {
+        console.log('=== SUBMIT DEL FORMULARIO ===');
+        const totalPagado = calcularTotalPagado();
+        console.log('Total Venta:', totalVenta);
+        console.log('Total Pagado:', totalPagado);
+
+        // 1. Validación de disponibilidad de folios para documentos electrónicos
+        {% if empresa.facturacion_electronica and disponibilidad_folios %}
+        const tipoDocumento = document.querySelector('input[name="tipo_documento"]:checked')?.value;
+        console.log('Tipo documento seleccionado:', tipoDocumento);
+
+        if (tipoDocumento && (tipoDocumento === 'boleta' || tipoDocumento === 'factura')) {
+            const disponibilidad = {{ disponibilidad_folios_json|safe }};
+            const datosTipo = disponibilidad[tipoDocumento];
+
+            if (!datosTipo || !datosTipo.disponible || datosTipo.folios_disponibles <= 0) {
+                console.log('❌ Folios no disponibles para', tipoDocumento);
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Folios No Disponibles',
+                    html: `No hay folios CAF disponibles para generar <strong>${tipoDocumento === 'boleta' ? 'Boletas' : 'Facturas'}</strong> electrónicas.<br><br>
+                           <small>Verifique que tenga CAF activos cargados en el sistema.</small>`,
+                    confirmButtonColor: '#dc3545',
+                    footer: '<a href="{% url "facturacion_electronica:caf_list" %}" target="_blank">Ver gestión de CAF</a>'
+                });
+                return false;
+            } else {
+                console.log(`✅ Folios disponibles para ${tipoDocumento}: ${datosTipo.folios_disponibles}`);
+            }
+        }
+        {% endif %}
+
+        // 2. Validación de monto pagado
+        // Permitir diferencia de hasta 1 peso por redondeo
+        const diferencia = totalVenta - totalPagado;
+        console.log('Diferencia:', diferencia);
+
+        if (diferencia > 1) {
+            console.log('❌ Monto insuficiente, previniendo submit');
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Monto Insuficiente',
+                text: `El total pagado ($${formatearNumero(totalPagado)}) es menor al total de la venta ($${formatearNumero(totalVenta)})`,
+                confirmButtonColor: '#dc3545'
+            });
+            return false;
+        }
+
+        console.log('✅ Todas las validaciones OK, enviando formulario...');
+        
+        // Deshabilitar botón para evitar doble envío
+        const btnProcesar = document.getElementById('btn-procesar');
+        btnProcesar.disabled = true;
+        btnProcesar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando...';
+        
+        // Log de datos del formulario
+        const formData = new FormData(e.target);
+        console.log('Datos del formulario:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`  ${key}: ${value}`);
+        }
+    });
+
+    // Auto-refresco del estado de CAF cada 30 segundos
+    {% if empresa.facturacion_electronica %}
+    function actualizarEstadoCAF() {
+        fetch('{% url "caja:estado_caf_pos" %}', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Actualizar badges de disponibilidad
+                const badges = document.querySelectorAll('.badge');
+                badges.forEach(badge => {
+                    if (badge.textContent.includes('folios')) {
+                        // Badge contiene número de folios, actualizar si cambió
+                        const tipo = badge.closest('.form-check').querySelector('input').value;
+                        const nuevosDatos = data.disponibilidad[tipo];
+                        if (nuevosDatos) {
+                            const nuevosFolios = nuevosDatos.folios_disponibles;
+                            const textoActual = badge.textContent;
+                            const nuevoTexto = textoActual.replace(/\d+/, nuevosFolios);
+                            if (nuevoTexto !== textoActual) {
+                                badge.textContent = nuevoTexto;
+                                // Cambiar color si es necesario
+                                if (nuevosFolios <= 10 && nuevosFolios > 0) {
+                                    badge.className = 'badge bg-warning text-dark ms-1';
+                                } else if (nuevosFolios > 10) {
+                                    badge.className = 'badge bg-success ms-1';
+                                } else {
+                                    badge.className = 'badge bg-danger ms-1';
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Actualizar información de CAF en el alert
+                const alertInfo = document.querySelector('.alert-info');
+                if (alertInfo) {
+                    const badgesEnAlert = alertInfo.querySelectorAll('.badge');
+                    badgesEnAlert.forEach(badge => {
+                        const tipo = badge.textContent.split(':')[0].toLowerCase().trim();
+                        const nuevosDatos = data.disponibilidad[tipo];
+                        if (nuevosDatos) {
+                            const nuevosFolios = nuevosDatos.folios_disponibles;
+                            badge.textContent = `${tipo}: ${nuevosFolios} folios`;
+                            if (nuevosFolios <= 10 && nuevosFolios > 0) {
+                                badge.className = 'badge bg-warning text-dark me-1';
+                            } else if (nuevosFolios > 10) {
+                                badge.className = 'badge bg-success me-1';
+                            } else {
+                                badge.className = 'badge bg-danger me-1';
+                            }
+                        }
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error actualizando estado CAF:', error);
+        });
+    }
+
+    // Actualizar cada 30 segundos
+    setInterval(actualizarEstadoCAF, 30000);
+
+    // Actualizar inmediatamente al cargar
+    setTimeout(actualizarEstadoCAF, 1000);
+    {% endif %}
+});
+</script>
+{% endblock %}
+

@@ -11,251 +11,337 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_head %}
+<style>
+    /* Fondo terroso suave como en libro de ventas */
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+
+<!-- BANNER TERROSO ESTÁNDAR -->
+<div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); color: #6F5B44; text-align: center; padding: 8px; font-size: 0.8rem; font-weight: 500; font-family: 'Poppins', sans-serif; z-index: 9999; border-bottom: 1px solid #D4C4A8;">
+    Gestión de Movimientos de Inventario - Estilo Terroso Estándar
+</div>
+
+<div class="container-fluid" style="margin-top: 80px;">
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+
+                <!-- HEADER PRINCIPAL CON COLORES VIBRANTES -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-adjust fa-2x text-white me-3"></i>
+                            <i class="fas fa-adjust fa-lg me-2" style="color: #6F5B44;"></i>
                             <div>
-                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                                    Gestión de Ajustes de Stock
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Gestión de Movimientos de Inventario
                                 </h5>
-                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">Administra los ajustes de inventario, entradas y salidas de productos</small>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Administración completa de ajustes de stock, entradas y salidas
+                                </small>
                             </div>
                         </div>
-                        <a href="{% url 'inventario:ajuste_create_simple' %}" class="btn" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(107, 142, 35, 0.3); font-family: 'Poppins', sans-serif;">
-                            <i class="fas fa-plus me-2"></i> Nuevo Ajuste
-                        </a>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i>
+                            </button>
+                            <a href="{% url 'inventario:ajuste_create_simple' %}" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-plus me-1"></i> Nuevo Ajuste
+                            </a>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Estadísticas dentro de la tarjeta -->
-                <div class="card-body" style="padding: 15px 20px;">
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none; box-shadow: 0 4px 15px rgba(156, 175, 136, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 15px 20px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Total Ajustes</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ total_ajustes }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Registrados</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-adjust fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); border: none; box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 15px 20px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Entradas</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ ajustes_entrada }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Aumentos</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-arrow-up fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #DAA520 0%, #FFD700 100%); border: none; box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 15px 20px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Salidas</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ ajustes_salida }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Reducciones</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-arrow-down fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                        </div>
-                    </div>
-                </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #CD853F 0%, #DEB887 100%); border: none; box-shadow: 0 4px 15px rgba(205, 133, 63, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 15px 20px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Este Mes</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ total_ajustes }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Movimientos</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-calendar fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                
+                <div class="card-body" style="padding: 12px; background: #FAFAF8;">
 
-                    <!-- Filtros y búsqueda -->
-                    <div class="row mb-4">
-        <div class="col-12">
-                            <div class="card shadow-sm" style="border: none; border-radius: 10px;">
-                                <div class="card-body py-3">
-                                    <form method="get" class="row g-2">
-                                        <div class="col-md-4">
-                                            <div class="input-group input-group-sm">
-                                                <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                    <i class="fas fa-search" style="color: #6c757d;"></i>
-                                                </div>
-                                                <input type="text" class="form-control" name="search" value="{{ search }}" 
-                                                       placeholder="Buscar por código, artículo o descripción" style="border-left: none;">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <select name="bodega" class="form-select form-select-sm">
-                                                <option value="">Todas las bodegas</option>
-                                                {% for bodega in bodegas %}
-                                                    <option value="{{ bodega.id }}" {% if bodega.id|stringformat:"s" == request.GET.bodega %}selected{% endif %}>{{ bodega.nombre }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <select name="tipo" class="form-select form-select-sm">
-                                                <option value="">Todos los tipos</option>
-                                                <option value="entrada" {% if request.GET.tipo == 'entrada' %}selected{% endif %}>Entrada</option>
-                                                <option value="salida" {% if request.GET.tipo == 'salida' %}selected{% endif %}>Salida</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <input type="date" class="form-control form-control-sm" name="fecha_desde" value="{{ request.GET.fecha_desde }}" placeholder="Desde">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <input type="date" class="form-control form-control-sm" name="fecha_hasta" value="{{ request.GET.fecha_hasta }}" placeholder="Hasta">
-                                        </div>
-                                    </form>
-                                </div>
+                    <!-- ESTADÍSTICAS PRINCIPALES -->
+                    <div class="row mb-2">
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-1 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">{{ total_ajustes|default:0 }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Ajustes</div>
+                                <i class="fas fa-adjust stat-icon"></i>
                             </div>
                         </div>
-                </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-2 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">{{ ajustes_entrada|default:0 }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Entradas</div>
+                                <i class="fas fa-arrow-up stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-3 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">{{ ajustes_salida|default:0 }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Salidas</div>
+                                <i class="fas fa-arrow-down stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-4 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">{{ total_ajustes|default:0 }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Este Mes</div>
+                                <i class="fas fa-calendar stat-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    
+                    <!-- FILTROS -->
+                    <div class="filter-section">
+                        <form method="get" action="">
+                            <div class="row g-2">
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-search me-1"></i>Buscar
+                                    </label>
+                                    <input type="text" name="search" class="form-control form-control-sm"
+                                           placeholder="🔍 Código, artículo..." value="{{ search }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-warehouse me-1"></i>Bodega
+                                    </label>
+                                    <select name="bodega" class="form-select form-select-sm">
+                                        <option value="">Todas</option>
+                                        {% for bodega in bodegas %}
+                                            <option value="{{ bodega.id }}" {% if bodega.id|stringformat:"s" == request.GET.bodega %}selected{% endif %}>{{ bodega.nombre }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-exchange-alt me-1"></i>Tipo
+                                    </label>
+                                    <select name="tipo" class="form-select form-select-sm">
+                                        <option value="">Todos</option>
+                                        <option value="entrada" {% if request.GET.tipo == 'entrada' %}selected{% endif %}>Entrada</option>
+                                        <option value="salida" {% if request.GET.tipo == 'salida' %}selected{% endif %}>Salida</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-calendar me-1"></i>Desde
+                                    </label>
+                                    <input type="date" class="form-control form-control-sm" name="fecha_desde" value="{{ request.GET.fecha_desde }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-calendar me-1"></i>Hasta
+                                    </label>
+                                    <input type="date" class="form-control form-control-sm" name="fecha_hasta" value="{{ request.GET.fecha_hasta }}">
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-filter w-100">
+                                        <i class="fas fa-filter"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 
-                    <!-- Lista de ajustes -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card shadow-sm" style="border: none; border-radius: 15px;">
-                                <div class="card-body p-0">
-                    {% if ajustes %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                                <thead style="background: #f8f9fa;">
-                                    <tr>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Nº Registro</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Fecha</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Tipo</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Bodega</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Artículo</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Cantidad</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Usuario</th>
-                                        <th class="py-2 px-3 text-center" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for ajuste in ajustes %}
-                                        <tr style="border-bottom: 1px solid #f1f3f4;">
-                                            <td class="py-2 px-3">
-                                                <span style="color: #495057; font-weight: 600; font-size: 0.9rem;">{{ ajuste.numero_folio|default:"Sin folio" }}</span>
-                                            </td>
-                                            <td class="py-2 px-3">
-                                                <span style="color: #6c757d; font-size: 0.9rem;">{{ ajuste.fecha_movimiento|date:"d/m/Y" }}</span>
-                                            </td>
-                                            <td class="py-2 px-3">
+                    
+                    <!-- Lista de Ajustes -->
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%;">Nº Registro</th>
+                                    <th style="width: 10%;">Fecha</th>
+                                    <th style="width: 10%;">Tipo</th>
+                                    <th style="width: 12%;">Bodega</th>
+                                    <th style="width: 20%;">Artículo</th>
+                                    <th style="width: 10%;">Cantidad</th>
+                                    <th style="width: 13%;">Descripción</th>
+                                    <th style="width: 10%;">Usuario</th>
+                                    <th class="text-center" style="width: 5%;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if ajustes %}
+                                {% for ajuste in ajustes %}
+                                <tr style="border-bottom: 1px solid #F5F1E8;">
+                                    <td style="font-size: 0.7rem;">{{ ajuste.numero_folio|default:"Sin folio" }}</td>
+                                    <td style="font-size: 0.7rem;">{{ ajuste.fecha_movimiento|date:"d/m/Y" }}</td>
+                                    <td style="font-size: 0.7rem;">
                                         {% if ajuste.cantidad > 0 %}
-                                                    <span class="badge bg-success" style="font-size: 0.8rem;">
-                                                <i class="fas fa-arrow-up me-1"></i>Entrada
+                                            <span class="badge bg-success" style="font-size: 0.6rem;">
+                                                <i class="fas fa-arrow-up"></i> Entrada
                                             </span>
                                         {% else %}
-                                                    <span class="badge bg-danger" style="font-size: 0.8rem;">
-                                                <i class="fas fa-arrow-down me-1"></i>Salida
+                                            <span class="badge bg-danger" style="font-size: 0.6rem;">
+                                                <i class="fas fa-arrow-down"></i> Salida
                                             </span>
                                         {% endif %}
                                     </td>
-                                            <td class="py-2 px-3">
-                                                <span style="color: #2c3e50; font-size: 0.9rem;">{{ ajuste.bodega_destino.nombre }}</span>
-                                            </td>
-                                            <td class="py-2 px-3">
-                                                <div>
-                                                    <div class="fw-bold" style="color: #2c3e50; font-size: 0.9rem;">{{ ajuste.articulo.codigo }}</div>
-                                                    <small style="color: #6c757d; font-size: 0.8rem;">{{ ajuste.articulo.nombre|truncatechars:30 }}</small>
-                                                </div>
+                                    <td style="font-size: 0.7rem;">{{ ajuste.bodega_destino.nombre|truncatechars:15 }}</td>
+                                    <td style="font-size: 0.7rem;">
+                                        <div class="fw-bold">{{ ajuste.articulo.codigo }}</div>
+                                        <small style="font-size: 0.65rem; color: #8B7355;">{{ ajuste.articulo.nombre|truncatechars:25 }}</small>
                                     </td>
-                                            <td class="py-2 px-3">
-                                                <span class="fw-bold {% if ajuste.cantidad > 0 %}text-success{% else %}text-danger{% endif %}" style="font-size: 0.9rem;">
-                                                    {% if ajuste.cantidad > 0 %}+{% endif %}{{ ajuste.cantidad|floatformat:0 }}
-                                                </span>
-                                    </td>
-                                            <td class="py-2 px-3">
-                                                <span style="color: #6c757d; font-size: 0.9rem;" title="{{ ajuste.descripcion }}">
-                                                    {{ ajuste.descripcion|truncatechars:30 }}
+                                    <td style="font-size: 0.7rem;">
+                                        <span class="fw-bold {% if ajuste.cantidad > 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {% if ajuste.cantidad > 0 %}+{% endif %}{{ ajuste.cantidad|floatformat:0 }}
                                         </span>
                                     </td>
-                                            <td class="py-2 px-3">
-                                                <span style="color: #2c3e50; font-size: 0.9rem;">{{ ajuste.creado_por.username }}</span>
-                                            </td>
-                                            <td class="py-2 px-3 text-center">
-                                                <div class="btn-group" role="group">
-                                                    <button class="btn btn-sm" 
-                                                            data-bs-toggle="tooltip" 
-                                                            title="Ver detalles"
-                                                            onclick="verAjuste({{ ajuste.id }})"
-                                                            style="border: none; background: none; padding: 2px 6px;">
-                                                        <i class="fas fa-eye" style="color: #4682B4; font-size: 14px;"></i>
-                                                    </button>
-                                                    <button class="btn btn-sm" 
-                                                            data-bs-toggle="tooltip" 
-                                                            title="Editar"
-                                                            onclick="editarAjuste({{ ajuste.id }})"
-                                                            style="border: none; background: none; padding: 2px 6px;">
-                                                        <i class="fas fa-edit" style="color: #B8860B; font-size: 14px;"></i>
-                                                    </button>
-                                                    <button class="btn btn-sm" 
-                                                            data-bs-toggle="tooltip" 
-                                                            title="Eliminar"
-                                                            onclick="eliminarAjuste({{ ajuste.id }})"
-                                                            style="border: none; background: none; padding: 2px 6px;">
-                                                        <i class="fas fa-trash" style="color: #DC143C; font-size: 14px;"></i>
-                                                    </button>
-                                                </div>
+                                    <td style="font-size: 0.7rem;" title="{{ ajuste.descripcion }}">{{ ajuste.descripcion|truncatechars:20 }}</td>
+                                    <td style="font-size: 0.7rem;">{{ ajuste.creado_por.username }}</td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-action btn-outline-primary"
+                                                    onclick="verAjuste({{ ajuste.id }})"
+                                                    title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-action btn-outline-secondary"
+                                                    onclick="editarAjuste({{ ajuste.id }})"
+                                                    title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-action btn-outline-danger"
+                                                    onclick="eliminarAjuste({{ ajuste.id }})"
+                                                    title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-5">
-                            <i class="fas fa-adjust fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">No se encontraron ajustes</h5>
-                            <p class="text-muted">Comienza creando tu primer ajuste de stock.</p>
-                            <a href="{% url 'inventario:ajuste_create_simple' %}" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i>Crear Primer Ajuste
-                            </a>
-                        </div>
-                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-2">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.8rem;">No se encontraron ajustes de inventario</p>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    /* Paleta terrosa para tarjetas de estadísticas */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .stat-card-1 {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+    }
+
+    .stat-card-2 {
+        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
+    }
+
+    .stat-card-3 {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    }
+
+    .stat-card-4 {
+        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        color: rgba(255,255,255,0.9);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.3);
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+    }
+
+    .filter-section {
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+
+    .table-compact thead th {
+        padding: 4px 2px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+
+    .table-compact tbody td {
+        padding: 2px 3px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.7rem;
+    }
+
+    .table-compact tbody tr {
+        height: 28px;
+    }
+
+    .btn-filter {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-action {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+</style>
 
 <script>
 // Acciones de ajustes
@@ -387,4 +473,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
 {% endblock %}

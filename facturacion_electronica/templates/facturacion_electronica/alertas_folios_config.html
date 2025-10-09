@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-bell text-warning"></i> {{ titulo }}
+                    </h2>
+                    <p class="text-muted mb-0">
+                        Configura cuántos folios deben quedar disponibles para activar alertas, según cada tipo de documento
+                    </p>
+                </div>
+                <a href="{% url 'facturacion_electronica:caf_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver a CAF
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5 class="alert-heading"><i class="fas fa-info-circle"></i> ¿Cómo funciona?</h5>
+                <p class="mb-2">
+                    Cuando un CAF tenga <strong>menos o igual</strong> a la cantidad de folios configurada, 
+                    el sistema mostrará una <strong>alerta destacada</strong> en la lista de CAF.
+                </p>
+                <hr>
+                <p class="mb-0">
+                    <strong>Recomendaciones:</strong> Configura según el volumen de documentos que emites diariamente.
+                    Si emites 10 boletas/día, configura al menos 30 folios para tener 3 días de buffer.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario de Configuración -->
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="row">
+            {% for config in configuraciones %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm {% if not config.activo %}border-secondary{% else %}border-primary{% endif %}">
+                    <div class="card-header {% if not config.activo %}bg-secondary{% else %}bg-primary{% endif %} text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-file-invoice"></i> {{ config.get_tipo_documento_display }}
+                            </h5>
+                            <span class="badge {% if config.activo %}bg-light text-dark{% else %}bg-dark{% endif %}">
+                                Código: {{ config.tipo_documento }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Estado Activo/Inactivo -->
+                        <div class="form-check form-switch mb-3">
+                            <input 
+                                class="form-check-input" 
+                                type="checkbox" 
+                                name="activo_{{ config.tipo_documento }}"
+                                id="activo_{{ config.tipo_documento }}"
+                                {% if config.activo %}checked{% endif %}
+                            >
+                            <label class="form-check-label fw-bold" for="activo_{{ config.tipo_documento }}">
+                                {% if config.activo %}
+                                    <i class="fas fa-check-circle text-success"></i> Alerta Activa
+                                {% else %}
+                                    <i class="fas fa-times-circle text-secondary"></i> Alerta Desactivada
+                                {% endif %}
+                            </label>
+                        </div>
+
+                        <!-- Cantidad de Folios -->
+                        <div class="mb-3">
+                            <label for="folios_{{ config.tipo_documento }}" class="form-label">
+                                <i class="fas fa-exclamation-triangle text-warning"></i> 
+                                <strong>Alertar cuando queden:</strong>
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <input 
+                                    type="number" 
+                                    class="form-control" 
+                                    name="folios_{{ config.tipo_documento }}"
+                                    id="folios_{{ config.tipo_documento }}"
+                                    value="{{ config.folios_minimos }}"
+                                    min="1"
+                                    max="1000"
+                                    required
+                                >
+                                <span class="input-group-text">folios o menos</span>
+                            </div>
+                            <small class="text-muted">
+                                Valor actual: <strong>{{ config.folios_minimos }}</strong> folios
+                            </small>
+                        </div>
+
+                        <!-- Sugerencias según tipo de documento -->
+                        <div class="alert alert-light border mb-0">
+                            <small>
+                                <strong>Sugerencia:</strong>
+                                {% if config.tipo_documento == '39' or config.tipo_documento == '41' %}
+                                    <!-- Boletas: alto volumen -->
+                                    <br>Las boletas suelen tener alto volumen.
+                                    <br>Recomendado: <strong>50-100 folios</strong>
+                                {% elif config.tipo_documento == '33' or config.tipo_documento == '34' %}
+                                    <!-- Facturas: volumen medio -->
+                                    <br>Las facturas suelen tener volumen medio.
+                                    <br>Recomendado: <strong>20-50 folios</strong>
+                                {% elif config.tipo_documento == '52' %}
+                                    <!-- Guías: volumen variable -->
+                                    <br>Las guías tienen volumen variable.
+                                    <br>Recomendado: <strong>20-40 folios</strong>
+                                {% else %}
+                                    <!-- Notas: bajo volumen -->
+                                    <br>Este tipo de documento tiene bajo volumen.
+                                    <br>Recomendado: <strong>10-20 folios</strong>
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1">Guardar Configuración</h5>
+                                <p class="text-muted mb-0">
+                                    Los cambios se aplicarán inmediatamente en la lista de CAF
+                                </p>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-save"></i> Guardar Cambios
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Ejemplos prácticos -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb text-warning"></i> Ejemplos Prácticos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="border-start border-primary border-4 ps-3">
+                                <h6 class="text-primary mb-2">Negocio de Retail</h6>
+                                <ul class="small mb-0">
+                                    <li><strong>Boletas:</strong> 100-200 folios (emiten 50-100/día)</li>
+                                    <li><strong>Facturas:</strong> 30-50 folios (emiten 10-20/día)</li>
+                                    <li><strong>Notas:</strong> 10-20 folios (bajo volumen)</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="border-start border-success border-4 ps-3">
+                                <h6 class="text-success mb-2">Empresa de Servicios</h6>
+                                <ul class="small mb-0">
+                                    <li><strong>Facturas:</strong> 50-80 folios (emiten 20-30/día)</li>
+                                    <li><strong>Boletas:</strong> 30-50 folios (volumen medio)</li>
+                                    <li><strong>Notas:</strong> 20-30 folios (uso frecuente)</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="border-start border-info border-4 ps-3">
+                                <h6 class="text-info mb-2">Pequeño Negocio</h6>
+                                <ul class="small mb-0">
+                                    <li><strong>Boletas:</strong> 20-30 folios (emiten 5-10/día)</li>
+                                    <li><strong>Facturas:</strong> 10-20 folios (bajo volumen)</li>
+                                    <li><strong>Notas:</strong> 5-10 folios (uso ocasional)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.input-group-lg .form-control {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+}
+
+.border-4 {
+    border-width: 4px !important;
+}
+</style>
+{% endblock %}
+
+

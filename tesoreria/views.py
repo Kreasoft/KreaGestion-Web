@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
@@ -139,6 +139,7 @@ def cuenta_corriente_proveedor_detail(request, proveedor_id):
 
 @login_required
 @requiere_empresa
+@permission_required('tesoreria.view_cuentacorriente', raise_exception=True)
 def cuenta_corriente_cliente_list(request):
     """Lista de cuentas corrientes de clientes (placeholder)"""
     # Obtener la empresa del usuario

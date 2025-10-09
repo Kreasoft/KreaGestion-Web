@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura Electrónica - Ejemplo N° 00000125</title>
+
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 8pt;
+            line-height: 1.1;
+            color: #000;
+            margin: 0;
+            padding: 8px;
+            background: #f5f5f5;
+        }
+
+        .factura-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 8px;
+        }
+
+        /* Cabecera */
+        .header-section {
+            display: table;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .header-left {
+            display: table-cell;
+            width: 55%;
+            vertical-align: top;
+            padding-right: 8px;
+        }
+
+        .header-right {
+            display: table-cell;
+            width: 45%;
+            vertical-align: top;
+        }
+
+        .document-box {
+            border: 3px solid #c00;
+            border-radius: 8px;
+            padding: 8px 6px;
+            text-align: center;
+            background: #fff;
+        }
+
+        .document-rut {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+        }
+
+        .document-type {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+            line-height: 1.1;
+        }
+
+        .document-folio {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+        }
+
+        .document-sii {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #c00;
+        }
+
+        .company-logo {
+            max-width: 80px;
+            margin-bottom: 6px;
+        }
+
+        .company-info {
+            font-size: 7pt;
+            line-height: 1.2;
+            color: #333;
+        }
+
+        .company-name {
+            font-size: 9pt;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .fecha-emision {
+            text-align: right;
+            font-size: 7pt;
+            margin-bottom: 6px;
+        }
+
+        /* Sección del Receptor */
+        .receptor-section {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            margin-bottom: 8px;
+            background: #f9f9f9;
+        }
+
+        .receptor-grid {
+            display: table;
+            width: 100%;
+            font-size: 7pt;
+        }
+
+        .receptor-row {
+            display: table-row;
+        }
+
+        .receptor-cell {
+            display: table-cell;
+            padding: 1px 3px;
+            width: 25%;
+        }
+
+        .receptor-label {
+            font-weight: bold;
+            background: #e0e0e0;
+            padding: 1px 3px;
+            display: inline-block;
+            min-width: 60px;
+            border-radius: 2px;
+            font-size: 7pt;
+        }
+
+        /* Tabla de Detalle */
+        .detalle-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 7pt;
+            border: 1px solid #ddd;
+        }
+
+        .detalle-table thead {
+            background: #d0d0d0;
+        }
+
+        .detalle-table th {
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            padding: 3px 2px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 6pt;
+        }
+
+        .detalle-table th:last-child {
+            border-right: none;
+        }
+
+        .detalle-table td {
+            border-right: 1px solid #eee;
+            padding: 2px 2px;
+            vertical-align: top;
+        }
+
+        .detalle-table td:last-child {
+            border-right: none;
+        }
+
+        /* Sección Inferior */
+        .footer-section {
+            display: table;
+            width: 100%;
+        }
+
+        .footer-left {
+            display: table-cell;
+            width: 45%;
+            vertical-align: top;
+            padding-right: 6px;
+        }
+
+        .footer-right {
+            display: table-cell;
+            width: 55%;
+            vertical-align: top;
+        }
+
+        .timbre-box {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        .timbre-info {
+            font-size: 5pt;
+            color: #666;
+            margin-top: 3px;
+            line-height: 1.2;
+        }
+
+        .totales-box {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #f9f9f9;
+            margin-bottom: 6px;
+        }
+
+        .totales-header {
+            background: #d0d0d0;
+            padding: 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 8pt;
+            border-bottom: 1px solid #ddd;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .totales-content {
+            padding: 4px 6px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 1px 0;
+            font-size: 7pt;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .total-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 8pt;
+            padding-top: 2px;
+        }
+
+        .total-label {
+            font-weight: bold;
+        }
+
+        .total-value {
+            text-align: right;
+        }
+
+        .acuse-box {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #f9f9f9;
+            margin-bottom: 6px;
+        }
+
+        .acuse-header {
+            background: #d0d0d0;
+            padding: 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 8pt;
+            border-bottom: 1px solid #ddd;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .acuse-content {
+            padding: 4px 6px;
+            min-height: 50px;
+        }
+
+        .acuse-field {
+            font-size: 6pt;
+            color: #666;
+            margin-bottom: 2px;
+        }
+
+        .disclaimer {
+            font-size: 5pt;
+            color: #666;
+            text-align: center;
+            margin-top: 4px;
+            font-style: italic;
+            line-height: 1.1;
+        }
+
+        .cedible {
+            text-align: right;
+            font-size: 7pt;
+            font-weight: bold;
+            color: #c00;
+            margin-top: 6px;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+                background: white;
+            }
+
+            .factura-container {
+                max-width: none;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="factura-container">
+
+        <!-- CABECERA -->
+        <div class="header-section">
+            <!-- Datos del Emisor -->
+            <div class="header-left">
+                <div class="company-name">EMPRESA EJEMPLO S.A.</div>
+                <div class="company-info">
+                    <strong>Casa Matriz:</strong> Av. Libertador Bernardo O'Higgins 1234<br>
+                    <strong>Santiago</strong><br>
+                    Fono: +56 2 2345 6789
+                </div>
+            </div>
+
+            <!-- Cuadro del Documento -->
+            <div class="header-right">
+                <div class="document-box">
+                    <div class="document-rut">RUT: 76.123.456-7</div>
+                    <div class="document-type">FACTURA ELECTRÓNICA</div>
+                    <div class="document-folio">N° 00000125</div>
+                    <div class="document-sii">S.I.I. - SANTIAGO</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FECHA -->
+        <div class="fecha-emision">
+            <strong>Fecha:</strong> Martes, 08 de Octubre de 2025
+        </div>
+
+        <!-- DATOS DEL RECEPTOR -->
+        <div class="receptor-section">
+            <div class="receptor-grid">
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Señor(es)</span>
+                    </div>
+                    <div class="receptor-cell" colspan="3">
+                        COMERCIAL LA ESTRELLA LIMITADA
+                    </div>
+                </div>
+            </div>
+            <div class="receptor-grid">
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Dirección</span>
+                    </div>
+                    <div class="receptor-cell">
+                        San Martín 567, Local 12
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">RUT</span>
+                    </div>
+                    <div class="receptor-cell">
+                        78.987.654-3
+                    </div>
+                </div>
+            </div>
+            <div class="receptor-grid">
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Giro</span>
+                    </div>
+                    <div class="receptor-cell">
+                        Venta al por menor de productos varios
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Ciudad</span>
+                    </div>
+                    <div class="receptor-cell">
+                        Santiago
+                    </div>
+                </div>
+            </div>
+            <div class="receptor-grid">
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Comuna</span>
+                    </div>
+                    <div class="receptor-cell">
+                        Providencia
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Fecha Vto.</span>
+                    </div>
+                    <div class="receptor-cell">
+                        08/11/2025
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DETALLE DE PRODUCTOS -->
+        <table class="detalle-table">
+            <thead>
+                <tr>
+                    <th class="col-afecto">Código</th>
+                    <th class="col-detalle">Detalle</th>
+                    <th class="col-cantidad">Cantidad</th>
+                    <th class="col-precio">Precio</th>
+                    <th class="col-descuento">Descuento/Recargo</th>
+                    <th class="col-monto">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="col-afecto">ART001</td>
+                    <td class="col-detalle">Mouse Inalámbrico Logitech M185</td>
+                    <td class="col-cantidad">10</td>
+                    <td class="col-precio">$ 8.400</td>
+                    <td class="col-descuento">-</td>
+                    <td class="col-monto">$ 84.000</td>
+                </tr>
+                <tr>
+                    <td class="col-afecto">ART002</td>
+                    <td class="col-detalle">Teclado USB Genius KB-110</td>
+                    <td class="col-cantidad">5</td>
+                    <td class="col-precio">$ 6.700</td>
+                    <td class="col-descuento">-</td>
+                    <td class="col-monto">$ 33.500</td>
+                </tr>
+                <tr>
+                    <td class="col-afecto">ART003</td>
+                    <td class="col-detalle">Monitor LED 24" Samsung Full HD</td>
+                    <td class="col-cantidad">2</td>
+                    <td class="col-precio">$ 115.000</td>
+                    <td class="col-descuento">-</td>
+                    <td class="col-monto">$ 230.000</td>
+                </tr>
+                <tr>
+                    <td class="col-afecto">ART004</td>
+                    <td class="col-detalle">Cable HDMI 2.0 de 2 metros</td>
+                    <td class="col-cantidad">8</td>
+                    <td class="col-precio">$ 4.200</td>
+                    <td class="col-descuento">-</td>
+                    <td class="col-monto">$ 33.600</td>
+                </tr>
+                <tr>
+                    <td class="col-afecto">SRV001</td>
+                    <td class="col-detalle">Servicio de Instalación y Configuración</td>
+                    <td class="col-cantidad">1</td>
+                    <td class="col-precio">$ 25.000</td>
+                    <td class="col-descuento">-</td>
+                    <td class="col-monto">$ 25.000</td>
+                </tr>
+                <!-- Filas vacías -->
+                <tr>
+                    <td class="col-afecto">&nbsp;</td>
+                    <td class="col-detalle">&nbsp;</td>
+                    <td class="col-cantidad">&nbsp;</td>
+                    <td class="col-precio">&nbsp;</td>
+                    <td class="col-descuento">&nbsp;</td>
+                    <td class="col-monto">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="col-afecto">&nbsp;</td>
+                    <td class="col-detalle">&nbsp;</td>
+                    <td class="col-cantidad">&nbsp;</td>
+                    <td class="col-precio">&nbsp;</td>
+                    <td class="col-descuento">&nbsp;</td>
+                    <td class="col-monto">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="col-afecto">&nbsp;</td>
+                    <td class="col-detalle">&nbsp;</td>
+                    <td class="col-cantidad">&nbsp;</td>
+                    <td class="col-precio">&nbsp;</td>
+                    <td class="col-descuento">&nbsp;</td>
+                    <td class="col-monto">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="col-afecto">&nbsp;</td>
+                    <td class="col-detalle">&nbsp;</td>
+                    <td class="col-cantidad">&nbsp;</td>
+                    <td class="col-precio">&nbsp;</td>
+                    <td class="col-descuento">&nbsp;</td>
+                    <td class="col-monto">&nbsp;</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- SECCIÓN INFERIOR: TIMBRE Y TOTALES -->
+        <div class="footer-section">
+            <!-- Timbre Electrónico -->
+            <div class="footer-left">
+                <div class="timbre-box">
+                    <div style="padding: 30px; background: #f5f5f5; border: 2px dashed #999;">
+                        <div style="font-size: 7pt; color: #666;">
+                            ██████████████████<br>
+                            █ ██ █ █ ██ █ ██ █<br>
+                            █ ███ ██ █ ██ █ ██<br>
+                            ██ █ ██ █ ██ ██ ██<br>
+                            ██████████████████<br>
+                            <strong>TIMBRE ELECTRÓNICO SII</strong>
+                        </div>
+                    </div>
+                    <div class="timbre-info">
+                        <strong>Timbre Electrónico SII</strong><br>
+                        Res. Ex. SII N° 80 del 22-08-2014<br>
+                        Verifique documento en: www.sii.cl
+                    </div>
+                </div>
+                <div class="disclaimer">
+                    El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la Ley N° 19.983, acredita que la entrega de mercadería(s) o servicio(s) prestado(s), ha(n) sido recibido(s)
+                </div>
+            </div>
+
+            <!-- Totales y Acuse de Recibo -->
+            <div class="footer-right">
+                <!-- TOTALES -->
+                <div class="totales-box">
+                    <div class="totales-header">TOTALES</div>
+                    <div class="totales-content">
+                        <div class="total-row">
+                            <span class="total-label">Neto Afecto</span>
+                            <span class="total-value">$ 406.100</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">Descuento Neto</span>
+                            <span class="total-value">-$ 6.100</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">Neto</span>
+                            <span class="total-value">$ 400.000</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">IVA (19%)</span>
+                            <span class="total-value">$ 76.000</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">Impuesto Único</span>
+                            <span class="total-value">$ 0</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">TOTAL</span>
+                            <span class="total-value">$ 476.000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACUSE DE RECIBO -->
+                <div class="acuse-box">
+                    <div class="acuse-header">ACUSE DE RECIBO</div>
+                    <div class="acuse-content">
+                        <div class="acuse-field">Nombre: _______________________________</div>
+                        <div class="acuse-field">RUT: ___________________________________</div>
+                        <div class="acuse-field">Fecha: _________________________________</div>
+                        <div class="acuse-field">Recinto: _______________________________</div>
+                        <div class="acuse-field">Firma: _________________________________</div>
+                    </div>
+                </div>
+
+                <div class="cedible">CEDIBLE</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Botones de acción (solo en pantalla) -->
+    <div class="no-print" style="text-align: center; margin-top: 20px;">
+        <button onclick="window.print()" style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
+            🖨️ Imprimir / Guardar como PDF
+        </button>
+    </div>
+
+</body>
+</html>

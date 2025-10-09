@@ -183,6 +183,11 @@
                                 <i class="fas fa-file-alt me-2"></i>Folios y Correlativos
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="facturacion-tab" data-bs-toggle="tab" data-bs-target="#facturacion" type="button" role="tab" aria-controls="facturacion" aria-selected="false">
+                                <i class="fas fa-file-invoice me-2"></i>Facturación Electrónica
+                            </button>
+                        </li>
                     </ul>
 
                     <!-- Contenido de las pestañas -->
@@ -568,6 +573,356 @@
                                     </div>
                                 </div>
                             </form>
+                        </div>
+                        
+                        <!-- Pestaña Facturación Electrónica -->
+                        <div class="tab-pane fade" id="facturacion" role="tabpanel" aria-labelledby="facturacion-tab">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Módulo de Facturación Electrónica</strong> - Configure los parámetros para emitir Documentos Tributarios Electrónicos (DTE) al SII.
+                            </div>
+                            
+                            <!-- Formulario Facturación Electrónica -->
+                            <form method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                
+                                <div class="card shadow-sm mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-cog me-2"></i>Configuración General
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <!-- Activar FE -->
+                                            <div class="col-md-6 mb-3">
+                                                <div class="form-check form-switch">
+                                                    {{ fe_form.facturacion_electronica }}
+                                                    <label class="form-check-label" for="{{ fe_form.facturacion_electronica.id_for_label }}">
+                                                        <strong>{{ fe_form.facturacion_electronica.label }}</strong>
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">Habilite esta opción para emitir documentos electrónicos</small>
+                                            </div>
+                                            
+                                            <!-- Ambiente SII -->
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.ambiente_sii.id_for_label }}" class="form-label">
+                                                    <i class="fas fa-server me-2"></i>{{ fe_form.ambiente_sii.label }}
+                                                </label>
+                                                {{ fe_form.ambiente_sii }}
+                                                <small class="text-muted d-block mt-1">Use "Certificación" para pruebas</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card shadow-sm mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-certificate me-2"></i>Certificado Digital
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <!-- Certificado -->
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.certificado_digital.id_for_label }}" class="form-label">
+                                                    {{ fe_form.certificado_digital.label }}
+                                                </label>
+                                                {{ fe_form.certificado_digital }}
+                                                {% if empresa.certificado_digital %}
+                                                    <small class="text-success d-block mt-1">
+                                                        <i class="fas fa-check"></i> Archivo actual: {{ empresa.certificado_digital.name|truncatechars:40 }}
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <!-- Contraseña -->
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.password_certificado.id_for_label }}" class="form-label">
+                                                    {{ fe_form.password_certificado.label }}
+                                                </label>
+                                                {{ fe_form.password_certificado }}
+                                                <small class="text-muted d-block mt-1">Contraseña del archivo .p12/.pfx</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card shadow-sm mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-building me-2"></i>Datos SII Adicionales
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <strong>Nota:</strong> El sistema usará automáticamente la Razón Social, Giro, Dirección, Comuna y Ciudad registrados en la pestaña "Datos de la Empresa". Solo complete los campos adicionales específicos del SII.
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.codigo_actividad_economica.id_for_label }}" class="form-label">
+                                                    <i class="fas fa-briefcase me-2"></i>{{ fe_form.codigo_actividad_economica.label }} <span class="text-danger">*</span>
+                                                </label>
+                                                {{ fe_form.codigo_actividad_economica }}
+                                                <small class="text-muted d-block mt-1">Código de 6 dígitos según clasificación SII (Ej: 620200 para servicios informáticos)</small>
+                                            </div>
+
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.oficina_sii.id_for_label }}" class="form-label">
+                                                    <i class="fas fa-building me-2"></i>{{ fe_form.oficina_sii.label }}
+                                                </label>
+                                                {{ fe_form.oficina_sii }}
+                                                <small class="text-muted d-block mt-1">Oficina regional del SII donde está registrada la empresa</small>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="card bg-light border-0 mt-3">
+                                            <div class="card-body">
+                                                <h6 class="text-muted mb-2">
+                                                    <i class="fas fa-eye me-2"></i>Datos que se usarán del sistema:
+                                                </h6>
+                                                <div class="row small">
+                                                    <div class="col-md-6">
+                                                        <p class="mb-1"><strong>Razón Social:</strong> {{ empresa.razon_social }}</p>
+                                                        <p class="mb-1"><strong>Giro:</strong> {{ empresa.giro }}</p>
+                                                        <p class="mb-1"><strong>Dirección:</strong> {{ empresa.direccion }}</p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p class="mb-1"><strong>Comuna:</strong> {{ empresa.comuna }}</p>
+                                                        <p class="mb-1"><strong>Ciudad:</strong> {{ empresa.ciudad }}</p>
+                                                        <p class="mb-1"><strong>RUT:</strong> {{ empresa.rut }}</p>
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-lightbulb me-1"></i>
+                                                    Si necesitas datos diferentes para el SII, modifícalos en la pestaña "Datos de la Empresa"
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card shadow-sm mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-file-alt me-2"></i>Resolución y Contacto SII
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.resolucion_fecha.id_for_label }}" class="form-label">
+                                                    {{ fe_form.resolucion_fecha.label }}
+                                                </label>
+                                                {{ fe_form.resolucion_fecha }}
+                                            </div>
+                                            
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.resolucion_numero.id_for_label }}" class="form-label">
+                                                    {{ fe_form.resolucion_numero.label }}
+                                                </label>
+                                                {{ fe_form.resolucion_numero }}
+                                            </div>
+                                            
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.email_intercambio.id_for_label }}" class="form-label">
+                                                    {{ fe_form.email_intercambio.label }}
+                                                </label>
+                                                {{ fe_form.email_intercambio }}
+                                            </div>
+                                            
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.email_contacto_sii.id_for_label }}" class="form-label">
+                                                    {{ fe_form.email_contacto_sii.label }}
+                                                </label>
+                                                {{ fe_form.email_contacto_sii }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Nota sobre configuración de alertas -->
+                                <div class="alert alert-info mb-4">
+                                    <h6 class="alert-heading">
+                                        <i class="fas fa-bell me-2"></i>Alertas de Folios por Tipo de Documento
+                                    </h6>
+                                    <p class="mb-2">
+                                        Las alertas de folios ahora se configuran <strong>por tipo de documento</strong> 
+                                        (Boleta, Factura, Guía, etc.) para mayor flexibilidad.
+                                    </p>
+                                    <hr>
+                                    <p class="mb-0">
+                                        <a href="{% url 'facturacion_electronica:alertas_folios_config' %}" class="btn btn-sm btn-warning">
+                                            <i class="fas fa-cog"></i> Configurar Alertas de Folios
+                                        </a>
+                                    </p>
+                                </div>
+
+                                <div class="d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-success btn-lg">
+                                        <i class="fas fa-save me-2"></i>Guardar Configuración FE
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- Sección de Gestión CAF y DTEs -->
+                            {% if empresa.facturacion_electronica %}
+                            <!-- Empresa con FE Activa -->
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        Facturación Electrónica Activa
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">
+                                                <i class="fas fa-server me-2"></i>Ambiente SII
+                                            </label>
+                                            <p class="mb-0">
+                                                {% if empresa.ambiente_sii == 'certificacion' %}
+                                                    <span class="badge bg-warning text-dark">
+                                                        <i class="fas fa-flask me-1"></i>Certificación (Pruebas)
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-check me-1"></i>Producción
+                                                    </span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">
+                                                <i class="fas fa-certificate me-2"></i>Certificado Digital
+                                            </label>
+                                            <p class="mb-0">
+                                                {% if empresa.certificado_digital %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-check me-1"></i>Cargado
+                                                    </span>
+                                                    <small class="text-muted d-block">
+                                                        {{ empresa.certificado_digital.name|truncatechars:40 }}
+                                                    </small>
+                                                {% else %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="fas fa-times me-1"></i>No cargado
+                                                    </span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">
+                                                <i class="fas fa-file-alt me-2"></i>Resolución SII
+                                            </label>
+                                            <p class="mb-0">
+                                                {% if empresa.resolucion_numero %}
+                                                    N° {{ empresa.resolucion_numero }}
+                                                    {% if empresa.resolucion_fecha %}
+                                                        <small class="text-muted">({{ empresa.resolucion_fecha|date:"d/m/Y" }})</small>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="text-muted">No registrada</span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">
+                                                <i class="fas fa-envelope me-2"></i>Email Intercambio
+                                            </label>
+                                            <p class="mb-0">{{ empresa.email_intercambio|default:"-" }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <hr>
+                                    
+                                    <h6 class="text-muted mb-3">
+                                        <i class="fas fa-building me-2"></i>Datos para Emisión de DTE
+                                    </h6>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Razón Social SII</label>
+                                            <p class="mb-0">{{ empresa.razon_social_sii|default:empresa.razon_social|default:"-" }}</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Giro SII</label>
+                                            <p class="mb-0">{{ empresa.giro_sii|default:empresa.giro|default:"-" }}</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Código Actividad Económica</label>
+                                            <p class="mb-0">{{ empresa.codigo_actividad_economica|default:"-" }}</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Dirección Casa Matriz</label>
+                                            <p class="mb-0">{{ empresa.direccion_casa_matriz|default:empresa.direccion|default:"-" }}</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Comuna Casa Matriz</label>
+                                            <p class="mb-0">{{ empresa.comuna_casa_matriz|default:empresa.comuna|default:"-" }}</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Ciudad Casa Matriz</label>
+                                            <p class="mb-0">{{ empresa.ciudad_casa_matriz|default:empresa.ciudad|default:"-" }}</p>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Oficina SII</label>
+                                            <p class="mb-0">{{ empresa.oficina_sii|default:"-" }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="alert alert-warning mt-4">
+                                        <i class="fas fa-tools me-2"></i>
+                                        <strong>Edición de configuración FE:</strong> Para modificar estos datos, contacte al administrador del sistema o use el panel de administración de Django.
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr class="my-5">
+                            
+                            <!-- Gestión de CAF y DTEs -->
+                            <div class="card shadow-sm">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-list-ol me-2"></i>
+                                        Gestión de Documentos Electrónicos
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="card bg-light h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-file-invoice fa-3x text-primary mb-3"></i>
+                                                    <h6>Archivos CAF</h6>
+                                                    <p class="text-muted small">Gestione los códigos de autorización de folios</p>
+                                                    <a href="{% url 'facturacion_electronica:caf_list' %}" class="btn btn-primary">
+                                                        <i class="fas fa-folder-open me-2"></i>Ver Archivos CAF
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="card bg-light h-100">
+                                                <div class="card-body text-center">
+                                                    <i class="fas fa-file-invoice-dollar fa-3x text-success mb-3"></i>
+                                                    <h6>Documentos Emitidos</h6>
+                                                    <p class="text-muted small">Consulte los DTEs generados</p>
+                                                    <a href="{% url 'facturacion_electronica:dte_list' %}" class="btn btn-success">
+                                                        <i class="fas fa-list me-2"></i>Ver DTEs
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

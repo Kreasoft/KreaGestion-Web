@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% load format_filters %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block title %}📝 {{ titulo }} - Estilo Terroso{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Fondo terroso suave */
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        background: white;
+        border: 2px solid #E8DCC8;
+        border-radius: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+
+    .form-header {
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        color: #6F5B44;
+        padding: 1.5rem;
+        margin: 0;
+        border-bottom: 2px solid #D4C4A8;
+    }
+
+    .form-body {
+        padding: 2rem;
+        background: #FAFAF8;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 8px 24px;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-cancel {
+        background: rgba(139, 115, 85, 0.15);
+        border: 1px solid rgba(139, 115, 85, 0.25);
+        color: #8B7355;
+        padding: 8px 24px;
+        font-weight: 500;
+        border-radius: 8px;
+    }
+
+    .btn-cancel:hover {
+        background: rgba(139, 115, 85, 0.25);
+        color: #6F5B44;
+    }
+
+    .form-floating {
+        margin-bottom: 1rem;
+    }
+
+    .form-control:focus {
+        border-color: #8B7355;
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+    }
+
+    .form-select:focus {
+        border-color: #8B7355;
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- BANNER MUY VISIBLE PARA FORMULARIO -->
+<div class="style-applied-banner-form">
+    📝 FORMULARIO DE MOVIMIENTOS - NUEVO ESTILO TERROSO APLICADO 📝
+</div>
+
+<div class="container-fluid" style="margin-top: 80px;">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="form-container">
+                <div class="form-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exchange-alt fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: white;">
+                                    🚨 {{ titulo }} - NUEVO ESTILO TERROSO APLICADO 🚨
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Registra un nuevo movimiento de inventario
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i>
+                            </button>
+                            <a href="{% url 'inventario:inventario_list' %}" class="btn btn-sm me-2" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-body">
+                    <form method="post" id="movimientoForm">
+                        {% csrf_token %}
+
+                        <div class="row g-3">
+                            <!-- Tipo de Movimiento -->
+                            <div class="col-md-6">
+                                <label for="{{ form.tipo_movimiento.id_for_label }}" class="form-label">
+                                    <i class="fas fa-exchange-alt me-1"></i>Tipo de Movimiento *
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-text">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </div>
+                                    {{ form.tipo_movimiento }}
+                                </div>
+                                {% if form.tipo_movimiento.errors %}
+                                    <div class="text-danger small">{{ form.tipo_movimiento.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Bodega -->
+                            <div class="col-md-6">
+                                <label for="{{ form.bodega.id_for_label }}" class="form-label">
+                                    <i class="fas fa-warehouse me-1"></i>Bodega *
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-text">
+                                        <i class="fas fa-warehouse"></i>
+                                    </div>
+                                    {{ form.bodega }}
+                                </div>
+                                {% if form.bodega.errors %}
+                                    <div class="text-danger small">{{ form.bodega.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Artículo -->
+                            <div class="col-md-8">
+                                <label for="{{ form.articulo.id_for_label }}" class="form-label">
+                                    <i class="fas fa-box me-1"></i>Artículo *
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-text">
+                                        <i class="fas fa-box"></i>
+                                    </div>
+                                    {{ form.articulo }}
+                                </div>
+                                {% if form.articulo.errors %}
+                                    <div class="text-danger small">{{ form.articulo.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Cantidad -->
+                            <div class="col-md-4">
+                                <label for="{{ form.cantidad.id_for_label }}" class="form-label">
+                                    <i class="fas fa-hashtag me-1"></i>Cantidad *
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-text">
+                                        <i class="fas fa-hashtag"></i>
+                                    </div>
+                                    {{ form.cantidad }}
+                                </div>
+                                {% if form.cantidad.errors %}
+                                    <div class="text-danger small">{{ form.cantidad.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Precio Unitario -->
+                            <div class="col-md-6">
+                                <label for="{{ form.precio_unitario.id_for_label }}" class="form-label">
+                                    <i class="fas fa-dollar-sign me-1"></i>Precio Unitario
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-text">
+                                        <i class="fas fa-dollar-sign"></i>
+                                    </div>
+                                    {{ form.precio_unitario }}
+                                </div>
+                                {% if form.precio_unitario.errors %}
+                                    <div class="text-danger small">{{ form.precio_unitario.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Fecha de Movimiento -->
+                            <div class="col-md-6">
+                                <label for="{{ form.fecha_movimiento.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar-alt me-1"></i>Fecha de Movimiento *
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-text">
+                                        <i class="fas fa-calendar-alt"></i>
+                                    </div>
+                                    {{ form.fecha_movimiento }}
+                                </div>
+                                {% if form.fecha_movimiento.errors %}
+                                    <div class="text-danger small">{{ form.fecha_movimiento.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Observaciones -->
+                            <div class="col-12">
+                                <label for="{{ form.observaciones.id_for_label }}" class="form-label">
+                                    <i class="fas fa-sticky-note me-1"></i>Observaciones
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-text">
+                                        <i class="fas fa-sticky-note"></i>
+                                    </div>
+                                    {{ form.observaciones }}
+                                </div>
+                                {% if form.observaciones.errors %}
+                                    <div class="text-danger small">{{ form.observaciones.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'inventario:inventario_list' %}" class="btn btn-cancel">
+                                <i class="fas fa-arrow-left me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save me-2"></i>{{ submit_text|default:"Guardar Movimiento" }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Indicador de template aplicado -->
+<div style="position: fixed; bottom: 10px; right: 10px; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.7rem; font-family: 'Poppins', sans-serif; z-index: 9999;">
+    🎨 Estilo Terroso Aplicado - Formulario
+</div>
+
+{% endblock %}

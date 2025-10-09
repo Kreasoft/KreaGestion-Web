@@ -1,0 +1,437 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load format_filters %}
+
+{% block title %}Libro de Ventas - {{ request.empresa.nombre }}{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Paleta terrosa para tarjetas de estadísticas */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    
+    .stat-card-1 {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+    }
+    
+    .stat-card-2 {
+        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
+    }
+    
+    .stat-card-3 {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    }
+    
+    .stat-card-4 {
+        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
+    }
+    
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        color: rgba(255,255,255,0.9);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
+    
+    .stat-icon {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.3);
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+    }
+    
+    .mini-stat-card {
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        border: 1.5px solid #D4C4A8;
+        border-radius: 10px;
+        padding: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .mini-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        border-color: #C4B498;
+    }
+    
+    .filter-section {
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+
+    .table-compact thead th {
+        padding: 4px 2px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+
+    .table-compact tbody td {
+        padding: 2px 3px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.7rem;
+    }
+
+    .table-compact tbody tr {
+        height: 28px;
+    }
+    
+    .badge-tipo {
+        padding: 2px 6px;
+        font-size: 0.6rem;
+        font-weight: 600;
+        border-radius: 4px;
+    }
+    
+    .btn-filter {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+    
+    .btn-action {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                
+                <!-- HEADER PRINCIPAL -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-book fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Libro de Ventas
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Registro completo de documentos emitidos
+                                </small>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i>
+                            </button>
+                            <button class="btn btn-sm ms-1" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;" onclick="exportarExcel()">
+                                <i class="fas fa-file-excel me-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body" style="padding: 12px; background: #FAFAF8;">
+
+                    <!-- ESTADÍSTICAS PRINCIPALES -->
+                    <div class="row mb-2">
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-1 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">{{ estadisticas.total_documentos|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Documentos</div>
+                                <i class="fas fa-file-invoice stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-2 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">${{ estadisticas.total_neto|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Neto</div>
+                                <i class="fas fa-dollar-sign stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-3 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">${{ estadisticas.total_iva|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total IVA</div>
+                                <i class="fas fa-percentage stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-4 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">${{ estadisticas.total_general|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total General</div>
+                                <i class="fas fa-coins stat-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ESTADÍSTICAS POR TIPO -->
+                    {% if stats_por_tipo %}
+                    <div class="row mb-2">
+                        {% for stat in stats_por_tipo %}
+                        <div class="col-md-2 col-6 mb-1">
+                            <div class="mini-stat-card text-center" style="padding: 6px;">
+                                <div style="font-size: 0.6rem; color: #6F5B44; font-weight: 600; text-transform: uppercase;">
+                                    {% if stat.tipo_documento == 'factura' %}FACTURA
+                                    {% elif stat.tipo_documento == 'boleta' %}BOLETA
+                                    {% elif stat.tipo_documento == 'guia' %}GUÍA
+                                    {% elif stat.tipo_documento == 'cotizacion' %}COTIZ
+                                    {% elif stat.tipo_documento == 'vale' %}VALE
+                                    {% else %}{{ stat.tipo_documento|upper }}{% endif %}
+                                </div>
+                                <div style="font-size: 1rem; font-weight: 700; color: #8B7355;">{{ stat.cantidad|format_miles }}</div>
+                                <div style="font-size: 0.6rem; color: #A67C52;">${{ stat.total|format_miles }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- FILTROS -->
+                    <div class="filter-section">
+                        <form method="get" action="{% url 'ventas:libro_ventas' %}">
+                            <div class="row g-2">
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-calendar-alt me-1"></i>Desde
+                                    </label>
+                                    <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-calendar-alt me-1"></i>Hasta
+                                    </label>
+                                    <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-file-invoice me-1"></i>Tipo
+                                    </label>
+                                    <select name="tipo_documento" class="form-select form-select-sm">
+                                        <option value="">Todos</option>
+                                        {% for key, value in tipos_documento.items %}
+                                        <option value="{{ key }}" {% if tipo_documento == key %}selected{% endif %}>{{ value }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-user me-1"></i>Cliente
+                                    </label>
+                                    <select name="cliente" class="form-select form-select-sm">
+                                        <option value="">Todos</option>
+                                        {% for cliente in clientes %}
+                                        <option value="{{ cliente.id }}" {% if cliente_id == cliente.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ cliente.nombre|truncatechars:20 }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-user-tie me-1"></i>Vendedor
+                                    </label>
+                                    <select name="vendedor" class="form-select form-select-sm">
+                                        <option value="">Todos</option>
+                                        {% for vendedor in vendedores %}
+                                        <option value="{{ vendedor.id }}" {% if vendedor_id == vendedor.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ vendedor.nombre|truncatechars:15 }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-credit-card me-1"></i>F. Pago
+                                    </label>
+                                    <select name="forma_pago" class="form-select form-select-sm">
+                                        <option value="">Todas</option>
+                                        {% for forma in formas_pago %}
+                                        <option value="{{ forma.id }}" {% if forma_pago_id == forma.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ forma.nombre|truncatechars:15 }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row g-2 mt-2">
+                                <div class="col-md-8">
+                                    <input type="text" name="search" class="form-control form-control-sm" 
+                                           placeholder="🔍 Buscar por número, cliente, RUT..." 
+                                           value="{{ search }}">
+                                </div>
+                                <div class="col-md-4 d-flex gap-2">
+                                    <button type="submit" class="btn btn-filter flex-grow-1">
+                                        <i class="fas fa-filter me-1"></i>Filtrar
+                                    </button>
+                                    <a href="{% url 'ventas:libro_ventas' %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- TABLA COMPACTA -->
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 2%;">#</th>
+                                    <th style="width: 6%;">Fecha</th>
+                                    <th style="width: 8%;">N° Doc</th>
+                                    <th style="width: 6%;">Tipo</th>
+                                    <th style="width: 20%;">Cliente</th>
+                                    <th style="width: 8%;">RUT</th>
+                                    <th style="width: 10%;">Vendedor</th>
+                                    <th style="width: 8%;">F. Pago</th>
+                                    <th class="text-end" style="width: 8%;">Neto</th>
+                                    <th class="text-end" style="width: 6%;">IVA</th>
+                                    <th class="text-end" style="width: 8%;">Total</th>
+                                    <th class="text-center" style="width: 4%;">Ver</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for venta in page_obj %}
+                                <tr style="border-bottom: 1px solid #F5F1E8;">
+                                    <td class="text-center" style="color: #8B7355; font-weight: 600; font-size: 0.7rem;">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
+                                    <td style="font-size: 0.7rem;">{{ venta.fecha|date:"d/m/Y" }}</td>
+                                    <td><strong style="color: #6F5B44; font-size: 0.7rem;">{{ venta.numero_venta }}</strong></td>
+                                    <td>
+                                        {% if venta.tipo_documento == 'factura' %}
+                                        <span class="badge badge-tipo bg-success">F</span>
+                                        {% elif venta.tipo_documento == 'boleta' %}
+                                        <span class="badge badge-tipo bg-primary">B</span>
+                                        {% elif venta.tipo_documento == 'guia' %}
+                                        <span class="badge badge-tipo bg-info">G</span>
+                                        {% elif venta.tipo_documento == 'cotizacion' %}
+                                        <span class="badge badge-tipo bg-warning text-dark">C</span>
+                                        {% elif venta.tipo_documento == 'vale' %}
+                                        <span class="badge badge-tipo bg-secondary">V</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="font-size: 0.7rem;">{{ venta.cliente.nombre|default:"Sin cliente"|truncatechars:30 }}</td>
+                                    <td style="font-size: 0.65rem; color: #A67C52;">{{ venta.cliente.rut|default:"-" }}</td>
+                                    <td style="font-size: 0.7rem;">{{ venta.vendedor.nombre|default:"-"|truncatechars:20 }}</td>
+                                    <td style="font-size: 0.7rem;">{{ venta.forma_pago.nombre|default:"-"|truncatechars:18 }}</td>
+                                    <td class="text-end" style="font-size: 0.7rem; color: #6F5B44;">${{ venta.neto|format_miles }}</td>
+                                    <td class="text-end" style="font-size: 0.7rem; color: #A67C52;">${{ venta.iva|format_miles }}</td>
+                                    <td class="text-end"><strong style="color: #8B7355; font-size: 0.75rem;">${{ venta.total|format_miles }}</strong></td>
+                                    <td class="text-center">
+                                        <a href="{% url 'ventas:venta_html' venta.pk %}"
+                                           class="btn btn-sm btn-action btn-outline-primary"
+                                           target="_blank"
+                                           title="Ver documento"
+                                           style="padding: 2px 6px; font-size: 0.7rem;">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="12" class="text-center py-2">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.8rem;">No se encontraron documentos</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- PAGINACIÓN -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-center mt-2">
+                        <nav aria-label="Paginación">
+                            <ul class="pagination pagination-sm mb-0" style="font-size: 0.75rem;">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        «
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        ‹
+                                    </a>
+                                </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
+                                        {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        ›
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        »
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportarExcel() {
+    alert('Funcionalidad de exportación a Excel en desarrollo');
+}
+</script>
+{% endblock %}

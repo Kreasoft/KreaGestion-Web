@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+{% load static %}
+{% load articulo_filters %}
+
+{% block title %}Detalle de Caja - {{ apertura.caja.nombre }}{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header de la página -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-cash-register text-success me-3"></i>Estado de Caja
+                    </h2>
+                    <p class="text-muted mb-0">
+                        {{ apertura.caja.nombre }} - Caja {{ apertura.caja.numero }}
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'caja:apertura_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Volver
+                    </a>
+                    {% if apertura.estado == 'abierta' %}
+                    <a href="{% url 'caja:apertura_cerrar' apertura.pk %}" class="btn btn-danger">
+                        <i class="fas fa-lock me-2"></i>Cerrar Caja
+                    </a>
+                    {% else %}
+                    <a href="{% url 'caja:apertura_imprimir' apertura.pk %}" class="btn btn-success" target="_blank">
+                        <i class="fas fa-print me-2"></i>Imprimir Informe
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Panel Izquierdo: Información de Caja -->
+        <div class="col-md-4">
+            <div class="card shadow-lg mb-4" style="border: none; border-radius: 20px; overflow: hidden; background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);">
+                <!-- Header -->
+                <div class="card-header text-white position-relative" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px;">
+                    <div class="text-center position-relative">
+                        <div class="position-absolute top-0 end-0">
+                            {% if apertura.estado == 'abierta' %}
+                            <span class="badge bg-success px-3 py-2 fs-6">
+                                <i class="fas fa-circle me-1"></i>ABIERTA
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary px-3 py-2 fs-6">
+                                <i class="fas fa-circle me-1"></i>CERRADA
+                            </span>
+                            {% endif %}
+                        </div>
+                        <i class="fas fa-cash-register" style="font-size: 4rem; margin-bottom: 15px; opacity: 0.9;"></i>
+                        <h3 class="mb-2" style="font-weight: 700;">{{ apertura.caja.nombre }}</h3>
+                        <p class="mb-0 opacity-75">Caja {{ apertura.caja.numero }}</p>
+                    </div>
+                </div>
+
+                <!-- Información General -->
+                <div class="card-body p-4">
+                    <!-- Información de Apertura/Cierre -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0 text-muted">
+                                    <i class="fas fa-info-circle me-2"></i>Información del Turno
+                                </h6>
+                                <span class="badge {% if apertura.estado == 'abierta' %}bg-success{% else %}bg-secondary{% endif %} px-3 py-2">
+                                    {% if apertura.estado == 'abierta' %}
+                                        <i class="fas fa-lock-open me-1"></i>ABIERTA
+                                    {% else %}
+                                        <i class="fas fa-lock me-1"></i>CERRADA
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <div class="bg-light p-3 rounded-3 mb-3">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Apertura</small>
+                                        <strong class="d-block">{{ apertura.fecha_apertura|date:"d/m/Y" }}</strong>
+                                        <small class="text-muted">{{ apertura.fecha_apertura|date:"H:i" }}</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <small class="text-muted d-block">Usuario</small>
+                                        <strong class="d-block">{{ apertura.usuario_apertura.get_full_name|default:apertura.usuario_apertura.username }}</strong>
+                                        <small class="text-muted">@{{ apertura.usuario_apertura.username }}</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if apertura.estado == 'cerrada' %}
+                            <div class="bg-light p-3 rounded-3">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Cierre</small>
+                                        <strong class="d-block">{{ apertura.fecha_cierre|date:"d/m/Y" }}</strong>
+                                        <small class="text-muted">{{ apertura.fecha_cierre|date:"H:i" }}</small>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <small class="text-muted d-block">Usuario</small>
+                                        <strong class="d-block">{{ apertura.usuario_cierre.get_full_name|default:apertura.usuario_cierre.username }}</strong>
+                                        <small class="text-muted">@{{ apertura.usuario_cierre.username }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Totales Financieros -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="mb-3 text-muted">
+                                <i class="fas fa-chart-line me-2"></i>Resumen Financiero
+                            </h6>
+
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <div class="bg-primary bg-opacity-10 p-3 rounded-3 text-center">
+                                        <i class="fas fa-money-bill-wave text-primary mb-2" style="font-size: 1.5rem;"></i>
+                                        <small class="text-muted d-block">Monto Inicial</small>
+                                        <h5 class="text-primary mb-0">${{ apertura.monto_inicial|format_price }}</h5>
+                                    </div>
+                                </div>
+
+                                <div class="col-6">
+                                    <div class="bg-success bg-opacity-10 p-3 rounded-3 text-center">
+                                        <i class="fas fa-cash-register text-success mb-2" style="font-size: 1.5rem;"></i>
+                                        <small class="text-muted d-block">Ventas Efectivo</small>
+                                        <h5 class="text-success mb-0">${{ apertura.total_ventas_efectivo|format_price }}</h5>
+                                    </div>
+                                </div>
+
+                                <div class="col-6">
+                                    <div class="bg-info bg-opacity-10 p-3 rounded-3 text-center">
+                                        <i class="fas fa-credit-card text-info mb-2" style="font-size: 1.5rem;"></i>
+                                        <small class="text-muted d-block">Ventas Tarjeta</small>
+                                        <h5 class="text-info mb-0">${{ apertura.total_ventas_tarjeta|format_price }}</h5>
+                                    </div>
+                                </div>
+
+                                <div class="col-6">
+                                    <div class="bg-warning bg-opacity-10 p-3 rounded-3 text-center">
+                                        <i class="fas fa-university text-warning mb-2" style="font-size: 1.5rem;"></i>
+                                        <small class="text-muted d-block">Ventas Transf.</small>
+                                        <h5 class="text-warning mb-0">${{ apertura.total_ventas_transferencia|format_price }}</h5>
+                                    </div>
+                                </div>
+
+                                <div class="col-6">
+                                    <div class="bg-secondary bg-opacity-10 p-3 rounded-3 text-center">
+                                        <i class="fas fa-file-invoice-dollar text-secondary mb-2" style="font-size: 1.5rem;"></i>
+                                        <small class="text-muted d-block">Ventas Cheque</small>
+                                        <h5 class="text-secondary mb-0">${{ apertura.total_ventas_cheque|format_price }}</h5>
+                                    </div>
+                                </div>
+
+                                <div class="col-6">
+                                    <div class="bg-danger bg-opacity-10 p-3 rounded-3 text-center">
+                                        <i class="fas fa-handshake text-danger mb-2" style="font-size: 1.5rem;"></i>
+                                        <small class="text-muted d-block">Ventas Crédito</small>
+                                        <h5 class="text-danger mb-0">${{ apertura.total_ventas_credito|format_price }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="bg-gradient-primary p-4 rounded-3 text-center">
+                                <i class="fas fa-wallet text-white mb-3" style="font-size: 2rem;"></i>
+                                <h5 class="text-white mb-1">Efectivo en Caja</h5>
+                                <h2 class="text-white mb-0" style="font-weight: 800;">${{ apertura.monto_final|format_price }}</h2>
+                                <small class="text-white-50">Monto actual disponible</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Acciones -->
+                <div class="card-footer bg-transparent border-0">
+                    {% if apertura.estado == 'abierta' %}
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'caja:apertura_cerrar' apertura.pk %}" class="btn btn-danger btn-lg">
+                            <i class="fas fa-lock me-2"></i>Cerrar Caja
+                        </a>
+                        <a href="{% url 'caja:movimiento_create' apertura.pk %}" class="btn btn-outline-primary">
+                            <i class="fas fa-plus-circle me-2"></i>Registrar Movimiento
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'caja:apertura_imprimir' apertura.pk %}" class="btn btn-success btn-lg" target="_blank">
+                            <i class="fas fa-print me-2"></i>Imprimir Informe de Cierre
+                        </a>
+                        <a href="{% url 'caja:apertura_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Volver al Listado
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Derecho: Tickets Pendientes y Movimientos -->
+        <div class="col-md-8">
+            <!-- Tickets Pendientes -->
+            {% if apertura.estado == 'abierta' and tickets_pendientes %}
+            <div class="card shadow-lg mb-4" style="border: none; border-radius: 20px; overflow: hidden;">
+                <div class="card-header text-white position-relative" style="background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%); padding: 20px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-receipt me-2"></i>Tickets Pendientes
+                        </h5>
+                        <span class="badge bg-white text-dark px-3 py-2 fs-6">
+                            {{ tickets_pendientes.count }} pendiente{{ tickets_pendientes.count|pluralize }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="fas fa-hashtag me-1"></i>Ticket</th>
+                                    <th><i class="fas fa-user me-1"></i>Cliente</th>
+                                    <th><i class="fas fa-clock me-1"></i>Hora</th>
+                                    <th><i class="fas fa-dollar-sign me-1"></i>Total</th>
+                                    <th class="text-center"><i class="fas fa-cogs me-1"></i>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ticket in tickets_pendientes %}
+                                <tr class="align-middle">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 35px; height: 35px; font-size: 0.8rem; font-weight: bold;">
+                                                {{ ticket.numero_venta|slice:"2:" }}
+                                            </div>
+                                            <div>
+                                                <strong class="text-primary">#{{ ticket.numero_venta }}</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if ticket.cliente %}
+                                            <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 30px; height: 30px; font-size: 0.7rem;">
+                                                {{ ticket.cliente.nombre|first|upper }}
+                                            </div>
+                                            <div>
+                                                <strong>{{ ticket.cliente.nombre|truncatechars:18 }}</strong>
+                                                {% if ticket.cliente.rut %}
+                                                <br><small class="text-muted">{{ ticket.cliente.rut }}</small>
+                                                {% endif %}
+                                            </div>
+                                            {% else %}
+                                            <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 30px; height: 30px; font-size: 0.7rem;">
+                                                ?
+                                            </div>
+                                            <span class="text-muted">Sin cliente</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark px-3 py-2">
+                                            <i class="fas fa-clock me-1"></i>{{ ticket.fecha_creacion|date:"H:i" }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success px-3 py-2 fs-6">
+                                            ${{ ticket.total|format_price }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'caja:procesar_venta' ticket.pk %}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-play me-1"></i>Procesar
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                                            <h5>No hay tickets pendientes</h5>
+                                            <p class="mb-0">Todos los tickets han sido procesados correctamente.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Movimientos de Caja -->
+            <div class="card shadow-lg" style="border: none; border-radius: 20px; overflow: hidden;">
+                <div class="card-header text-white position-relative" style="background: linear-gradient(135deg, #4A90A4 0%, #6BB6C7 100%); padding: 20px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-exchange-alt me-2"></i>Movimientos de Caja
+                        </h5>
+                        <span class="badge bg-white text-dark px-3 py-2 fs-6">
+                            {{ movimientos.count }} movimiento{{ movimientos.count|pluralize }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if movimientos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="fas fa-clock me-1"></i>Hora</th>
+                                    <th><i class="fas fa-tag me-1"></i>Tipo</th>
+                                    <th><i class="fas fa-align-left me-1"></i>Descripción</th>
+                                    <th><i class="fas fa-credit-card me-1"></i>Pago</th>
+                                    <th class="text-end"><i class="fas fa-money-bill me-1"></i>Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mov in movimientos %}
+                                <tr class="align-middle">
+                                    <td>
+                                        <span class="badge bg-light text-dark px-3 py-2">
+                                            <i class="fas fa-clock me-1"></i>{{ mov.fecha|date:"H:i" }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if mov.tipo == 'venta' %}
+                                        <span class="badge bg-success px-3 py-1">
+                                            <i class="fas fa-shopping-cart me-1"></i>Venta
+                                        </span>
+                                        {% elif mov.tipo == 'retiro' %}
+                                        <span class="badge bg-danger px-3 py-1">
+                                            <i class="fas fa-minus-circle me-1"></i>Retiro
+                                        </span>
+                                        {% elif mov.tipo == 'ingreso' %}
+                                        <span class="badge bg-primary px-3 py-1">
+                                            <i class="fas fa-plus-circle me-1"></i>Ingreso
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning px-3 py-1">
+                                            <i class="fas fa-undo me-1"></i>Devolución
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 200px;" title="{{ mov.descripcion }}">
+                                            {{ mov.descripcion|truncatechars:25 }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if mov.forma_pago %}
+                                        <span class="badge bg-info text-white px-2 py-1">
+                                            {{ mov.forma_pago.nombre|truncatechars:12 }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if mov.tipo == 'retiro' %}
+                                        <span class="fw-bold text-danger fs-6">
+                                            -${{ mov.monto|format_price }}
+                                        </span>
+                                        {% elif mov.tipo == 'ingreso' %}
+                                        <span class="fw-bold text-success fs-6">
+                                            +${{ mov.monto|format_price }}
+                                        </span>
+                                        {% else %}
+                                        <span class="fw-bold text-primary fs-6">
+                                            ${{ mov.monto|format_price }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No hay movimientos registrados</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+

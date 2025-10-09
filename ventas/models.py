@@ -104,7 +104,10 @@ class Venta(models.Model):
     forma_pago = models.ForeignKey('FormaPago', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Forma de Pago")
     estacion_trabajo = models.ForeignKey('EstacionTrabajo', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Estación de Trabajo")
     tipo_documento = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, default='boleta', verbose_name="Tipo de Documento")
-    
+
+    # Tipo de documento planeado para cuando se procese (útil para tickets)
+    tipo_documento_planeado = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, null=True, blank=True, verbose_name="Tipo de Documento Planeado")
+
     # Totales
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Subtotal")
     descuento = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Descuento")

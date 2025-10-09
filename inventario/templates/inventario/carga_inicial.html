@@ -1,532 +1,246 @@
 {% extends "base.html" %}
-{% load widget_tweaks %}
+{% load static %}
+
+{% block title %}Carga Inicial de Inventario - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block title %}{{ title }}{% endblock %}
+{% block extra_head %}
+<style>
+    /* Fondo terroso suave como en libro de ventas */
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<style>
-.card-option {
-    transition: all 0.3s ease;
-    cursor: pointer;
-    border: 2px solid transparent;
-}
 
-.card-option:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-    border-color: #9CAF88;
-}
-
-.card-option.selected {
-    border-color: #9CAF88;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-}
-
-.option-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-.option-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.option-description {
-    color: #6c757d;
-    font-size: 0.95rem;
-    line-height: 1.5;
-}
-
-.btn-option {
-    background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%);
-    border: none;
-    color: white;
-    padding: 0.75rem 2rem;
-    border-radius: 0.5rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}
-
-.btn-option:hover {
-    background: linear-gradient(135deg, #8A9A7A 0%, #A5B98A 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(156, 175, 136, 0.3);
-    color: white;
-}
-
-.stats-card {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    border-left: 4px solid #9CAF88;
-}
-
-.upload-area {
-    border: 2px dashed #dee2e6;
-    border-radius: 1rem;
-    padding: 2rem;
-    text-align: center;
-    transition: all 0.3s ease;
-    background: #f8f9fa;
-}
-
-.upload-area:hover {
-    border-color: #9CAF88;
-    background: #f0f8f0;
-}
-
-.upload-area.dragover {
-    border-color: #9CAF88;
-    background: #e8f5e8;
-}
-</style>
-
-<div class="container-fluid">
+<div class="container-fluid" style="margin-top: 20px;">
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-header" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none;">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+
+                <!-- HEADER PRINCIPAL -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-warehouse fa-2x text-white me-3"></i>
+                            <i class="fas fa-upload fa-lg me-2" style="color: #6F5B44;"></i>
                             <div>
-                                <h5 class="mb-0 text-white">{{ title }}</h5>
-                                <small class="text-white-50">Configure el inventario inicial de productos</small>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Carga Inicial de Inventario
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Importa tu inventario desde Excel o edita manualmente
+                                </small>
                             </div>
                         </div>
-                        <div class="d-flex gap-2">
-                            <a href="{% url 'inventario:inventario_list' %}" class="btn btn-outline-light">
-                                <i class="fas fa-arrow-left me-2"></i>Volver
+                        <div class="d-flex align-items-center">
+                            <a href="{% url 'inventario:inventario_list' %}" class="btn btn-sm me-2" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
                             </a>
                         </div>
                     </div>
                 </div>
                 
-                <div class="card-body p-4">
-                    <!-- Estadísticas -->
+                <div class="card-body" style="padding: 20px; background: #FAFAF8;">
+
+                    <!-- OPCIONES DE CARGA -->
                     <div class="row mb-4">
-                        <div class="col-md-4">
-                            <div class="stats-card">
-                                <div class="d-flex align-items-center">
-                                    <div class="flex-shrink-0">
-                                        <i class="fas fa-boxes fa-2x text-primary"></i>
-                                    </div>
-                                    <div class="flex-grow-1 ms-3">
-                                        <h6 class="mb-0">Total de Productos</h6>
-                                        <h4 class="mb-0 text-primary">{{ articulos_count }}</h4>
-                                    </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card-option card h-100 text-center p-4" onclick="selectOption('excel')" id="option-excel" style="border: 2px solid #E8DCC8; border-radius: 12px; cursor: pointer; transition: all 0.3s ease;">
+                                <div class="option-icon" style="font-size: 3rem; color: #8B7355;">
+                                    <i class="fas fa-file-excel"></i>
                                 </div>
+                                <h4 class="option-title" style="font-size: 1.3rem; font-weight: 600; color: #6F5B44;">Importar desde Excel</h4>
+                                <p class="option-description" style="color: #8B7355; font-size: 0.9rem;">
+                                    Descarga la plantilla, complétala con tus datos y súbela para cargar el inventario de forma masiva
+                                </p>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="stats-card">
-                                <div class="d-flex align-items-center">
-                                    <div class="flex-shrink-0">
-                                        <i class="fas fa-warehouse fa-2x text-info"></i>
-                                    </div>
-                                    <div class="flex-grow-1 ms-3">
-                                        <h6 class="mb-0">Bodegas</h6>
-                                        <h4 class="mb-0 text-info">{{ bodegas.count }}</h4>
-                                    </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card-option card h-100 text-center p-4" onclick="selectOption('manual')" id="option-manual" style="border: 2px solid #E8DCC8; border-radius: 12px; cursor: pointer; transition: all 0.3s ease;">
+                                <div class="option-icon" style="font-size: 3rem; color: #8B7355;">
+                                    <i class="fas fa-keyboard"></i>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="stats-card">
-                                <div class="d-flex align-items-center">
-                                    <div class="flex-shrink-0">
-                                        <i class="fas fa-clipboard-list fa-2x text-warning"></i>
-                                    </div>
-                                    <div class="flex-grow-1 ms-3">
-                                        <h6 class="mb-0">Estado</h6>
-                                        <h6 class="mb-0 text-warning">Pendiente</h6>
-                                    </div>
-                                </div>
+                                <h4 class="option-title" style="font-size: 1.3rem; font-weight: 600; color: #6F5B44;">Edición Manual</h4>
+                                <p class="option-description" style="color: #8B7355; font-size: 0.9rem;">
+                                    Ingresa el stock inicial de cada artículo de forma manual mediante un formulario interactivo
+                                </p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Opciones de Carga -->
-                    <div class="row">
-                        <div class="col-md-6 mb-4">
-                            <div class="card card-option h-100" onclick="selectOption('excel')" id="option-excel">
-                                <div class="card-body text-center">
-                                    <div class="option-icon text-success">
-                                        <i class="fas fa-file-excel"></i>
+                    <!-- SECCIÓN EXCEL -->
+                    <div id="section-excel" style="display: none;">
+                        <div class="row">
+                            <div class="col-12 mb-4">
+                                <div class="stats-card" style="background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%); border-radius: 12px; padding: 1.5rem; border-left: 4px solid #8B7355;">
+                                    <h5 style="color: #6F5B44; font-weight: 600; margin-bottom: 1rem;">
+                                        <i class="fas fa-info-circle me-2"></i>Instrucciones
+                                    </h5>
+                                    <ol style="color: #8B7355; margin-bottom: 0;">
+                                        <li>Descarga la plantilla de Excel haciendo clic en el botón de abajo</li>
+                                        <li>Completa la plantilla con los datos de tu inventario (Código, Nombre, Stock, etc.)</li>
+                                        <li>Guarda el archivo y súbelo usando el área de carga</li>
+                                        <li>Revisa los datos importados y confirma la carga</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <a href="{% url 'inventario:exportar_plantilla' %}" class="btn btn-option w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 0.75rem; font-weight: 500; border-radius: 8px;">
+                                    <i class="fas fa-download me-2"></i>Descargar Plantilla Excel
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <form method="post" enctype="multipart/form-data" action="{% url 'inventario:importar_excel' %}" id="uploadForm">
+                                    {% csrf_token %}
+                                    <div class="upload-area" id="uploadArea" style="border: 2px dashed #D4C4A8; border-radius: 12px; padding: 3rem; text-align: center; background: white; transition: all 0.3s ease;">
+                                        <i class="fas fa-cloud-upload-alt" style="font-size: 4rem; color: #8B7355; margin-bottom: 1rem;"></i>
+                                        <h5 style="color: #6F5B44; font-weight: 600; margin-bottom: 0.5rem;">Arrastra tu archivo aquí</h5>
+                                        <p style="color: #8B7355; margin-bottom: 1.5rem;">o haz clic para seleccionar</p>
+                                        <input type="file" name="archivo" id="fileInput" accept=".xlsx,.xls" style="display: none;" required>
+                                        <button type="button" class="btn btn-option" onclick="document.getElementById('fileInput').click()" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 0.5rem 1.5rem; font-weight: 500; border-radius: 8px;">
+                                            <i class="fas fa-folder-open me-2"></i>Seleccionar Archivo
+                                        </button>
+                                        <div id="fileName" class="mt-3" style="color: #6F5B44; font-weight: 500;"></div>
                                     </div>
-                                    <h5 class="option-title text-success">Carga desde Excel</h5>
-                                    <p class="option-description">
-                                        Exporte una plantilla con todos los productos, complete las cantidades y 
-                                        importe el archivo para cargar el inventario inicial de manera masiva.
+                                    <div class="text-center mt-3">
+                                        <button type="submit" class="btn btn-option" id="btnUpload" style="display: none; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 0.75rem 2rem; font-weight: 500; border-radius: 8px;">
+                                            <i class="fas fa-upload me-2"></i>Cargar Inventario
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN MANUAL -->
+                    <div id="section-manual" style="display: none;">
+                        <div class="row">
+                            <div class="col-12 mb-4">
+                                <div class="stats-card" style="background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%); border-radius: 12px; padding: 1.5rem; border-left: 4px solid #8B7355;">
+                                    <h5 style="color: #6F5B44; font-weight: 600; margin-bottom: 1rem;">
+                                        <i class="fas fa-info-circle me-2"></i>Edición Manual
+                                    </h5>
+                                    <p style="color: #8B7355; margin-bottom: 0;">
+                                        Ingresa el stock inicial de cada artículo de forma manual. Puedes buscar artículos y actualizar sus cantidades directamente.
                                     </p>
-                                    <ul class="list-unstyled text-start mt-3">
-                                        <li><i class="fas fa-check text-success me-2"></i>Plantilla preconfigurada</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>Carga masiva de datos</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>Validaciones automáticas</li>
-                                    </ul>
-                                    <button class="btn btn-option mt-3" onclick="cargarExcel()">
-                                        <i class="fas fa-download me-2"></i>Cargar desde Excel
-                                    </button>
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6 mb-4">
-                            <div class="card card-option h-100" onclick="selectOption('manual')" id="option-manual">
-                                <div class="card-body text-center">
-                                    <div class="option-icon text-primary">
-                                        <i class="fas fa-edit"></i>
-                                    </div>
-                                    <h5 class="option-title text-primary">Edición Manual</h5>
-                                    <p class="option-description">
-                                        Edite directamente las cantidades de inventario inicial para cada producto 
-                                        a través de una interfaz intuitiva con lista de productos.
-                                    </p>
-                                    <ul class="list-unstyled text-start mt-3">
-                                        <li><i class="fas fa-check text-success me-2"></i>Interfaz intuitiva</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>Edición directa</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>Búsqueda y filtros</li>
-                                    </ul>
-                                    <button class="btn btn-option mt-3" onclick="edicionManual()">
-                                        <i class="fas fa-edit me-2"></i>Edición Manual
-                                    </button>
-                                </div>
+
+                        <div class="row">
+                            <div class="col-12">
+                                <a href="{% url 'inventario:edicion_manual' %}" class="btn btn-option btn-lg w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 1rem; font-weight: 500; border-radius: 8px; font-size: 1.1rem;">
+                                    <i class="fas fa-edit me-2"></i>Ir a Edición Manual
+                                </a>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Sección de Carga Excel (oculta por defecto) -->
-                    <div id="excel-section" class="d-none">
-                        <div class="card border-0 bg-light">
-                            <div class="card-body">
-                                <h6 class="card-title mb-3">
-                                    <i class="fas fa-file-excel text-success me-2"></i>Carga desde Excel
-                                </h6>
-                                
-                                <!-- Paso 1: Exportar Plantilla -->
-                                <div class="row mb-4">
-                                    <div class="col-md-6">
-                                        <div class="card border-success">
-                                            <div class="card-header bg-success text-white">
-                                                <h6 class="mb-0"><i class="fas fa-download me-2"></i>Paso 1: Exportar Plantilla</h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <p class="mb-3">Descargue la plantilla Excel con todos los productos del sistema:</p>
-                                                <a href="{% url 'inventario:exportar_plantilla' %}" class="btn btn-success">
-                                                    <i class="fas fa-download me-2"></i>Descargar Plantilla
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="card border-info">
-                                            <div class="card-header bg-info text-white">
-                                                <h6 class="mb-0"><i class="fas fa-upload me-2"></i>Paso 2: Importar Datos</h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <form id="import-form" enctype="multipart/form-data" method="post">
-                                                    {% csrf_token %}
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Seleccionar Bodega:</label>
-                                                        <select name="bodega_id" id="bodega_id" class="form-select" required>
-                                                            <option value="">-- Seleccionar Bodega --</option>
-                                                            {% for bodega in bodegas %}
-                                                                <option value="{{ bodega.id }}">{{ bodega.nombre }} ({{ bodega.codigo }})</option>
-                                                            {% endfor %}
-                                                        </select>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Archivo Excel:</label>
-                                                        <div class="upload-area" id="upload-area">
-                                                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                                                            <p class="mb-2">Arrastre su archivo Excel aquí o haga clic para seleccionar</p>
-                                                            <input type="file" name="excel_file" id="excel-file" accept=".xlsx,.xls" class="d-none" required>
-                                                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('excel-file').click()">
-                                                                Seleccionar Archivo
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <button type="submit" class="btn btn-info">
-                                                        <i class="fas fa-upload me-2"></i>Importar Inventario
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sección de Edición Manual (oculta por defecto) -->
-                    <div id="manual-section" class="d-none">
-                        <div class="card border-0 bg-light">
-                            <div class="card-body">
-                                <h6 class="card-title mb-3">
-                                    <i class="fas fa-edit text-primary me-2"></i>Edición Manual
-                                </h6>
-                                <p class="mb-3">Seleccione una bodega para comenzar la edición manual del inventario:</p>
-                                
-                                <div class="row">
-                                    {% for bodega in bodegas %}
-                                        <div class="col-md-4 mb-3">
-                                            <div class="card border-primary">
-                                                <div class="card-body text-center">
-                                                    <i class="fas fa-warehouse fa-2x text-primary mb-3"></i>
-                                                    <h6 class="card-title">{{ bodega.nombre }}</h6>
-                                                    <p class="card-text text-muted">Código: {{ bodega.codigo }}</p>
-                                                    <a href="{% url 'inventario:edicion_manual' %}?bodega={{ bodega.id }}" class="btn btn-primary">
-                                                        <i class="fas fa-edit me-2"></i>Editar Inventario
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<style>
+    .card-option:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        border-color: #8B7355 !important;
+    }
+
+    .card-option.selected {
+        border-color: #8B7355 !important;
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+    }
+
+    .upload-area:hover {
+        border-color: #8B7355;
+        background: #FAF8F3 !important;
+    }
+
+    .upload-area.dragover {
+        border-color: #8B7355;
+        background: #FAF8F3 !important;
+    }
+
+    .btn-option:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+</style>
+
 <script>
 function selectOption(option) {
-    // Remover selección anterior
-    document.querySelectorAll('.card-option').forEach(card => {
-        card.classList.remove('selected');
-    });
+    // Ocultar todas las secciones
+    document.getElementById('section-excel').style.display = 'none';
+    document.getElementById('section-manual').style.display = 'none';
     
-    // Ocultar secciones
-    document.getElementById('excel-section').classList.add('d-none');
-    document.getElementById('manual-section').classList.add('d-none');
+    // Remover clase selected de todas las opciones
+    document.getElementById('option-excel').classList.remove('selected');
+    document.getElementById('option-manual').classList.remove('selected');
     
     // Mostrar sección seleccionada
-    document.getElementById(`option-${option}`).classList.add('selected');
-    
     if (option === 'excel') {
-        document.getElementById('excel-section').classList.remove('d-none');
+        document.getElementById('section-excel').style.display = 'block';
+        document.getElementById('option-excel').classList.add('selected');
     } else if (option === 'manual') {
-        document.getElementById('manual-section').classList.remove('d-none');
+        document.getElementById('section-manual').style.display = 'block';
+        document.getElementById('option-manual').classList.add('selected');
     }
 }
 
-function cargarExcel() {
-    selectOption('excel');
-}
+// Manejo de archivo
+const fileInput = document.getElementById('fileInput');
+const uploadArea = document.getElementById('uploadArea');
+const fileName = document.getElementById('fileName');
+const btnUpload = document.getElementById('btnUpload');
 
-function edicionManual() {
-    selectOption('manual');
-}
+fileInput.addEventListener('change', function(e) {
+    if (this.files.length > 0) {
+        fileName.innerHTML = `<i class="fas fa-file-excel me-2"></i>${this.files[0].name}`;
+        btnUpload.style.display = 'inline-block';
+    }
+});
 
-// Manejo de drag and drop para archivos
-const uploadArea = document.getElementById('upload-area');
-const fileInput = document.getElementById('excel-file');
-
-uploadArea.addEventListener('dragover', (e) => {
+// Drag and drop
+uploadArea.addEventListener('dragover', function(e) {
     e.preventDefault();
-    uploadArea.classList.add('dragover');
+    this.classList.add('dragover');
 });
 
-uploadArea.addEventListener('dragleave', () => {
-    uploadArea.classList.remove('dragover');
-});
-
-uploadArea.addEventListener('drop', (e) => {
+uploadArea.addEventListener('dragleave', function(e) {
     e.preventDefault();
-    uploadArea.classList.remove('dragover');
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        fileInput.files = files;
-        updateUploadArea(files[0]);
+    this.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+    
+    if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        fileName.innerHTML = `<i class="fas fa-file-excel me-2"></i>${e.dataTransfer.files[0].name}`;
+        btnUpload.style.display = 'inline-block';
     }
 });
 
-fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-        updateUploadArea(e.target.files[0]);
+uploadArea.addEventListener('click', function(e) {
+    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+        fileInput.click();
     }
-});
-
-function updateUploadArea(file) {
-    const uploadArea = document.getElementById('upload-area');
-    if (!uploadArea) {
-        console.error('upload-area element not found');
-        return;
-    }
-    
-    // NO reemplazar el HTML completo, solo actualizar la visualización
-    const icon = uploadArea.querySelector('i');
-    const text = uploadArea.querySelector('p');
-    const button = uploadArea.querySelector('button');
-    
-    if (icon) icon.className = 'fas fa-file-excel fa-3x text-success mb-3';
-    if (text) {
-        text.innerHTML = `<strong>${file.name}</strong>`;
-        text.nextElementSibling.innerHTML = 'Archivo seleccionado correctamente';
-    }
-    if (button) {
-        button.className = 'btn btn-outline-secondary';
-        button.innerHTML = 'Cambiar Archivo';
-    }
-    
-    console.log('File selected:', file.name);
-}
-
-// Esperar a que el DOM esté cargado
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM cargado, configurando formulario...');
-    
-    // Manejo del formulario de importación
-    const form = document.querySelector('#import-form');
-    if (!form) {
-        console.error('Formulario no encontrado');
-        return;
-    }
-    
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        console.log('Formulario enviado');
-        
-        const fileInput = document.querySelector('input[name="excel_file"]');
-        const bodegaSelect = document.querySelector('select[name="bodega_id"]');
-        
-        console.log('File input:', fileInput);
-        console.log('Bodega select:', bodegaSelect);
-        
-        if (!fileInput) {
-            showError('Campo de archivo no encontrado');
-            return;
-        }
-        
-        if (!bodegaSelect) {
-            showError('Campo de bodega no encontrado');
-            return;
-        }
-        
-        console.log('File input files:', fileInput.files);
-        console.log('Bodega selected:', bodegaSelect.value);
-        
-        if (!fileInput.files || fileInput.files.length === 0) {
-            showWarning('Por favor seleccione un archivo Excel');
-            return;
-        }
-        
-        if (!bodegaSelect.value) {
-            showWarning('Por favor seleccione una bodega');
-            return;
-        }
-    
-    const formData = new FormData(this);
-    const submitBtn = this.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-    
-    // Debug logs
-    console.log('FormData contents:');
-    for (let [key, value] of formData.entries()) {
-        console.log(key, value);
-    }
-    
-    showLoading('Importando inventario', 'Procesando archivo Excel...');
-    submitBtn.disabled = true;
-    
-    try {
-        const response = await fetch('{% url "inventario:importar_excel" %}', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            }
-        });
-        
-        const result = await response.json();
-        hideLoading();
-        
-        if (result.success) {
-            if (result.detalle_errores && result.detalle_errores.length > 0) {
-                // Hay errores pero también éxitos
-                let errorMessage = 'Errores encontrados:\n';
-                result.detalle_errores.forEach(error => {
-                    errorMessage += `• ${error}\n`;
-                });
-                showWarning(`${result.message}\n\n${errorMessage}`, 'Importación con errores');
-            } else {
-                // Todo exitoso
-                showSuccess(result.message, '¡Importación exitosa!');
-            }
-            
-            // Mostrar información de depuración si está disponible
-            
-            // Recargar página después de 3 segundos
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000);
-        } else {
-            let errorMessage = result.message;
-            if (result.error_details) {
-                errorMessage += '\n\nDetalles del error:\n' + result.error_details;
-            }
-            
-            // Mostrar error con opción de copiar
-            Swal.fire({
-                icon: 'error',
-                title: 'Error en la importación',
-                html: `<pre style="text-align: left; white-space: pre-wrap; max-height: 400px; overflow-y: auto;">${errorMessage}</pre>`,
-                showConfirmButton: true,
-                showCancelButton: true,
-                confirmButtonText: 'Copiar Error',
-                cancelButtonText: 'Cerrar',
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                timer: null, // Sin timer automático
-                timerProgressBar: false
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Copiar al portapapeles
-                    navigator.clipboard.writeText(errorMessage).then(() => {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Error copiado',
-                            text: 'El error se ha copiado al portapapeles',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-                    }).catch(() => {
-                        // Fallback para navegadores que no soportan clipboard API
-                        const textArea = document.createElement('textarea');
-                        textArea.value = errorMessage;
-                        document.body.appendChild(textArea);
-                        textArea.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(textArea);
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Error copiado',
-                            text: 'El error se ha copiado al portapapeles',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-                    });
-                }
-            });
-        }
-    } catch (error) {
-        hideLoading();
-        showError(`Error al procesar el archivo: ${error.message}`, 'Error de conexión');
-    } finally {
-        submitBtn.disabled = false;
-    }
-    });
 });
 </script>
-{% endblock %}
 
+{% endblock %}

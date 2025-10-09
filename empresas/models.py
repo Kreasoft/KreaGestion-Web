@@ -83,6 +83,101 @@ class Empresa(models.Model):
         verbose_name="Régimen Tributario"
     )
     
+    # === FACTURACIÓN ELECTRÓNICA ===
+    facturacion_electronica = models.BooleanField(
+        default=False,
+        verbose_name="Facturación Electrónica Activa"
+    )
+    ambiente_sii = models.CharField(
+        max_length=20,
+        choices=[
+            ('certificacion', 'Certificación (Pruebas)'),
+            ('produccion', 'Producción'),
+        ],
+        default='certificacion',
+        verbose_name="Ambiente SII"
+    )
+    
+    # Certificado Digital
+    certificado_digital = models.FileField(
+        upload_to='empresas/certificados/',
+        blank=True,
+        null=True,
+        verbose_name="Certificado Digital (.p12/.pfx)"
+    )
+    password_certificado = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Contraseña del Certificado"
+    )
+    
+    # Datos SII (pueden diferir de los comerciales)
+    razon_social_sii = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Razón Social SII"
+    )
+    giro_sii = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Giro SII"
+    )
+    codigo_actividad_economica = models.CharField(
+        max_length=10,
+        blank=True,
+        verbose_name="Código Actividad Económica"
+    )
+    direccion_casa_matriz = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Dirección Casa Matriz"
+    )
+    comuna_casa_matriz = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Comuna Casa Matriz"
+    )
+    ciudad_casa_matriz = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Ciudad Casa Matriz"
+    )
+    oficina_sii = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Oficina SII",
+        help_text="Oficina regional del SII donde está registrada la empresa"
+    )
+
+    # Resoluciones SII
+    resolucion_fecha = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha Resolución SII"
+    )
+    resolucion_numero = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Número Resolución SII"
+    )
+    
+    # Correos Electrónicos
+    email_intercambio = models.EmailField(
+        blank=True,
+        verbose_name="Email para Intercambio (Acuses)"
+    )
+    email_contacto_sii = models.EmailField(
+        blank=True,
+        verbose_name="Email de Contacto SII"
+    )
+    
+    # Configuración de Alertas CAF
+    alerta_folios_minimos = models.IntegerField(
+        default=10,
+        verbose_name="Folios Mínimos para Alerta",
+        help_text="Cantidad de folios restantes para comenzar a alertar por documento"
+    )
+    
     # Estado y auditoría
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activa')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
@@ -105,6 +200,31 @@ class Empresa(models.Model):
     def get_direccion_completa(self):
         """Retorna la dirección completa formateada"""
         return f"{self.direccion}, {self.comuna}, {self.ciudad}, {self.region}"
+    
+    # === MÉTODOS HELPER PARA FACTURACIÓN ELECTRÓNICA ===
+    def get_razon_social_dte(self):
+        """Retorna la razón social para DTEs (usa la SII si existe, sino la normal)"""
+        return self.razon_social_sii if self.razon_social_sii else self.razon_social
+    
+    def get_giro_dte(self):
+        """Retorna el giro para DTEs (usa el SII si existe, sino el normal)"""
+        return self.giro_sii if self.giro_sii else self.giro
+    
+    def get_direccion_dte(self):
+        """Retorna la dirección para DTEs (usa casa matriz si existe, sino la normal)"""
+        return self.direccion_casa_matriz if self.direccion_casa_matriz else self.direccion
+    
+    def get_comuna_dte(self):
+        """Retorna la comuna para DTEs (usa casa matriz si existe, sino la normal)"""
+        return self.comuna_casa_matriz if self.comuna_casa_matriz else self.comuna
+    
+    def get_ciudad_dte(self):
+        """Retorna la ciudad para DTEs (usa casa matriz si existe, sino la normal)"""
+        return self.ciudad_casa_matriz if self.ciudad_casa_matriz else self.ciudad
+    
+    def get_email_dte(self):
+        """Retorna el email para DTEs (usa intercambio si existe, sino el normal)"""
+        return self.email_intercambio if self.email_intercambio else self.email
 
 
 class Sucursal(models.Model):

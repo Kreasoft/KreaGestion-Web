@@ -556,11 +556,14 @@
                 </div>
             </div>
             <div class="pos-header-actions">
-                    <button class="btn btn-outline-light" onclick="window.print()" title="Imprimir">
+                <button class="btn btn-outline-light" onclick="mostrarHistorialTickets()" title="Ver historial de tickets del día">
+                    <i class="fas fa-history me-1"></i>Historial
+                </button>
+                <button class="btn btn-outline-light" onclick="window.print()" title="Imprimir">
                     <i class="fas fa-print"></i>
                 </button>
                 <a href="{% url 'dashboard' %}" class="btn btn-outline-light" title="Volver al Sistema">
-                        <i class="fas fa-arrow-left me-1"></i>Salir
+                    <i class="fas fa-arrow-left me-1"></i>Salir
                 </a>
             </div>
         </div>
@@ -911,16 +914,6 @@ function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva = false
             impuestoEspecificoCalculado = precioNetoCalculado * (impuestoEspecifico / 100);
         }
         
-        // Debug: verificar cálculos
-        console.log('DEBUG - Cálculos en addToCart:', {
-            precio: precio,
-            precioNeto: precioNetoCalculado,
-            iva: ivaCalculado,
-            impuestoEspecifico: impuestoEspecificoCalculado,
-            categoriaExentaIva: categoriaExentaIva,
-            impuestoEspecificoPorcentaje: impuestoEspecifico
-        });
-        
         cart.push({
             articuloId: articuloId,
             nombre: nombre,
@@ -1048,15 +1041,6 @@ function updateTotals() {
     
     // El total es el subtotal (ya incluye todos los impuestos)
     currentTotal = currentSubtotal;
-    
-    // Debug: verificar cálculos
-    console.log('DEBUG - Cálculos:', {
-        currentSubtotal: currentSubtotal,
-        currentIva: currentIva,
-        currentImpuestoEspecifico: currentImpuestoEspecifico,
-        currentNeto: currentNeto,
-        currentTotal: currentTotal
-    });
     
     document.getElementById('subtotal').textContent = `$${formatChileanNumber(currentSubtotal)}`;
     document.getElementById('descuento').textContent = `$${formatChileanNumber(currentDescuento)}`;
@@ -1210,7 +1194,7 @@ function clearCart() {
                 <div id="cliente-no-encontrado" class="mt-2" style="display: none;">
                     <div class="alert alert-warning">
                         <strong>Cliente no encontrado</strong><br>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="crearCliente()">
+                        <button type="button" class="btn btn-sm btn-primary" id="btn-crear-cliente">
                             <i class="fas fa-plus me-1"></i>Crear Cliente
                         </button>
                     </div>
@@ -1358,6 +1342,12 @@ function clearCart() {
     
     // Crear cliente
     function crearCliente() {
+        // Verificar que Swal existe
+        if (typeof Swal === 'undefined') {
+            console.error('ERROR: SweetAlert2 no está cargado');
+            return;
+        }
+        
         const rut = document.getElementById('busqueda-cliente').value;
         const tipoDocumento = document.getElementById('tipo-documento').value;
         
@@ -1366,7 +1356,6 @@ function clearCart() {
             crearClienteBoleta();
             return;
         }
-        
         // Para otros tipos, mostrar formulario de creación
     Swal.fire({
             title: 'Crear Cliente',
@@ -1396,6 +1385,10 @@ function clearCart() {
                     <input type="text" id="nueva-ciudad" class="form-control" placeholder="Ciudad del cliente" required>
                 </div>
                 <div class="mb-3">
+                    <label class="form-label">Región</label>
+                    <input type="text" id="nueva-region" class="form-control" placeholder="Región del cliente">
+                </div>
+                <div class="mb-3">
                     <label class="form-label">Teléfono</label>
                     <input type="text" id="nuevo-telefono" class="form-control" placeholder="Teléfono del cliente">
                 </div>
@@ -1414,23 +1407,12 @@ function clearCart() {
                 const direccion = document.getElementById('nueva-direccion').value;
                 const comuna = document.getElementById('nueva-comuna').value;
                 const ciudad = document.getElementById('nueva-ciudad').value;
+                const region = document.getElementById('nueva-region').value;
                 const telefono = document.getElementById('nuevo-telefono').value;
                 const email = document.getElementById('nuevo-email').value;
                 
                 if (!nombre) {
                     Swal.showValidationMessage('El nombre es requerido');
-                    return false;
-                }
-                if (!giro) {
-                    Swal.showValidationMessage('El giro es requerido');
-                    return false;
-                }
-                if (!comuna) {
-                    Swal.showValidationMessage('La comuna es requerida');
-                    return false;
-                }
-                if (!ciudad) {
-                    Swal.showValidationMessage('La ciudad es requerida');
                     return false;
                 }
                 
@@ -1441,6 +1423,7 @@ function clearCart() {
                     direccion: direccion,
                     comuna: comuna,
                     ciudad: ciudad,
+                    region: region,
                     telefono: telefono,
                     email: email
                 };
@@ -1462,7 +1445,15 @@ function clearCart() {
             },
             body: JSON.stringify({})
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 403) {
+                    throw new Error('No tienes permisos para crear clientes. Contacta al administrador.');
+                }
+                throw new Error('Error en el servidor');
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 // Mostrar información del cliente creado
@@ -1486,6 +1477,15 @@ function clearCart() {
                     timer: 3000
                 });
             }
+        })
+        .catch(error => {
+            console.error('Error al crear cliente boleta:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message || 'Error al crear cliente de boleta. Intenta nuevamente.',
+                timer: 3000
+            });
         });
     }
     
@@ -1499,8 +1499,17 @@ function clearCart() {
             },
             body: JSON.stringify(datos)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 403) {
+                    throw new Error('No tienes permisos para crear clientes. Contacta al administrador.');
+                }
+                throw new Error(`Error en el servidor: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            
             if (data.success) {
                 // Mostrar información del cliente creado
                 document.getElementById('cliente-nombre').textContent = data.cliente.nombre;
@@ -1523,6 +1532,14 @@ function clearCart() {
                     timer: 3000
                 });
             }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message || 'Error al crear cliente. Intenta nuevamente.',
+                timer: 3000
+            });
         });
     }
     
@@ -1563,6 +1580,7 @@ function clearCart() {
             estacion_id: window.currentEstacionId,
             vendedor_id: window.currentVendedorId,
             tipo_documento: data.tipo_documento,
+            tipo_documento_planeado: data.tipo_documento, // ← GUARDAR TIPO PLANEADO
             cliente_id: window.clienteSeleccionado.id,
             items: cart,
             totales: {
@@ -1641,6 +1659,44 @@ function clearCart() {
                     }).then(() => {
                         // Abrir ventana de impresión del vale
                         window.open(`/ventas/vales/${data.preventa_id}/html/`, '_blank');
+                        
+                        // Limpiar carrito y recargar
+                        cart = [];
+                        updateCartDisplay();
+                        updateTotals();
+                        
+                        // Actualizar stock después de la venta
+                        updateStockFromServer();
+                        
+                        // Restaurar modo escaneo si estaba activo
+                        if (wasScanningMode) {
+                            setTimeout(() => {
+                                barcodeMode = true;
+                                const barcodeInput = document.getElementById('barcode-input');
+                                if (barcodeInput) {
+                                    barcodeInput.focus();
+                                }
+                            }, 2000);
+                        }
+                    });
+                } else if (data.tipo_documento === 'factura' || data.tipo_documento === 'boleta' || data.tipo_documento === 'guia') {
+                    // Para factura, boleta o guía, mostrar mensaje y abrir el ticket facturable generado automáticamente
+                    const nombreDocumento = data.tipo_documento === 'factura' ? 'Factura' : 
+                                          data.tipo_documento === 'boleta' ? 'Boleta' : 'Guía de Despacho';
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: `¡${nombreDocumento} Procesada!`,
+                        html: `
+                            <p>Preventa ${nombreDocumento} #${data.numero_preventa} generada exitosamente</p>
+                            ${data.ticket_vale_numero ? `<p><strong>Ticket Facturable generado: #${data.ticket_vale_numero}</strong></p>` : ''}
+                        `,
+                        timer: 3000
+                    }).then(() => {
+                        // Si se generó un ticket facturable, abrirlo automáticamente
+                        if (data.ticket_vale_id) {
+                            window.open(`/ventas/vales/${data.ticket_vale_id}/html/`, '_blank');
+                        }
                         
                         // Limpiar carrito y recargar
                         cart = [];
@@ -2399,6 +2455,95 @@ function seleccionarCliente(id, nombre, rut, direccion) {
     
     // Actualizar el campo de búsqueda con el RUT
     document.getElementById('busqueda-cliente').value = rut;
+}
+
+// Event listener para el botón de crear cliente
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.id === 'btn-crear-cliente') {
+        crearCliente();
+    }
+});
+
+// Función para mostrar historial de tickets del día
+function mostrarHistorialTickets() {
+    fetch('/ventas/pos/tickets-hoy/', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.tickets.length > 0) {
+            // Construir tabla HTML
+            let tablaHTML = `
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover">
+                        <thead style="position: sticky; top: 0; background: #f8f9fa;">
+                            <tr>
+                                <th style="width: 15%;">Hora</th>
+                                <th style="width: 15%;">N° Ticket</th>
+                                <th style="width: 30%;">Cliente</th>
+                                <th style="width: 20%;">Total</th>
+                                <th style="width: 20%;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            data.tickets.forEach(ticket => {
+                const total = new Intl.NumberFormat('es-CL').format(Math.round(ticket.total));
+                tablaHTML += `
+                    <tr>
+                        <td style="font-size: 0.85rem;">${ticket.fecha}</td>
+                        <td style="font-weight: 600; color: #17a2b8;">#${ticket.numero}</td>
+                        <td style="font-size: 0.85rem;">${ticket.cliente}</td>
+                        <td style="font-weight: 600; color: #28a745;">$${total}</td>
+                        <td>
+                            <a href="/ventas/vales/${ticket.id}/html/" target="_blank" class="btn btn-sm btn-primary">
+                                <i class="fas fa-print"></i> Imprimir
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tablaHTML += `
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3 text-center">
+                    <strong>Total de tickets hoy:</strong> ${data.total_count}
+                </div>
+            `;
+            
+            Swal.fire({
+                title: '<i class="fas fa-history me-2"></i>Historial de Tickets del Día',
+                html: tablaHTML,
+                width: '800px',
+                showCancelButton: true,
+                showConfirmButton: false,
+                cancelButtonText: 'Cerrar',
+                cancelButtonColor: '#6c757d',
+            });
+        } else {
+            Swal.fire({
+                icon: 'info',
+                title: 'Sin tickets',
+                text: 'No hay tickets generados hoy',
+                timer: 2000
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo cargar el historial de tickets',
+            timer: 2000
+        });
+    });
 }
 </script>
 </body>

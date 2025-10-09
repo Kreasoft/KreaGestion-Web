@@ -1,15 +1,16 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Sum, Count
 from django.http import JsonResponse, HttpResponse, Http404
 from django.utils import timezone
 from django.urls import reverse
 from django.template.loader import get_template
 from decimal import Decimal
+from datetime import datetime, timedelta
 from usuarios.decorators import requiere_empresa
-from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo
+from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TIPO_DOCUMENTO_CHOICES
 from .forms import VendedorForm, FormaPagoForm, EstacionTrabajoForm
 import io
 from reportlab.lib.pagesizes import letter, A4
@@ -26,6 +27,7 @@ from reportlab.lib.utils import ImageReader
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.view_vendedor', raise_exception=True)
 def vendedor_list(request):
     """Lista de vendedores"""
     vendedores = Vendedor.objects.filter(empresa=request.empresa).order_by('codigo')
@@ -53,6 +55,7 @@ def vendedor_list(request):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.add_vendedor', raise_exception=True)
 def vendedor_create(request):
     """Crear nuevo vendedor"""
     if request.method == 'POST':
@@ -72,6 +75,7 @@ def vendedor_create(request):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.view_vendedor', raise_exception=True)
 def vendedor_detail(request, pk):
     """Detalle de vendedor - Fragmento para modal"""
     vendedor = get_object_or_404(Vendedor, pk=pk, empresa=request.empresa)
@@ -105,6 +109,7 @@ def vendedor_detail(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.change_vendedor', raise_exception=True)
 def vendedor_update(request, pk):
     """Editar vendedor - Fragmento para modal"""
     vendedor = get_object_or_404(Vendedor, pk=pk, empresa=request.empresa)
@@ -164,6 +169,7 @@ def vendedor_update(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.delete_vendedor', raise_exception=True)
 def vendedor_delete(request, pk):
     """Eliminar vendedor"""
     vendedor = get_object_or_404(Vendedor, pk=pk, empresa=request.empresa)
@@ -182,6 +188,7 @@ def vendedor_delete(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.view_formapago', raise_exception=True)
 def formapago_list(request):
     """Lista de formas de pago"""
     formas_pago = FormaPago.objects.filter(empresa=request.empresa).order_by('codigo')
@@ -209,6 +216,7 @@ def formapago_list(request):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.add_formapago', raise_exception=True)
 def formapago_create(request):
     """Crear nueva forma de pago"""
     if request.method == 'POST':
@@ -232,6 +240,7 @@ def formapago_create(request):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.view_formapago', raise_exception=True)
 def formapago_detail(request, pk):
     """Detalle de forma de pago - Fragmento para modal"""
     forma_pago = get_object_or_404(FormaPago, pk=pk, empresa=request.empresa)
@@ -277,6 +286,7 @@ def formapago_detail(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.change_formapago', raise_exception=True)
 def formapago_update(request, pk):
     """Editar forma de pago - Fragmento para modal"""
     forma_pago = get_object_or_404(FormaPago, pk=pk, empresa=request.empresa)
@@ -339,6 +349,7 @@ def formapago_update(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.delete_formapago', raise_exception=True)
 def formapago_delete(request, pk):
     """Eliminar forma de pago"""
     forma_pago = get_object_or_404(FormaPago, pk=pk, empresa=request.empresa)
@@ -609,6 +620,7 @@ def pos_detalles_venta(request, venta_id):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.add_venta', raise_exception=True)
 def pos_view(request):
     """Vista principal del Punto de Venta"""
     from articulos.models import Articulo
@@ -819,6 +831,7 @@ def pos_buscar_cliente(request):
 
 @login_required
 @requiere_empresa
+@permission_required('clientes.add_cliente', raise_exception=True)
 def pos_crear_cliente_boleta(request):
     """Crear cliente automático para boletas"""
     if request.method == 'POST':
@@ -865,32 +878,43 @@ def pos_crear_cliente_boleta(request):
 
 @login_required
 @requiere_empresa
+@permission_required('clientes.add_cliente', raise_exception=True)
 def pos_crear_cliente(request):
     """Crear nuevo cliente"""
+    print(f"DEBUG: pos_crear_cliente llamado - Método: {request.method}")
+    
     if request.method == 'POST':
         try:
             import json
             from clientes.models import Cliente
             
+            print(f"DEBUG: Request body: {request.body}")
             data = json.loads(request.body)
+            print(f"DEBUG: Data parseada: {data}")
             
             # Validar datos requeridos
             if not data.get('rut') or not data.get('nombre'):
+                print("DEBUG: Validación falló - falta RUT o nombre")
                 return JsonResponse({'success': False, 'message': 'RUT y nombre son requeridos'})
             
-            # Crear cliente
+            print(f"DEBUG: Creando cliente con empresa: {request.empresa}")
+            
+            # Crear cliente con todos los campos requeridos
             cliente = Cliente.objects.create(
                 empresa=request.empresa,
                 rut=data['rut'],
                 nombre=data['nombre'],
-                giro=data.get('giro', ''),
-                direccion=data.get('direccion', ''),
-                comuna=data.get('comuna', ''),
-                ciudad=data.get('ciudad', ''),
-                telefono=data.get('telefono', ''),
+                giro=data.get('giro', 'Sin giro'),
+                direccion=data.get('direccion', 'Sin dirección'),
+                comuna=data.get('comuna', 'Sin especificar'),
+                ciudad=data.get('ciudad', 'Sin especificar'),
+                region=data.get('region', 'Sin especificar'),  # ← AGREGADO
+                telefono=data.get('telefono', 'Sin teléfono'),
                 email=data.get('email', ''),
                 estado='activo'
             )
+            
+            print(f"DEBUG: Cliente creado exitosamente - ID: {cliente.id}")
             
             return JsonResponse({
                 'success': True,
@@ -908,8 +932,12 @@ def pos_crear_cliente(request):
             })
             
         except Exception as e:
+            print(f"DEBUG: Error al crear cliente: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return JsonResponse({'success': False, 'message': f'Error al crear cliente: {str(e)}'})
     
+    print("DEBUG: Método no permitido")
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
 
@@ -931,7 +959,6 @@ def pos_procesar_preventa(request):
             print("DEBUG - Parseando JSON...")
             data = json.loads(request.body)
             print("DEBUG - JSON parseado correctamente")
-            print(f"DEBUG - Totales recibidos: {data['totales']}")
             
             # Obtener estación y vendedor
             print("DEBUG - Buscando estación...")
@@ -967,7 +994,7 @@ def pos_procesar_preventa(request):
             # Calcular el neto correctamente (precio sin impuestos)
             subtotal = Decimal(str(data['totales']['subtotal']))
             neto_calculado = subtotal / Decimal('1.37')  # Precio sin impuestos
-            
+
             preventa = Venta.objects.create(
                 empresa=request.empresa,
                 numero_venta=proximo_numero,
@@ -975,6 +1002,7 @@ def pos_procesar_preventa(request):
                 vendedor=vendedor,
                 estacion_trabajo=estacion,
                 tipo_documento=data['tipo_documento'],
+                tipo_documento_planeado=data.get('tipo_documento_planeado', data['tipo_documento']),  # ← GUARDAR TIPO PLANEADO
                 subtotal=subtotal,
                 descuento=Decimal(str(data['totales']['descuento'])),
                 neto=neto_calculado,
@@ -1015,11 +1043,59 @@ def pos_procesar_preventa(request):
                     print(f"Tipo de error: {type(e)}")
                     raise e
             
+            # Si el documento es factura, boleta o guía, generar también un ticket facturable (vale)
+            ticket_vale_id = None
+            ticket_vale_numero = None
+            if data['tipo_documento'] in ['factura', 'boleta', 'guia']:
+                print(f"DEBUG - Generando ticket facturable (vale) para {data['tipo_documento']}...")
+                
+                # Generar número de ticket usando correlativo
+                numero_ticket_vale = estacion.incrementar_correlativo_ticket()
+                numero_vale = f"{int(numero_ticket_vale):06d}"
+                
+            # Crear el vale
+            ticket_vale = Venta.objects.create(
+                empresa=request.empresa,
+                numero_venta=numero_vale,
+                cliente=cliente,
+                vendedor=vendedor,
+                estacion_trabajo=estacion,
+                tipo_documento='vale',
+                tipo_documento_planeado=data['tipo_documento'],  # ← GUARDAR TIPO PLANEADO
+                subtotal=subtotal,
+                descuento=Decimal(str(data['totales']['descuento'])),
+                neto=neto_calculado,
+                iva=Decimal(str(data['totales']['iva'])),
+                impuesto_especifico=Decimal(str(data['totales']['impuesto_especifico'])),
+                total=Decimal(str(data['totales']['total'])),
+                estado='borrador',
+                usuario_creacion=request.user,
+                observaciones=f"Ticket generado automáticamente para {data['tipo_documento']} #{proximo_numero}"
+            )
+
+            # Crear detalles del vale
+            for item in data['items']:
+                articulo = Articulo.objects.get(id=item['articuloId'], empresa=request.empresa)
+                VentaDetalle.objects.create(
+                    venta=ticket_vale,
+                    articulo=articulo,
+                    cantidad=Decimal(str(item['cantidad'])),
+                    precio_unitario=Decimal(str(item['precio'])),
+                    precio_total=Decimal(str(item['total'])),
+                    impuesto_especifico=Decimal('0.00')
+                )
+
+            ticket_vale_id = ticket_vale.id
+            ticket_vale_numero = numero_vale
+            print(f"DEBUG - Ticket facturable (vale) #{numero_vale} generado exitosamente")
+            
             return JsonResponse({
                 'success': True,
                 'numero_preventa': proximo_numero,
                 'tipo_documento': data['tipo_documento'],
-                'preventa_id': preventa.id
+                'preventa_id': preventa.id,
+                'ticket_vale_id': ticket_vale_id,
+                'ticket_vale_numero': ticket_vale_numero
             })
             
         except Exception as e:
@@ -1032,6 +1108,7 @@ def pos_procesar_preventa(request):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.view_estaciontrabajo', raise_exception=True)
 def estaciontrabajo_list(request):
     """Lista de estaciones de trabajo"""
     estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa).order_by('numero')
@@ -1059,6 +1136,7 @@ def estaciontrabajo_list(request):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.add_estaciontrabajo', raise_exception=True)
 def estaciontrabajo_create(request):
     """Crear nueva estación de trabajo"""
     if request.method == 'POST':
@@ -1080,6 +1158,7 @@ def estaciontrabajo_create(request):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.view_estaciontrabajo', raise_exception=True)
 def estaciontrabajo_detail(request, pk):
     """Detalle de estación de trabajo"""
     try:
@@ -1091,6 +1170,7 @@ def estaciontrabajo_detail(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.change_estaciontrabajo', raise_exception=True)
 def estaciontrabajo_edit(request, pk):
     """Editar estación de trabajo"""
     try:
@@ -1236,6 +1316,7 @@ def estaciontrabajo_edit(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.delete_estaciontrabajo', raise_exception=True)
 def estaciontrabajo_delete(request, pk):
     """Eliminar estación de trabajo"""
     if request.method == 'POST':
@@ -1281,6 +1362,7 @@ def vale_html(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.view_cotizacion', raise_exception=True)
 def cotizacion_list(request):
     """Lista de cotizaciones"""
     cotizaciones = Venta.objects.filter(
@@ -1333,6 +1415,7 @@ def cotizacion_list(request):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.view_cotizacion', raise_exception=True)
 def cotizacion_detail(request, pk):
     """Detalle de cotización"""
     cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
@@ -1618,7 +1701,68 @@ def cotizacion_html(request, pk):
 
 
 @login_required
+def venta_html(request, pk):
+    """Vista HTML de venta (detecta automáticamente el tipo de documento)"""
+    try:
+        venta = Venta.objects.get(pk=pk)
+        
+        # Verificar permisos de empresa
+        if not request.user.is_superuser:
+            if hasattr(request, 'empresa') and request.empresa:
+                if venta.empresa != request.empresa:
+                    raise Http404("No tiene permisos para acceder a esta venta")
+            else:
+                raise Http404("No tiene permisos para acceder a esta venta")
+    except Venta.DoesNotExist:
+        raise Http404("Venta no encontrada")
+    
+    detalles = VentaDetalle.objects.filter(venta=venta).select_related('articulo')
+    
+    # Verificar si existe DTE asociado (para facturas/boletas electrónicas)
+    dte = None
+    if venta.tipo_documento in ['factura', 'boleta']:
+        try:
+            from facturacion_electronica.models import DocumentoTributarioElectronico
+            # Buscar por relación en VentaProcesada primero
+            from caja.models import VentaProcesada
+            venta_procesada = VentaProcesada.objects.filter(venta=venta).first()
+            if venta_procesada and hasattr(venta_procesada, 'dte_generado'):
+                dte = venta_procesada.dte_generado
+        except:
+            pass
+    
+    # Determinar el template según el tipo de documento
+    # USAR SIEMPRE EL NUEVO FORMATO ULTRA-COMPACTO PARA FACTURAS
+    if venta.tipo_documento == 'factura':
+        template_name = 'ventas/factura_electronica_html.html'
+    else:
+        tipo_templates = {
+            'boleta': 'ventas/boleta_html.html',
+            'guia': 'ventas/guia_html.html',
+            'vale': 'ventas/vale_html.html',
+            'cotizacion': 'ventas/cotizacion_html.html',
+        }
+        template_name = tipo_templates.get(venta.tipo_documento, 'ventas/boleta_html.html')
+    
+    context = {
+        'venta': venta,
+        'detalles': detalles,
+        'empresa': venta.empresa,
+        'dte': dte,  # DTE si existe (puede ser None)
+        # Alias para compatibilidad con templates específicos
+        'boleta': venta if venta.tipo_documento == 'boleta' else None,
+        'factura': venta if venta.tipo_documento == 'factura' else None,
+        'guia': venta if venta.tipo_documento == 'guia' else None,
+        'vale': venta if venta.tipo_documento == 'vale' else None,
+        'cotizacion': venta if venta.tipo_documento == 'cotizacion' else None,
+    }
+
+    return render(request, template_name, context)
+
+
+@login_required
 @requiere_empresa
+@permission_required('ventas.change_cotizacion', raise_exception=True)
 def cotizacion_cambiar_estado(request, pk):
     """Cambiar estado de una cotización"""
     cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
@@ -1642,6 +1786,7 @@ def cotizacion_cambiar_estado(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('ventas.add_venta', raise_exception=True)
 def cotizacion_convertir_venta(request, pk):
     """Convertir cotización en venta"""
     cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
@@ -1697,3 +1842,233 @@ def cotizacion_convertir_venta(request, pk):
     }
     
     return render(request, 'ventas/cotizacion_convertir_venta.html', context)
+
+
+# ========================================
+# GESTIÓN DE TICKETS/VALES
+# ========================================
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.view_venta', raise_exception=True)
+def ticket_list(request):
+    """Lista de todos los tickets/vales"""
+    from datetime import datetime, timedelta
+    
+    # Obtener parámetros de filtro
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    estacion_id = request.GET.get('estacion')
+    
+    # Por defecto, mostrar tickets del día actual
+    if not fecha_desde:
+        fecha_desde = timezone.now().date()
+    else:
+        fecha_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+    
+    if not fecha_hasta:
+        fecha_hasta = fecha_desde
+    else:
+        fecha_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+    
+    # Consultar tickets
+    tickets = Venta.objects.filter(
+        empresa=request.empresa,
+        tipo_documento='vale',
+        fecha__gte=fecha_desde,
+        fecha__lte=fecha_hasta
+    ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')
+    
+    # Filtrar por estación si se especifica
+    if estacion_id:
+        tickets = tickets.filter(estacion_trabajo_id=estacion_id)
+    
+    # Obtener estaciones para el filtro
+    estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True)
+    
+    # Calcular totales
+    total_tickets = tickets.count()
+    total_monto = sum(ticket.total for ticket in tickets)
+    
+    context = {
+        'tickets': tickets,
+        'estaciones': estaciones,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'estacion_id': estacion_id,
+        'total_tickets': total_tickets,
+        'total_monto': total_monto,
+    }
+    
+    return render(request, 'ventas/ticket_list.html', context)
+
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.view_venta', raise_exception=True)
+def ticket_detail(request, pk):
+    """Detalle de un ticket"""
+    ticket = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='vale')
+    
+    detalles = VentaDetalle.objects.filter(venta=ticket).select_related('articulo')
+    
+    context = {
+        'ticket': ticket,
+        'detalles': detalles,
+    }
+    
+    return render(request, 'ventas/ticket_detail.html', context)
+
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.view_venta', raise_exception=True)
+def ticket_reimprimir(request, pk):
+    """Reimprimir un ticket (redirige al HTML del vale)"""
+    ticket = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='vale')
+    return redirect('ventas:vale_html', pk=ticket.pk)
+
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.view_venta', raise_exception=True)
+def pos_tickets_hoy(request):
+    """API JSON: Retorna los tickets del día actual para el POS"""
+    from django.http import JsonResponse
+    
+    # Tickets del día actual
+    tickets = Venta.objects.filter(
+        empresa=request.empresa,
+        tipo_documento='vale',
+        fecha=timezone.now().date()
+    ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')
+    
+    # Convertir a JSON
+    tickets_data = []
+    for ticket in tickets:
+        tickets_data.append({
+            'id': ticket.id,
+            'numero': ticket.numero_venta,
+            'fecha': ticket.fecha_creacion.strftime('%H:%M:%S'),
+            'cliente': ticket.cliente.nombre if ticket.cliente else 'Sin cliente',
+            'vendedor': ticket.vendedor.nombre if ticket.vendedor else 'Sin vendedor',
+            'estacion': ticket.estacion_trabajo.nombre if ticket.estacion_trabajo else 'Sin estación',
+            'total': float(ticket.total),
+            'estado': ticket.get_estado_display(),
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'tickets': tickets_data,
+        'total_count': len(tickets_data),
+    })
+
+
+# ========== LIBRO DE VENTAS ==========
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.view_venta', raise_exception=True)
+def libro_ventas(request):
+    """
+    Libro de Ventas - Listado completo de documentos emitidos
+    con filtros avanzados por tipo, fecha, cliente, vendedor y forma de pago
+    """
+    
+    # Fecha por defecto: mes actual
+    hoy = timezone.now().date()
+    primer_dia_mes = hoy.replace(day=1)
+    
+    # Obtener parámetros de filtros
+    fecha_desde = request.GET.get('fecha_desde', primer_dia_mes.strftime('%Y-%m-%d'))
+    fecha_hasta = request.GET.get('fecha_hasta', hoy.strftime('%Y-%m-%d'))
+    tipo_documento = request.GET.get('tipo_documento', '')
+    cliente_id = request.GET.get('cliente', '')
+    vendedor_id = request.GET.get('vendedor', '')
+    forma_pago_id = request.GET.get('forma_pago', '')
+    estado = request.GET.get('estado', '')
+    search = request.GET.get('search', '')
+    
+    # Consulta base: solo ventas confirmadas
+    ventas = Venta.objects.filter(
+        empresa=request.empresa,
+        estado='confirmada'
+    ).select_related('cliente', 'vendedor', 'forma_pago', 'estacion_trabajo')
+    
+    # Aplicar filtros
+    try:
+        fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+        fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+        ventas = ventas.filter(fecha__gte=fecha_desde_obj, fecha__lte=fecha_hasta_obj)
+    except ValueError:
+        pass
+    
+    if tipo_documento:
+        ventas = ventas.filter(tipo_documento=tipo_documento)
+    
+    if cliente_id:
+        ventas = ventas.filter(cliente_id=cliente_id)
+    
+    if vendedor_id:
+        ventas = ventas.filter(vendedor_id=vendedor_id)
+    
+    if forma_pago_id:
+        ventas = ventas.filter(forma_pago_id=forma_pago_id)
+    
+    if estado:
+        ventas = ventas.filter(estado=estado)
+    
+    if search:
+        ventas = ventas.filter(
+            Q(numero_venta__icontains=search) |
+            Q(cliente__nombre__icontains=search) |
+            Q(cliente__rut__icontains=search) |
+            Q(observaciones__icontains=search)
+        )
+    
+    # Ordenar por fecha descendente
+    ventas = ventas.order_by('-fecha', '-fecha_creacion')
+    
+    # Estadísticas del período
+    estadisticas = ventas.aggregate(
+        total_documentos=Count('id'),
+        total_neto=Sum('neto'),
+        total_iva=Sum('iva'),
+        total_general=Sum('total')
+    )
+    
+    # Estadísticas por tipo de documento
+    stats_por_tipo = ventas.values('tipo_documento').annotate(
+        cantidad=Count('id'),
+        total=Sum('total')
+    ).order_by('tipo_documento')
+    
+    # Paginación
+    paginator = Paginator(ventas, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Opciones para filtros
+    clientes = request.empresa.cliente_set.filter(estado='activo').order_by('nombre')
+    vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    formas_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    
+    context = {
+        'page_obj': page_obj,
+        'estadisticas': estadisticas,
+        'stats_por_tipo': stats_por_tipo,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'tipo_documento': tipo_documento,
+        'cliente_id': cliente_id,
+        'vendedor_id': vendedor_id,
+        'forma_pago_id': forma_pago_id,
+        'estado': estado,
+        'search': search,
+        'clientes': clientes,
+        'vendedores': vendedores,
+        'formas_pago': formas_pago,
+        'tipos_documento': dict(TIPO_DOCUMENTO_CHOICES),
+    }
+    
+    return render(request, 'ventas/libro_ventas.html', context)

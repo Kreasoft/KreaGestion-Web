@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Count, Sum
@@ -11,6 +11,7 @@ from empresas.decorators import requiere_empresa
 
 
 @login_required
+@permission_required('proveedores.view_proveedor', raise_exception=True)
 def proveedor_list(request):
     """Lista de proveedores con estadísticas"""
     # Obtener la empresa del usuario
@@ -117,9 +118,13 @@ def proveedor_detail(request, pk):
                 empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
         else:
             empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
-        
+
         if not empresa:
             empresa = Empresa.objects.first()
+
+        if not empresa:
+            messages.error(request, 'No hay empresas configuradas en el sistema.')
+            return redirect('proveedores:proveedor_list')
     else:
         try:
             empresa = request.user.perfil.empresa
@@ -149,6 +154,7 @@ def proveedor_detail(request, pk):
 
 
 @login_required
+@permission_required('proveedores.add_proveedor', raise_exception=True)
 def proveedor_create(request):
     """Crear nuevo proveedor"""
     # Obtener la empresa del usuario
@@ -217,12 +223,32 @@ def proveedor_create(request):
 
 
 @login_required
+@permission_required('proveedores.change_proveedor', raise_exception=True)
 def proveedor_update(request, pk):
     """Editar proveedor"""
     # Obtener la empresa del usuario
     if request.user.is_superuser:
-        empresa = Empresa.objects.first()
+        # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+
+        if not empresa:
+            empresa = Empresa.objects.first()
+
+        if not empresa:
+            messages.error(request, 'No hay empresas configuradas en el sistema.')
+            return redirect('proveedores:proveedor_list')
+
+        # Guardar empresa en sesión
+        request.session['empresa_activa'] = empresa.id
     else:
+        # Para usuarios normales, usar su empresa asociada
         try:
             empresa = request.user.perfil.empresa
         except:
@@ -270,12 +296,25 @@ def proveedor_update(request, pk):
 
 
 @login_required
+@permission_required('proveedores.delete_proveedor', raise_exception=True)
 def proveedor_delete(request, pk):
     """Eliminar proveedor"""
     # Obtener la empresa del usuario
     if request.user.is_superuser:
-        empresa = Empresa.objects.first()
+        # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+
+        if not empresa:
+            empresa = Empresa.objects.first()
     else:
+        # Para usuarios normales, usar su empresa asociada
         try:
             empresa = request.user.perfil.empresa
         except:
@@ -298,6 +337,7 @@ def proveedor_delete(request, pk):
 
 
 @login_required
+@permission_required('proveedores.add_contactoproveedor', raise_exception=True)
 def contacto_create(request, proveedor_id):
     """Crear contacto en modal"""
     proveedor = get_object_or_404(Proveedor, id=proveedor_id)
@@ -322,6 +362,7 @@ def contacto_create(request, proveedor_id):
 
 
 @login_required
+@permission_required('proveedores.change_contactoproveedor', raise_exception=True)
 def contacto_update(request, proveedor_id, contacto_id):
     """Editar contacto en modal"""
     proveedor = get_object_or_404(Proveedor, id=proveedor_id)
@@ -346,6 +387,7 @@ def contacto_update(request, proveedor_id, contacto_id):
 
 
 @login_required
+@permission_required('proveedores.delete_contactoproveedor', raise_exception=True)
 def contacto_delete(request, proveedor_id, contacto_id):
     """Eliminar contacto"""
     proveedor = get_object_or_404(Proveedor, id=proveedor_id)

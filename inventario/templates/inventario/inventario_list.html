@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% load static %}
+{% load format_filters %}
+
+{% block title %}Movimientos de Inventario - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Fondo terroso suave como en libro de ventas */
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid" style="margin-top: 20px;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+
+                <!-- HEADER PRINCIPAL CON COLORES VIBRANTES -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exchange-alt fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Movimientos de Inventario
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Registro completo de entradas y salidas de productos
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i>
+                            </button>
+                            <a href="{% url 'inventario:stock_list' %}" class="btn btn-sm me-2" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-boxes me-1"></i> Control de Stock
+                            </a>
+                            <a href="{% url 'inventario:inventario_create' %}" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-plus me-1"></i> Nuevo Movimiento
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 12px; background: #FAFAF8;">
+
+                    <!-- ESTADÍSTICAS PRINCIPALES -->
+                    <div class="row mb-2">
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-1 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">{{ total_entradas|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Entradas</div>
+                                <i class="fas fa-arrow-up stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-2 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">{{ total_salidas|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Salidas</div>
+                                <i class="fas fa-arrow-down stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-3 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">${{ valor_total|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Valor Total</div>
+                                <i class="fas fa-dollar-sign stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-4 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">{{ page_obj.paginator.count|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Movimientos</div>
+                                <i class="fas fa-exchange-alt stat-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- FILTROS -->
+                    <div class="filter-section">
+                        <form method="get" action="{% url 'inventario:inventario_list' %}">
+                            <div class="row g-2">
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-warehouse me-1"></i>Bodega
+                                    </label>
+                                    <select name="bodega_destino" class="form-select form-select-sm">
+                                        <option value="">Todas</option>
+                                        {% for bodega in filter_form.fields.bodega_destino.queryset %}
+                                            <option value="{{ bodega.id }}" {% if filter_form.bodega_destino.value == bodega.id|stringformat:"s" %}selected{% endif %}>
+                                                {{ bodega.nombre }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-exchange-alt me-1"></i>Tipo
+                                    </label>
+                                    <select name="tipo_movimiento" class="form-select form-select-sm">
+                                        <option value="">Todos</option>
+                                        <option value="entrada" {% if filter_form.tipo_movimiento.value == 'entrada' %}selected{% endif %}>Entrada</option>
+                                        <option value="salida" {% if filter_form.tipo_movimiento.value == 'salida' %}selected{% endif %}>Salida</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-search me-1"></i>Buscar
+                                    </label>
+                                    <input type="text" name="search" class="form-control form-control-sm"
+                                           placeholder="🔍 Buscar por folio, artículo..." value="{{ filter_form.search.value|default:'' }}">
+                                </div>
+                                <div class="col-md-3 d-flex gap-2">
+                                    <button type="submit" class="btn btn-filter flex-grow-1">
+                                        <i class="fas fa-filter me-1"></i>Filtrar
+                                    </button>
+                                    <a href="{% url 'inventario:inventario_list' %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Lista de Movimientos -->
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 8%;">Folio</th>
+                                    <th style="width: 10%;">Tipo</th>
+                                    <th style="width: 12%;">Fecha</th>
+                                    <th style="width: 15%;">Artículo</th>
+                                    <th style="width: 10%;">Cantidad</th>
+                                    <th style="width: 10%;">Precio</th>
+                                    <th style="width: 12%;">Total</th>
+                                    <th style="width: 15%;">Bodega</th>
+                                    <th style="width: 10%;">Estado</th>
+                                    <th class="text-center" style="width: 8%;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movimiento in page_obj %}
+                                <tr style="border-bottom: 1px solid #F5F1E8;">
+                                    <td style="font-size: 0.7rem;">
+                                        <strong style="color: #6F5B44;">{{ movimiento.folio }}</strong>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">
+                                        {% if movimiento.tipo_movimiento == 'entrada' %}
+                                            <span class="badge bg-success" style="font-size: 0.6rem;">
+                                                <i class="fas fa-arrow-up me-1"></i>Entrada
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger" style="font-size: 0.6rem;">
+                                                <i class="fas fa-arrow-down me-1"></i>Salida
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="font-size: 0.7rem;">{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</td>
+                                    <td style="font-size: 0.7rem;">{{ movimiento.articulo.nombre|truncatechars:20 }}</td>
+                                    <td style="font-size: 0.7rem; text-align: right;">{{ movimiento.cantidad|format_miles }}</td>
+                                    <td style="font-size: 0.7rem; text-align: right;">${{ movimiento.precio_unitario|format_miles }}</td>
+                                    <td style="font-size: 0.7rem; text-align: right; font-weight: 600; color: #6F5B44;">${{ movimiento.total|format_miles }}</td>
+                                    <td style="font-size: 0.7rem;">{{ movimiento.bodega.nombre|truncatechars:15 }}</td>
+                                    <td style="font-size: 0.7rem;">
+                                        {% if movimiento.estado == 'pendiente' %}
+                                            <span class="badge bg-warning" style="font-size: 0.6rem;">
+                                                <i class="fas fa-clock me-1"></i>Pendiente
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary" style="font-size: 0.6rem;">
+                                                <i class="fas fa-check me-1"></i>Procesado
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'inventario:inventario_detail' movimiento.pk %}"
+                                               class="btn btn-sm btn-action btn-outline-primary"
+                                               title="Ver detalle">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'inventario:inventario_update' movimiento.pk %}"
+                                               class="btn btn-sm btn-action btn-outline-secondary"
+                                               title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center py-2">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay movimientos registrados</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- PAGINACIÓN -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-center mt-2">
+                        <nav aria-label="Paginación">
+                            <ul class="pagination pagination-sm mb-0" style="font-size: 0.75rem;">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        «
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        ‹
+                                    </a>
+                                </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
+                                        {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        ›
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        »
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Paleta terrosa para tarjetas de estadísticas */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .stat-card-1 {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+    }
+
+    .stat-card-2 {
+        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
+    }
+
+    .stat-card-3 {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    }
+
+    .stat-card-4 {
+        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        color: rgba(255,255,255,0.9);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.3);
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+    }
+
+    .filter-section {
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+
+    .table-compact thead th {
+        padding: 4px 2px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+
+    .table-compact tbody td {
+        padding: 2px 3px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.7rem;
+    }
+
+    .table-compact tbody tr {
+        height: 28px;
+    }
+
+    .btn-filter {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-action {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+</style>
+
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Documentos Tributarios Electrónicos{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="fas fa-file-invoice-dollar"></i> Documentos Tributarios Electrónicos</h2>
+            <p class="text-muted">Lista de DTEs emitidos</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if dtes %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Folio</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Total</th>
+                            <th>Estado SII</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dte in dtes %}
+                        <tr>
+                            <td>{{ dte.get_tipo_documento_display }}</td>
+                            <td><strong>{{ dte.folio }}</strong></td>
+                            <td>{{ dte.fecha_emision|date:"d/m/Y" }}</td>
+                            <td>{{ dte.razon_social_receptor }}</td>
+                            <td>${{ dte.monto_total|floatformat:0 }}</td>
+                            <td>
+                                {% if dte.estado_sii == 'aceptado' %}
+                                    <span class="badge bg-success">Aceptado</span>
+                                {% elif dte.estado_sii == 'rechazado' %}
+                                    <span class="badge bg-danger">Rechazado</span>
+                                {% elif dte.estado_sii == 'pendiente' %}
+                                    <span class="badge bg-warning">Pendiente</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ dte.estado_sii }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'facturacion_electronica:dte_detail' dte.pk %}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No hay DTEs emitidos aún</p>
+                <small class="text-muted">Los DTEs se generarán automáticamente al procesar ventas con FE activada</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+

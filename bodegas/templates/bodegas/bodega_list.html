@@ -1,139 +1,218 @@
 {% extends "base.html" %}
 {% load static %}
 
+{% block title %}Gestión de Bodegas - GestionCloud{% endblock %}
+
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block page_title %}{{ titulo }}{% endblock %}
+{% block extra_head %}
+<style>
+    /* Fondo terroso suave como en libro de ventas */
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+
+<div class="container-fluid" style="margin-top: 20px;">
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #9CAF88 0%, #B5C99A 100%); border: none; padding: 15px 20px;">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+
+                <!-- HEADER PRINCIPAL -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-warehouse fa-2x text-white me-3"></i>
+                            <i class="fas fa-warehouse fa-lg me-2" style="color: #6F5B44;"></i>
                             <div>
-                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-weight: 600;">
-                                    {{ titulo }}
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Gestión de Bodegas
                                 </h5>
-                                <small class="text-white-50" style="font-size: 0.9rem;">Gestiona las bodegas y almacenes de tu empresa</small>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Administra las bodegas y almacenes de tu empresa
+                                </small>
                             </div>
                         </div>
-                        <button type="button" class="btn" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(107, 142, 35, 0.3);" data-bs-toggle="modal" data-bs-target="#modalCrearBodega">
-                            <i class="fas fa-plus me-2"></i>Nueva Bodega
-                        </button>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;" data-bs-toggle="modal" data-bs-target="#modalCrearBodega">
+                                <i class="fas fa-plus me-1"></i> Nueva Bodega
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Contenido -->
-                <div class="card-body" style="padding: 20px;">
+                <div class="card-body" style="padding: 12px; background: #FAFAF8;">
+
+                    <!-- Mensajes -->
                     {% if messages %}
                         {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" style="font-size: 0.85rem;">
                                 {{ message }}
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
                         {% endfor %}
                     {% endif %}
 
-                    <!-- Filtros -->
-                    <div class="row mb-4">
-                        <div class="col-md-8">
-                            <input type="text" class="form-control" name="search" value="{{ filter_form.search.value|default:'' }}" placeholder="Buscar por código o nombre...">
+                    <!-- ESTADÍSTICAS PRINCIPALES -->
+                    <div class="row mb-2">
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-1 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">{{ total_bodegas|default:0 }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Bodegas</div>
+                                <i class="fas fa-warehouse stat-icon"></i>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <select class="form-select" name="activa">
-                                <option value="">Todas</option>
-                                <option value="true" {% if filter_form.activa.value == 'true' %}selected{% endif %}>Activas</option>
-                                <option value="false" {% if filter_form.activa.value == 'false' %}selected{% endif %}>Inactivas</option>
-                            </select>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-2 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">{{ bodegas_activas|default:0 }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Bodegas Activas</div>
+                                <i class="fas fa-check-circle stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-3 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">{{ bodegas_inactivas|default:0 }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Bodegas Inactivas</div>
+                                <i class="fas fa-times-circle stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-4 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">{{ page_obj.paginator.count|default:0 }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Registros</div>
+                                <i class="fas fa-list stat-icon"></i>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- Tabla de bodegas -->
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
+                    
+                    <!-- FILTROS -->
+                    <div class="filter-section">
+                        <form method="get">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-search me-1"></i>Buscar Bodega
+                                    </label>
+                                    <input type="text" name="search" class="form-control form-control-sm"
+                                           placeholder="🔍 Buscar por código o nombre..." value="{{ filter_form.search.value|default:'' }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-toggle-on me-1"></i>Estado
+                                    </label>
+                                    <select name="activa" class="form-select form-select-sm">
+                                        <option value="">Todas</option>
+                                        <option value="true" {% if filter_form.activa.value == 'true' %}selected{% endif %}>Activas</option>
+                                        <option value="false" {% if filter_form.activa.value == 'false' %}selected{% endif %}>Inactivas</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-flex gap-2">
+                                    <button type="submit" class="btn btn-filter flex-grow-1">
+                                        <i class="fas fa-filter me-1"></i>Filtrar
+                                    </button>
+                                    <a href="{% url 'bodegas:bodega_list' %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Lista de Bodegas -->
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
                                 <tr>
-                                    <th>Código</th>
-                                    <th>Nombre</th>
-                                    <th>Estado</th>
-                                    <th class="text-center">Acciones</th>
+                                    <th style="width: 15%;">Código</th>
+                                    <th style="width: 25%;">Nombre</th>
+                                    <th style="width: 30%;">Dirección</th>
+                                    <th style="width: 15%;">Sucursal</th>
+                                    <th style="width: 10%;">Estado</th>
+                                    <th class="text-center" style="width: 15%;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for bodega in page_obj %}
-                                    <tr>
-                                        <td>{{ bodega.codigo }}</td>
-                                        <td>{{ bodega.nombre }}</td>
-                                        <td>
-                                            {% if bodega.activa %}
-                                                <span class="badge bg-success">Activa</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">Inactiva</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="text-center">
-                                            <button type="button" class="btn btn-sm btn-warning me-1" onclick="editarBodega({{ bodega.id }})" title="Editar">
+                                <tr style="border-bottom: 1px solid #F5F1E8;">
+                                    <td style="font-size: 0.7rem;">
+                                        <strong style="color: #6F5B44;">{{ bodega.codigo }}</strong>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">{{ bodega.nombre }}</td>
+                                    <td style="font-size: 0.7rem;">{{ bodega.direccion|default:"Sin dirección"|truncatechars:40 }}</td>
+                                    <td style="font-size: 0.7rem;">{{ bodega.sucursal.nombre|default:"Sin sucursal" }}</td>
+                                    <td style="font-size: 0.7rem;">
+                                        {% if bodega.activa %}
+                                            <span class="badge bg-success" style="font-size: 0.6rem;">Activa</span>
+                                        {% else %}
+                                            <span class="badge bg-danger" style="font-size: 0.6rem;">Inactiva</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-action btn-outline-secondary"
+                                                    title="Editar"
+                                                    onclick="editarBodega({{ bodega.pk }})">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-danger" onclick="eliminarBodega({{ bodega.id }}, '{{ bodega.nombre }}')" title="Eliminar">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-action btn-outline-danger"
+                                                    title="Eliminar"
+                                                    onclick="eliminarBodega({{ bodega.pk }}, '{{ bodega.nombre }}')">
                                                 <i class="fas fa-trash"></i>
                                             </button>
-                                        </td>
-                                    </tr>
+                                        </div>
+                                    </td>
+                                </tr>
                                 {% empty %}
-                                    <tr>
-                                        <td colspan="4" class="text-center py-4">
-                                            <i class="fas fa-warehouse fa-3x text-muted mb-3"></i>
-                                            <h5 class="text-muted">No hay bodegas registradas</h5>
-                                            <p class="text-muted">Comience creando su primera bodega</p>
-                                            <button type="button" class="btn" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none; color: white;" data-bs-toggle="modal" data-bs-target="#modalCrearBodega">
-                                                <i class="fas fa-plus me-2"></i>Crear Primera Bodega
-                                            </button>
-                                        </td>
-                                    </tr>
+                                <tr>
+                                    <td colspan="6" class="text-center py-2">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay bodegas registradas</p>
+                                    </td>
+                                </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-
-                    <!-- Paginación -->
+                    
+                    <!-- PAGINACIÓN -->
                     {% if page_obj.has_other_pages %}
-                        <div class="row mt-4">
-                            <div class="col-12">
-                                <nav aria-label="Paginación de bodegas">
-                                    <ul class="pagination justify-content-center">
-                                        {% if page_obj.has_previous %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.activa %}&activa={{ request.GET.activa }}{% endif %}">Anterior</a>
-                                            </li>
-                                        {% endif %}
-                                        
-                                        {% for num in page_obj.paginator.page_range %}
-                                            {% if page_obj.number == num %}
-                                                <li class="page-item active">
-                                                    <span class="page-link">{{ num }}</span>
-                                                </li>
-                                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                                <li class="page-item">
-                                                    <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.activa %}&activa={{ request.GET.activa }}{% endif %}">{{ num }}</a>
-                                                </li>
-                                            {% endif %}
-                                        {% endfor %}
-                                        
-                                        {% if page_obj.has_next %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.activa %}&activa={{ request.GET.activa }}{% endif %}">Siguiente</a>
-                                            </li>
-                                        {% endif %}
-                                    </ul>
-                                </nav>
-                            </div>
-                        </div>
+                    <div class="d-flex justify-content-center mt-2">
+                        <nav aria-label="Paginación">
+                            <ul class="pagination pagination-sm mb-0" style="font-size: 0.75rem;">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.activa %}&activa={{ request.GET.activa }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">«</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.activa %}&activa={{ request.GET.activa }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">‹</a>
+                                </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
+                                        {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.activa %}&activa={{ request.GET.activa }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">›</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.activa %}&activa={{ request.GET.activa }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">»</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -141,180 +220,186 @@
     </div>
 </div>
 
-<!-- Modal para crear/editar bodega -->
+<style>
+    /* Paleta terrosa para tarjetas de estadísticas */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .stat-card-1 {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+    }
+
+    .stat-card-2 {
+        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
+    }
+
+    .stat-card-3 {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    }
+
+    .stat-card-4 {
+        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        color: rgba(255,255,255,0.9);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.3);
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+    }
+
+    .filter-section {
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+
+    .table-compact thead th {
+        padding: 4px 2px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+
+    .table-compact tbody td {
+        padding: 2px 3px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.7rem;
+    }
+
+    .table-compact tbody tr {
+        height: 28px;
+    }
+
+    .btn-filter {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-action {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+</style>
+
+<!-- Modal Crear/Editar Bodega -->
 <div class="modal fade" id="modalCrearBodega" tabindex="-1" aria-labelledby="modalCrearBodegaLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none;">
-                <h5 class="modal-title text-white" id="modalCrearBodegaLabel">
-                    <i class="fas fa-plus me-2"></i>Crear Nueva Bodega
+            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
+                <h5 class="modal-title" id="modalCrearBodegaLabel">
+                    <i class="fas fa-warehouse me-2"></i>Nueva Bodega
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div id="bodegaFormContainer">
-                    <!-- El formulario se carga aquí via AJAX -->
-                </div>
+            <div class="modal-body" id="modalBodegaBody">
+                <!-- El formulario se cargará aquí -->
             </div>
         </div>
     </div>
 </div>
-
-<!-- Modal para editar bodega -->
-<div class="modal fade" id="modalEditarBodega" tabindex="-1" aria-labelledby="modalEditarBodegaLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%); border: none;">
-                <h5 class="modal-title text-white" id="modalEditarBodegaLabel">
-                    <i class="fas fa-edit me-2"></i>Editar Bodega
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="bodegaEditFormContainer">
-                    <!-- El formulario se carga aquí via AJAX -->
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal para eliminar bodega -->
-<div class="modal fade" id="modalEliminarBodega" tabindex="-1" aria-labelledby="modalEliminarBodegaLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #DC3545 0%, #E74C3C 100%); border: none;">
-                <h5 class="modal-title text-white" id="modalEliminarBodegaLabel">
-                    <i class="fas fa-trash me-2"></i>Eliminar Bodega
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="bodegaDeleteFormContainer">
-                    <!-- El formulario se carga aquí via AJAX -->
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 
 <script>
-let bodegaEditando = null;
-
-// Función para crear bodega
-document.getElementById('modalCrearBodega').addEventListener('show.bs.modal', function () {
-    console.log('Cargando formulario de creación...');
-    fetch('{% url "bodegas:bodega_create_modal" %}', {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        }
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json();
-    })
-    .then(data => {
-        console.log('Formulario cargado:', data);
-        document.getElementById('bodegaFormContainer').innerHTML = data.html_form;
-        
-        // Configurar el evento del formulario después de cargarlo
-        setupBodegaForm();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al cargar el formulario');
-    });
-});
-
-// Resetear variable de edición cuando se cierre el modal de edición
-document.getElementById('modalEditarBodega').addEventListener('hidden.bs.modal', function () {
-    bodegaEditando = null;
-});
-
-// Función para editar bodega
-function editarBodega(id) {
-    bodegaEditando = id;
-    
-    fetch(`/bodegas/editar-modal/${id}/`, {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('bodegaEditFormContainer').innerHTML = data.html_form;
-        const modal = new bootstrap.Modal(document.getElementById('modalEditarBodega'));
-        modal.show();
-        
-        // Configurar el formulario después de cargarlo
-        setupBodegaForm();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showError('Error al cargar el formulario de edición');
-    });
-}
-
-// Función para eliminar bodega
-function eliminarBodega(id, nombre) {
-    showConfirm(
-        '¿Eliminar bodega?',
-        `¿Está seguro de que desea eliminar la bodega "${nombre}"? Esta acción no se puede deshacer.`,
-        'Sí, eliminar',
-        'Cancelar'
-    ).then((result) => {
-        if (result.isConfirmed) {
-            fetch(`/bodegas/eliminar-modal/${id}/`, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('bodegaDeleteFormContainer').innerHTML = data.html_form;
-                const modal = new bootstrap.Modal(document.getElementById('modalEliminarBodega'));
-                modal.show();
+// Cargar formulario de crear bodega
+document.addEventListener('DOMContentLoaded', function() {
+    const modalCrear = document.getElementById('modalCrearBodega');
+    if (modalCrear) {
+        modalCrear.addEventListener('show.bs.modal', function() {
+            document.getElementById('modalCrearBodegaLabel').innerHTML = '<i class="fas fa-warehouse me-2"></i>Nueva Bodega';
+            document.getElementById('modalBodegaBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div><p class="mt-2">Cargando...</p></div>';
+            
+            fetch('{% url "bodegas:bodega_create_modal" %}')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('modalBodegaBody').innerHTML = html;
+                setupFormHandler();
             })
             .catch(error => {
                 console.error('Error:', error);
-                showError('Error al cargar el formulario de eliminación');
+                document.getElementById('modalBodegaBody').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
             });
-        }
+        });
+    }
+});
+
+function editarBodega(bodegaId) {
+    const modal = new bootstrap.Modal(document.getElementById('modalCrearBodega'));
+    document.getElementById('modalCrearBodegaLabel').innerHTML = '<i class="fas fa-edit me-2"></i>Editar Bodega';
+    
+    // Mostrar loading
+    document.getElementById('modalBodegaBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div><p class="mt-2">Cargando...</p></div>';
+    modal.show();
+    
+    fetch(`/bodegas/editar-modal/${bodegaId}/`)
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('modalBodegaBody').innerHTML = html;
+        setupFormHandler();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('modalBodegaBody').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
     });
 }
 
-// Función para configurar el formulario de bodega
-function setupBodegaForm() {
-    const form = document.getElementById('bodegaForm');
+function setupFormHandler() {
+    const form = document.querySelector('#modalBodegaBody form');
     if (form) {
-        console.log('Configurando evento del formulario');
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             
-            console.log('Formulario enviado');
-            
             const formData = new FormData(this);
-            
-            // Determinar si es creación o edición
-            let url;
-            let modalId;
-            
-            if (bodegaEditando) {
-                // Es edición
-                url = `/bodegas/editar-modal/${bodegaEditando}/`;
-                modalId = 'modalEditarBodega';
-            } else {
-                // Es creación
-                url = '/bodegas/crear-modal/';
-                modalId = 'modalCrearBodega';
-            }
-            
-            console.log('URL:', url);
-            console.log('FormData:', Object.fromEntries(formData));
+            const url = this.action;
             
             fetch(url, {
                 method: 'POST',
@@ -323,57 +408,135 @@ function setupBodegaForm() {
                     'X-Requested-With': 'XMLHttpRequest',
                 }
             })
-            .then(response => {
-                console.log('Response status:', response.status);
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('Response data:', data);
-                if (data.status === 'success') {
-                    // Cerrar modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
-                    modal.hide();
-                    
-                    // Mostrar mensaje de éxito
-                    showAlert('success', data.message);
-                    
-                    // Recargar la página para mostrar los cambios
-                    setTimeout(() => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalCrearBodega')).hide();
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Éxito!',
+                        text: data.message,
+                        confirmButtonColor: '#8B7355',
+                        timer: 2000
+                    }).then(() => {
                         location.reload();
-                    }, 1000);
+                    });
                 } else {
-                    // Mostrar errores
-                    showAlert('danger', data.message);
-                    if (data.errors) {
-                        console.error('Errores del formulario:', data.errors);
+                    // Mostrar errores en el formulario
+                    if (data.html_form) {
+                        document.getElementById('modalBodegaBody').innerHTML = data.html_form;
+                        setupFormHandler();
+                    } else if (data.errors) {
+                        let errorMsg = 'Errores en el formulario:\n';
+                        for (let field in data.errors) {
+                            errorMsg += `${field}: ${data.errors[field].join(', ')}\n`;
+                        }
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: errorMsg,
+                            confirmButtonColor: '#8B7355'
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Error al guardar la bodega',
+                            confirmButtonColor: '#8B7355'
+                        });
                     }
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showAlert('danger', 'Error al procesar la solicitud');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error al procesar la solicitud',
+                    confirmButtonColor: '#8B7355'
+                });
             });
         });
     }
 }
 
-function showAlert(type, message) {
-    switch(type) {
-        case 'success':
-            showSuccess(message);
-            break;
-        case 'danger':
-            showError(message);
-            break;
-        case 'warning':
-            showWarning(message);
-            break;
-        case 'info':
-            showInfo(message);
-            break;
-        default:
-            showInfo(message);
+function eliminarBodega(bodegaId, bodegaNombre) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Deseas eliminar la bodega "${bodegaNombre}"? Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Eliminando...',
+                text: 'Por favor espera',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            fetch(`/bodegas/eliminar-modal/${bodegaId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Eliminada!',
+                        text: data.message,
+                        confirmButtonColor: '#8B7355',
+                        timer: 2000
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message,
+                        confirmButtonColor: '#8B7355'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error al eliminar la bodega',
+                    confirmButtonColor: '#8B7355'
+                });
+            });
+        }
+    });
+}
+
+// Función para obtener el CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
     }
+    return cookieValue;
 }
 </script>
+
 {% endblock %}

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% load static %}
+{% load articulo_filters %}
+
+{% block title %}Cerrar Caja{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg" style="border: none; border-radius: 15px;">
+                <div class="card-header" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 20px;">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lock me-2"></i>{{ title }}
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Resumen de la Apertura -->
+                    <div class="alert alert-info mb-4">
+                        <h6><i class="fas fa-info-circle me-2"></i>Resumen del Turno</h6>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <small class="text-muted">Apertura:</small>
+                                <p class="mb-1 fw-bold">{{ apertura.fecha_apertura|date:"d/m/Y H:i" }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Usuario:</small>
+                                <p class="mb-1 fw-bold">{{ apertura.usuario_apertura.username }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Totales Calculados -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <small class="text-muted">Monto Inicial</small>
+                                    <h4 class="text-primary">${{ apertura.monto_inicial|format_price }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <small class="text-muted">Ventas Efectivo</small>
+                                    <h4 class="text-success">${{ apertura.total_ventas_efectivo|format_price }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <small class="text-muted">Efectivo Esperado</small>
+                                    <h4 class="text-warning">${{ apertura.monto_final|format_price }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <small class="text-muted">Tarjeta</small>
+                                    <p class="mb-0 fw-bold">${{ apertura.total_ventas_tarjeta|format_price }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <small class="text-muted">Transferencia</small>
+                                    <p class="mb-0 fw-bold">${{ apertura.total_ventas_transferencia|format_price }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <small class="text-muted">Cheque</small>
+                                    <p class="mb-0 fw-bold">${{ apertura.total_ventas_cheque|format_price }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <small class="text-muted">Crédito</small>
+                                    <p class="mb-0 fw-bold">${{ apertura.total_ventas_credito|format_price }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Formulario de Cierre -->
+                    <form method="post" id="formCierre">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.monto_contado.id_for_label }}" class="form-label fw-bold">
+                                <i class="fas fa-coins me-2"></i>Monto Contado en Caja
+                            </label>
+                            {{ form.monto_contado }}
+                            <small class="text-muted">Contar el efectivo físico en la caja</small>
+                            {% if form.monto_contado.errors %}
+                                <div class="text-danger mt-1">{{ form.monto_contado.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Diferencia (calculada en tiempo real) -->
+                        <div class="alert alert-warning" id="alert-diferencia" style="display: none;">
+                            <strong><i class="fas fa-exclamation-triangle me-2"></i>Diferencia de caja:</strong>
+                            <span id="monto-diferencia" class="fs-5"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.observaciones_cierre.id_for_label }}" class="form-label fw-bold">
+                                <i class="fas fa-comment me-2"></i>Observaciones de Cierre
+                            </label>
+                            {{ form.observaciones_cierre }}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="fas fa-lock me-2"></i>Cerrar Caja
+                            </button>
+                            <a href="{% url 'caja:apertura_detail' apertura.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const montoContadoInput = document.querySelector('[name="monto_contado"]');
+    const alertDiferencia = document.getElementById('alert-diferencia');
+    const montoDiferenciaSpan = document.getElementById('monto-diferencia');
+    const montoEsperado = {{ apertura.monto_final }};
+    
+    montoContadoInput.addEventListener('input', function() {
+        const montoContado = parseFloat(this.value) || 0;
+        const diferencia = montoContado - montoEsperado;
+        
+        if (diferencia !== 0) {
+            alertDiferencia.style.display = 'block';
+            if (diferencia > 0) {
+                alertDiferencia.className = 'alert alert-success';
+                montoDiferenciaSpan.textContent = '+$' + Math.round(Math.abs(diferencia)).toLocaleString('es-CL') + ' (Sobrante)';
+            } else {
+                alertDiferencia.className = 'alert alert-danger';
+                montoDiferenciaSpan.textContent = '-$' + Math.round(Math.abs(diferencia)).toLocaleString('es-CL') + ' (Faltante)';
+            }
+        } else {
+            alertDiferencia.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}
+
+
+

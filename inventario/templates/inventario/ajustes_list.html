@@ -1,202 +1,242 @@
 {% extends "base.html" %}
 {% load widget_tweaks %}
+{% load format_filters %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block title %}{{ titulo }}{% endblock %}
 
-{% block content %}
+{% block extra_css %}
 <style>
-.stats-card {
-    background: linear-gradient(135deg, #9CAF88 0%, #7A9A6B 100%);
-    border: none;
-    border-radius: 15px;
-    color: white;
-    box-shadow: 0 4px 15px rgba(156, 175, 136, 0.3);
-}
+    /* Paleta terrosa para ajustes de stock */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
 
-.stats-card .card-body {
-    padding: 1.5rem;
-}
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
 
-.stats-card h3 {
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0;
-}
+    .stat-card-1 {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+    }
 
-.stats-card p {
-    margin: 0;
-    opacity: 0.9;
-    font-size: 0.9rem;
-}
+    .stat-card-2 {
+        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
+    }
 
-.filter-card {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-}
+    .stat-card-3 {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    }
 
-.table-container {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    overflow: hidden;
-}
+    .stat-card-4 {
+        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
+    }
 
-.table th {
-    background: linear-gradient(135deg, #9CAF88 0%, #7A9A6B 100%);
-    color: white;
-    border: none;
-    font-weight: 600;
-    padding: 1rem 0.75rem;
-}
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
 
-.table td {
-    padding: 0.75rem;
-    vertical-align: middle;
-    border-color: #f1f3f4;
-}
+    .stat-label {
+        color: rgba(255,255,255,0.9);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
 
-.badge-entrada {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
-    padding: 0.4rem 0.8rem;
-    border-radius: 20px;
-    font-weight: 500;
-}
+    .stat-icon {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.3);
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+    }
 
-.badge-salida {
-    background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
-    color: white;
-    padding: 0.4rem 0.8rem;
-    border-radius: 20px;
-    font-weight: 500;
-}
+    .filter-section {
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
 
-.badge-procesado {
-    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-    color: white;
-    padding: 0.3rem 0.6rem;
-    border-radius: 15px;
-    font-size: 0.75rem;
-}
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
 
-.btn-action {
-    padding: 0.4rem 0.8rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    margin: 0 2px;
-}
+    .table-compact thead th {
+        padding: 4px 2px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
 
-.btn-view {
-    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-    color: white;
-    border: none;
-}
+    .table-compact tbody td {
+        padding: 2px 3px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.7rem;
+    }
 
-.btn-process {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
-    border: none;
-}
+    .table-compact tbody tr {
+        height: 28px;
+    }
 
-.btn-undo {
-    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
-    color: #212529;
-    border: none;
-}
+    .btn-filter {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
 
-.btn-export {
-    background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
-    color: white;
-    border: none;
-}
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-action {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+
+    .badge-entrada {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 0.3rem 0.6rem;
+        border-radius: 15px;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+
+    .badge-salida {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+        color: white;
+        padding: 0.3rem 0.6rem;
+        border-radius: 15px;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+
+    .badge-procesado {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.65rem;
+        font-weight: 500;
+    }
 </style>
+{% endblock %}
+
+{% block content %}
 
 <div class="container-fluid mt-4">
     <div class="row">
-        <!-- Estadísticas -->
-        <div class="col-12 mb-4">
-            <div class="row">
-                <div class="col-md-3 mb-3">
-                    <div class="card stats-card">
-                        <div class="card-body text-center">
-                            <h3>{{ total_ajustes }}</h3>
-                            <p>Total Ajustes</p>
-                        </div>
+        <!-- ESTADÍSTICAS PRINCIPALES -->
+        <div class="col-12 mb-2">
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-1 p-2 position-relative">
+                        <div class="stat-value" style="font-size: 1.1rem;">{{ total_ajustes|default:0|format_miles }}</div>
+                        <div class="stat-label" style="font-size: 0.7rem;">Total Ajustes</div>
+                        <i class="fas fa-adjust stat-icon"></i>
                     </div>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card stats-card">
-                        <div class="card-body text-center">
-                            <h3>{{ ajustes_entrada }}</h3>
-                            <p>Entradas</p>
-                        </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-2 p-2 position-relative">
+                        <div class="stat-value" style="font-size: 1rem;">{{ ajustes_entrada|default:0|format_miles }}</div>
+                        <div class="stat-label" style="font-size: 0.7rem;">Entradas</div>
+                        <i class="fas fa-arrow-up stat-icon"></i>
                     </div>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card stats-card">
-                        <div class="card-body text-center">
-                            <h3>{{ ajustes_salida }}</h3>
-                            <p>Salidas</p>
-                        </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-3 p-2 position-relative">
+                        <div class="stat-value" style="font-size: 1rem;">{{ ajustes_salida|default:0|format_miles }}</div>
+                        <div class="stat-label" style="font-size: 0.7rem;">Salidas</div>
+                        <i class="fas fa-arrow-down stat-icon"></i>
                     </div>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card stats-card">
-                        <div class="card-body text-center">
-                            <h3>{{ ajustes_pendientes }}</h3>
-                            <p>Pendientes</p>
-                        </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-4 p-2 position-relative">
+                        <div class="stat-value" style="font-size: 1rem;">{{ ajustes_pendientes|default:0|format_miles }}</div>
+                        <div class="stat-label" style="font-size: 0.7rem;">Pendientes</div>
+                        <i class="fas fa-clock stat-icon"></i>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Filtros -->
+        <!-- FILTROS -->
         <div class="col-12">
-            <div class="filter-card">
-                <form method="get" class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label">Buscar</label>
-                        <input type="text" name="search" class="form-control" value="{{ search }}" 
-                               placeholder="Folio, descripción, artículo...">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Tipo</label>
-                        <select name="tipo_ajuste" class="form-control">
-                            <option value="">Todos</option>
-                            <option value="ENTRADA" {% if tipo_ajuste == 'ENTRADA' %}selected{% endif %}>Entrada</option>
-                            <option value="SALIDA" {% if tipo_ajuste == 'SALIDA' %}selected{% endif %}>Salida</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Bodega</label>
-                        <select name="bodega" class="form-control">
-                            <option value="">Todas</option>
-                            {% for bodega in bodegas %}
-                                <option value="{{ bodega.id }}" {% if bodega_id == bodega.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ bodega.nombre }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Desde</label>
-                        <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Hasta</label>
-                        <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
-                    </div>
-                    <div class="col-md-1">
-                        <label class="form-label">&nbsp;</label>
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-search"></i>
-                        </button>
+            <div class="filter-section">
+                <form method="get" action="{% url 'inventario:ajustes_list' %}">
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                <i class="fas fa-search me-1"></i>Buscar
+                            </label>
+                            <input type="text" name="search" class="form-control form-control-sm"
+                                   placeholder="🔍 Folio, descripción, artículo..." value="{{ search }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                <i class="fas fa-exchange-alt me-1"></i>Tipo
+                            </label>
+                            <select name="tipo_ajuste" class="form-select form-select-sm">
+                                <option value="">Todos</option>
+                                <option value="ENTRADA" {% if tipo_ajuste == 'ENTRADA' %}selected{% endif %}>Entrada</option>
+                                <option value="SALIDA" {% if tipo_ajuste == 'SALIDA' %}selected{% endif %}>Salida</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                <i class="fas fa-warehouse me-1"></i>Bodega
+                            </label>
+                            <select name="bodega" class="form-select form-select-sm">
+                                <option value="">Todas</option>
+                                {% for bodega in bodegas %}
+                                    <option value="{{ bodega.id }}" {% if bodega_id == bodega.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ bodega.nombre }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                <i class="fas fa-calendar-alt me-1"></i>Desde
+                            </label>
+                            <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                <i class="fas fa-calendar-alt me-1"></i>Hasta
+                            </label>
+                            <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end">
+                            <button type="submit" class="btn btn-filter w-100">
+                                <i class="fas fa-filter me-1"></i>Filtrar
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -204,37 +244,37 @@
 
         <!-- Tabla de Ajustes -->
         <div class="col-12">
-            <div class="table-container">
+            <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
                 <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
-                    <h5 class="mb-0">
+                    <h6 class="mb-0" style="font-size: 1rem; font-weight: 600; color: #6F5B44;">
                         <i class="fas fa-adjust me-2"></i>Lista de Ajustes de Stock
-                    </h5>
-                    <a href="{% url 'inventario:ajuste_create' %}" class="btn btn-success">
-                        <i class="fas fa-plus me-2"></i>Nuevo Ajuste
+                    </h6>
+                    <a href="{% url 'inventario:ajuste_create' %}" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 6px 16px; font-size: 0.8rem;">
+                        <i class="fas fa-plus me-1"></i>Nuevo Ajuste
                     </a>
                 </div>
-                
+
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover table-compact mb-0">
                         <thead>
                             <tr>
-                                <th>Folio</th>
-                                <th>Tipo</th>
-                                <th>Fecha</th>
-                                <th>Bodega</th>
-                                <th>Descripción</th>
-                                <th>Estado</th>
-                                <th>Artículos</th>
-                                <th>Acciones</th>
+                                <th style="width: 10%;">Folio</th>
+                                <th style="width: 10%;">Tipo</th>
+                                <th style="width: 15%;">Fecha</th>
+                                <th style="width: 15%;">Bodega</th>
+                                <th style="width: 25%;">Descripción</th>
+                                <th style="width: 10%;">Estado</th>
+                                <th style="width: 8%;">Artículos</th>
+                                <th class="text-center" style="width: 12%;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for ajuste in page_obj %}
-                                <tr>
-                                    <td>
-                                        <strong class="text-primary">{{ ajuste.folio }}</strong>
+                                <tr style="border-bottom: 1px solid #F5F1E8;">
+                                    <td style="font-size: 0.7rem;">
+                                        <strong style="color: #6F5B44;">{{ ajuste.folio }}</strong>
                                     </td>
-                                    <td>
+                                    <td style="font-size: 0.7rem;">
                                         {% if ajuste.tipo_ajuste == 'ENTRADA' %}
                                             <span class="badge-entrada">
                                                 <i class="fas fa-arrow-up me-1"></i>Entrada
@@ -245,50 +285,54 @@
                                             </span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ ajuste.fecha_ajuste|date:"d/m/Y H:i" }}</td>
-                                    <td>{{ ajuste.bodega.nombre }}</td>
-                                    <td>
+                                    <td style="font-size: 0.7rem;">{{ ajuste.fecha_ajuste|date:"d/m/Y H:i" }}</td>
+                                    <td style="font-size: 0.7rem;">{{ ajuste.bodega.nombre|truncatechars:15 }}</td>
+                                    <td style="font-size: 0.7rem;">
                                         <span class="text-muted" title="{{ ajuste.descripcion }}">
-                                            {{ ajuste.descripcion|truncatechars:50 }}
+                                            {{ ajuste.descripcion|truncatechars:30 }}
                                         </span>
                                     </td>
-                                    <td>
+                                    <td style="font-size: 0.7rem;">
                                         {% if ajuste.procesado %}
                                             <span class="badge-procesado">
                                                 <i class="fas fa-check me-1"></i>Procesado
                                             </span>
                                         {% else %}
-                                            <span class="badge bg-warning text-dark">
+                                            <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">
                                                 <i class="fas fa-clock me-1"></i>Pendiente
                                             </span>
                                         {% endif %}
                                     </td>
-                                    <td>
-                                        <span class="badge bg-info">{{ ajuste.detalles.count }}</span>
+                                    <td style="font-size: 0.7rem;">
+                                        <span class="badge bg-info" style="font-size: 0.7rem;">{{ ajuste.detalles.count }}</span>
                                     </td>
-                                    <td>
+                                    <td class="text-center">
                                         <div class="btn-group" role="group">
-                                            <a href="{% url 'inventario:ajuste_detail' ajuste.pk %}" 
-                                               class="btn btn-action btn-view" title="Ver detalle">
+                                            <a href="{% url 'inventario:ajuste_detail' ajuste.pk %}"
+                                               class="btn btn-action btn-outline-primary" title="Ver detalle"
+                                               style="padding: 2px 6px; font-size: 0.7rem;">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            
+
                                             {% if not ajuste.procesado %}
-                                                <a href="{% url 'inventario:ajuste_procesar' ajuste.pk %}" 
-                                                   class="btn btn-action btn-process" title="Procesar"
-                                                   onclick="return confirm('¿Procesar este ajuste?')">
+                                                <a href="{% url 'inventario:ajuste_procesar' ajuste.pk %}"
+                                                   class="btn btn-action btn-outline-success" title="Procesar"
+                                                   onclick="return confirm('¿Procesar este ajuste?')"
+                                                   style="padding: 2px 6px; font-size: 0.7rem;">
                                                     <i class="fas fa-play"></i>
                                                 </a>
                                             {% else %}
-                                                <a href="{% url 'inventario:ajuste_deshacer' ajuste.pk %}" 
-                                                   class="btn btn-action btn-undo" title="Deshacer"
-                                                   onclick="return confirm('¿Deshacer este ajuste?')">
+                                                <a href="{% url 'inventario:ajuste_deshacer' ajuste.pk %}"
+                                                   class="btn btn-action btn-outline-warning" title="Deshacer"
+                                                   onclick="return confirm('¿Deshacer este ajuste?')"
+                                                   style="padding: 2px 6px; font-size: 0.7rem;">
                                                     <i class="fas fa-undo"></i>
                                                 </a>
                                             {% endif %}
-                                            
-                                            <a href="{% url 'inventario:ajuste_export' ajuste.pk %}" 
-                                               class="btn btn-action btn-export" title="Exportar">
+
+                                            <a href="{% url 'inventario:ajuste_export' ajuste.pk %}"
+                                               class="btn btn-action btn-outline-info" title="Exportar"
+                                               style="padding: 2px 6px; font-size: 0.7rem;">
                                                 <i class="fas fa-download"></i>
                                             </a>
                                         </div>
@@ -296,9 +340,9 @@
                                 </tr>
                             {% empty %}
                                 <tr>
-                                    <td colspan="8" class="text-center py-4 text-muted">
-                                        <i class="fas fa-inbox fa-3x mb-3"></i>
-                                        <p class="mb-0">No hay ajustes registrados</p>
+                                    <td colspan="8" class="text-center py-2">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay ajustes registrados</p>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -308,49 +352,54 @@
             </div>
         </div>
 
-        <!-- Paginación -->
+        <!-- PAGINACIÓN -->
         {% if page_obj.has_other_pages %}
-            <div class="col-12 mt-4">
-                <nav aria-label="Paginación de ajustes">
-                    <ul class="pagination justify-content-center">
-                        {% if page_obj.has_previous %}
+            <div class="col-12 mt-2">
+                <div class="d-flex justify-content-center">
+                    <nav aria-label="Paginación">
+                        <ul class="pagination pagination-sm mb-0" style="font-size: 0.75rem;">
+                            {% if page_obj.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}">
-                                    <i class="fas fa-angle-double-left"></i>
+                                <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                    «
                                 </a>
                             </li>
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}">
-                                    <i class="fas fa-angle-left"></i>
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                    ‹
                                 </a>
                             </li>
-                        {% endif %}
-                        
-                        <li class="page-item active">
-                            <span class="page-link">
-                                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
-                            </span>
-                        </li>
-                        
-                        {% if page_obj.has_next %}
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
+                                    {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if page_obj.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}">
-                                    <i class="fas fa-angle-right"></i>
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                    ›
                                 </a>
                             </li>
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}">
-                                    <i class="fas fa-angle-double-right"></i>
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                    »
                                 </a>
                             </li>
-                        {% endif %}
-                    </ul>
-                </nav>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
             </div>
         {% endif %}
     </div>
 </div>
 {% endblock %}
+
+
+
 
 
 

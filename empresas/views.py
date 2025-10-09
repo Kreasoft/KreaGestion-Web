@@ -2,12 +2,12 @@
 Vistas para el módulo de empresas
 """
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from usuarios.decorators import requiere_empresa, solo_superusuario, filtrar_por_empresa
 from .models import Empresa, Sucursal, ConfiguracionEmpresa
-from .forms import EmpresaForm, SucursalForm, ConfiguracionEmpresaForm
+from .forms import EmpresaForm, SucursalForm, ConfiguracionEmpresaForm, FacturacionElectronicaForm
 
 
 @requiere_empresa
@@ -80,6 +80,7 @@ def home(request):
 
 
 @solo_superusuario
+@permission_required('empresas.view_empresa', raise_exception=True)
 def empresa_list(request):
 	"""Lista todas las empresas - solo superusuario"""
 	empresas = Empresa.objects.all()
@@ -87,6 +88,7 @@ def empresa_list(request):
 
 
 @solo_superusuario
+@permission_required('empresas.add_empresa', raise_exception=True)
 def empresa_create(request):
 	"""Crea una nueva empresa - solo superusuario"""
 	if request.method == 'POST':
@@ -115,6 +117,7 @@ def empresa_detail(request, pk):
 
 
 @solo_superusuario
+@permission_required('empresas.change_empresa', raise_exception=True)
 def empresa_update(request, pk):
 	"""Actualiza una empresa existente - solo superusuario"""
 	empresa = get_object_or_404(Empresa, pk=pk)
@@ -143,6 +146,7 @@ def empresa_delete(request, pk):
 
 
 @requiere_empresa
+@permission_required('empresas.view_sucursal', raise_exception=True)
 def sucursal_list(request, empresa_id=None):
 	"""
 	Lista las sucursales - superusuario puede especificar empresa, usuario normal ve solo las suyas
@@ -164,6 +168,7 @@ def sucursal_list(request, empresa_id=None):
 
 
 @requiere_empresa
+@permission_required('empresas.add_sucursal', raise_exception=True)
 def sucursal_create(request, empresa_id=None):
 	"""
 	Crea una nueva sucursal - superusuario puede especificar empresa, usuario normal crea en su empresa
@@ -211,6 +216,7 @@ def sucursal_detail(request, pk):
 
 
 @requiere_empresa
+@permission_required('empresas.change_sucursal', raise_exception=True)
 def sucursal_update(request, pk):
 	"""
 	Actualiza una sucursal - verifica que pertenezca a la empresa del usuario
@@ -235,6 +241,7 @@ def sucursal_update(request, pk):
 
 
 @requiere_empresa
+@permission_required('empresas.delete_sucursal', raise_exception=True)
 def sucursal_delete(request, pk):
 	"""
 	Elimina una sucursal - verifica que pertenezca a la empresa del usuario
@@ -321,8 +328,20 @@ def seleccionar_empresa(request):
 				empresa = Empresa.objects.get(id=empresa_id)
 				# Guardar la empresa seleccionada en la sesión
 				request.session['empresa_activa_id'] = empresa.id
-				messages.success(request, f'Empresa cambiada a: {empresa.nombre}')
-				return redirect('dashboard')  # Redirigir al dashboard principal
+				request.session.modified = True  # Forzar guardado
+				
+				# Crear respuesta con cookie
+				response = redirect('dashboard')
+				response.set_cookie(
+					'empresa_activa_id',
+					empresa.id,
+					max_age=30*24*60*60,  # 30 días
+					httponly=True,
+					samesite='Lax'
+				)
+				
+				messages.success(request, f'✓ Empresa cambiada a: {empresa.nombre}')
+				return response
 			except Empresa.DoesNotExist:
 				messages.error(request, 'Empresa no encontrada.')
 	
@@ -356,20 +375,24 @@ def editar_empresa_activa(request):
 	# Inicializar formularios
 	form = EmpresaForm(instance=empresa_activa)
 	config_form = ConfiguracionEmpresaForm(instance=configuracion)
+	fe_form = FacturacionElectronicaForm(instance=empresa_activa)
 	
 	if request.method == 'POST':
 		print(f"DEBUG - POST recibido: {request.POST}")
 		print(f"DEBUG - FILES recibidos: {request.FILES}")
 		
 		# Determinar qué formulario se está enviando
+		# Si tiene facturacion_electronica o ambiente_sii, es el formulario FE
+		if 'ambiente_sii' in request.POST or 'certificado_digital' in request.FILES:
+			fe_form = FacturacionElectronicaForm(request.POST, request.FILES, instance=empresa_activa)
+			if fe_form.is_valid():
+				fe_form.save()
+				messages.success(request, 'Configuración de Facturación Electrónica guardada correctamente.')
+				return redirect('empresas:editar_empresa_activa')
+			else:
+				messages.error(request, 'Hubo errores en el formulario de Facturación Electrónica.')
 		# Si solo tiene campos de configuración, es el formulario de folios
-		campos_empresa = ['nombre', 'razon_social', 'rut', 'giro', 'direccion', 'comuna', 'ciudad', 'region', 'telefono', 'email']
-		tiene_campos_empresa = any(campo in request.POST for campo in campos_empresa)
-		
-		print(f"DEBUG - Tiene campos empresa: {tiene_campos_empresa}")
-		print(f"DEBUG - Tiene prefijo_ajustes: {'prefijo_ajustes' in request.POST}")
-		
-		if not tiene_campos_empresa and 'prefijo_ajustes' in request.POST:
+		elif 'prefijo_ajustes' in request.POST:
 			# Solo actualizar configuración, mantener datos de empresa
 			configuracion.prefijo_ajustes = request.POST.get('prefijo_ajustes', 'Aju')
 			configuracion.siguiente_ajuste = int(request.POST.get('siguiente_ajuste', 1))
@@ -416,6 +439,7 @@ def editar_empresa_activa(request):
 	context = {
 		'form': form,
 		'config_form': config_form,
+		'fe_form': fe_form,
 		'empresa': empresa_activa,
 		'configuracion': configuracion,
 		'titulo': f'Editar Empresa: {empresa_activa.nombre}',

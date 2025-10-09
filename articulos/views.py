@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.views.decorators.csrf import csrf_exempt
@@ -15,6 +15,7 @@ from empresas.decorators import requiere_empresa
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.view_articulo', raise_exception=True)
 def articulo_list(request):
     """Lista de artículos"""
     # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
@@ -82,6 +83,7 @@ def articulo_list(request):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.view_articulo', raise_exception=True)
 def articulo_detail(request, pk):
     """Detalle de un artículo"""
     # Para superusuarios, permitir ver cualquier artículo
@@ -103,6 +105,7 @@ def articulo_detail(request, pk):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.add_articulo', raise_exception=True)
 def articulo_create(request):
     """Crear nuevo artículo"""
     if request.method == 'POST':
@@ -133,6 +136,7 @@ def articulo_create(request):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.change_articulo', raise_exception=True)
 def articulo_update(request, pk):
     """Editar artículo"""
     # Para superusuarios, permitir editar cualquier artículo
@@ -169,6 +173,7 @@ def articulo_update(request, pk):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.delete_articulo', raise_exception=True)
 def articulo_delete(request, pk):
     """Eliminar artículo"""
     # Para superusuarios, permitir eliminar cualquier artículo
@@ -193,6 +198,7 @@ def articulo_delete(request, pk):
 # Vistas para Categorías
 @requiere_empresa
 @login_required
+@permission_required('articulos.view_categoriaarticulo', raise_exception=True)
 def categoria_list(request):
     """Lista de categorías"""
     # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
@@ -221,6 +227,7 @@ def categoria_list(request):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.add_categoriaarticulo', raise_exception=True)
 def categoria_create(request):
     """Crear nueva categoría"""
     if request.method == 'POST':
@@ -245,6 +252,7 @@ def categoria_create(request):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.change_categoriaarticulo', raise_exception=True)
 def categoria_update(request, pk):
     """Editar categoría"""
     # Para superusuarios, no filtrar por empresa
@@ -274,6 +282,7 @@ def categoria_update(request, pk):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.delete_categoriaarticulo', raise_exception=True)
 def categoria_delete(request, pk):
     """Eliminar categoría"""
     # Para superusuarios, no filtrar por empresa
@@ -299,6 +308,7 @@ def categoria_delete(request, pk):
 # Vistas para Unidades de Medida
 @requiere_empresa
 @login_required
+@permission_required('articulos.view_unidadmedida', raise_exception=True)
 def unidad_medida_list(request):
     """Lista de unidades de medida"""
     # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
@@ -313,6 +323,7 @@ def unidad_medida_list(request):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.add_unidadmedida', raise_exception=True)
 def unidad_medida_create(request):
     """Crear nueva unidad de medida"""
     if request.method == 'POST':
@@ -337,6 +348,7 @@ def unidad_medida_create(request):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.change_unidadmedida', raise_exception=True)
 def unidad_medida_update(request, pk):
     """Editar unidad de medida"""
     # Para superusuarios, no filtrar por empresa
@@ -366,6 +378,7 @@ def unidad_medida_update(request, pk):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.delete_unidadmedida', raise_exception=True)
 def unidad_medida_delete(request, pk):
     """Eliminar unidad de medida"""
     # Para superusuarios, no filtrar por empresa
@@ -391,6 +404,7 @@ def unidad_medida_delete(request, pk):
 # Vistas para Impuestos Específicos
 @requiere_empresa
 @login_required
+@permission_required('articulos.view_impuestoespecifico', raise_exception=True)
 def impuesto_especifico_list(request):
     """Lista de impuestos específicos"""
     # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
@@ -406,6 +420,7 @@ def impuesto_especifico_list(request):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.add_impuestoespecifico', raise_exception=True)
 def impuesto_especifico_create(request):
     """Crear impuesto específico"""
     if request.method == 'POST':
@@ -430,6 +445,7 @@ def impuesto_especifico_create(request):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.change_impuestoespecifico', raise_exception=True)
 def impuesto_especifico_update(request, pk):
     """Editar impuesto específico"""
     # Para superusuarios, no filtrar por empresa
@@ -459,6 +475,7 @@ def impuesto_especifico_update(request, pk):
 
 @requiere_empresa
 @login_required
+@permission_required('articulos.delete_impuestoespecifico', raise_exception=True)
 def impuesto_especifico_delete(request, pk):
     """Eliminar impuesto específico"""
     # Para superusuarios, no filtrar por empresa

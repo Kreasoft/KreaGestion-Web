@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.db.models import Q, Sum, Count, F
 from django.http import JsonResponse
@@ -51,6 +51,7 @@ def obtener_empresa_usuario(request):
 
 @login_required
 @requiere_empresa
+@permission_required('compras.view_ordencompra', raise_exception=True)
 def orden_compra_list(request):
     """Lista de órdenes de compra"""
     # Obtener la empresa del usuario
@@ -152,6 +153,7 @@ def orden_compra_detail(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('compras.add_ordencompra', raise_exception=True)
 def orden_compra_create(request):
     """Crear nueva orden de compra"""
     # Obtener la empresa del usuario
@@ -230,6 +232,7 @@ def orden_compra_create(request):
 
 @login_required
 @requiere_empresa
+@permission_required('compras.change_ordencompra', raise_exception=True)
 def orden_compra_update(request, pk):
     """Editar orden de compra"""
     # Obtener la empresa del usuario
@@ -299,6 +302,7 @@ def orden_compra_update(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('compras.delete_ordencompra', raise_exception=True)
 def orden_compra_delete(request, pk):
     """Eliminar orden de compra"""
     # Obtener la empresa del usuario

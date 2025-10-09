@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe de Cierre de Caja - {{ apertura.caja.nombre }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .empresa-nombre {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .empresa-info {
+            font-size: 11px;
+            margin: 2px 0;
+        }
+        
+        .titulo-informe {
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0 15px 0;
+            text-decoration: underline;
+        }
+        
+        .seccion {
+            margin: 20px 0;
+            border: 1px solid #000;
+            padding: 10px;
+        }
+        
+        .seccion-titulo {
+            font-size: 14px;
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .fila {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+        }
+        
+        .fila-destacada {
+            font-weight: bold;
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            padding: 5px 0;
+            margin: 5px 0;
+        }
+        
+        .tabla {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        
+        .tabla th {
+            background-color: #f0f0f0;
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: left;
+            font-weight: bold;
+        }
+        
+        .tabla td {
+            border: 1px solid #000;
+            padding: 5px;
+        }
+        
+        .tabla-subtotal {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        
+        .firmas {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .firma {
+            text-align: center;
+            width: 200px;
+        }
+        
+        .firma-linea {
+            border-top: 1px solid #000;
+            margin: 40px 0 5px 0;
+        }
+        
+        .alerta-diferencia {
+            background-color: #fff3cd;
+            border: 2px solid #ff0000;
+            padding: 10px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .pie-pagina {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            border-top: 1px solid #000;
+            padding-top: 10px;
+        }
+        
+        @media print {
+            body {
+                padding: 10px;
+            }
+            
+            .no-imprimir {
+                display: none !important;
+            }
+            
+            @page {
+                size: auto;
+                margin: 10mm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Botones de acción (no se imprimen) -->
+    <div class="no-imprimir" style="text-align: center; margin-bottom: 20px;">
+        <button onclick="window.print()" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+            <strong>🖨️ Imprimir</strong>
+        </button>
+        <button onclick="window.close()" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            <strong>✖️ Cerrar</strong>
+        </button>
+    </div>
+
+    <!-- Encabezado -->
+    <div class="header">
+        <div class="empresa-nombre">{{ empresa.razon_social|upper }}</div>
+        <div class="empresa-info">RUT: {{ empresa.rut }}</div>
+        <div class="empresa-info">{{ empresa.direccion }}</div>
+        <div class="empresa-info">{{ empresa.ciudad }}, {{ empresa.region }}</div>
+        <div class="empresa-info">Tel: {{ empresa.telefono }} | Email: {{ empresa.email }}</div>
+    </div>
+
+    <!-- Título -->
+    <div class="titulo-informe">
+        INFORME DE CIERRE DE CAJA
+    </div>
+
+    <!-- Información de la Caja -->
+    <div class="seccion">
+        <div class="seccion-titulo">📦 INFORMACIÓN DE CAJA</div>
+        <div class="fila">
+            <span>Caja:</span>
+            <span><strong>{{ apertura.caja.nombre }}</strong></span>
+        </div>
+        <div class="fila">
+            <span>Sucursal:</span>
+            <span>{{ apertura.caja.sucursal.nombre }}</span>
+        </div>
+        {% if apertura.caja.estacion_trabajo %}
+        <div class="fila">
+            <span>Estación de Trabajo:</span>
+            <span>{{ apertura.caja.estacion_trabajo.nombre }}</span>
+        </div>
+        {% endif %}
+        <div class="fila">
+            <span>Estado:</span>
+            <span><strong>{{ apertura.get_estado_display|upper }}</strong></span>
+        </div>
+    </div>
+
+    <!-- Información de Apertura/Cierre -->
+    <div class="seccion">
+        <div class="seccion-titulo">⏰ INFORMACIÓN DE TURNO</div>
+        <div class="fila">
+            <span>Usuario Apertura:</span>
+            <span>{{ apertura.usuario_apertura.get_full_name|default:apertura.usuario_apertura.username }}</span>
+        </div>
+        <div class="fila">
+            <span>Fecha/Hora Apertura:</span>
+            <span>{{ apertura.fecha_apertura|date:"d/m/Y H:i" }}</span>
+        </div>
+        {% if apertura.estado == 'cerrada' %}
+        <div class="fila">
+            <span>Usuario Cierre:</span>
+            <span>{{ apertura.usuario_cierre.get_full_name|default:apertura.usuario_cierre.username }}</span>
+        </div>
+        <div class="fila">
+            <span>Fecha/Hora Cierre:</span>
+            <span>{{ apertura.fecha_cierre|date:"d/m/Y H:i" }}</span>
+        </div>
+        <div class="fila">
+            <span>Duración del Turno:</span>
+            <span>{% widthratio apertura.fecha_cierre|timesince:apertura.fecha_apertura 1 1 %}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Resumen de Ventas por Forma de Pago -->
+    <div class="seccion">
+        <div class="seccion-titulo">💰 RESUMEN DE VENTAS POR FORMA DE PAGO</div>
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Forma de Pago</th>
+                    <th style="text-align: center;">Cantidad</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for forma_pago, datos in ventas_por_forma_pago.items %}
+                <tr>
+                    <td>{{ forma_pago }}</td>
+                    <td style="text-align: center;">{{ datos.cantidad }}</td>
+                    <td style="text-align: right;">${{ datos.total|floatformat:0 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" style="text-align: center; font-style: italic;">No hay ventas registradas</td>
+                </tr>
+                {% endfor %}
+                {% if ventas_por_forma_pago %}
+                <tr class="tabla-subtotal">
+                    <td>TOTAL VENTAS</td>
+                    <td style="text-align: center;">{{ ventas|length }}</td>
+                    <td style="text-align: right;">${{ apertura.total_ventas|floatformat:0 }}</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Detalle de Ventas -->
+    {% if ventas %}
+    <div class="seccion">
+        <div class="seccion-titulo">📋 DETALLE DE VENTAS</div>
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    <th>Ticket #</th>
+                    <th>Doc. #</th>
+                    <th>Tipo</th>
+                    <th>Forma Pago</th>
+                    <th style="text-align: right;">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for venta_proc in ventas %}
+                <tr>
+                    <td>{{ venta_proc.fecha_proceso|date:"H:i" }}</td>
+                    <td>{{ venta_proc.venta_preventa.numero_venta }}</td>
+                    <td>
+                        {% if venta_proc.venta_final %}
+                            {{ venta_proc.venta_final.numero_venta }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if venta_proc.venta_final %}
+                            {{ venta_proc.venta_final.get_tipo_documento_display }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ venta_proc.movimiento_caja.forma_pago.nombre|default:"-" }}</td>
+                    <td style="text-align: right;">${{ venta_proc.venta_final.total|floatformat:0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Movimientos de Caja -->
+    {% if movimientos %}
+    <div class="seccion">
+        <div class="seccion-titulo">🔄 MOVIMIENTOS DE CAJA</div>
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    <th>Tipo</th>
+                    <th>Concepto</th>
+                    <th style="text-align: right;">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mov in movimientos %}
+                <tr>
+                    <td>{{ mov.fecha|date:"H:i" }}</td>
+                    <td>
+                        {% if mov.tipo == 'ingreso' %}
+                            ↗️ INGRESO
+                        {% else %}
+                            ↘️ RETIRO
+                        {% endif %}
+                    </td>
+                    <td>{{ mov.descripcion|default:"Sin descripción" }}</td>
+                    <td style="text-align: right;">
+                        {% if mov.tipo == 'ingreso' %}
+                            +${{ mov.monto|floatformat:0 }}
+                        {% else %}
+                            -${{ mov.monto|floatformat:0 }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                <tr class="tabla-subtotal">
+                    <td colspan="3">TOTAL INGRESOS EXTRA</td>
+                    <td style="text-align: right;">+${{ ingresos_extra|floatformat:0 }}</td>
+                </tr>
+                <tr class="tabla-subtotal">
+                    <td colspan="3">TOTAL EGRESOS</td>
+                    <td style="text-align: right;">-${{ egresos_extra|floatformat:0 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Resumen Total -->
+    <div class="seccion">
+        <div class="seccion-titulo">💵 RESUMEN FINANCIERO</div>
+        <div class="fila">
+            <span>Monto Inicial:</span>
+            <span>${{ apertura.monto_inicial|floatformat:0 }}</span>
+        </div>
+        <div class="fila">
+            <span>Total Ventas:</span>
+            <span>${{ apertura.total_ventas|floatformat:0 }}</span>
+        </div>
+        {% if ingresos_extra > 0 %}
+        <div class="fila">
+            <span>Ingresos Extra:</span>
+            <span>+${{ ingresos_extra|floatformat:0 }}</span>
+        </div>
+        {% endif %}
+        {% if egresos_extra > 0 %}
+        <div class="fila">
+            <span>Egresos:</span>
+            <span>-${{ egresos_extra|floatformat:0 }}</span>
+        </div>
+        {% endif %}
+        <div class="fila fila-destacada">
+            <span>MONTO ESPERADO EN CAJA:</span>
+            <span>${{ apertura.monto_final|floatformat:0 }}</span>
+        </div>
+        
+        {% if apertura.estado == 'cerrada' and diferencia_caja != 0 %}
+        <div class="alerta-diferencia">
+            ⚠️ DIFERENCIA DE CAJA: ${{ diferencia_caja|floatformat:0 }}
+            {% if diferencia_caja > 0 %}
+                (SOBRA)
+            {% else %}
+                (FALTA)
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Observaciones -->
+    {% if apertura.observaciones or apertura.observaciones_cierre %}
+    <div class="seccion">
+        <div class="seccion-titulo">📝 OBSERVACIONES</div>
+        {% if apertura.observaciones %}
+        <div style="margin-bottom: 10px;">
+            <strong>Apertura:</strong><br>
+            {{ apertura.observaciones|linebreaks }}
+        </div>
+        {% endif %}
+        {% if apertura.observaciones_cierre %}
+        <div>
+            <strong>Cierre:</strong><br>
+            {{ apertura.observaciones_cierre|linebreaks }}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Firmas -->
+    {% if apertura.estado == 'cerrada' %}
+    <div class="firmas">
+        <div class="firma">
+            <div class="firma-linea"></div>
+            <div>{{ apertura.usuario_cierre.get_full_name|default:apertura.usuario_cierre.username }}</div>
+            <div style="font-size: 10px;">Cajero</div>
+        </div>
+        <div class="firma">
+            <div class="firma-linea"></div>
+            <div>_______________________</div>
+            <div style="font-size: 10px;">Supervisor/Encargado</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pie de página -->
+    <div class="pie-pagina">
+        Informe generado el {{ "now"|date:"d/m/Y H:i:s" }}
+        <br>
+        Sistema de Gestión Cloud - {{ empresa.razon_social }}
+    </div>
+
+    <script>
+        // Auto-imprimir al cargar (opcional)
+        // window.onload = function() { window.print(); };
+    </script>
+</body>
+</html>
+

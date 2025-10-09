@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.db.models import Q, Sum, Count, F
 from django.http import JsonResponse
@@ -21,6 +21,7 @@ from usuarios.decorators import requiere_empresa
 
 @login_required
 @requiere_empresa
+@permission_required('documentos.view_documento', raise_exception=True)
 def documento_compra_list(request):
     """Lista de documentos de compra"""
     # Obtener la empresa del usuario
@@ -121,6 +122,7 @@ def documento_compra_list(request):
 
 @login_required
 @requiere_empresa
+@permission_required('documentos.add_documento', raise_exception=True)
 def documento_compra_create(request):
     """Crear nuevo documento de compra"""
     # Obtener la empresa del usuario
@@ -249,6 +251,7 @@ def documento_compra_detail(request, pk):
 
 
 @login_required
+@permission_required('documentos.change_documento', raise_exception=True)
 def documento_compra_update(request, pk):
     """Editar documento de compra"""
     documento = get_object_or_404(DocumentoCompra, pk=pk)
@@ -305,6 +308,7 @@ def documento_compra_update(request, pk):
 
 
 @login_required
+@permission_required('documentos.delete_documento', raise_exception=True)
 def documento_compra_delete(request, pk):
     """Eliminar documento de compra"""
     documento = get_object_or_404(DocumentoCompra, pk=pk)

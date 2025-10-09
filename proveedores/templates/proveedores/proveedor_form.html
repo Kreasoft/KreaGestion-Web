@@ -1,279 +1,358 @@
 {% extends "base.html" %}
 {% load static %}
+{% load format_filters %}
 
 {% block title %}{{ title }}{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Paleta terrosa para proveedores */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .stat-card-1 {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+    }
+
+    .stat-card-2 {
+        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
+    }
+
+    .stat-card-3 {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    }
+
+    .filter-section {
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .compact-form .row {
+        margin-bottom: 8px;
+    }
+
+    .compact-form .mb-4 {
+        margin-bottom: 12px !important;
+    }
+
+    .compact-form .form-label {
+        margin-bottom: 4px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .nav-tabs-compact {
+        border-bottom: 2px solid #D4C4A8;
+        margin-bottom: 15px;
+    }
+
+    .nav-tabs-compact .nav-link {
+        border: none;
+        border-radius: 0;
+        padding: 8px 16px;
+        font-weight: 500;
+        font-size: 0.85rem;
+        color: #6F5B44;
+        background: transparent;
+    }
+
+    .nav-tabs-compact .nav-link.active {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+    }
+
+    .btn-compact {
+        padding: 6px 16px;
+        font-size: 0.8rem;
+        border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
-    <div class="row justify-content-center">
+    <div class="row">
         <div class="col-12">
-            <div class="card shadow-lg" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); color: white; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-truck me-3" style="font-size: 1.8rem; color: #F4E4BC;"></i>
-                                <div>
-                                    <h4 class="mb-1" style="font-weight: 600; font-size: 1.4rem; font-family: 'Poppins', sans-serif;">{{ title }}</h4>
-                                    <small style="font-size: 0.9rem; opacity: 0.9; font-family: 'Poppins', sans-serif;">Gestiona la información completa del proveedor</small>
-                                </div>
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+
+                <!-- HEADER PRINCIPAL -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-truck fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    {{ title }}
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Gestiona la información completa del proveedor
+                                </small>
                             </div>
                         </div>
-                        <div class="col-md-4 text-end">
-                            <a href="{% url 'proveedores:proveedor_list' %}" class="btn btn-light btn-sm" style="font-family: 'Poppins', sans-serif;">
-                                <i class="fas fa-arrow-left me-2"></i>Volver a Lista
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i>
+                            </button>
+                            <a href="{% url 'proveedores:proveedor_list' %}" class="btn btn-sm me-2" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
                             </a>
+                            <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-save me-1"></i> {{ submit_text }}
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Formulario con pestañas -->
-                <div class="card-body p-0">
-                    <form method="post" id="proveedorForm">
+                <div class="card-body" style="padding: 15px; background: #FAFAF8;">
+                    <form method="post" id="proveedorForm" class="compact-form">
                         {% csrf_token %}
-                        
-                        <!-- Pestañas -->
-                        <ul class="nav nav-tabs" id="proveedorTabs" role="tablist" style="border-bottom: 2px solid #e9ecef; margin: 0; font-family: 'Poppins', sans-serif;">
+
+                        <!-- Pestañas compactas -->
+                        <ul class="nav nav-tabs nav-tabs-compact" id="proveedorTabs" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="datos-basicos-tab" data-bs-toggle="tab" data-bs-target="#datos-basicos" type="button" role="tab" 
-                                        style="border: none; border-radius: 0; padding: 12px 20px; font-weight: 500; color: #495057; background: transparent; font-family: 'Poppins', sans-serif;">
-                                    <i class="fas fa-truck me-2"></i>Datos Básicos
+                                <button class="nav-link active" id="datos-basicos-tab" data-bs-toggle="tab" data-bs-target="#datos-basicos" type="button" role="tab">
+                                    <i class="fas fa-truck me-1"></i>Datos Básicos
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="datos-comerciales-tab" data-bs-toggle="tab" data-bs-target="#datos-comerciales" type="button" role="tab"
-                                        style="border: none; border-radius: 0; padding: 12px 20px; font-weight: 500; color: #495057; background: transparent; font-family: 'Poppins', sans-serif;">
-                                    <i class="fas fa-chart-line me-2"></i>Datos Comerciales
+                                <button class="nav-link" id="datos-comerciales-tab" data-bs-toggle="tab" data-bs-target="#datos-comerciales" type="button" role="tab">
+                                    <i class="fas fa-chart-line me-1"></i>Comerciales
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="contactos-tab" data-bs-toggle="tab" data-bs-target="#contactos" type="button" role="tab"
-                                        style="border: none; border-radius: 0; padding: 12px 20px; font-weight: 500; color: #495057; background: transparent; font-family: 'Poppins', sans-serif;">
-                                    <i class="fas fa-address-book me-2"></i>Contactos
+                                <button class="nav-link" id="contactos-tab" data-bs-toggle="tab" data-bs-target="#contactos" type="button" role="tab">
+                                    <i class="fas fa-address-book me-1"></i>Contactos
                                 </button>
                             </li>
                         </ul>
 
                         <!-- Contenido de las pestañas -->
-                        <div class="tab-content" id="proveedorTabsContent" style="padding: 20px; font-family: 'Poppins', sans-serif;">
+                        <div class="tab-content" id="proveedorTabsContent" style="font-family: 'Poppins', sans-serif;">
                             <!-- Pestaña 1: Datos Básicos -->
                             <div class="tab-pane fade show active" id="datos-basicos" role="tabpanel">
-                                <div class="row">
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.rut.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-id-card me-2" style="color: #8B4513;"></i>RUT *
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="{{ form.rut.id_for_label }}" class="form-label">
+                                            RUT *
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-id-card" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-id-card"></i>
                                             </div>
                                             {{ form.rut }}
-                                            <div class="input-group-text" id="rut-status" style="background-color: #f8f9fa; border-left: none;">
-                                                <i class="fas fa-question-circle" id="rut-icon" style="color: #6c757d;"></i>
-                                            </div>
                                         </div>
-                                        <div id="rut-help" class="form-text" style="color: #6c757d;">Ingrese RUT con o sin puntos: 12.345.678-9 o 12345678-9</div>
-                                        <div id="rut-error" class="text-danger mt-1" style="display: none;"></div>
+                                        <div class="form-text">Ingrese RUT con o sin puntos: 12.345.678-9 o 12345678-9</div>
                                         {% if form.rut.errors %}
-                                            <div class="text-danger mt-1">{{ form.rut.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.rut.errors.0 }}</div>
                                         {% endif %}
                                     </div>
                                     
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.nombre.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-truck me-2" style="color: #8B4513;"></i>Nombre del Proveedor *
+                                    <div class="col-md-6">
+                                        <label for="{{ form.nombre.id_for_label }}" class="form-label">
+                                            Nombre del Proveedor *
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-truck" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-truck"></i>
                                             </div>
                                             {{ form.nombre }}
                                         </div>
                                         {% if form.nombre.errors %}
-                                            <div class="text-danger mt-1">{{ form.nombre.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.nombre.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.razon_social.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-building me-2" style="color: #8B4513;"></i>Razón Social
+
+                                    <div class="col-md-6">
+                                        <label for="{{ form.razon_social.id_for_label }}" class="form-label">
+                                            Razón Social
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-building" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-building"></i>
                                             </div>
                                             {{ form.razon_social }}
                                         </div>
                                         {% if form.razon_social.errors %}
-                                            <div class="text-danger mt-1">{{ form.razon_social.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.razon_social.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.giro.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-industry me-2" style="color: #8B4513;"></i>Giro Comercial *
+
+                                    <div class="col-md-6">
+                                        <label for="{{ form.giro.id_for_label }}" class="form-label">
+                                            Giro Comercial *
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-industry" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-industry"></i>
                                             </div>
                                             {{ form.giro }}
                                         </div>
                                         {% if form.giro.errors %}
-                                            <div class="text-danger mt-1">{{ form.giro.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.giro.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.tipo_proveedor.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-tags me-2" style="color: #8B4513;"></i>Tipo de Proveedor
+
+                                    <div class="col-md-6">
+                                        <label for="{{ form.tipo_proveedor.id_for_label }}" class="form-label">
+                                            Tipo de Proveedor
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-tags" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-tags"></i>
                                             </div>
                                             {{ form.tipo_proveedor }}
                                         </div>
                                         {% if form.tipo_proveedor.errors %}
-                                            <div class="text-danger mt-1">{{ form.tipo_proveedor.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.tipo_proveedor.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.categoria_principal.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-folder me-2" style="color: #8B4513;"></i>Categoría Principal
+
+                                    <div class="col-md-6">
+                                        <label for="{{ form.categoria_principal.id_for_label }}" class="form-label">
+                                            Categoría Principal
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-folder" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-folder"></i>
                                             </div>
                                             {{ form.categoria_principal }}
                                         </div>
                                         {% if form.categoria_principal.errors %}
-                                            <div class="text-danger mt-1">{{ form.categoria_principal.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.categoria_principal.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.estado.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-circle me-2" style="color: #8B4513;"></i>Estado
+
+                                    <div class="col-md-6">
+                                        <label for="{{ form.estado.id_for_label }}" class="form-label">
+                                            Estado
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-circle" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-circle"></i>
                                             </div>
                                             {{ form.estado }}
                                         </div>
                                         {% if form.estado.errors %}
-                                            <div class="text-danger mt-1">{{ form.estado.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.estado.errors.0 }}</div>
                                         {% endif %}
                                     </div>
                                     
-                                    <div class="col-12 mb-4">
-                                        <label for="{{ form.direccion.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-map-marker-alt me-2" style="color: #8B4513;"></i>Dirección *
+                                    <div class="col-12">
+                                        <label for="{{ form.direccion.id_for_label }}" class="form-label">
+                                            Dirección *
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-map-marker-alt" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-map-marker-alt"></i>
                                             </div>
                                             {{ form.direccion }}
                                         </div>
                                         {% if form.direccion.errors %}
-                                            <div class="text-danger mt-1">{{ form.direccion.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.direccion.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-4 mb-4">
-                                        <label for="{{ form.comuna.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-map me-2" style="color: #8B4513;"></i>Comuna *
+
+                                    <div class="col-md-4">
+                                        <label for="{{ form.comuna.id_for_label }}" class="form-label">
+                                            Comuna *
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-map" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-map"></i>
                                             </div>
                                             {{ form.comuna }}
                                         </div>
                                         {% if form.comuna.errors %}
-                                            <div class="text-danger mt-1">{{ form.comuna.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.comuna.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-4 mb-4">
-                                        <label for="{{ form.ciudad.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-city me-2" style="color: #8B4513;"></i>Ciudad *
+
+                                    <div class="col-md-4">
+                                        <label for="{{ form.ciudad.id_for_label }}" class="form-label">
+                                            Ciudad *
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-city" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-city"></i>
                                             </div>
                                             {{ form.ciudad }}
                                         </div>
                                         {% if form.ciudad.errors %}
-                                            <div class="text-danger mt-1">{{ form.ciudad.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.ciudad.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-4 mb-4">
-                                        <label for="{{ form.region.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-globe me-2" style="color: #8B4513;"></i>Región *
+
+                                    <div class="col-md-4">
+                                        <label for="{{ form.region.id_for_label }}" class="form-label">
+                                            Región *
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-globe" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-globe"></i>
                                             </div>
                                             {{ form.region }}
                                         </div>
                                         {% if form.region.errors %}
-                                            <div class="text-danger mt-1">{{ form.region.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.region.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-4 mb-4">
-                                        <label for="{{ form.telefono.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-phone me-2" style="color: #8B4513;"></i>Teléfono *
+
+                                    <div class="col-md-4">
+                                        <label for="{{ form.telefono.id_for_label }}" class="form-label">
+                                            Teléfono *
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-phone" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-phone"></i>
                                             </div>
                                             {{ form.telefono }}
                                         </div>
                                         {% if form.telefono.errors %}
-                                            <div class="text-danger mt-1">{{ form.telefono.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.telefono.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-4 mb-4">
-                                        <label for="{{ form.email.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-envelope me-2" style="color: #8B4513;"></i>Email
+
+                                    <div class="col-md-4">
+                                        <label for="{{ form.email.id_for_label }}" class="form-label">
+                                            Email
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-envelope" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-envelope"></i>
                                             </div>
                                             {{ form.email }}
                                         </div>
                                         {% if form.email.errors %}
-                                            <div class="text-danger mt-1">{{ form.email.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.email.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-4 mb-4">
-                                        <label for="{{ form.sitio_web.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-globe me-2" style="color: #8B4513;"></i>Sitio Web
+
+                                    <div class="col-md-4">
+                                        <label for="{{ form.sitio_web.id_for_label }}" class="form-label">
+                                            Sitio Web
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-globe" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-globe"></i>
                                             </div>
                                             {{ form.sitio_web }}
                                         </div>
                                         {% if form.sitio_web.errors %}
-                                            <div class="text-danger mt-1">{{ form.sitio_web.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.sitio_web.errors.0 }}</div>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -281,94 +360,94 @@
                             
                             <!-- Pestaña 2: Datos Comerciales -->
                             <div class="tab-pane fade" id="datos-comerciales" role="tabpanel">
-                                <div class="row">
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.plazo_entrega.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-clock me-2" style="color: #8B4513;"></i>Plazo de Entrega
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="{{ form.plazo_entrega.id_for_label }}" class="form-label">
+                                            Plazo de Entrega
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-clock" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-clock"></i>
                                             </div>
                                             {{ form.plazo_entrega }}
                                         </div>
                                         {% if form.plazo_entrega.errors %}
-                                            <div class="text-danger mt-1">{{ form.plazo_entrega.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.plazo_entrega.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.condiciones_pago.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-credit-card me-2" style="color: #8B4513;"></i>Condiciones de Pago
+
+                                    <div class="col-md-6">
+                                        <label for="{{ form.condiciones_pago.id_for_label }}" class="form-label">
+                                            Condiciones de Pago
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-credit-card" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-credit-card"></i>
                                             </div>
                                             {{ form.condiciones_pago }}
                                         </div>
                                         {% if form.condiciones_pago.errors %}
-                                            <div class="text-danger mt-1">{{ form.condiciones_pago.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.condiciones_pago.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.descuento_porcentaje.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-percentage me-2" style="color: #8B4513;"></i>Descuento por Defecto (%)
+
+                                    <div class="col-md-6">
+                                        <label for="{{ form.descuento_porcentaje.id_for_label }}" class="form-label">
+                                            Descuento por Defecto (%)
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-percentage" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-percentage"></i>
                                             </div>
                                             {{ form.descuento_porcentaje }}
                                         </div>
                                         {% if form.descuento_porcentaje.errors %}
-                                            <div class="text-danger mt-1">{{ form.descuento_porcentaje.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.descuento_porcentaje.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-md-6 mb-4">
-                                        <label for="{{ form.calificacion.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-star me-2" style="color: #8B4513;"></i>Calificación (1-5)
+
+                                    <div class="col-md-6">
+                                        <label for="{{ form.calificacion.id_for_label }}" class="form-label">
+                                            Calificación (1-5)
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                <i class="fas fa-star" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-star"></i>
                                             </div>
                                             {{ form.calificacion }}
                                         </div>
                                         {% if form.calificacion.errors %}
-                                            <div class="text-danger mt-1">{{ form.calificacion.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.calificacion.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-12 mb-4">
-                                        <label for="{{ form.observaciones_calidad.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-clipboard-check me-2" style="color: #8B4513;"></i>Observaciones de Calidad
+
+                                    <div class="col-12">
+                                        <label for="{{ form.observaciones_calidad.id_for_label }}" class="form-label">
+                                            Observaciones de Calidad
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da; align-items: flex-start; padding-top: 12px;">
-                                                <i class="fas fa-clipboard-check" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-clipboard-check"></i>
                                             </div>
                                             {{ form.observaciones_calidad }}
                                         </div>
                                         {% if form.observaciones_calidad.errors %}
-                                            <div class="text-danger mt-1">{{ form.observaciones_calidad.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.observaciones_calidad.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    
-                                    <div class="col-12 mb-4">
-                                        <label for="{{ form.observaciones.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
-                                            <i class="fas fa-sticky-note me-2" style="color: #8B4513;"></i>Observaciones Generales
+
+                                    <div class="col-12">
+                                        <label for="{{ form.observaciones.id_for_label }}" class="form-label">
+                                            Observaciones Generales
                                         </label>
-                                        <div class="input-group">
-                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da; align-items: flex-start; padding-top: 12px;">
-                                                <i class="fas fa-sticky-note" style="color: #6c757d;"></i>
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-text">
+                                                <i class="fas fa-sticky-note"></i>
                                             </div>
                                             {{ form.observaciones }}
                                         </div>
                                         {% if form.observaciones.errors %}
-                                            <div class="text-danger mt-1">{{ form.observaciones.errors.0 }}</div>
+                                            <div class="text-danger small">{{ form.observaciones.errors.0 }}</div>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -376,12 +455,12 @@
                             
                             <!-- Pestaña 3: Contactos -->
                             <div class="tab-pane fade" id="contactos" role="tabpanel">
-                                <div class="row mb-4">
+                                <div class="row mb-3">
                                     <div class="col-12">
-                                        <h5 style="color: #2c3e50; font-weight: 600; border-bottom: 2px solid #8B4513; padding-bottom: 10px;">
+                                        <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 8px;">
                                             <i class="fas fa-address-book me-2" style="color: #8B4513;"></i>Contactos del Proveedor
-                                        </h5>
-                                        <p class="text-muted" style="font-size: 0.9rem;">Agrega los contactos principales del proveedor para facilitar la comunicación.</p>
+                                        </h6>
+                                        <p class="text-muted small">Agrega los contactos principales del proveedor.</p>
                                     </div>
                                 </div>
                                 
@@ -389,95 +468,81 @@
                                 
                                 <div id="contactos-container">
                                     {% for form_contacto in formset %}
-                                        <div class="contacto-form" style="border: 2px solid #e9ecef; border-radius: 10px; padding: 20px; margin-bottom: 20px; background: #f8f9fa;">
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
-                                                        <i class="fas fa-user me-2" style="color: #8B4513;"></i>Nombre del Contacto *
-                                                    </label>
+                                        <div class="contacto-form" style="border: 1px solid #D4C4A8; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #FAFAF8;">
+                                            <div class="row g-2">
+                                                <div class="col-md-6">
+                                                    <label class="form-label small">Nombre del Contacto *</label>
                                                     {{ form_contacto.nombre }}
                                                     {% if form_contacto.nombre.errors %}
-                                                        <div class="text-danger mt-1">{{ form_contacto.nombre.errors.0 }}</div>
+                                                        <div class="text-danger small">{{ form_contacto.nombre.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
-                                                
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
-                                                        <i class="fas fa-briefcase me-2" style="color: #8B4513;"></i>Cargo
-                                                    </label>
+
+                                                <div class="col-md-6">
+                                                    <label class="form-label small">Cargo</label>
                                                     {{ form_contacto.cargo }}
                                                     {% if form_contacto.cargo.errors %}
-                                                        <div class="text-danger mt-1">{{ form_contacto.cargo.errors.0 }}</div>
+                                                        <div class="text-danger small">{{ form_contacto.cargo.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
-                                                
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
-                                                        <i class="fas fa-tags me-2" style="color: #8B4513;"></i>Tipo de Contacto
-                                                    </label>
+
+                                                <div class="col-md-6">
+                                                    <label class="form-label small">Tipo de Contacto</label>
                                                     {{ form_contacto.tipo_contacto }}
                                                     {% if form_contacto.tipo_contacto.errors %}
-                                                        <div class="text-danger mt-1">{{ form_contacto.tipo_contacto.errors.0 }}</div>
+                                                        <div class="text-danger small">{{ form_contacto.tipo_contacto.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
-                                                
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
-                                                        <i class="fas fa-phone me-2" style="color: #8B4513;"></i>Teléfono
-                                                    </label>
+
+                                                <div class="col-md-6">
+                                                    <label class="form-label small">Teléfono</label>
                                                     {{ form_contacto.telefono }}
                                                     {% if form_contacto.telefono.errors %}
-                                                        <div class="text-danger mt-1">{{ form_contacto.telefono.errors.0 }}</div>
+                                                        <div class="text-danger small">{{ form_contacto.telefono.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
-                                                
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
-                                                        <i class="fas fa-mobile-alt me-2" style="color: #8B4513;"></i>Celular
-                                                    </label>
+
+                                                <div class="col-md-6">
+                                                    <label class="form-label small">Celular</label>
                                                     {{ form_contacto.celular }}
                                                     {% if form_contacto.celular.errors %}
-                                                        <div class="text-danger mt-1">{{ form_contacto.celular.errors.0 }}</div>
+                                                        <div class="text-danger small">{{ form_contacto.celular.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
-                                                
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
-                                                        <i class="fas fa-envelope me-2" style="color: #8B4513;"></i>Email
-                                                    </label>
+
+                                                <div class="col-md-6">
+                                                    <label class="form-label small">Email</label>
                                                     {{ form_contacto.email }}
                                                     {% if form_contacto.email.errors %}
-                                                        <div class="text-danger mt-1">{{ form_contacto.email.errors.0 }}</div>
+                                                        <div class="text-danger small">{{ form_contacto.email.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
-                                                
-                                                <div class="col-md-6 mb-3">
+
+                                                <div class="col-md-6">
                                                     <div class="form-check">
                                                         {{ form_contacto.es_contacto_principal }}
-                                                        <label class="form-check-label" for="{{ form_contacto.es_contacto_principal.id_for_label }}" style="font-weight: 600; color: #495057;">
-                                                            <i class="fas fa-star me-2" style="color: #ffc107;"></i>Es Contacto Principal
+                                                        <label class="form-check-label small" for="{{ form_contacto.es_contacto_principal.id_for_label }}">
+                                                            Es Contacto Principal
                                                         </label>
                                                     </div>
                                                 </div>
-                                                
-                                                <div class="col-md-6 mb-3">
+
+                                                <div class="col-md-6">
                                                     {% if form_contacto.DELETE %}
                                                         <div class="form-check">
                                                             {{ form_contacto.DELETE }}
-                                                            <label class="form-check-label" for="{{ form_contacto.DELETE.id_for_label }}" style="font-weight: 600; color: #dc3545;">
-                                                                <i class="fas fa-trash me-2"></i>Eliminar Contacto
+                                                            <label class="form-check-label small text-danger" for="{{ form_contacto.DELETE.id_for_label }}">
+                                                                Eliminar Contacto
                                                             </label>
                                                         </div>
                                                     {% endif %}
                                                 </div>
-                                                
-                                                <div class="col-12 mb-3">
-                                                    <label class="form-label" style="font-weight: 600; color: #495057;">
-                                                        <i class="fas fa-sticky-note me-2" style="color: #8B4513;"></i>Observaciones
-                                                    </label>
+
+                                                <div class="col-12">
+                                                    <label class="form-label small">Observaciones</label>
                                                     {{ form_contacto.observaciones }}
                                                     {% if form_contacto.observaciones.errors %}
-                                                        <div class="text-danger mt-1">{{ form_contacto.observaciones.errors.0 }}</div>
+                                                        <div class="text-danger small">{{ form_contacto.observaciones.errors.0 }}</div>
                                                     {% endif %}
                                                 </div>
                                             </div>
@@ -485,20 +550,10 @@
                                     {% endfor %}
                                 </div>
                                 
-                                <button type="button" class="btn btn-outline-primary" id="add-contacto" style="border-radius: 8px; font-family: 'Poppins', sans-serif;">
-                                    <i class="fas fa-plus me-2"></i>Agregar Contacto
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="add-contacto">
+                                    <i class="fas fa-plus me-1"></i>Agregar Contacto
                                 </button>
                             </div>
-                        </div>
-                        
-                        <!-- Botones de acción -->
-                        <div class="card-footer" style="background: #f8f9fa; border: none; padding: 20px; text-align: right;">
-                            <a href="{% url 'proveedores:proveedor_list' %}" class="btn btn-secondary me-2" style="border-radius: 8px; font-family: 'Poppins', sans-serif;">
-                                <i class="fas fa-times me-2"></i>Cancelar
-                            </a>
-                            <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); border: none; color: white; border-radius: 8px; font-family: 'Poppins', sans-serif;">
-                                <i class="fas fa-save me-2"></i>{{ submit_text }}
-                            </button>
                         </div>
                     </form>
                 </div>

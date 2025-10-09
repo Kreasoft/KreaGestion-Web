@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura Electrónica - {{ dte.folio|default:venta.numero_venta }}</title>
+
+    {% load format_filters %}
+
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 8pt;
+            line-height: 1.1;
+            color: #000;
+            margin: 0;
+            padding: 8px;
+        }
+
+        .factura-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 8px;
+        }
+
+        /* Cabecera */
+        .header-section {
+            display: table;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .header-left {
+            display: table-cell;
+            width: 55%;
+            vertical-align: top;
+            padding-right: 8px;
+        }
+
+        .header-right {
+            display: table-cell;
+            width: 45%;
+            vertical-align: top;
+        }
+
+        .document-box {
+            border: 3px solid #c00;
+            border-radius: 8px;
+            padding: 8px 6px;
+            text-align: center;
+            background: #fff;
+        }
+
+        .document-rut {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+        }
+
+        .document-type {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+            line-height: 1.1;
+        }
+
+        .document-folio {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+        }
+
+        .document-sii {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #c00;
+        }
+
+        .company-logo {
+            max-width: 80px;
+            margin-bottom: 6px;
+        }
+
+        .company-info {
+            font-size: 7pt;
+            line-height: 1.2;
+            color: #333;
+        }
+
+        .company-name {
+            font-size: 9pt;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .fecha-emision {
+            text-align: right;
+            font-size: 7pt;
+            margin-bottom: 6px;
+        }
+
+        /* Sección del Receptor */
+        .receptor-section {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            margin-bottom: 8px;
+            background: #f9f9f9;
+        }
+
+        .receptor-grid {
+            display: table;
+            width: 100%;
+            font-size: 7pt;
+        }
+
+        .receptor-row {
+            display: table-row;
+        }
+
+        .receptor-cell {
+            display: table-cell;
+            padding: 1px 3px;
+            width: 25%;
+        }
+
+        .receptor-label {
+            font-weight: bold;
+            background: #e0e0e0;
+            padding: 1px 3px;
+            display: inline-block;
+            min-width: 45px;
+            border-radius: 2px;
+            font-size: 7pt;
+        }
+
+        /* Tabla de Detalle */
+        .detalle-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 7pt;
+            border: 1px solid #ddd;
+        }
+
+        .detalle-table thead {
+            background: #d0d0d0;
+        }
+
+        .detalle-table th {
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            padding: 3px 2px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 6pt;
+        }
+
+        .detalle-table th:last-child {
+            border-right: none;
+        }
+
+        .detalle-table td {
+            border-right: 1px solid #eee;
+            padding: 2px 2px;
+            vertical-align: top;
+        }
+
+        .detalle-table td:last-child {
+            border-right: none;
+        }
+
+        /* Sección Inferior */
+        .footer-section {
+            display: table;
+            width: 100%;
+        }
+
+        .footer-left {
+            display: table-cell;
+            width: 45%;
+            vertical-align: top;
+            padding-right: 6px;
+        }
+
+        .footer-right {
+            display: table-cell;
+            width: 55%;
+            vertical-align: top;
+        }
+
+        .timbre-box {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        .timbre-info {
+            font-size: 5pt;
+            color: #666;
+            margin-top: 3px;
+            line-height: 1.2;
+        }
+
+        .totales-box {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #f9f9f9;
+            margin-bottom: 6px;
+        }
+
+        .totales-header {
+            background: #d0d0d0;
+            padding: 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 8pt;
+            border-bottom: 1px solid #ddd;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .totales-content {
+            padding: 4px 6px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 1px 0;
+            font-size: 7pt;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .total-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 8pt;
+            padding-top: 2px;
+        }
+
+        .total-label {
+            font-weight: bold;
+        }
+
+        .total-value {
+            text-align: right;
+        }
+
+        .acuse-box {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #f9f9f9;
+            margin-bottom: 6px;
+        }
+
+        .acuse-header {
+            background: #d0d0d0;
+            padding: 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 8pt;
+            border-bottom: 1px solid #ddd;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .acuse-content {
+            padding: 4px 6px;
+            min-height: 50px;
+        }
+
+        .acuse-field {
+            font-size: 6pt;
+            color: #666;
+            margin-bottom: 2px;
+        }
+
+        .disclaimer {
+            font-size: 5pt;
+            color: #666;
+            text-align: center;
+            margin-top: 4px;
+            font-style: italic;
+            line-height: 1.1;
+        }
+
+        .cedible {
+            text-align: right;
+            font-size: 7pt;
+            font-weight: bold;
+            color: #c00;
+            margin-top: 6px;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            .factura-container {
+                max-width: none;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="factura-container">
+
+        <!-- CABECERA -->
+        <div class="header-section">
+            <!-- Datos del Emisor -->
+            <div class="header-left">
+                {% if venta.empresa.logo %}
+                <img src="{{ venta.empresa.logo.url }}" alt="{{ venta.empresa.nombre }}" class="company-logo">
+                {% endif %}
+
+                <div class="company-name">{{ venta.empresa.nombre }}</div>
+                <div class="company-info">
+                    <strong>Casa Matriz:</strong> {{ venta.empresa.get_direccion_dte }}<br>
+                    <strong>{{ venta.empresa.get_ciudad_dte }}</strong><br>
+                    Fono: {{ venta.empresa.telefono|default:"Sin teléfono" }}
+                </div>
+            </div>
+
+            <!-- Cuadro del Documento -->
+            <div class="header-right">
+                <div class="document-box">
+                    <div class="document-rut">RUT: {{ venta.empresa.rut }}</div>
+                    <div class="document-type">FACTURA ELECTRÓNICA</div>
+                    <div class="document-folio">N° {{ dte.folio|default:venta.numero_venta|stringformat:"08d" }}</div>
+                    <div class="document-sii">SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FECHA -->
+        <div class="fecha-emision">
+            <strong>Fecha:</strong>
+            {% load l10n %}
+            {{ venta.fecha|date:"l, d \d\e F \d\e Y"|capfirst }}
+        </div>
+
+        <!-- DATOS DEL RECEPTOR -->
+        <div class="receptor-section">
+            <div class="receptor-grid">
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Señor(es):</span>
+                    </div>
+                    <div class="receptor-cell" colspan="3" style="padding-left: 0px; text-align: left;">
+                        <strong>{{ venta.cliente.nombre|default:"Cliente General" }}</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="receptor-grid">
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Dirección</span>
+                    </div>
+                    <div class="receptor-cell">
+                        {{ venta.cliente.direccion|default:"-" }}
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">RUT</span>
+                    </div>
+                    <div class="receptor-cell">
+                        {{ venta.cliente.rut|default:"-" }}
+                    </div>
+                </div>
+            </div>
+            <div class="receptor-grid">
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Giro</span>
+                    </div>
+                    <div class="receptor-cell">
+                        {{ venta.cliente.giro|default:"Sin especificar" }}
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Ciudad</span>
+                    </div>
+                    <div class="receptor-cell">
+                        {{ venta.cliente.ciudad|default:"-" }}
+                    </div>
+                </div>
+            </div>
+            <div class="receptor-grid">
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Comuna</span>
+                    </div>
+                    <div class="receptor-cell">
+                        {{ venta.cliente.comuna|default:"-" }}
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Fecha Vto.</span>
+                    </div>
+                    <div class="receptor-cell">
+                        {{ venta.fecha|date:"d/m/Y" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DETALLE DE PRODUCTOS -->
+        <table class="detalle-table">
+            <thead>
+                <tr>
+                    <th class="col-afecto">Código</th>
+                    <th class="col-detalle">Detalle</th>
+                    <th class="col-cantidad">Cantidad</th>
+                    <th class="col-precio">Precio</th>
+                    <th class="col-descuento">Descuento/Recargo</th>
+                    <th class="col-monto">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detalle in detalles %}
+                <tr>
+                    <td class="col-afecto">{{ detalle.articulo.codigo }}</td>
+                    <td class="col-detalle">{{ detalle.articulo.nombre }}</td>
+                    <td class="col-cantidad">{{ detalle.cantidad|floatformat:0 }}</td>
+                    <td class="col-precio">${{ detalle.precio_unitario|format_miles }}</td>
+                    <td class="col-descuento">
+                        {% if detalle.descuento > 0 %}
+                            -${{ detalle.descuento|format_miles }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="col-monto">${{ detalle.precio_total|format_miles }}</td>
+                </tr>
+                {% endfor %}
+
+                <!-- Rellenar filas vacías para mantener el formato -->
+                {% for i in "123456789" %}
+                {% if forloop.counter > detalles|length %}
+                <tr>
+                    <td class="col-afecto">&nbsp;</td>
+                    <td class="col-detalle">&nbsp;</td>
+                    <td class="col-cantidad">&nbsp;</td>
+                    <td class="col-precio">&nbsp;</td>
+                    <td class="col-descuento">&nbsp;</td>
+                    <td class="col-monto">&nbsp;</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- SECCIÓN INFERIOR: TIMBRE Y TOTALES -->
+        <div class="footer-section">
+            <!-- Timbre Electrónico -->
+            <div class="footer-left">
+                <div class="timbre-box">
+                    {% if dte and dte.timbre_pdf417 %}
+                    <img src="data:image/png;base64,{{ dte.timbre_pdf417 }}" alt="Timbre Electrónico" class="timbre-image">
+                    {% else %}
+                    <div style="padding: 30px; background: #f5f5f5; border: 2px dashed #999;">
+                        <div style="font-size: 7pt; color: #666;">
+                            ██████████████████<br>
+                            █ ██ █ █ ██ █ ██ █<br>
+                            █ ███ ██ █ ██ █ ██<br>
+                            ██ █ ██ █ ██ ██ ██<br>
+                            ██████████████████<br>
+                            <strong>TIMBRE ELECTRÓNICO SII</strong>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="timbre-info">
+                        <strong>Timbre Electrónico SII</strong><br>
+                        Res. Ex. SII N° {{ venta.empresa.resolucion_numero|default:"80" }} del {{ venta.empresa.resolucion_fecha|date:"d-m-Y"|default:"22-08-2014" }}<br>
+                        Verifique documento en: www.sii.cl
+                    </div>
+                </div>
+                <div class="disclaimer">
+                    El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la Ley N° 19.983, acredita que la entrega de mercadería(s) o servicio(s) prestado(s), ha(n) sido recibido(s)
+                </div>
+            </div>
+
+            <!-- Totales y Acuse de Recibo -->
+            <div class="footer-right">
+                <!-- TOTALES -->
+                <div class="totales-box">
+                    <div class="totales-header">TOTALES</div>
+                    <div class="totales-content">
+                        <div class="total-row">
+                            <span class="total-label">Neto Afecto</span>
+                            <span class="total-value">${{ venta.subtotal|format_miles }}</span>
+                        </div>
+                        {% if venta.descuento > 0 %}
+                        <div class="total-row">
+                            <span class="total-label">Descuento Neto</span>
+                            <span class="total-value">-${{ venta.descuento|format_miles }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="total-row">
+                            <span class="total-label">Neto</span>
+                            <span class="total-value">${{ venta.neto|format_miles }}</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">IVA (19%)</span>
+                            <span class="total-value">${{ venta.iva|format_miles }}</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">TOTAL</span>
+                            <span class="total-value">${{ venta.total|format_miles }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACUSE DE RECIBO -->
+                <div class="acuse-box">
+                    <div class="acuse-header">ACUSE DE RECIBO</div>
+                    <div class="acuse-content">
+                        <div class="acuse-field">Nombre: _______________________________</div>
+                        <div class="acuse-field">RUT: ___________________________________</div>
+                        <div class="acuse-field">Fecha: _________________________________</div>
+                        <div class="acuse-field">Recinto: _______________________________</div>
+                        <div class="acuse-field">Firma: _________________________________</div>
+                    </div>
+                </div>
+
+                <div class="cedible">CEDIBLE</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Botones de acción (solo en pantalla) -->
+    <div class="no-print" style="text-align: center; margin-top: 20px;">
+        <button onclick="window.print()" style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
+            🖨️ Imprimir Factura
+        </button>
+        <button onclick="window.close()" style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
+            ✗ Cerrar
+        </button>
+    </div>
+
+</body>
+</html>

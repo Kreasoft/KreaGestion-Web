@@ -1,5 +1,5 @@
 """
-Middleware para manejo de multi-tenancy
+Middleware para manejo de multi-tenancy con persistencia mejorada
 """
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -10,7 +10,7 @@ from django.conf import settings
 class EmpresaMiddleware:
 	"""
 	Middleware que identifica automáticamente la empresa del usuario
-	y la agrega al request para uso en vistas
+	y la agrega al request para uso en vistas con persistencia mejorada
 	"""
 	def __init__(self, get_response):
 		self.get_response = get_response
@@ -21,20 +21,39 @@ class EmpresaMiddleware:
 			if request.user.is_superuser:
 				# Superusuario puede acceder a todas las empresas
 				from empresas.models import Empresa
-				# Verificar si hay una empresa seleccionada en la sesión
+				
+				# MEJORADO: Intentar obtener empresa desde múltiples fuentes (orden de prioridad)
+				empresa_id = None
+				
+				# 1. Desde la sesión (más prioritario)
 				empresa_id = request.session.get('empresa_activa_id')
+				
+				# 2. Si no está en sesión, intentar desde cookie
+				if not empresa_id:
+					empresa_id = request.COOKIES.get('empresa_activa_id')
+					if empresa_id:
+						try:
+							empresa_id = int(empresa_id)
+						except (ValueError, TypeError):
+							empresa_id = None
+				
+				# 3. Intentar obtener la empresa
 				if empresa_id:
 					try:
 						request.empresa = Empresa.objects.get(id=empresa_id)
+						# Asegurar que está en la sesión
+						request.session['empresa_activa_id'] = request.empresa.id
+						# Marcar sesión como modificada para forzar guardado
+						request.session.modified = True
 					except Empresa.DoesNotExist:
-						request.empresa = Empresa.objects.first()
-						if request.empresa:
-							request.session['empresa_activa_id'] = request.empresa.id
-				else:
-					# Asignar la primera empresa disponible
+						empresa_id = None
+				
+				# 4. Si no se encontró, asignar la primera disponible
+				if not empresa_id:
 					request.empresa = Empresa.objects.first()
 					if request.empresa:
 						request.session['empresa_activa_id'] = request.empresa.id
+						request.session.modified = True
 			else:
 				# Usuario normal debe tener un perfil con empresa
 				try:
@@ -53,16 +72,28 @@ class EmpresaMiddleware:
 							)
 							request.empresa = perfil.empresa
 							if created:
-								print(f"Perfil creado automáticamente para {request.user.username}")
+								print(f"✓ Perfil creado automáticamente para {request.user.username}")
 						else:
 							request.empresa = None
 				except Exception as e:
-					print(f"Error en middleware: {e}")
+					print(f"✗ Error en middleware: {e}")
 					request.empresa = None
 		else:
 			request.empresa = None
 
 		response = self.get_response(request)
+		
+		# MEJORADO: Guardar empresa en cookie para mayor persistencia (solo para superusuarios)
+		if request.user.is_authenticated and request.user.is_superuser and hasattr(request, 'empresa') and request.empresa:
+			# Cookie con duración de 30 días
+			response.set_cookie(
+				'empresa_activa_id', 
+				request.empresa.id,
+				max_age=30*24*60*60,  # 30 días
+				httponly=True,  # No accesible por JavaScript
+				samesite='Lax'  # Protección CSRF
+			)
+		
 		return response
 
 

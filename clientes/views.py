@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Count, Sum
@@ -42,6 +42,7 @@ def obtener_empresa_usuario(request):
 
 
 @login_required
+@permission_required('clientes.view_cliente', raise_exception=True)
 def cliente_list(request):
     """Lista de clientes con estadísticas"""
     # Obtener la empresa del usuario
@@ -110,6 +111,7 @@ def cliente_list(request):
 
 
 @login_required
+@permission_required('clientes.view_cliente', raise_exception=True)
 def cliente_detail(request, pk):
     """Detalle de cliente"""
     # Obtener la empresa del usuario
@@ -136,6 +138,7 @@ def cliente_detail(request, pk):
 
 
 @login_required
+@permission_required('clientes.add_cliente', raise_exception=True)
 def cliente_create(request):
     """Crear nuevo cliente"""
     # Obtener la empresa del usuario
@@ -153,38 +156,28 @@ def cliente_create(request):
             messages.error(request, 'Usuario no tiene empresa asociada.')
             return redirect('clientes:cliente_list')
     
-    ContactoFormSet = inlineformset_factory(
-        Cliente, ContactoCliente, 
-        form=ContactoClienteForm,
-        formset=ContactoClienteInlineFormSet,
-        extra=1,
-        can_delete=True,
-        fields=['nombre', 'cargo', 'tipo_contacto', 'telefono', 'celular', 'email', 'observaciones', 'es_contacto_principal']
-    )
-    
     if request.method == 'POST':
         form = ClienteForm(request.POST, empresa=empresa)
-        formset = ContactoFormSet(request.POST)
         
-        if form.is_valid() and formset.is_valid():
-            cliente = form.save(commit=False)
-            cliente.empresa = empresa
-            cliente.creado_por = request.user
-            cliente.save()
-            
-            # Guardar contactos
-            formset.instance = cliente
-            formset.save()
-            
-            messages.success(request, f'Cliente "{cliente.nombre}" creado exitosamente.')
-            return redirect('clientes:cliente_detail', pk=cliente.pk)
+        if not form.is_valid():
+            messages.error(request, 'Por favor corrija los errores del formulario.')
+        
+        if form.is_valid():
+            try:
+                cliente = form.save(commit=False)
+                cliente.empresa = empresa
+                cliente.creado_por = request.user
+                cliente.save()
+                
+                messages.success(request, f'Cliente "{cliente.nombre}" creado exitosamente.')
+                return redirect('clientes:cliente_list')
+            except Exception as e:
+                messages.error(request, f'Error al guardar el cliente: {str(e)}')
     else:
         form = ClienteForm(empresa=empresa)
-        formset = ContactoFormSet()
     
     context = {
         'form': form,
-        'formset': formset,
         'title': 'Crear Cliente',
         'submit_text': 'Crear Cliente',
     }
@@ -193,6 +186,7 @@ def cliente_create(request):
 
 
 @login_required
+@permission_required('clientes.change_cliente', raise_exception=True)
 def cliente_update(request, pk):
     """Editar cliente"""
     # Obtener la empresa del usuario
@@ -242,6 +236,7 @@ def cliente_update(request, pk):
 
 
 @login_required
+@permission_required('clientes.delete_cliente', raise_exception=True)
 def cliente_delete(request, pk):
     """Eliminar cliente"""
     # Obtener la empresa del usuario
@@ -266,6 +261,7 @@ def cliente_delete(request, pk):
 
 
 @login_required
+@permission_required('clientes.add_contactocliente', raise_exception=True)
 def contacto_create(request, cliente_id):
     """Crear contacto en modal"""
     cliente = get_object_or_404(Cliente, id=cliente_id)
@@ -290,6 +286,7 @@ def contacto_create(request, cliente_id):
 
 
 @login_required
+@permission_required('clientes.change_contactocliente', raise_exception=True)
 def contacto_update(request, cliente_id, contacto_id):
     """Editar contacto en modal"""
     cliente = get_object_or_404(Cliente, id=cliente_id)
@@ -314,6 +311,7 @@ def contacto_update(request, cliente_id, contacto_id):
 
 
 @login_required
+@permission_required('clientes.delete_contactocliente', raise_exception=True)
 def contacto_delete(request, cliente_id, contacto_id):
     """Eliminar contacto"""
     cliente = get_object_or_404(Cliente, id=cliente_id)

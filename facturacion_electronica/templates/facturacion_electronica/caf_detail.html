@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Detalle CAF - {{ caf.get_tipo_documento_display }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>
+                <i class="fas fa-file-invoice"></i> Detalle del CAF
+            </h2>
+            <p class="text-muted">{{ caf.get_tipo_documento_display }}</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'facturacion_electronica:caf_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Estado del CAF -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card {% if caf.estado == 'activo' %}border-success{% elif caf.estado == 'agotado' %}border-warning{% else %}border-danger{% endif %}">
+                <div class="card-body">
+                    <h5>Estado: 
+                        {% if caf.estado == 'activo' %}
+                            <span class="badge bg-success">Activo</span>
+                        {% elif caf.estado == 'agotado' %}
+                            <span class="badge bg-warning text-dark">Agotado</span>
+                        {% elif caf.estado == 'anulado' %}
+                            <span class="badge bg-danger">Anulado</span>
+                        {% endif %}
+                    </h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información del CAF -->
+    <div class="row">
+        <!-- Información General -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header" style="background-color: #f8f9fa;">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Información General</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th style="width: 40%;">Tipo de Documento:</th>
+                            <td><strong>{{ caf.get_tipo_documento_display }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Código:</th>
+                            <td>{{ caf.tipo_documento }}</td>
+                        </tr>
+                        <tr>
+                            <th>Fecha Autorización:</th>
+                            <td>{{ caf.fecha_autorizacion|date:"d/m/Y" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Fecha Carga:</th>
+                            <td>{{ caf.fecha_carga|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Cargado por:</th>
+                            <td>{{ caf.usuario_carga.get_full_name|default:caf.usuario_carga.username }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información de Folios -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header" style="background-color: #f8f9fa;">
+                    <h5 class="mb-0"><i class="fas fa-list-ol"></i> Información de Folios</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th style="width: 40%;">Folio Desde:</th>
+                            <td><span class="badge bg-secondary">{{ caf.folio_desde }}</span></td>
+                        </tr>
+                        <tr>
+                            <th>Folio Hasta:</th>
+                            <td><span class="badge bg-secondary">{{ caf.folio_hasta }}</span></td>
+                        </tr>
+                        <tr>
+                            <th>Cantidad Total:</th>
+                            <td><strong>{{ caf.cantidad_folios }}</strong> folios</td>
+                        </tr>
+                        <tr>
+                            <th>Folios Utilizados:</th>
+                            <td><span class="badge bg-info">{{ caf.folios_utilizados }}</span></td>
+                        </tr>
+                        <tr>
+                            <th>Folios Disponibles:</th>
+                            <td><span class="badge bg-success">{{ caf.folios_disponibles }}</span></td>
+                        </tr>
+                        <tr>
+                            <th>Folio Actual:</th>
+                            <td>{{ caf.folio_actual }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progreso de Uso -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header" style="background-color: #f8f9fa;">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Progreso de Uso</h5>
+                </div>
+                <div class="card-body">
+                    {% widthratio caf.folios_utilizados caf.cantidad_folios 100 as porcentaje %}
+                    <div class="progress" style="height: 30px;">
+                        <div class="progress-bar {% if porcentaje < 50 %}bg-success{% elif porcentaje < 80 %}bg-info{% elif porcentaje < 95 %}bg-warning{% else %}bg-danger{% endif %}" 
+                             role="progressbar" 
+                             style="width: {{ porcentaje }}%;" 
+                             aria-valuenow="{{ porcentaje }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            {{ porcentaje }}% utilizado
+                        </div>
+                    </div>
+                    <p class="text-muted mt-2 mb-0">
+                        <small>{{ caf.folios_utilizados }} de {{ caf.cantidad_folios }} folios utilizados ({{ caf.folios_disponibles }} disponibles)</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Archivo XML -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header" style="background-color: #f8f9fa;">
+                    <h5 class="mb-0"><i class="fas fa-file-code"></i> Archivo XML</h5>
+                </div>
+                <div class="card-body">
+                    {% if caf.archivo_xml %}
+                    <p><i class="fas fa-file-alt"></i> <strong>Archivo:</strong> {{ caf.archivo_xml.name }}</p>
+                    <a href="{{ caf.archivo_xml.url }}" class="btn btn-sm btn-primary" download>
+                        <i class="fas fa-download"></i> Descargar XML
+                    </a>
+                    {% else %}
+                    <p class="text-muted">No hay archivo XML disponible</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ajustar Folio Actual -->
+    {% if caf.estado == 'activo' %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-edit"></i> Ajustar Folio Actual</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">
+                        Si has usado folios de este CAF en otro sistema, puedes ajustar el folio actual para evitar duplicados.
+                    </p>
+                    
+                    <form method="post" action="{% url 'facturacion_electronica:caf_ajustar_folio' caf.pk %}">
+                        {% csrf_token %}
+                        <div class="row align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label"><strong>Próximo Folio a Usar:</strong></label>
+                                <input type="number" 
+                                       name="nuevo_folio" 
+                                       class="form-control" 
+                                       min="{{ caf.folio_desde }}" 
+                                       max="{{ caf.folio_hasta|add:1 }}"
+                                       value="{{ caf.folio_actual|add:1 }}"
+                                       required>
+                                <small class="form-text text-muted">
+                                    Rango permitido: {{ caf.folio_desde }} - {{ caf.folio_hasta }}
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="fas fa-save"></i> Actualizar Folio Actual
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3 mb-0">
+                            <strong>Ejemplo:</strong> Si ya usaste los folios 1 al 25 en otro sistema, 
+                            ingresa <strong>26</strong> para que el sistema empiece desde ahí.
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Acciones -->
+    {% if caf.estado == 'activo' and caf.folios_utilizados == 0 %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Zona de Peligro</h5>
+                </div>
+                <div class="card-body">
+                    <p>Este CAF está activo y no ha sido utilizado. Si lo anulas, no podrás usar estos folios.</p>
+                    <a href="{% url 'facturacion_electronica:caf_anular' caf.pk %}" class="btn btn-danger">
+                        <i class="fas fa-ban"></i> Anular este CAF
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+

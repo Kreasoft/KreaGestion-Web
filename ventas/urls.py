@@ -2,6 +2,7 @@
 URLs para el módulo de ventas
 """
 from django.urls import path
+from django.shortcuts import render
 from . import views
 
 app_name = 'ventas'
@@ -46,8 +47,20 @@ urlpatterns = [
     path('pos/crear-cliente/', views.pos_crear_cliente, name='pos_crear_cliente'),
     path('pos/procesar-preventa/', views.pos_procesar_preventa, name='pos_procesar_preventa'),
     
-    # Vales
+    # Vales/Tickets
     path('vales/<int:pk>/html/', views.vale_html, name='vale_html'),
+    path('tickets/', views.ticket_list, name='ticket_list'),
+    path('tickets/<int:pk>/', views.ticket_detail, name='ticket_detail'),
+    path('tickets/<int:pk>/reimprimir/', views.ticket_reimprimir, name='ticket_reimprimir'),
+    
+    # Vista genérica de venta (auto-detecta tipo de documento)
+    path('ventas/<int:pk>/html/', views.venta_html, name='venta_html'),
+    
+    # API para POS - Historial tickets del día
+    path('pos/tickets-hoy/', views.pos_tickets_hoy, name='pos_tickets_hoy'),
+    
+    # TEST - Página de prueba para crear cliente
+    path('test-crear-cliente/', lambda request: render(request, 'ventas/test_crear_cliente.html'), name='test_crear_cliente'),
     
     # Cotizaciones
     path('cotizaciones/', views.cotizacion_list, name='cotizacion_list'),
@@ -57,4 +70,7 @@ urlpatterns = [
     path('cotizaciones/<int:pk>/debug/', views.cotizacion_html_debug, name='cotizacion_html_debug'),
     path('cotizaciones/<int:pk>/cambiar-estado/', views.cotizacion_cambiar_estado, name='cotizacion_cambiar_estado'),
     path('cotizaciones/<int:pk>/convertir-venta/', views.cotizacion_convertir_venta, name='cotizacion_convertir_venta'),
+    
+    # Libro de Ventas
+    path('libro-ventas/', views.libro_ventas, name='libro_ventas'),
 ]

@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load fe_tags %}
+
+{% block title %}Archivos CAF - Facturación Electrónica{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>
+                <i class="fas fa-file-invoice"></i> Archivos CAF
+                <small class="text-muted">Códigos de Autorización de Folios</small>
+            </h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'facturacion_electronica:alertas_folios_config' %}" class="btn btn-warning me-2">
+                <i class="fas fa-bell"></i> Configurar Alertas
+            </a>
+            <a href="{% url 'facturacion_electronica:caf_create' %}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Cargar Nuevo CAF
+            </a>
+        </div>
+    </div>
+
+    <!-- Alertas de Vencimiento y Folios -->
+    {% for caf in archivos_caf %}
+        {% if caf.estado == 'activo' and caf.folios_disponibles > 0 %}
+            {% with umbral=alertas_config|get_item:caf.tipo_documento %}
+                {% if umbral and caf.folios_disponibles <= umbral %}
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>¡Folios por agotarse!</strong> El CAF de <strong>{{ caf.get_tipo_documento_display }}</strong> 
+                        (folios {{ caf.folio_desde }}-{{ caf.folio_hasta }}) 
+                        tiene solo <strong>{{ caf.folios_disponibles }} folios disponibles</strong> 
+                        (umbral configurado: {{ umbral }}).
+                        Se recomienda cargar un nuevo CAF para evitar interrupciones.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endif %}
+            {% endwith %}
+        {% endif %}
+        {% if caf.estado == 'activo' and caf.esta_vigente and caf.dias_para_vencer <= 30 %}
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>¡Atención!</strong> El CAF de <strong>{{ caf.get_tipo_documento_display }}</strong> 
+                (folios {{ caf.folio_desde }}-{{ caf.folio_hasta }}) 
+                vence en <strong>{{ caf.dias_para_vencer }} días</strong> ({{ caf.fecha_vencimiento|date:"d/m/Y" }}).
+                Se recomienda solicitar un nuevo CAF al SII.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% elif caf.estado == 'activo' and not caf.esta_vigente %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-times-circle me-2"></i>
+                <strong>¡CAF Vencido!</strong> El CAF de <strong>{{ caf.get_tipo_documento_display }}</strong> 
+                (folios {{ caf.folio_desde }}-{{ caf.folio_hasta }}) 
+                venció el {{ caf.fecha_vencimiento|date:"d/m/Y" }}.
+                <strong>No se pueden emitir documentos con este CAF.</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endif %}
+    {% endfor %}
+
+    <!-- Estadísticas Generales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #28a745;">
+                <div class="card-body">
+                    <h5 class="card-title">Total CAF</h5>
+                    <h2 class="text-success">{{ total_caf }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #17a2b8;">
+                <div class="card-body">
+                    <h5 class="card-title">Activos</h5>
+                    <h2 class="text-info">{{ activos }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #ffc107;">
+                <div class="card-body">
+                    <h5 class="card-title">Agotados</h5>
+                    <h2 class="text-warning">{{ agotados }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #6c757d;">
+                <div class="card-body">
+                    <h5 class="card-title">Ambiente</h5>
+                    <h2 class="text-secondary">
+                        {% if request.empresa.ambiente_sii == 'produccion' %}
+                            PROD
+                        {% else %}
+                            CERT
+                        {% endif %}
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folios Disponibles por Tipo -->
+    <div class="card mb-4">
+        <div class="card-header" style="background-color: #f8f9fa;">
+            <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Folios Disponibles por Tipo de Documento</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for nombre, datos in folios_por_tipo.items %}
+                <div class="col-md-4 mb-3">
+                    <div class="card border-0" style="background-color: #f0f0f0;">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ nombre }}</h6>
+                            <p class="mb-1">
+                                <strong class="h4">{{ datos.disponibles }}</strong> folios disponibles
+                            </p>
+                            <small class="text-muted">{{ datos.archivos }} archivo(s) activo(s)</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Archivos CAF -->
+    <div class="card">
+        <div class="card-header" style="background-color: #f8f9fa;">
+            <h5 class="mb-0"><i class="fas fa-list"></i> Archivos CAF Cargados</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if archivos_caf %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tipo Documento</th>
+                            <th>Rango de Folios</th>
+                            <th>Total</th>
+                            <th>Utilizados</th>
+                            <th>Disponibles</th>
+                            <th>Fecha Autorización</th>
+                            <th>Vigencia</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for caf in archivos_caf %}
+                        <tr>
+                            <td>
+                                <strong>{{ caf.get_tipo_documento_display }}</strong><br>
+                                <small class="text-muted">Código: {{ caf.tipo_documento }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ caf.folio_desde }}</span>
+                                →
+                                <span class="badge bg-secondary">{{ caf.folio_hasta }}</span>
+                            </td>
+                            <td>{{ caf.cantidad_folios }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ caf.folios_utilizados }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">{{ caf.folios_disponibles }}</span>
+                            </td>
+                            <td>{{ caf.fecha_autorizacion|date:"d/m/Y" }}</td>
+                            <td>
+                                {% if caf.esta_vigente %}
+                                    {% if caf.dias_para_vencer <= 30 %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-exclamation-triangle"></i> {{ caf.dias_para_vencer }} días
+                                        </span>
+                                    {% elif caf.dias_para_vencer <= 60 %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-clock"></i> {{ caf.dias_para_vencer }} días
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check"></i> {{ caf.dias_para_vencer }} días
+                                        </span>
+                                    {% endif %}
+                                    <br><small class="text-muted">Vence: {{ caf.fecha_vencimiento|date:"d/m/Y" }}</small>
+                                {% else %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-times"></i> VENCIDO
+                                    </span>
+                                    <br><small class="text-muted">Venció: {{ caf.fecha_vencimiento|date:"d/m/Y" }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if caf.estado == 'activo' %}
+                                    <span class="badge bg-success">Activo</span>
+                                {% elif caf.estado == 'agotado' %}
+                                    <span class="badge bg-warning text-dark">Agotado</span>
+                                {% elif caf.estado == 'vencido' %}
+                                    <span class="badge bg-danger">Vencido</span>
+                                {% elif caf.estado == 'anulado' %}
+                                    <span class="badge bg-secondary">Anulado</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ caf.estado }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'facturacion_electronica:caf_detail' caf.pk %}" 
+                                   class="btn btn-sm btn-info" title="Ver Detalle">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if caf.estado == 'activo' and caf.folios_utilizados == 0 %}
+                                <a href="{% url 'facturacion_electronica:caf_anular' caf.pk %}" 
+                                   class="btn btn-sm btn-danger" title="Anular">
+                                    <i class="fas fa-ban"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No hay archivos CAF cargados</p>
+                <a href="{% url 'facturacion_electronica:caf_create' %}" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Cargar Primer CAF
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+

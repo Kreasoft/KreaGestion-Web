@@ -53,6 +53,8 @@ LOCAL_APPS = [
 	'reportes.apps.ReportesConfig',
 	'usuarios.apps.UsuariosConfig',
 	'tesoreria.apps.TesoreriaConfig',
+	'caja.apps.CajaConfig',
+	'facturacion_electronica.apps.FacturacionElectronicaConfig',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -225,9 +227,12 @@ FILE_UPLOAD_HANDLERS = [
 # Tamaño máximo de archivo (10MB)
 MAX_UPLOAD_SIZE = 10485760
 
-# Configuración de sesiones
-SESSION_COOKIE_AGE = 3600  # 1 hora
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# Configuración de sesiones (MEJORADO: Persistencia entre sesiones de navegador)
+SESSION_COOKIE_AGE = 30 * 24 * 60 * 60  # 30 días (en segundos)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # NO borrar al cerrar navegador
+SESSION_SAVE_EVERY_REQUEST = True  # Guardar en cada request para mantener sesión activa
+SESSION_COOKIE_HTTPONLY = True  # Seguridad: no accesible por JavaScript
+SESSION_COOKIE_SAMESITE = 'Lax'  # Protección CSRF
 
 # Configuración de archivos estáticos en producción
 if not DEBUG:

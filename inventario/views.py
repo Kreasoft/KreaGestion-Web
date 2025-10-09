@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum, F
 from django.http import JsonResponse, HttpResponse
@@ -19,6 +19,7 @@ from empresas.models import Sucursal
 
 @login_required
 @requiere_empresa
+@permission_required('inventario.view_movimientoinventario', raise_exception=True)
 def inventario_list(request):
     """Lista todos los movimientos de inventario"""
     inventarios = Inventario.objects.filter(empresa=request.empresa).select_related(
@@ -173,6 +174,7 @@ def inventario_detail(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('articulos.view_stockarticulo', raise_exception=True)
 def stock_list(request):
     """Lista el stock actual de todos los artículos"""
     stocks = Stock.objects.filter(empresa=request.empresa).select_related(
@@ -392,6 +394,12 @@ from usuarios.decorators import requiere_empresa
 @requiere_empresa
 def inventario_list(request):
     """Lista todos los movimientos de inventario"""
+    print(f"DEBUG: Usuario {request.user.username} accediendo a inventario_list")
+    print(f"DEBUG: Empresa del usuario: {request.empresa}")
+    print(f"DEBUG: Template que se va a usar: inventario/inventario_list.html")
+    print(f"DEBUG: URL completa: {request.build_absolute_uri()}")
+    print(f"DEBUG: Método HTTP: {request.method}")
+
     inventarios = Inventario.objects.filter(empresa=request.empresa).select_related(
         'bodega_destino', 'articulo', 'creado_por'
     ).order_by('-fecha_movimiento', '-fecha_creacion')

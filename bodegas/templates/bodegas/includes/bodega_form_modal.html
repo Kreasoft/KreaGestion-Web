@@ -1,25 +1,25 @@
 {% load crispy_forms_tags %}
 
-<form id="bodegaForm" method="post">
+<form id="bodegaForm" method="post" action="{% if bodega %}{% url 'bodegas:bodega_update_modal' bodega.pk %}{% else %}{% url 'bodegas:bodega_create_modal' %}{% endif %}">
     {% csrf_token %}
     <div class="row">
         <div class="col-12">
             <div class="mb-3">
                 <label for="id_codigo" class="form-label">Código</label>
-                <input type="text" class="form-control" id="id_codigo" name="codigo" value="{{ form.codigo.value|default:'' }}" placeholder="Código único" required>
+                <input type="text" class="form-control" id="id_codigo" name="codigo" value="{% if bodega %}{{ bodega.codigo }}{% else %}{{ form.codigo.value|default:'' }}{% endif %}" placeholder="Código único" required>
                 {% if form.codigo.errors %}
                     <div class="text-danger">{{ form.codigo.errors.0 }}</div>
                 {% endif %}
             </div>
             <div class="mb-3">
                 <label for="id_nombre" class="form-label">Nombre</label>
-                <input type="text" class="form-control" id="id_nombre" name="nombre" value="{{ form.nombre.value|default:'' }}" placeholder="Nombre de la bodega" required>
+                <input type="text" class="form-control" id="id_nombre" name="nombre" value="{% if bodega %}{{ bodega.nombre }}{% else %}{{ form.nombre.value|default:'' }}{% endif %}" placeholder="Nombre de la bodega" required>
                 {% if form.nombre.errors %}
                     <div class="text-danger">{{ form.nombre.errors.0 }}</div>
                 {% endif %}
             </div>
             <div class="mb-3 form-check">
-                <input type="checkbox" class="form-check-input" id="id_activa" name="activa" {% if form.activa.value %}checked{% endif %}>
+                <input type="checkbox" class="form-check-input" id="id_activa" name="activa" {% if bodega %}{% if bodega.activa %}checked{% endif %}{% else %}{% if form.activa.value %}checked{% endif %}{% endif %}>
                 <label class="form-check-label" for="id_activa">Activa</label>
             </div>
             <hr>

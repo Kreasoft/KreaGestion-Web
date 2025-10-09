@@ -5,6 +5,7 @@ from django.utils import timezone
 from decimal import Decimal
 from empresas.models import Empresa
 from proveedores.models import Proveedor
+from clientes.models import Cliente
 from documentos.models import DocumentoCompra
 
 
@@ -81,5 +82,97 @@ class MovimientoCuentaCorriente(models.Model):
         verbose_name_plural = "Movimientos de Cuenta Corriente"
         ordering = ['-fecha_movimiento']
     
+    def __str__(self):
+        return f"{self.get_tipo_movimiento_display()} - {self.monto} - {self.fecha_movimiento.strftime('%d/%m/%Y')}"
+
+
+class CuentaCorrienteCliente(models.Model):
+    """Modelo para gestionar la cuenta corriente de clientes"""
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa", related_name="cuentas_corrientes_clientes")
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, verbose_name="Cliente", related_name="cuentas_corrientes")
+
+    # Saldos
+    saldo_total = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Saldo Total")
+    saldo_pendiente = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Saldo Pendiente")
+    saldo_vencido = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Saldo Vencido")
+
+    # Límites y condiciones
+    limite_credito = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Límite de Crédito")
+    dias_credito = models.IntegerField(default=30, verbose_name="Días de Crédito")
+
+    # Auditoría
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    fecha_modificacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Modificación")
+
+    class Meta:
+        verbose_name = "Cuenta Corriente Cliente"
+        verbose_name_plural = "Cuentas Corrientes Clientes"
+        unique_together = ['empresa', 'cliente']
+        ordering = ['cliente__nombre']
+
+    def __str__(self):
+        return f"CC {self.cliente.nombre} - {self.empresa.nombre}"
+
+    def calcular_saldos(self):
+        """Calcula los saldos basado en las ventas a crédito"""
+        from ventas.models import Venta
+        ventas_credito = Venta.objects.filter(
+            empresa=self.empresa,
+            cliente=self.cliente,
+            estado='confirmada'
+        ).exclude(total=0)
+
+        self.saldo_total = sum(venta.total for venta in ventas_credito)
+        self.saldo_pendiente = sum(venta.total for venta in ventas_credito if venta.estado_pago == 'pendiente')
+        self.saldo_vencido = sum(venta.total for venta in ventas_credito if venta.estado_pago == 'vencida')
+
+        self.save()
+
+    def tiene_credito_disponible(self, monto_solicitado):
+        """Verifica si el cliente tiene crédito disponible"""
+        credito_utilizado = self.saldo_pendiente + self.saldo_vencido
+        credito_disponible = self.limite_credito - credito_utilizado
+        return credito_disponible >= monto_solicitado
+
+
+class MovimientoCuentaCorrienteCliente(models.Model):
+    """Modelo para registrar movimientos en la cuenta corriente de clientes"""
+
+    TIPO_MOVIMIENTO_CHOICES = [
+        ('debe', 'Debe'),  # Cliente debe pagar (venta a crédito)
+        ('haber', 'Haber'),  # Cliente pagó (pago recibido)
+    ]
+
+    ESTADO_MOVIMIENTO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('confirmado', 'Confirmado'),
+        ('anulado', 'Anulado'),
+    ]
+
+    cuenta_corriente = models.ForeignKey(CuentaCorrienteCliente, on_delete=models.CASCADE,
+                                       related_name='movimientos', verbose_name="Cuenta Corriente")
+    venta = models.ForeignKey('ventas.Venta', on_delete=models.CASCADE,
+                             blank=True, null=True, verbose_name="Venta", related_name="movimientos_cuenta_corriente")
+
+    # Información del movimiento
+    tipo_movimiento = models.CharField(max_length=10, choices=TIPO_MOVIMIENTO_CHOICES, verbose_name="Tipo de Movimiento")
+    monto = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0.01)], verbose_name="Monto")
+    saldo_anterior = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Saldo Anterior")
+    saldo_nuevo = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Saldo Nuevo")
+
+    # Estado y observaciones
+    estado = models.CharField(max_length=20, choices=ESTADO_MOVIMIENTO_CHOICES, default='confirmado', verbose_name="Estado")
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+
+    # Auditoría
+    fecha_movimiento = models.DateTimeField(default=timezone.now, verbose_name="Fecha del Movimiento")
+    registrado_por = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Registrado por")
+
+    class Meta:
+        verbose_name = "Movimiento de Cuenta Corriente de Cliente"
+        verbose_name_plural = "Movimientos de Cuenta Corriente de Clientes"
+        ordering = ['-fecha_movimiento']
+
     def __str__(self):
         return f"{self.get_tipo_movimiento_display()} - {self.monto} - {self.fecha_movimiento.strftime('%d/%m/%Y')}"

@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% load static %}
+{% load format_filters %}
+
+{% block title %}Grupos y Roles - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- HEADER PRINCIPAL -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user-tag fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Gestión de Grupos/Roles
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Administración de roles y permisos del sistema
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i>
+                            </button>
+                            <a href="{% url 'usuarios:grupo_create' %}" class="btn btn-sm me-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-plus me-1"></i> Nuevo Grupo
+                            </a>
+                            <a href="{% url 'usuarios:usuario_list' %}" class="btn btn-sm" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-users me-1"></i> Usuarios
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 12px; background: #FAFAF8;">
+
+                    <!-- ESTADÍSTICAS PRINCIPALES -->
+                    <div class="row mb-2">
+                        <div class="col-md-4 mb-1">
+                            <div class="stat-card stat-card-1 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">{{ stats.total_grupos|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Grupos</div>
+                                <i class="fas fa-layer-group stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-1">
+                            <div class="stat-card stat-card-2 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">{{ stats.usuarios_con_grupo|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Usuarios con Grupo</div>
+                                <i class="fas fa-users stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-1">
+                            <div class="stat-card stat-card-3 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1rem;">{{ stats.usuarios_sin_grupo|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Usuarios sin Grupo</div>
+                                <i class="fas fa-user-slash stat-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- FILTROS -->
+                    <div class="filter-section">
+                        <form method="get" action="{% url 'usuarios:grupo_list' %}">
+                            <div class="row g-2">
+                                <div class="col-md-9">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-search me-1"></i>Buscar Grupos
+                                    </label>
+                                    <input type="text" name="search" class="form-control form-control-sm"
+                                           placeholder="🔍 Buscar por nombre de grupo..." value="{{ search }}">
+                                </div>
+                                <div class="col-md-3 d-flex gap-2">
+                                    <button type="submit" class="btn btn-filter flex-grow-1">
+                                        <i class="fas fa-filter me-1"></i>Filtrar
+                                    </button>
+                                    <a href="{% url 'usuarios:grupo_list' %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Lista de Grupos -->
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">Grupo/Rol</th>
+                                    <th style="width: 20%;">Usuarios</th>
+                                    <th style="width: 25%;">Permisos</th>
+                                    <th class="text-center" style="width: 25%;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for grupo in page_obj %}
+                                <tr style="border-bottom: 1px solid #F5F1E8;">
+                                    <td style="font-size: 0.7rem;">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-tag text-info me-2"></i>
+                                            <strong style="color: #2c3e50;">{{ grupo.name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">
+                                        <span class="badge bg-info" style="font-size: 0.6rem;">
+                                            {{ grupo.user_set.count }} usuario(s)
+                                        </span>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">
+                                        <span class="badge bg-success" style="font-size: 0.6rem;">
+                                            {{ grupo.permissions.count }} permiso(s)
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'usuarios:grupo_edit' grupo.id %}"
+                                               class="btn btn-sm btn-action btn-outline-primary"
+                                               title="Editar Grupo">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button class="btn btn-sm btn-action btn-outline-danger delete-grupo"
+                                                    data-grupo-id="{{ grupo.id }}"
+                                                    data-grupo-name="{{ grupo.name }}"
+                                                    title="Eliminar Grupo">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-2">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.8rem;">No se encontraron grupos</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- PAGINACIÓN -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-center mt-2">
+                        <nav aria-label="Paginación">
+                            <ul class="pagination pagination-sm mb-0" style="font-size: 0.75rem;">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        «
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        ‹
+                                    </a>
+                                </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
+                                        {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        ›
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
+                                        »
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Paleta terrosa para tarjetas de estadísticas */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .stat-card-1 {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+    }
+
+    .stat-card-2 {
+        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
+    }
+
+    .stat-card-3 {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    }
+
+    .stat-card-4 {
+        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        color: rgba(255,255,255,0.9);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.3);
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+    }
+
+    .filter-section {
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+
+    .table-compact thead th {
+        padding: 4px 2px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+
+    .table-compact tbody td {
+        padding: 2px 3px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.7rem;
+    }
+
+    .table-compact tbody tr {
+        height: 28px;
+    }
+
+    .btn-filter {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-action {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Eliminar grupo
+    document.querySelectorAll('.delete-grupo').forEach(button => {
+        button.addEventListener('click', function() {
+            const grupoId = this.dataset.grupoId;
+            const grupoName = this.dataset.grupoName;
+            
+            if (confirm(`¿Estás seguro de que deseas eliminar el grupo "${grupoName}"?\n\nEsta acción no se puede deshacer.`)) {
+                fetch(`/usuarios/grupos/${grupoId}/eliminar/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al eliminar el grupo');
+                });
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}
+
