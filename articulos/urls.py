@@ -44,4 +44,6 @@ urlpatterns = [
     path('listas-precios/<int:pk>/editar/', views.lista_precio_update, name='lista_precio_update'),
     path('listas-precios/<int:pk>/eliminar/', views.lista_precio_delete, name='lista_precio_delete'),
     path('listas-precios/<int:pk>/gestionar-precios/', views.lista_precio_gestionar_precios, name='lista_precio_gestionar_precios'),
+    path('listas-precios/<int:pk>/exportar-excel/', views.lista_precio_exportar_excel, name='lista_precio_exportar_excel'),
+    path('listas-precios/<int:pk>/exportar-pdf/', views.lista_precio_exportar_pdf, name='lista_precio_exportar_pdf'),
 ]

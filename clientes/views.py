@@ -208,6 +208,7 @@ def cliente_update(request, pk):
     
     if request.method == 'POST':
         form = ClienteForm(request.POST, instance=cliente, empresa=empresa)
+        formset = ContactoFormSet(instance=cliente)  # Crear formset vacío para el template
         
         # Debug: Imprimir estado de validación
         print('=== VALIDACIÓN DE FORMULARIO ===')

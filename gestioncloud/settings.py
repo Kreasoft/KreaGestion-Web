@@ -55,6 +55,7 @@ LOCAL_APPS = [
 	'tesoreria.apps.TesoreriaConfig',
 	'caja.apps.CajaConfig',
 	'facturacion_electronica.apps.FacturacionElectronicaConfig',
+	'utilidades.apps.UtilidadesConfig',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -229,6 +230,9 @@ FILE_UPLOAD_HANDLERS = [
 
 # Tamaño máximo de archivo (10MB)
 MAX_UPLOAD_SIZE = 10485760
+
+# Límite de campos en POST/GET (aumentado para listas de precios con muchos artículos)
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Default es 1000
 
 # Configuración de sesiones (MEJORADO: Persistencia entre sesiones de navegador)
 SESSION_COOKIE_AGE = 30 * 24 * 60 * 60  # 30 días (en segundos)

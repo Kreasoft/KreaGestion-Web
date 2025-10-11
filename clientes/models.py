@@ -42,7 +42,7 @@ class Cliente(models.Model):
     direccion = models.TextField(verbose_name="Dirección")
     comuna = models.CharField(max_length=100, verbose_name="Comuna")
     ciudad = models.CharField(max_length=100, verbose_name="Ciudad")
-    region = models.CharField(max_length=100, verbose_name="Región")
+    region = models.CharField(max_length=100, blank=True, verbose_name="Región")
     telefono = models.CharField(max_length=20, verbose_name="Teléfono")
     email = models.EmailField(blank=True, null=True, verbose_name="Email")
     sitio_web = models.CharField(max_length=200, blank=True, null=True, verbose_name="Sitio Web", help_text="Formato: www.ejemplo.cl o https://www.ejemplo.cl")

@@ -1,0 +1,610 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Importar Datos desde MySQL{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="card shadow-lg mb-4" style="border: none; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; padding: 20px;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-database fa-2x me-3" style="color: #F4E4BC;"></i>
+                            <div>
+                                <h4 class="mb-0" style="font-weight: 600; font-family: 'Poppins', sans-serif;">Importar Datos desde MySQL</h4>
+                                <small style="opacity: 0.9;">Importa clientes, proveedores, artículos y familias desde una base de datos MySQL</small>
+                            </div>
+                        </div>
+                        <a href="{% url 'utilidades:dashboard' %}" class="btn btn-light">
+                            <i class="fas fa-arrow-left me-2"></i>Volver
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wizard de Importación -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card shadow-lg" style="border: none; border-radius: 15px;">
+                        <div class="card-body p-4">
+                            <!-- Pasos del Wizard -->
+                            <div class="wizard-steps mb-4">
+                                <div class="wizard-step active" id="step-indicator-1">
+                                    <div class="wizard-step-number">1</div>
+                                    <div class="wizard-step-text">Conexión</div>
+                                </div>
+                                <div class="wizard-line"></div>
+                                <div class="wizard-step" id="step-indicator-2">
+                                    <div class="wizard-step-number">2</div>
+                                    <div class="wizard-step-text">Selección</div>
+                                </div>
+                                <div class="wizard-line"></div>
+                                <div class="wizard-step" id="step-indicator-3">
+                                    <div class="wizard-step-number">3</div>
+                                    <div class="wizard-step-text">Mapeo</div>
+                                </div>
+                                <div class="wizard-line"></div>
+                                <div class="wizard-step" id="step-indicator-4">
+                                    <div class="wizard-step-number">4</div>
+                                    <div class="wizard-step-text">Importación</div>
+                                </div>
+                            </div>
+
+                            <!-- Paso 1: Conexión MySQL -->
+                            <div class="wizard-content" id="step-1">
+                                <h5 class="mb-4" style="color: #6F5B44; font-weight: 600;">
+                                    <i class="fas fa-plug me-2"></i>Paso 1: Conectar a Base de Datos MySQL
+                                </h5>
+                                
+                                <form id="form-conexion">
+                                    {% csrf_token %}
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label fw-bold">{{ form_conexion.host.label }}</label>
+                                            {{ form_conexion.host }}
+                                            <small class="text-muted">Puede ser localhost, una IP o un dominio</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label fw-bold">{{ form_conexion.puerto.label }}</label>
+                                            {{ form_conexion.puerto }}
+                                            <small class="text-muted">Puerto por defecto: 3306</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-12 mb-3">
+                                            <label class="form-label fw-bold">{{ form_conexion.base_datos.label }}</label>
+                                            {{ form_conexion.base_datos }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label fw-bold">{{ form_conexion.usuario.label }}</label>
+                                            {{ form_conexion.usuario }}
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label fw-bold">{{ form_conexion.contrasena.label }}</label>
+                                            {{ form_conexion.contrasena }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Nota:</strong> Los datos de conexión se guardan temporalmente en tu sesión y se eliminan al cerrar el navegador.
+                                    </div>
+                                    
+                                    <button type="button" class="btn btn-primary btn-lg" onclick="conectarMySQL()">
+                                        <i class="fas fa-plug me-2"></i>Conectar y Continuar
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- Paso 2: Selección de Tabla -->
+                            <div class="wizard-content d-none" id="step-2">
+                                <h5 class="mb-4" style="color: #6F5B44; font-weight: 600;">
+                                    <i class="fas fa-table me-2"></i>Paso 2: Seleccionar Qué Importar
+                                </h5>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-4">
+                                        <label class="form-label fw-bold">Tipo de Datos a Importar</label>
+                                        <div class="tipo-importacion-grid">
+                                            <div class="tipo-card" data-tipo="clientes">
+                                                <i class="fas fa-users fa-3x mb-3"></i>
+                                                <h6>Clientes</h6>
+                                                <p class="text-muted small">Importar base de clientes</p>
+                                            </div>
+                                            <div class="tipo-card" data-tipo="proveedores">
+                                                <i class="fas fa-truck fa-3x mb-3"></i>
+                                                <h6>Proveedores</h6>
+                                                <p class="text-muted small">Importar proveedores</p>
+                                            </div>
+                                            <div class="tipo-card" data-tipo="familias">
+                                                <i class="fas fa-folder fa-3x mb-3"></i>
+                                                <h6>Familias</h6>
+                                                <p class="text-muted small">Categorías de productos</p>
+                                            </div>
+                                            <div class="tipo-card" data-tipo="articulos">
+                                                <i class="fas fa-box fa-3x mb-3"></i>
+                                                <h6>Artículos</h6>
+                                                <p class="text-muted small">Productos del inventario</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label class="form-label fw-bold">Tabla de Origen en MySQL</label>
+                                        <select id="tabla-origen" class="form-select form-select-lg">
+                                            <option value="">Seleccionar tabla...</option>
+                                        </select>
+                                        <small class="text-muted">Selecciona la tabla que contiene los datos a importar</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-secondary" onclick="volverPaso(1)">
+                                        <i class="fas fa-arrow-left me-2"></i>Volver
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-lg" onclick="continuarMapeo()">
+                                        <i class="fas fa-arrow-right me-2"></i>Continuar al Mapeo
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Paso 3: Mapeo de Campos -->
+                            <div class="wizard-content d-none" id="step-3">
+                                <h5 class="mb-4" style="color: #6F5B44; font-weight: 600;">
+                                    <i class="fas fa-exchange-alt me-2"></i>Paso 3: Mapear Campos
+                                </h5>
+                                
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Importante:</strong> Relaciona cada campo de tu base de datos MySQL con los campos del sistema. Los campos marcados con * son obligatorios.
+                                </div>
+                                
+                                <div id="mapeo-container" class="table-responsive">
+                                    <!-- Se llenará dinámicamente -->
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h6 class="mb-3">Vista Previa de Datos (primeras 5 filas)</h6>
+                                    <div id="preview-container" class="table-responsive">
+                                        <!-- Se llenará dinámicamente -->
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex gap-2 mt-4">
+                                    <button type="button" class="btn btn-secondary" onclick="volverPaso(2)">
+                                        <i class="fas fa-arrow-left me-2"></i>Volver
+                                    </button>
+                                    <button type="button" class="btn btn-success btn-lg" onclick="ejecutarImportacion()">
+                                        <i class="fas fa-download me-2"></i>Iniciar Importación
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Paso 4: Resultado -->
+                            <div class="wizard-content d-none" id="step-4">
+                                <h5 class="mb-4" style="color: #6F5B44; font-weight: 600;">
+                                    <i class="fas fa-check-circle me-2"></i>Paso 4: Resultado de la Importación
+                                </h5>
+                                
+                                <div id="resultado-container">
+                                    <!-- Se llenará dinámicamente -->
+                                </div>
+                                
+                                <div class="d-flex gap-2 mt-4">
+                                    <a href="{% url 'utilidades:importar_datos' %}" class="btn btn-primary">
+                                        <i class="fas fa-redo me-2"></i>Nueva Importación
+                                    </a>
+                                    <a href="{% url 'utilidades:dashboard' %}" class="btn btn-secondary">
+                                        <i class="fas fa-home me-2"></i>Volver al Dashboard
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Wizard Steps */
+.wizard-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 0;
+}
+
+.wizard-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.wizard-step-number {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.wizard-step.active .wizard-step-number {
+    background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(139, 115, 85, 0.3);
+}
+
+.wizard-step.completed .wizard-step-number {
+    background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%);
+    color: white;
+}
+
+.wizard-step-text {
+    font-size: 0.9rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.wizard-step.active .wizard-step-text {
+    color: #8B7355;
+    font-weight: 600;
+}
+
+.wizard-line {
+    width: 100px;
+    height: 2px;
+    background: #e9ecef;
+    margin: 0 1rem;
+    margin-bottom: 2rem;
+}
+
+/* Tipo de Importación Cards */
+.tipo-importacion-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.tipo-card {
+    padding: 1.5rem;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tipo-card:hover {
+    border-color: #8B7355;
+    background: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.tipo-card.selected {
+    border-color: #8B7355;
+    background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
+    box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2);
+}
+
+.tipo-card i {
+    color: #8B7355;
+}
+
+.tipo-card h6 {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+/* Mapeo Table */
+.mapeo-table {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.mapeo-table th {
+    background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
+    color: #6F5B44;
+    font-weight: 600;
+    padding: 1rem;
+}
+
+.mapeo-table td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+}
+
+.campo-requerido {
+    color: #dc3545;
+    font-weight: 600;
+}
+</style>
+
+<script>
+let tipoImportacionSeleccionado = null;
+let tablaSeleccionada = null;
+let mapeoActual = {};
+
+// Conectar a MySQL
+function conectarMySQL() {
+    const formData = new FormData(document.getElementById('form-conexion'));
+    
+    fetch('{% url "utilidades:conectar_mysql" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Llenar select de tablas
+            const selectTabla = document.getElementById('tabla-origen');
+            selectTabla.innerHTML = '<option value="">Seleccionar tabla...</option>';
+            data.tablas.forEach(tabla => {
+                selectTabla.innerHTML += `<option value="${tabla}">${tabla}</option>`;
+            });
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Conexión Exitosa',
+                text: data.message,
+                timer: 2000
+            });
+            
+            irAPaso(2);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de Conexión',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al conectar: ' + error
+        });
+    });
+}
+
+// Seleccionar tipo de importación
+document.querySelectorAll('.tipo-card').forEach(card => {
+    card.addEventListener('click', function() {
+        document.querySelectorAll('.tipo-card').forEach(c => c.classList.remove('selected'));
+        this.classList.add('selected');
+        tipoImportacionSeleccionado = this.dataset.tipo;
+    });
+});
+
+// Continuar al mapeo
+function continuarMapeo() {
+    tablaSeleccionada = document.getElementById('tabla-origen').value;
+    
+    if (!tipoImportacionSeleccionado) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Selección Requerida',
+            text: 'Por favor selecciona el tipo de datos a importar'
+        });
+        return;
+    }
+    
+    if (!tablaSeleccionada) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Tabla Requerida',
+            text: 'Por favor selecciona la tabla de origen'
+        });
+        return;
+    }
+    
+    // Obtener campos y mapeo
+    const formData = new FormData();
+    formData.append('tabla', tablaSeleccionada);
+    formData.append('tipo_importacion', tipoImportacionSeleccionado);
+    
+    fetch('{% url "utilidades:mapear_campos" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            mostrarMapeo(data);
+            irAPaso(3);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message
+            });
+        }
+    });
+}
+
+// Mostrar mapeo de campos
+function mostrarMapeo(data) {
+    const container = document.getElementById('mapeo-container');
+    
+    let html = '<table class="table table-bordered mapeo-table"><thead><tr>';
+    html += '<th>Campo Destino</th>';
+    html += '<th>Campo Origen (MySQL)</th>';
+    html += '<th>Requerido</th>';
+    html += '</tr></thead><tbody>';
+    
+    data.campos_destino.forEach(campo => {
+        html += '<tr>';
+        html += `<td><strong>${campo.nombre}</strong></td>`;
+        html += '<td><select class="form-select campo-mapeo" data-destino="' + campo.campo + '">';
+        html += '<option value="">-- No mapear --</option>';
+        data.campos_origen.forEach(campoOrigen => {
+            html += `<option value="${campoOrigen}">${campoOrigen}</option>`;
+        });
+        html += '</select></td>';
+        html += '<td>' + (campo.requerido ? '<span class="campo-requerido">Sí *</span>' : 'No') + '</td>';
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    
+    // Mostrar preview
+    mostrarPreview(data.muestra_datos);
+}
+
+// Mostrar preview de datos
+function mostrarPreview(datos) {
+    const container = document.getElementById('preview-container');
+    
+    if (datos.length === 0) {
+        container.innerHTML = '<p class="text-muted">No hay datos para mostrar</p>';
+        return;
+    }
+    
+    let html = '<table class="table table-sm table-striped"><thead><tr>';
+    Object.keys(datos[0]).forEach(key => {
+        html += `<th>${key}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    datos.forEach(fila => {
+        html += '<tr>';
+        Object.values(fila).forEach(valor => {
+            html += `<td>${valor || '-'}</td>`;
+        });
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// Ejecutar importación
+function ejecutarImportacion() {
+    // Recopilar mapeo
+    mapeoActual = {};
+    document.querySelectorAll('.campo-mapeo').forEach(select => {
+        if (select.value) {
+            mapeoActual[select.dataset.destino] = select.value;
+        }
+    });
+    
+    const formData = new FormData();
+    formData.append('tipo_importacion', tipoImportacionSeleccionado);
+    formData.append('tabla', tablaSeleccionada);
+    formData.append('mapeo', JSON.stringify(mapeoActual));
+    
+    Swal.fire({
+        title: 'Importando...',
+        text: 'Por favor espera mientras se importan los datos',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    fetch('{% url "utilidades:ejecutar_importacion" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        Swal.close();
+        
+        if (data.success) {
+            mostrarResultado(data);
+            irAPaso(4);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error en la Importación',
+                text: data.message
+            });
+        }
+    });
+}
+
+// Mostrar resultado
+function mostrarResultado(data) {
+    const container = document.getElementById('resultado-container');
+    
+    let html = '<div class="alert alert-success">';
+    html += '<h5><i class="fas fa-check-circle me-2"></i>Importación Completada</h5>';
+    html += `<p class="mb-0"><strong>${data.importados}</strong> de <strong>${data.total}</strong> registros importados exitosamente</p>`;
+    if (data.omitidos && data.omitidos > 0) {
+        html += `<p class="mb-0 mt-2"><small class="text-muted"><i class="fas fa-info-circle me-1"></i>${data.omitidos} registros omitidos (no cumplen criterio ES_CLI='S' o ES_PRO='S')</small></p>`;
+    }
+    html += '</div>';
+    
+    if (data.errores && data.errores.length > 0) {
+        html += '<div class="alert alert-warning">';
+        html += '<h6><i class="fas fa-exclamation-triangle me-2"></i>Errores Encontrados</h6>';
+        html += '<ul class="mb-0">';
+        data.errores.slice(0, 10).forEach(error => {
+            html += `<li>${error}</li>`;
+        });
+        if (data.errores.length > 10) {
+            html += `<li><em>... y ${data.errores.length - 10} errores más</em></li>`;
+        }
+        html += '</ul></div>';
+    }
+    
+    container.innerHTML = html;
+}
+
+// Navegación entre pasos
+function irAPaso(numero) {
+    // Ocultar todos los pasos
+    document.querySelectorAll('.wizard-content').forEach(content => {
+        content.classList.add('d-none');
+    });
+    
+    // Mostrar paso actual
+    document.getElementById('step-' + numero).classList.remove('d-none');
+    
+    // Actualizar indicadores
+    document.querySelectorAll('.wizard-step').forEach((step, index) => {
+        step.classList.remove('active', 'completed');
+        if (index + 1 === numero) {
+            step.classList.add('active');
+        } else if (index + 1 < numero) {
+            step.classList.add('completed');
+        }
+    });
+}
+
+function volverPaso(numero) {
+    irAPaso(numero);
+}
+</script>
+{% endblock %}

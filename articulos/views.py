@@ -4,9 +4,21 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from decimal import Decimal
+from django.http import JsonResponse, HttpResponse
+from decimal import Decimal, InvalidOperation
 import json
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from reportlab.pdfgen import canvas
+from datetime import datetime
+import os
 from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo
 from inventario.models import Stock
 from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm, ListaPrecioForm, PrecioArticuloForm
@@ -838,7 +850,12 @@ def lista_precio_delete(request, pk):
 def lista_precio_detail(request, pk):
     """Detalle de lista de precios con artículos"""
     lista = get_object_or_404(ListaPrecio, pk=pk, empresa=request.empresa)
-    precios = PrecioArticulo.objects.filter(lista_precio=lista).select_related('articulo')
+    precios_list = PrecioArticulo.objects.filter(lista_precio=lista).select_related('articulo').order_by('articulo__nombre')
+    
+    # Paginación: 20 artículos por página
+    paginator = Paginator(precios_list, 20)
+    page_number = request.GET.get('page', 1)
+    precios = paginator.get_page(page_number)
     
     context = {
         'lista': lista,
@@ -855,8 +872,48 @@ def lista_precio_gestionar_precios(request, pk):
     """Gestionar precios de artículos en una lista"""
     lista = get_object_or_404(ListaPrecio, pk=pk, empresa=request.empresa)
     
+    # Manejar aplicación masiva de descuento
+    if request.method == 'POST' and 'aplicar_descuento_masivo' in request.POST:
+        try:
+            descuento = float(request.POST.get('descuento_porcentaje', 0))
+            base_calculo = request.POST.get('base_calculo', 'neto')
+            categoria_id = request.POST.get('categoria_filtro', '')
+            
+            # Obtener artículos a actualizar
+            articulos_query = Articulo.objects.filter(empresa=request.empresa, activo=True)
+            if categoria_id:
+                articulos_query = articulos_query.filter(categoria_id=categoria_id)
+            
+            contador = 0
+            for articulo in articulos_query:
+                if base_calculo == 'neto':
+                    precio_base = float(articulo.precio_venta)
+                    nuevo_precio = precio_base * (1 - descuento / 100)
+                else:
+                    precio_base = float(articulo.precio_final)
+                    nuevo_precio = precio_base * (1 - descuento / 100)
+                    nuevo_precio = nuevo_precio / 1.19  # Convertir a neto
+                
+                if nuevo_precio > 0:
+                    PrecioArticulo.objects.update_or_create(
+                        articulo=articulo,
+                        lista_precio=lista,
+                        defaults={'precio': Decimal(str(round(nuevo_precio, 2)))}
+                    )
+                    contador += 1
+            
+            lista.save(update_fields=['fecha_actualizacion'])
+            messages.success(request, f'✅ Descuento aplicado a {contador} artículos')
+            return redirect('articulos:lista_precio_gestionar_precios', pk=lista.pk)
+        except Exception as e:
+            messages.error(request, f'Error al aplicar descuento: {str(e)}')
+            return redirect('articulos:lista_precio_gestionar_precios', pk=lista.pk)
+    
     if request.method == 'POST':
         # Procesar los precios enviados
+        guardados = 0
+        eliminados = 0
+        
         for key, value in request.POST.items():
             if key.startswith('precio_'):
                 articulo_id = key.replace('precio_', '')
@@ -864,7 +921,7 @@ def lista_precio_gestionar_precios(request, pk):
                     articulo = Articulo.objects.get(id=articulo_id, empresa=request.empresa)
                     
                     # Limpiar el valor: eliminar puntos (separadores de miles) y espacios
-                    if value:
+                    if value and value.strip():
                         value_clean = value.replace('.', '').replace(' ', '').replace(',', '.')
                         precio_value = Decimal(value_clean) if value_clean else None
                     else:
@@ -877,16 +934,22 @@ def lista_precio_gestionar_precios(request, pk):
                             lista_precio=lista,
                             defaults={'precio': precio_value}
                         )
+                        guardados += 1
                     else:
                         # Eliminar precio si está vacío o es 0
-                        PrecioArticulo.objects.filter(
+                        deleted_count = PrecioArticulo.objects.filter(
                             articulo=articulo,
                             lista_precio=lista
-                        ).delete()
-                except (Articulo.DoesNotExist, ValueError, Decimal.InvalidOperation):
+                        ).delete()[0]
+                        if deleted_count > 0:
+                            eliminados += 1
+                except (Articulo.DoesNotExist, ValueError, InvalidOperation):
                     continue
         
-        messages.success(request, 'Precios actualizados exitosamente.')
+        # Actualizar fecha de modificación de la lista
+        lista.save(update_fields=['fecha_actualizacion'])
+        
+        messages.success(request, f'✅ Precios actualizados: {guardados} guardados, {eliminados} eliminados.')
         return redirect('articulos:lista_precio_detail', pk=lista.pk)
     
     # Obtener todos los artículos con sus precios actuales en esta lista
@@ -915,3 +978,213 @@ def lista_precio_gestionar_precios(request, pk):
     }
     
     return render(request, 'articulos/lista_precio_gestionar.html', context)
+
+
+@requiere_empresa
+@login_required
+def lista_precio_exportar_excel(request, pk):
+    """Exportar lista de precios a Excel con formato elegante"""
+    lista = get_object_or_404(ListaPrecio, pk=pk, empresa=request.empresa)
+    precios = PrecioArticulo.objects.filter(lista_precio=lista).select_related('articulo').order_by('articulo__nombre')
+    
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Lista de Precios"
+    
+    # Estilos
+    header_font = Font(name='Poppins', size=14, bold=True, color="FFFFFF")
+    title_font = Font(name='Poppins', size=18, bold=True, color="6F5B44")
+    subtitle_font = Font(name='Poppins', size=11, color="6F5B44")
+    data_font = Font(name='Poppins', size=10)
+    
+    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
+    title_fill = PatternFill(start_color="F5F0EB", end_color="F5F0EB", fill_type="solid")
+    
+    border = Border(
+        left=Side(style='thin', color='D4C4A8'),
+        right=Side(style='thin', color='D4C4A8'),
+        top=Side(style='thin', color='D4C4A8'),
+        bottom=Side(style='thin', color='D4C4A8')
+    )
+    
+    # Título principal
+    ws.merge_cells('A1:E1')
+    cell = ws['A1']
+    cell.value = f"LISTA DE PRECIOS: {lista.nombre.upper()}"
+    cell.font = title_font
+    cell.alignment = Alignment(horizontal='center', vertical='center')
+    cell.fill = title_fill
+    ws.row_dimensions[1].height = 30
+    
+    # Información de la lista
+    ws.merge_cells('A2:E2')
+    cell = ws['A2']
+    cell.value = f"Empresa: {request.empresa.nombre} | Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    cell.font = subtitle_font
+    cell.alignment = Alignment(horizontal='center')
+    ws.row_dimensions[2].height = 20
+    
+    # Espacio
+    ws.row_dimensions[3].height = 10
+    
+    # Encabezados
+    headers = ['Código', 'Artículo', 'Precio Neto', 'Precio c/IVA', 'Última Actualización']
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_num)
+        cell.value = header
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    ws.row_dimensions[4].height = 25
+    
+    # Datos
+    for row_num, precio in enumerate(precios, 5):
+        precio_iva = float(precio.precio) * 1.19
+        
+        # Código
+        cell = ws.cell(row=row_num, column=1)
+        cell.value = precio.articulo.codigo
+        cell.font = data_font
+        cell.alignment = Alignment(horizontal='left')
+        cell.border = border
+        
+        # Artículo
+        cell = ws.cell(row=row_num, column=2)
+        cell.value = precio.articulo.nombre
+        cell.font = data_font
+        cell.alignment = Alignment(horizontal='left')
+        cell.border = border
+        
+        # Precio Neto
+        cell = ws.cell(row=row_num, column=3)
+        cell.value = float(precio.precio)
+        cell.font = data_font
+        cell.number_format = '$#,##0'
+        cell.alignment = Alignment(horizontal='right')
+        cell.border = border
+        
+        # Precio c/IVA
+        cell = ws.cell(row=row_num, column=4)
+        cell.value = precio_iva
+        cell.font = data_font
+        cell.number_format = '$#,##0'
+        cell.alignment = Alignment(horizontal='right')
+        cell.border = border
+        
+        # Fecha
+        cell = ws.cell(row=row_num, column=5)
+        cell.value = precio.fecha_actualizacion.strftime('%d/%m/%Y %H:%M')
+        cell.font = data_font
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = border
+    
+    # Ajustar anchos de columna
+    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['B'].width = 45
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 20
+    
+    # Preparar respuesta
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="Lista_Precios_{lista.nombre}_{datetime.now().strftime("%Y%m%d")}.xlsx"'
+    wb.save(response)
+    
+    return response
+
+
+@requiere_empresa
+@login_required
+def lista_precio_exportar_pdf(request, pk):
+    """Exportar lista de precios a PDF con formato elegante"""
+    lista = get_object_or_404(ListaPrecio, pk=pk, empresa=request.empresa)
+    precios = PrecioArticulo.objects.filter(lista_precio=lista).select_related('articulo').order_by('articulo__nombre')
+    
+    # Crear respuesta PDF
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="Lista_Precios_{lista.nombre}_{datetime.now().strftime("%Y%m%d")}.pdf"'
+    
+    # Crear documento
+    doc = SimpleDocTemplate(response, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    elements = []
+    
+    # Estilos
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=18,
+        textColor=colors.HexColor('#6F5B44'),
+        alignment=TA_CENTER,
+        spaceAfter=12
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        textColor=colors.HexColor('#6F5B44'),
+        alignment=TA_CENTER,
+        spaceAfter=20
+    )
+    
+    # Título
+    elements.append(Paragraph(f"LISTA DE PRECIOS: {lista.nombre.upper()}", title_style))
+    elements.append(Paragraph(f"Empresa: {request.empresa.nombre} | Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", subtitle_style))
+    
+    # Preparar datos para la tabla
+    data = [['Código', 'Artículo', 'Precio Neto', 'Precio c/IVA', 'Actualización']]
+    
+    for precio in precios:
+        precio_iva = float(precio.precio) * 1.19
+        data.append([
+            precio.articulo.codigo,
+            precio.articulo.nombre[:40],  # Limitar longitud
+            f"${float(precio.precio):,.0f}".replace(",", "."),
+            f"${precio_iva:,.0f}".replace(",", "."),
+            precio.fecha_actualizacion.strftime('%d/%m/%Y')
+        ])
+    
+    # Crear tabla
+    table = Table(data, colWidths=[1*inch, 3.5*inch, 1.2*inch, 1.2*inch, 1*inch])
+    
+    # Estilo de tabla
+    table.setStyle(TableStyle([
+        # Encabezado
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B7355')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        
+        # Datos
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+        ('ALIGN', (0, 1), (0, -1), 'LEFT'),  # Código
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),  # Artículo
+        ('ALIGN', (2, 1), (3, -1), 'RIGHT'),  # Precios
+        ('ALIGN', (4, 1), (4, -1), 'CENTER'),  # Fecha
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        
+        # Bordes
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D4C4A8')),
+        
+        # Filas alternadas
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F0EB')])
+    ]))
+    
+    elements.append(table)
+    
+    # Construir PDF
+    doc.build(elements)
+    
+    return response

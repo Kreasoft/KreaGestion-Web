@@ -57,24 +57,27 @@
     }
 
     .table tbody td {
-        padding: 0.2rem 0.3rem !important;
+        padding: 0.15rem 0.5rem !important;
         vertical-align: middle;
-        line-height: 1;
+        line-height: 1.1;
         border: none !important;
+        font-size: 0.9rem;
     }
 
     .table tbody tr {
         border-bottom: 1px solid #f0f0f0;
+        height: 28px;
     }
 
     .precio-input {
         width: 120px;
         border-color: #D4C4A8;
-        padding: 0.3rem 0.5rem;
+        padding: 0.2rem 0.4rem;
         font-size: 0.9rem;
         text-align: right;
         margin-left: auto;
         display: block;
+        height: 26px;
     }
 
     .precio-input:focus {
@@ -97,15 +100,17 @@
     .codigo-badge {
         background: #F5F0EB;
         color: #6F5B44;
-        padding: 0.2rem 0.4rem;
+        padding: 0.1rem 0.3rem;
         border-radius: 3px;
         font-size: 0.8rem;
         font-family: monospace;
+        line-height: 1;
     }
 
     .precio-ref {
         color: #999;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
+        line-height: 1;
     }
 
     .filter-box {
@@ -114,6 +119,49 @@
         border-radius: 5px;
         padding: 0.5rem;
         margin-bottom: 0.5rem;
+    }
+
+    .descuento-box {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border: 2px solid #66bb6a;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .descuento-box h6 {
+        color: #2e7d32;
+        font-weight: 600;
+        margin-bottom: 0.8rem;
+    }
+
+    .radio-option {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 1.5rem;
+        cursor: pointer;
+    }
+
+    .radio-option input[type="radio"] {
+        margin-right: 0.5rem;
+        cursor: pointer;
+    }
+
+    .precio-calculado {
+        background-color: #fff3cd;
+        border-color: #ffc107;
+    }
+
+    .precio-base {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    .btn-guardar-flotante {
+        position: sticky;
+        top: 10px;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 </style>
 {% endblock %}
@@ -153,6 +201,45 @@
 
                 <!-- Formulario -->
                 <div class="card-body" style="padding: 0.5rem;">
+                    <!-- Botón Guardar Flotante -->
+                    <div class="text-end mb-2">
+                        <button type="submit" form="preciosForm" class="btn btn-success btn-lg btn-guardar-flotante">
+                            <i class="fas fa-save me-2"></i>Guardar Cambios
+                        </button>
+                    </div>
+
+                    <!-- Control de Descuento Masivo -->
+                    <div class="descuento-box">
+                        <h6><i class="fas fa-percentage me-2"></i>Aplicar Descuento Masivo</h6>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label mb-2" style="font-size: 0.9rem; font-weight: 500;">Base de Cálculo:</label>
+                                <div>
+                                    <label class="radio-option">
+                                        <input type="radio" name="baseCalculo" value="neto" checked>
+                                        <span>Sobre Precio Neto</span>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="baseCalculo" value="iva">
+                                        <span>Sobre Precio c/IVA</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="descuentoPorcentaje" class="form-label" style="font-size: 0.9rem; font-weight: 500;">Descuento (%):</label>
+                                <input type="number" id="descuentoPorcentaje" class="form-control" placeholder="Ej: 10" min="0" max="100" step="0.01">
+                            </div>
+                            <div class="col-md-5">
+                                <button type="button" class="btn btn-success w-100" onclick="aplicarDescuentoMasivoServidor()">
+                                    <i class="fas fa-calculator me-2"></i>Aplicar a TODOS los Artículos Filtrados
+                                </button>
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-info-circle me-1"></i>Se aplicará a TODOS los artículos (incluso los no visibles)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Filtros -->
                     <div class="filter-box">
                         <div class="row g-2">
@@ -170,44 +257,82 @@
                         </div>
                     </div>
 
-                    <form method="post" id="preciosForm">
+                    <form method="post" id="preciosForm" onsubmit="return prepararFormulario()">
                         {% csrf_token %}
                         
                         <div class="table-responsive">
                             <table class="table table-sm table-hover" id="articulosTable">
                                 <thead>
                                     <tr>
-                                        <th width="10%">Código</th>
-                                        <th width="45%">Artículo</th>
-                                        <th width="20%" class="text-end">Precio Venta</th>
-                                        <th width="25%" class="text-end">Precio Lista</th>
+                                        <th width="8%">Código</th>
+                                        <th width="30%">Artículo</th>
+                                        <th width="12%" class="text-end">P. Neto Base</th>
+                                        <th width="12%" class="text-end">P. c/IVA Base</th>
+                                        <th width="8%" class="text-center">% Desc</th>
+                                        <th width="15%" class="text-end">P. Neto Lista</th>
+                                        <th width="15%" class="text-end">P. c/IVA Lista</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for articulo in articulos %}
-                                    <tr class="articulo-row" data-nombre="{{ articulo.nombre|lower }}" data-codigo="{{ articulo.codigo|lower }}" data-categoria="{{ articulo.categoria.id }}">
+                                    <tr class="articulo-row" 
+                                        data-nombre="{{ articulo.nombre|lower }}" 
+                                        data-codigo="{{ articulo.codigo|lower }}" 
+                                        data-categoria="{{ articulo.categoria.id }}"
+                                        data-precio-neto="{{ articulo.precio_venta|unlocalize }}"
+                                        data-precio-iva="{{ articulo.precio_final|unlocalize }}">
                                         <td>
                                             <span class="codigo-badge">{{ articulo.codigo }}</span>
                                         </td>
                                         <td>{{ articulo.nombre }}</td>
                                         <td class="text-end">
-                                            <span class="precio-ref" data-precio-venta="{{ articulo.precio_venta }}">${{ articulo.precio_venta|floatformat:0 }}</span>
+                                            <span class="precio-base">${{ articulo.precio_venta|floatformat:0 }}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="precio-base">${{ articulo.precio_final|floatformat:0 }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <input 
+                                                type="number" 
+                                                class="form-control form-control-sm precio-input descuento-input" 
+                                                style="width: 60px; margin: 0 auto; text-align: center;"
+                                                step="0.01" 
+                                                min="0"
+                                                max="100"
+                                                placeholder="0"
+                                                data-articulo-id="{{ articulo.id }}"
+                                                onchange="calcularPrecioConDescuento(this)"
+                                            >
                                         </td>
                                         <td class="text-end">
                                             <input 
                                                 type="number" 
                                                 name="precio_{{ articulo.id }}" 
-                                                class="form-control form-control-sm precio-input" 
+                                                class="form-control form-control-sm precio-input precio-neto-lista" 
                                                 step="1" 
                                                 min="0"
                                                 {% if articulo.precio_en_lista %}value="{{ articulo.precio_en_lista|unlocalize }}"{% endif %}
                                                 placeholder="-"
+                                                data-articulo-id="{{ articulo.id }}"
+                                                onchange="calcularPrecioIVADesdeNeto(this)"
+                                            >
+                                        </td>
+                                        <td class="text-end">
+                                            <input 
+                                                type="number" 
+                                                class="form-control form-control-sm precio-input precio-iva-lista" 
+                                                step="1" 
+                                                min="0"
+                                                placeholder="-"
+                                                data-articulo-id="{{ articulo.id }}"
+                                                readonly
+                                                style="background-color: #f8f9fa;"
                                             >
                                         </td>
                                     </tr>
                                     {% empty %}
                                     <tr>
-                                        <td colspan="4" class="text-center py-4">
+                                        <td colspan="7" class="text-center py-4">
                                             <i class="fas fa-box-open fa-2x mb-2" style="color: #D4C4A8;"></i>
                                             <p class="mb-0 text-muted">No hay artículos activos</p>
                                         </td>
@@ -262,32 +387,389 @@ document.getElementById('categoriaFilter').addEventListener('change', filtrarArt
 
 // Copiar precios de venta a la lista
 function copiarPreciosVenta() {
-    if (!confirm('¿Desea copiar todos los precios de venta a esta lista?')) {
-        return;
-    }
-    
-    const rows = document.querySelectorAll('.articulo-row');
-    rows.forEach(row => {
-        if (row.style.display !== 'none') {
-            const precioVenta = row.querySelector('[data-precio-venta]').dataset.precioVenta;
-            const input = row.querySelector('.precio-input');
-            if (precioVenta && input) {
-                input.value = Math.round(parseFloat(precioVenta));
-            }
+    Swal.fire({
+        title: '¿Copiar Precios de Venta?',
+        text: '¿Desea copiar todos los precios de venta a esta lista?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, copiar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const rows = document.querySelectorAll('.articulo-row');
+            let contador = 0;
+            
+            rows.forEach(row => {
+                if (row.style.display !== 'none') {
+                    const precioNeto = parseFloat(row.dataset.precioNeto) || 0;
+                    const inputNetoLista = row.querySelector('.precio-neto-lista');
+                    
+                    if (precioNeto && inputNetoLista) {
+                        inputNetoLista.value = Math.round(precioNeto);
+                        calcularPrecioIVADesdeNeto(inputNetoLista);
+                        contador++;
+                    }
+                }
+            });
+            
+            Swal.fire({
+                title: '¡Copiado!',
+                text: `Se copiaron ${contador} precios de venta`,
+                icon: 'success',
+                confirmButtonColor: '#8B7355',
+                timer: 2000
+            });
         }
     });
 }
 
 // Limpiar todos los precios
 function limpiarPrecios() {
-    if (!confirm('¿Desea limpiar todos los precios de esta lista?')) {
+    Swal.fire({
+        title: '¿Limpiar Todos los Precios?',
+        text: 'Esta acción eliminará todos los precios de esta lista',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, limpiar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const inputs = document.querySelectorAll('.precio-input');
+            inputs.forEach(input => {
+                input.value = '';
+            });
+            
+            Swal.fire({
+                title: '¡Limpiado!',
+                text: 'Todos los precios han sido eliminados',
+                icon: 'success',
+                confirmButtonColor: '#8B7355',
+                timer: 2000
+            });
+        }
+    });
+}
+
+// Calcular porcentaje de descuento desde precio guardado
+function calcularPorcentajeDescuento(row) {
+    const precioNeto = parseFloat(row.dataset.precioNeto) || 0;
+    const inputNetoLista = row.querySelector('.precio-neto-lista');
+    const precioNetoLista = parseFloat(inputNetoLista.value) || 0;
+    
+    if (precioNeto > 0 && precioNetoLista > 0 && precioNetoLista < precioNeto) {
+        // Calcular % de descuento: ((base - lista) / base) * 100
+        const descuento = ((precioNeto - precioNetoLista) / precioNeto) * 100;
+        const inputDescuento = row.querySelector('.descuento-input');
+        
+        if (inputDescuento) {
+            inputDescuento.value = descuento.toFixed(2);
+        }
+    } else if (precioNetoLista === precioNeto) {
+        // Si el precio es igual al base, descuento es 0
+        const inputDescuento = row.querySelector('.descuento-input');
+        if (inputDescuento) {
+            inputDescuento.value = '';
+        }
+    }
+}
+
+// Calcular precio con IVA desde precio neto
+function calcularPrecioIVADesdeNeto(input) {
+    const row = input.closest('tr');
+    const precioNeto = parseFloat(input.value) || 0;
+    const precioIVA = Math.round(precioNeto * 1.19);
+    
+    const inputIVA = row.querySelector('.precio-iva-lista');
+    if (inputIVA) {
+        inputIVA.value = precioIVA > 0 ? precioIVA : '';
+    }
+    
+    // Recalcular el % de descuento cuando se edita manualmente
+    calcularPorcentajeDescuento(row);
+}
+
+// Calcular precio con descuento individual
+function calcularPrecioConDescuento(input) {
+    const row = input.closest('tr');
+    const descuento = parseFloat(input.value) || 0;
+    
+    const precioNeto = parseFloat(row.dataset.precioNeto) || 0;
+    const precioIVA = parseFloat(row.dataset.precioIva) || 0;
+    
+    let nuevoNetoLista, nuevoIVALista;
+    
+    if (descuento === 0) {
+        // Si descuento es 0, restaurar precios originales (base)
+        nuevoNetoLista = Math.round(precioNeto);
+        nuevoIVALista = Math.round(precioIVA);
+    } else {
+        // Obtener base de cálculo seleccionada
+        const baseCalculo = document.querySelector('input[name="baseCalculo"]:checked').value;
+        
+        if (baseCalculo === 'neto') {
+            // Descuento sobre precio neto
+            nuevoNetoLista = Math.round(precioNeto * (1 - descuento / 100));
+            nuevoIVALista = Math.round(nuevoNetoLista * 1.19);
+        } else {
+            // Descuento sobre precio con IVA
+            nuevoIVALista = Math.round(precioIVA * (1 - descuento / 100));
+            nuevoNetoLista = Math.round(nuevoIVALista / 1.19);
+        }
+    }
+    
+    // Actualizar inputs
+    const inputNetoLista = row.querySelector('.precio-neto-lista');
+    const inputIVALista = row.querySelector('.precio-iva-lista');
+    
+    if (inputNetoLista) {
+        inputNetoLista.value = nuevoNetoLista;
+        inputNetoLista.classList.add('precio-calculado');
+        setTimeout(() => inputNetoLista.classList.remove('precio-calculado'), 1500);
+    }
+    if (inputIVALista) {
+        inputIVALista.value = nuevoIVALista;
+    }
+}
+
+// Aplicar descuento masivo en el servidor (TODOS los artículos)
+function aplicarDescuentoMasivoServidor() {
+    const descuento = parseFloat(document.getElementById('descuentoPorcentaje').value);
+    
+    if (!descuento || descuento <= 0) {
+        Swal.fire({
+            title: 'Error',
+            text: 'Por favor ingrese un porcentaje de descuento válido',
+            icon: 'error',
+            confirmButtonColor: '#8B7355'
+        });
         return;
     }
     
-    const inputs = document.querySelectorAll('.precio-input');
-    inputs.forEach(input => {
-        input.value = '';
+    const baseCalculo = document.querySelector('input[name="baseCalculo"]:checked').value;
+    const baseTexto = baseCalculo === 'neto' ? 'Precio Neto' : 'Precio con IVA';
+    const categoriaId = document.getElementById('categoriaFilter').value;
+    const categoriaTexto = categoriaId ? document.querySelector(`#categoriaFilter option[value="${categoriaId}"]`).text : 'Todas';
+    
+    Swal.fire({
+        title: '¿Aplicar Descuento Masivo?',
+        html: `
+            <p>Se aplicará <strong>${descuento}%</strong> de descuento</p>
+            <p>Base de cálculo: <strong>${baseTexto}</strong></p>
+            <p>Categoría: <strong>${categoriaTexto}</strong></p>
+            <p class="text-danger"><strong>⚠️ Se aplicará a TODOS los artículos activos</strong></p>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, aplicar a TODOS',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Crear formulario y enviarlo
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '';
+            
+            // CSRF Token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            form.appendChild(csrfInput);
+            
+            // Marcador de descuento masivo
+            const marcadorInput = document.createElement('input');
+            marcadorInput.type = 'hidden';
+            marcadorInput.name = 'aplicar_descuento_masivo';
+            marcadorInput.value = '1';
+            form.appendChild(marcadorInput);
+            
+            // Descuento
+            const descuentoInput = document.createElement('input');
+            descuentoInput.type = 'hidden';
+            descuentoInput.name = 'descuento_porcentaje';
+            descuentoInput.value = descuento;
+            form.appendChild(descuentoInput);
+            
+            // Base de cálculo
+            const baseInput = document.createElement('input');
+            baseInput.type = 'hidden';
+            baseInput.name = 'base_calculo';
+            baseInput.value = baseCalculo;
+            form.appendChild(baseInput);
+            
+            // Categoría filtro
+            if (categoriaId) {
+                const categoriaInput = document.createElement('input');
+                categoriaInput.type = 'hidden';
+                categoriaInput.name = 'categoria_filtro';
+                categoriaInput.value = categoriaId;
+                form.appendChild(categoriaInput);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
     });
 }
+
+// Aplicar descuento masivo a artículos filtrados (SOLO VISIBLES - Antigua función)
+function aplicarDescuentoMasivo() {
+    const descuento = parseFloat(document.getElementById('descuentoPorcentaje').value);
+    
+    if (!descuento || descuento <= 0) {
+        Swal.fire({
+            title: 'Error',
+            text: 'Por favor ingrese un porcentaje de descuento válido',
+            icon: 'error',
+            confirmButtonColor: '#8B7355'
+        });
+        return;
+    }
+    
+    const baseCalculo = document.querySelector('input[name="baseCalculo"]:checked').value;
+    const baseTexto = baseCalculo === 'neto' ? 'Precio Neto' : 'Precio con IVA';
+    
+    // Contar artículos visibles
+    const rows = document.querySelectorAll('.articulo-row');
+    let articulosVisibles = 0;
+    rows.forEach(row => {
+        if (row.style.display !== 'none') {
+            articulosVisibles++;
+        }
+    });
+    
+    Swal.fire({
+        title: '¿Aplicar Descuento Masivo?',
+        html: `
+            <p>Se aplicará <strong>${descuento}%</strong> de descuento</p>
+            <p>Base de cálculo: <strong>${baseTexto}</strong></p>
+            <p>Artículos afectados: <strong>${articulosVisibles}</strong></p>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, aplicar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            let contador = 0;
+            
+            rows.forEach(row => {
+                // Aplicar a filas visibles (filtradas)
+                if (row.style.display !== 'none') {
+                    const precioNeto = parseFloat(row.dataset.precioNeto) || 0;
+                    const precioIVA = parseFloat(row.dataset.precioIva) || 0;
+                    
+                    if (precioNeto === 0 && precioIVA === 0) {
+                        return;
+                    }
+                    
+                    let nuevoNetoLista, nuevoIVALista;
+                    
+                    if (baseCalculo === 'neto') {
+                        // Descuento sobre precio neto
+                        nuevoNetoLista = Math.round(precioNeto * (1 - descuento / 100));
+                        nuevoIVALista = Math.round(nuevoNetoLista * 1.19);
+                    } else {
+                        // Descuento sobre precio con IVA
+                        nuevoIVALista = Math.round(precioIVA * (1 - descuento / 100));
+                        nuevoNetoLista = Math.round(nuevoIVALista / 1.19);
+                    }
+                    
+                    // Actualizar inputs
+                    const inputDescuento = row.querySelector('.descuento-input');
+                    const inputNetoLista = row.querySelector('.precio-neto-lista');
+                    const inputIVALista = row.querySelector('.precio-iva-lista');
+                    
+                    if (inputDescuento) {
+                        inputDescuento.value = descuento;
+                    }
+                    if (inputNetoLista) {
+                        inputNetoLista.value = nuevoNetoLista;
+                        inputNetoLista.classList.add('precio-calculado');
+                        setTimeout(() => inputNetoLista.classList.remove('precio-calculado'), 2000);
+                    }
+                    if (inputIVALista) {
+                        inputIVALista.value = nuevoIVALista;
+                    }
+                    
+                    contador++;
+                }
+            });
+            
+            Swal.fire({
+                title: '¡Descuento Aplicado!',
+                html: `
+                    <p><strong>${contador}</strong> artículos actualizados</p>
+                    <p>Descuento: <strong>${descuento}%</strong></p>
+                    <p>Base: <strong>${baseTexto}</strong></p>
+                `,
+                icon: 'success',
+                confirmButtonColor: '#8B7355',
+                timer: 3000
+            });
+        }
+    });
+}
+
+// Preparar formulario antes de enviar
+function prepararFormulario() {
+    let contador = 0;
+    
+    // Recorrer todos los inputs de precio neto
+    const inputs = document.querySelectorAll('.precio-neto-lista');
+    
+    inputs.forEach(input => {
+        // Si el input tiene valor, contarlo
+        if (input.value && input.value.trim() !== '' && parseFloat(input.value) > 0) {
+            contador++;
+        }
+    });
+    
+    if (contador === 0) {
+        Swal.fire({
+            title: 'Sin Cambios',
+            text: 'No hay precios para guardar',
+            icon: 'warning',
+            confirmButtonColor: '#8B7355'
+        });
+        return false;
+    }
+    
+    // Mostrar confirmación con contador
+    Swal.fire({
+        title: 'Guardando...',
+        html: `<p>Se guardarán <strong>${contador}</strong> precios</p>`,
+        icon: 'info',
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true
+    });
+    
+    return true;
+}
+
+// Inicializar precios con IVA y porcentajes al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('.articulo-row');
+    rows.forEach(row => {
+        const inputNetoLista = row.querySelector('.precio-neto-lista');
+        
+        if (inputNetoLista && inputNetoLista.value) {
+            // Calcular precio con IVA desde el precio neto guardado
+            calcularPrecioIVADesdeNeto(inputNetoLista);
+            
+            // Calcular y mostrar el % de descuento aplicado
+            calcularPorcentajeDescuento(row);
+        }
+    });
+});
 </script>
 {% endblock %}

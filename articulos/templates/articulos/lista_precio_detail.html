@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load l10n %}
 
 {% block title %}{{ lista.nombre }} - GestionCloud{% endblock %}
 
@@ -37,6 +38,39 @@
     .table thead {
         background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
         color: #6F5B44;
+    }
+
+    .table thead th {
+        padding: 0.5rem !important;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border: none;
+    }
+
+    .table tbody td {
+        padding: 0.4rem 0.5rem !important;
+        vertical-align: middle;
+        font-size: 0.9rem;
+        border: none !important;
+    }
+
+    .table tbody tr {
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .codigo-badge {
+        background: #F5F0EB;
+        color: #6F5B44;
+        padding: 0.15rem 0.4rem;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        font-family: monospace;
+    }
+
+    .precio-valor {
+        color: #8B7355;
+        font-weight: 600;
+        font-size: 1rem;
     }
 
     .info-box {
@@ -94,8 +128,14 @@
                             <a href="{% url 'articulos:lista_precio_gestionar_precios' lista.pk %}" class="btn btn-sm btn-terroso me-2">
                                 <i class="fas fa-dollar-sign me-1"></i> Gestionar Precios
                             </a>
-                            <a href="{% url 'articulos:lista_precio_update' lista.pk %}" class="btn btn-sm btn-terroso">
+                            <a href="{% url 'articulos:lista_precio_update' lista.pk %}" class="btn btn-sm btn-terroso me-2">
                                 <i class="fas fa-edit me-1"></i> Editar
+                            </a>
+                            <a href="{% url 'articulos:lista_precio_exportar_excel' lista.pk %}" class="btn btn-sm btn-success me-2">
+                                <i class="fas fa-file-excel me-1"></i> Exportar Excel
+                            </a>
+                            <a href="{% url 'articulos:lista_precio_exportar_pdf' lista.pk %}" class="btn btn-sm btn-danger">
+                                <i class="fas fa-file-pdf me-1"></i> Exportar PDF
                             </a>
                         </div>
                     </div>
@@ -130,31 +170,33 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th style="border: none; padding: 15px; font-weight: 600;">Código</th>
-                                    <th style="border: none; padding: 15px; font-weight: 600;">Artículo</th>
-                                    <th style="border: none; padding: 15px; font-weight: 600; text-align: right;">Precio</th>
-                                    <th style="border: none; padding: 15px; font-weight: 600;">Última Actualización</th>
+                                    <th width="10%">Código</th>
+                                    <th width="40%">Artículo</th>
+                                    <th width="15%" class="text-end">Precio Neto</th>
+                                    <th width="15%" class="text-end">Precio c/IVA</th>
+                                    <th width="20%">Actualización</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for precio in precios %}
                                 <tr>
-                                    <td style="padding: 15px; vertical-align: middle;">
-                                        <code>{{ precio.articulo.codigo }}</code>
+                                    <td>
+                                        <span class="codigo-badge">{{ precio.articulo.codigo }}</span>
                                     </td>
-                                    <td style="padding: 15px; vertical-align: middle;">
-                                        <strong>{{ precio.articulo.nombre }}</strong>
+                                    <td>{{ precio.articulo.nombre }}</td>
+                                    <td class="text-end">
+                                        <span class="precio-valor">${{ precio.precio|floatformat:0 }}</span>
                                     </td>
-                                    <td style="padding: 15px; vertical-align: middle; text-align: right;">
-                                        <strong style="color: #8B7355; font-size: 1.1rem;">${{ precio.precio|floatformat:0 }}</strong>
+                                    <td class="text-end">
+                                        <span class="precio-valor text-success" data-precio-neto="{{ precio.precio|unlocalize }}"></span>
                                     </td>
-                                    <td style="padding: 15px; vertical-align: middle;">
-                                        {{ precio.fecha_actualizacion|date:"d/m/Y H:i" }}
+                                    <td>
+                                        <small class="text-muted">{{ precio.fecha_actualizacion|date:"d/m/Y H:i" }}</small>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4" class="text-center" style="padding: 30px;">
+                                    <td colspan="5" class="text-center" style="padding: 30px;">
                                         <i class="fas fa-box-open fa-3x mb-3" style="color: #D4C4A8;"></i>
                                         <p class="mb-0" style="color: #8B7355;">No hay artículos con precios en esta lista</p>
                                     </td>
@@ -163,9 +205,78 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Información de paginación -->
+                    <div class="mt-3">
+                        <p class="text-center text-muted">
+                            <small>
+                                Mostrando {{ precios.start_index }} - {{ precios.end_index }} de {{ precios.paginator.count }} artículos
+                                {% if precios.paginator.num_pages > 1 %}
+                                    | Página {{ precios.number }} de {{ precios.paginator.num_pages }}
+                                {% endif %}
+                            </small>
+                        </p>
+                    </div>
+
+                    <!-- Paginación -->
+                    {% if precios.paginator.num_pages > 1 %}
+                    <nav aria-label="Paginación">
+                        <ul class="pagination justify-content-center">
+                            {% if precios.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ precios.previous_page_number }}" style="color: #8B7355;">
+                                    <i class="fas fa-chevron-left"></i> Anterior
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in precios.paginator.page_range %}
+                                {% if precios.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link" style="background-color: #8B7355; border-color: #8B7355;">{{ num }}</span>
+                                </li>
+                                {% elif num > precios.number|add:'-3' and num < precios.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}" style="color: #8B7355;">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if precios.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ precios.next_page_number }}" style="color: #8B7355;">
+                                    Siguiente <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Calcular y mostrar precios con IVA
+document.addEventListener('DOMContentLoaded', function() {
+    function formatearPrecio(numero) {
+        return numero.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+    
+    document.querySelectorAll('[data-precio-neto]').forEach(function(element) {
+        const precioNeto = parseFloat(element.dataset.precioNeto);
+        console.log('Precio Neto:', precioNeto);
+        
+        if (!isNaN(precioNeto)) {
+            const precioConIva = Math.round(precioNeto * 1.19);
+            console.log('Precio con IVA:', precioConIva);
+            element.textContent = '$' + formatearPrecio(precioConIva);
+        }
+    });
+});
+</script>
 {% endblock %}
