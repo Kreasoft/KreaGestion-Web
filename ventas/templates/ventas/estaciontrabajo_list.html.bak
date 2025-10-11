@@ -1,0 +1,597 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Estaciones de Trabajo - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-desktop fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    Gestión de Estaciones de Trabajo
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">Configura las estaciones POS y sus tipos de documentos</small>
+                            </div>
+                        </div>
+                        <button class="btn" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(32, 201, 151, 0.3); font-family: 'Poppins', sans-serif;" data-bs-toggle="modal" data-bs-target="#modalCrearEstacion">
+                            <i class="fas fa-plus me-2"></i> Nueva Estación
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 20px;">
+                    <!-- Búsqueda -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <form method="get" class="row g-3">
+                                <div class="col-md-10">
+                                    <input type="text" name="search" class="form-control" placeholder="Buscar por número o nombre..." value="{{ search }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; color: white; font-weight: 500;">
+                                        <i class="fas fa-search me-2"></i>Buscar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabla de estaciones -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead style="background: linear-gradient(135deg, #f8f9fc 0%, #e3e6f0 100%);">
+                                <tr>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Número</th>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Nombre</th>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Documentos</th>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Correlativo Ticket</th>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Estado</th>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for estacion in page_obj %}
+                                <tr style="border-bottom: 1px solid #e3e6f0;">
+                                    <td style="border: none; padding: 8px 12px;">
+                                        <strong style="color: #2c3e50; font-size: 0.9rem;">{{ estacion.numero }}</strong>
+                                    </td>
+                                    <td style="border: none; padding: 8px 12px; font-size: 0.9rem;">{{ estacion.nombre }}</td>
+                                    <td style="border: none; padding: 8px 12px;">
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {% if estacion.puede_facturar %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; font-size: 0.7rem;">Factura</span>
+                                            {% endif %}
+                                            {% if estacion.puede_boletar %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color: white; font-size: 0.7rem;">Boleta</span>
+                                            {% endif %}
+                                            {% if estacion.puede_guia %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529; font-size: 0.7rem;">Guía</span>
+                                            {% endif %}
+                                            {% if estacion.puede_cotizar %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); color: white; font-size: 0.7rem;">Cotización</span>
+                                            {% endif %}
+                                            {% if estacion.puede_vale %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #fd7e14 0%, #e55a00 100%); color: white; font-size: 0.7rem;">Vale</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td style="border: none; padding: 8px 12px; font-size: 0.8rem;">
+                                        <span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; font-size: 0.75rem;">
+                                            #{{ estacion.correlativo_ticket }}
+                                        </span>
+                                    </td>
+                                    <td style="border: none; padding: 8px 12px;">
+                                        {% if estacion.activo %}
+                                            <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; font-size: 0.75rem;">Activo</span>
+                                        {% else %}
+                                            <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white; font-size: 0.75rem;">Inactivo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="border: none; padding: 8px 12px;">
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; color: white; border-radius: 6px; padding: 4px 8px;" title="Ver" onclick="verEstacion({{ estacion.id }})">
+                                                <i class="fas fa-eye" style="font-size: 0.8rem;"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary" style="border-radius: 6px; padding: 4px 8px;" title="Editar" onclick="editarEstacion({{ estacion.id }})">
+                                                <i class="fas fa-edit" style="font-size: 0.8rem;"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 4px 8px;" title="Eliminar" onclick="eliminarEstacion({{ estacion.id }}, '{{ estacion.nombre }}')">
+                                                <i class="fas fa-trash" style="font-size: 0.8rem;"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="fas fa-desktop fa-3x mb-3"></i>
+                                            <p>No hay estaciones de trabajo registradas</p>
+                                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCrearEstacion">
+                                                <i class="fas fa-plus me-2"></i>Crear Primera Estación
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginación -->
+                    {% if page_obj.has_other_pages %}
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">Anterior</a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">Siguiente</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Estación -->
+<div class="modal fade" id="modalCrearEstacion" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border: none; border-radius: 15px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title text-white" style="font-family: 'Poppins', sans-serif; font-weight: 600;">
+                    <i class="fas fa-desktop me-2"></i>Nueva Estación de Trabajo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'ventas:estaciontrabajo_create' %}" id="formCrearEstacion">
+                {% csrf_token %}
+                <div class="modal-body" style="padding: 25px;">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label" style="font-weight: 600;">Número de Estación *</label>
+                                <input type="text" name="numero" class="form-control" placeholder="Ej: 001" required maxlength="10">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label" style="font-weight: 600;">Nombre *</label>
+                                <input type="text" name="nombre" class="form-control" placeholder="Ej: Caja Principal" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Descripción</label>
+                        <textarea name="descripcion" class="form-control" rows="3" placeholder="Descripción de la estación de trabajo"></textarea>
+                    </div>
+                    
+                    <!-- Correlativo único -->
+                    <div class="mb-4">
+                        <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
+                            <i class="fas fa-sort-numeric-up me-2"></i>Correlativo de Ticket
+                        </h6>
+                        <div class="mb-3">
+                            <label class="form-label">Correlativo Inicial</label>
+                            <input type="number" name="correlativo_ticket" class="form-control" value="1" min="1" placeholder="Número inicial para el correlativo único de tickets">
+                            <div class="form-text">Este correlativo se usa para generar números únicos de ticket para todos los tipos de documentos.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tipos de documentos permitidos -->
+                    <div class="mb-4">
+                        <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
+                            <i class="fas fa-file-alt me-2"></i>Tipos de Documentos Permitidos
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input type="checkbox" name="puede_facturar" class="form-check-input" id="puedeFacturarCrear">
+                                    <label class="form-check-label" for="puedeFacturarCrear">
+                                        <i class="fas fa-file-invoice me-2"></i>Puede Emitir Facturas
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input type="checkbox" name="puede_boletar" class="form-check-input" id="puedeBoletarCrear" checked>
+                                    <label class="form-check-label" for="puedeBoletarCrear">
+                                        <i class="fas fa-receipt me-2"></i>Puede Emitir Boletas
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input type="checkbox" name="puede_guia" class="form-check-input" id="puedeGuiaCrear">
+                                    <label class="form-check-label" for="puedeGuiaCrear">
+                                        <i class="fas fa-truck me-2"></i>Puede Emitir Guías
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input type="checkbox" name="puede_cotizar" class="form-check-input" id="puedeCotizarCrear" checked>
+                                    <label class="form-check-label" for="puedeCotizarCrear">
+                                        <i class="fas fa-calculator me-2"></i>Puede Emitir Cotizaciones
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input type="checkbox" name="puede_vale" class="form-check-input" id="puedeValeCrear">
+                                    <label class="form-check-label" for="puedeValeCrear">
+                                        <i class="fas fa-ticket-alt me-2"></i>Puede Emitir Vales
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Límites de items -->
+                    <div class="mb-4">
+                        <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
+                            <i class="fas fa-list-ol me-2"></i>Límites de Items por Documento
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Máx. Items Factura</label>
+                                    <input type="number" name="max_items_factura" class="form-control" value="20" min="1" max="100">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Máx. Items Boleta</label>
+                                    <input type="number" name="max_items_boleta" class="form-control" value="35" min="1" max="100">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Máx. Items Guía</label>
+                                    <input type="number" name="max_items_guia" class="form-control" value="50" min="1" max="100">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Máx. Items Cotización</label>
+                                    <input type="number" name="max_items_cotizacion" class="form-control" value="50" min="1" max="100">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Máx. Items Vale</label>
+                                    <input type="number" name="max_items_vale" class="form-control" value="30" min="1" max="100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check form-switch">
+                        <input type="checkbox" name="activo" class="form-check-input" id="activoCrear" checked>
+                        <label class="form-check-label" for="activoCrear">Estación activa</label>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border: none; padding: 15px 25px;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; color: white;">
+                        <i class="fas fa-save me-2"></i>Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ver Estación -->
+<div class="modal fade" id="modalVerEstacion" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border: none; border-radius: 15px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title text-white" style="font-family: 'Poppins', sans-serif; font-weight: 600;">
+                    <i class="fas fa-desktop me-2"></i>Detalle de la Estación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding: 25px; max-height: 70vh; overflow-y: auto;" id="detalleEstacion">
+                <!-- Se carga dinámicamente -->
+            </div>
+            <div class="modal-footer" style="border: none; padding: 15px 25px; background: #f8f9fa; border-radius: 0 0 15px 15px;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Estación -->
+<div class="modal fade" id="modalEditarEstacion" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border: none; border-radius: 15px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title text-white" style="font-family: 'Poppins', sans-serif; font-weight: 600;">
+                    <i class="fas fa-edit me-2"></i>Editar Estación de Trabajo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding: 25px; max-height: 70vh; overflow-y: auto;" id="formEditarEstacion">
+                <!-- Se carga dinámicamente -->
+            </div>
+            <div class="modal-footer" style="border: none; padding: 15px 25px; background: #f8f9fa; border-radius: 0 0 15px 15px;" id="footerEditarEstacion">
+                <!-- Se carga dinámicamente -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function verEstacion(id) {
+    fetch(`/ventas/estaciones-trabajo/${id}/`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('detalleEstacion').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('modalVerEstacion')).show();
+        });
+}
+
+function editarEstacion(id) {
+    fetch(`/ventas/estaciones-trabajo/${id}/editar/`)
+        .then(response => {
+            if (response.ok) {
+                return response.text();
+            } else {
+                throw new Error('Error al cargar el formulario');
+            }
+        })
+        .then(html => {
+            document.getElementById('formEditarEstacion').innerHTML = html;
+            
+            // Generar footer del modal
+            const footerHtml = `
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="submit" class="btn" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; color: white;" form="formEditarEstacionSubmit">
+                    <i class="fas fa-save me-2"></i>Guardar Cambios
+                </button>
+            `;
+            document.getElementById('footerEditarEstacion').innerHTML = footerHtml;
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarEstacion'));
+            
+            // No limpiar automáticamente, solo cuando se cierre manualmente
+            
+            modal.show();
+            
+            // Manejar envío del formulario
+            const form = document.getElementById('formEditarEstacionSubmit');
+            if (form) {
+                // Remover listeners anteriores si existen
+                form.removeEventListener('submit', handleFormSubmit);
+                form.addEventListener('submit', handleFormSubmit);
+                
+                // Asegurar que el modal se cierre correctamente al hacer clic en cancelar
+                const cancelBtn = document.querySelector('#modalEditarEstacion .btn-secondary');
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', function() {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarEstacion'));
+                        if (modal) {
+                            modal.hide();
+                            // Limpiar contenido después de cerrar
+                            setTimeout(() => {
+                                document.getElementById('formEditarEstacion').innerHTML = '';
+                                document.getElementById('footerEditarEstacion').innerHTML = '';
+                            }, 300);
+                        }
+                    });
+                }
+            } else {
+                console.warn('Formulario de edición no encontrado');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al cargar el formulario de edición'
+            });
+        });
+}
+
+function handleFormSubmit(e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarEstacion'));
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData
+    }).then(response => {
+        if (response.headers.get('content-type')?.includes('application/json')) {
+            return response.json();
+        } else {
+            return { success: true, message: 'Operación completada' };
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            // Cerrar modal igual que cancelar
+            if (modal) {
+                modal.hide();
+                setTimeout(() => {
+                    document.getElementById('formEditarEstacion').innerHTML = '';
+                    document.getElementById('footerEditarEstacion').innerHTML = '';
+                }, 300);
+            }
+            Swal.fire({
+                icon: 'success',
+                title: '¡Éxito!',
+                text: 'Estación de trabajo actualizada exitosamente',
+                timer: 2000
+            }).then(() => location.reload());
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Error al actualizar la estación de trabajo'
+            });
+        }
+    }).catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al procesar la solicitud'
+        });
+    });
+}
+
+function eliminarEstacion(id, nombre) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Deseas eliminar la estación de trabajo ${nombre}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/ventas/estaciones-trabajo/${id}/eliminar/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                }
+    }).then(response => {
+        if (response.ok) {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json();
+            } else {
+                // Si no es JSON, asumir éxito
+                return { success: true, message: 'Operación completada' };
+            }
+        } else {
+            throw new Error('Error en la respuesta del servidor');
+        }
+    }).then(data => {
+        if (data.success) {
+            Swal.fire({
+                title: '¡Eliminado!',
+                text: 'La estación de trabajo ha sido eliminada exitosamente.',
+                icon: 'success',
+                timer: 2000
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Error al eliminar la estación de trabajo'
+            });
+        }
+    }).catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al procesar la solicitud'
+        });
+    });
+        }
+    });
+}
+
+// Manejar envío del formulario de creación
+document.getElementById('formCrearEstacion').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData
+    }).then(response => {
+        if (response.ok) {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json();
+            } else {
+                // Si no es JSON, asumir éxito
+                return { success: true, message: 'Estación de trabajo creada exitosamente' };
+            }
+        } else {
+            throw new Error('Error en la respuesta del servidor');
+        }
+    }).then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalCrearEstacion')).hide();
+            Swal.fire({
+                icon: 'success',
+                title: '¡Éxito!',
+                text: 'Estación de trabajo creada exitosamente',
+                timer: 2000
+            }).then(() => location.reload());
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Error al crear la estación de trabajo'
+            });
+        }
+    }).catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al procesar la solicitud'
+        });
+    });
+});
+
+// Manejar mensajes
+{% if messages %}
+    {% for message in messages %}
+        Swal.fire({
+            icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% else %}info{% endif %}',
+            title: '{{ message.tags|title }}',
+            text: '{{ message }}',
+            timer: 3000
+        });
+    {% endfor %}
+{% endif %}
+</script>
+
+<style>
+    .modal-dialog {
+        max-width: 600px;
+        margin: 1.75rem auto;
+    }
+    
+    .modal-content {
+        max-height: 80vh;
+        overflow: hidden;
+    }
+    
+    .modal-body {
+        max-height: calc(80vh - 120px);
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}

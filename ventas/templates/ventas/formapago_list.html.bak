@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Formas de Pago - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-credit-card fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    Gestión de Formas de Pago
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">Administra las formas de pago disponibles</small>
+                            </div>
+                        </div>
+                        <button class="btn" style="background: linear-gradient(135deg, #20c997 0%, #28a745 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(32, 201, 151, 0.3); font-family: 'Poppins', sans-serif;" data-bs-toggle="modal" data-bs-target="#modalCrearFormaPago">
+                            <i class="fas fa-plus me-2"></i> Nueva Forma de Pago
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 20px;">
+                    <!-- Búsqueda -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <form method="get" class="row g-3">
+                                <div class="col-md-10">
+                                    <input type="text" name="search" class="form-control" placeholder="Buscar por código o nombre..." value="{{ search }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; font-weight: 500;">
+                                        <i class="fas fa-search me-2"></i>Buscar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabla de formas de pago -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead style="background: linear-gradient(135deg, #f8f9fc 0%, #e3e6f0 100%);">
+                                <tr>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Código</th>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Nombre</th>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">C.C.</th>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Cheque</th>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Estado</th>
+                                    <th style="border: none; font-weight: 600; color: #5a5c69; font-size: 0.9rem;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for forma_pago in page_obj %}
+                                <tr style="border-bottom: 1px solid #e3e6f0;">
+                                    <td style="border: none; padding: 8px 12px;">
+                                        <strong style="color: #2c3e50; font-size: 0.9rem;">{{ forma_pago.codigo }}</strong>
+                                    </td>
+                                    <td style="border: none; padding: 8px 12px; font-size: 0.9rem;">{{ forma_pago.nombre }}</td>
+                                    <td style="border: none; padding: 8px 12px; text-align: center;">
+                                        {% if forma_pago.es_cuenta_corriente %}
+                                            <span class="badge" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529; font-size: 0.75rem;">
+                                                <i class="fas fa-check"></i>
+                                            </span>
+                                        {% else %}
+                                            <span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #545b62 100%); color: white; font-size: 0.75rem;">
+                                                <i class="fas fa-times"></i>
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="border: none; padding: 8px 12px; text-align: center;">
+                                        {% if forma_pago.requiere_cheque %}
+                                            <span class="badge" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color: white; font-size: 0.75rem;">
+                                                <i class="fas fa-check"></i>
+                                            </span>
+                                        {% else %}
+                                            <span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #545b62 100%); color: white; font-size: 0.75rem;">
+                                                <i class="fas fa-times"></i>
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="border: none; padding: 8px 12px;">
+                                        {% if forma_pago.activo %}
+                                            <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; font-size: 0.75rem;">Activo</span>
+                                        {% else %}
+                                            <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white; font-size: 0.75rem;">Inactivo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="border: none; padding: 8px 12px;">
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; border-radius: 6px; padding: 4px 8px;" title="Ver" onclick="verFormaPago({{ forma_pago.id }})">
+                                                <i class="fas fa-eye" style="font-size: 0.8rem;"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary" style="border-radius: 6px; padding: 4px 8px;" title="Editar" onclick="editarFormaPago({{ forma_pago.id }})">
+                                                <i class="fas fa-edit" style="font-size: 0.8rem;"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" style="border-radius: 6px; padding: 4px 8px;" title="Eliminar" onclick="eliminarFormaPago({{ forma_pago.id }}, '{{ forma_pago.nombre }}')">
+                                                <i class="fas fa-trash" style="font-size: 0.8rem;"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="fas fa-credit-card fa-3x mb-3"></i>
+                                            <p>No hay formas de pago registradas</p>
+                                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCrearFormaPago">
+                                                <i class="fas fa-plus me-2"></i>Crear Primera Forma de Pago
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginación -->
+                    {% if page_obj.has_other_pages %}
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">Anterior</a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">Siguiente</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Forma de Pago -->
+<div class="modal fade" id="modalCrearFormaPago" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border: none; border-radius: 15px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title text-white" style="font-family: 'Poppins', sans-serif; font-weight: 600;">
+                    <i class="fas fa-credit-card me-2"></i>Nueva Forma de Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'ventas:formapago_create' %}" id="formCrearFormaPago">
+                {% csrf_token %}
+                <div class="modal-body" style="padding: 25px;">
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Código *</label>
+                        <input type="text" name="codigo" class="form-control" placeholder="Ej: EF01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Nombre *</label>
+                        <input type="text" name="nombre" class="form-control" placeholder="Nombre de la forma de pago" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="es_cuenta_corriente" class="form-check-input" id="esCuentaCorrienteCrear">
+                            <label class="form-check-label" for="esCuentaCorrienteCrear">
+                                Es Cuenta Corriente
+                                <small class="text-muted d-block">Si está marcado, la factura pasa a cuenta corriente del cliente</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="requiere_cheque" class="form-check-input" id="requiereChequeCrear">
+                            <label class="form-check-label" for="requiereChequeCrear">
+                                Requiere Cheque
+                                <small class="text-muted d-block">Si está marcado, se debe registrar información del cheque</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="activo" class="form-check-input" id="activoCrear" checked>
+                            <label class="form-check-label" for="activoCrear">Forma de pago activa</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border: none; padding: 15px 25px;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white;">
+                        <i class="fas fa-save me-2"></i>Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ver Forma de Pago -->
+<div class="modal fade" id="modalVerFormaPago" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border: none; border-radius: 15px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title text-white" style="font-family: 'Poppins', sans-serif; font-weight: 600;">
+                    <i class="fas fa-credit-card me-2"></i>Detalle de la Forma de Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding: 25px; max-height: 70vh; overflow-y: auto;" id="detalleFormaPago">
+                <!-- Se carga dinámicamente -->
+            </div>
+            <div class="modal-footer" style="border: none; padding: 15px 25px; background: #f8f9fa; border-radius: 0 0 15px 15px;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Forma de Pago -->
+<div class="modal fade" id="modalEditarFormaPago" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border: none; border-radius: 15px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title text-white" style="font-family: 'Poppins', sans-serif; font-weight: 600;">
+                    <i class="fas fa-edit me-2"></i>Editar Forma de Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding: 25px; max-height: 70vh; overflow-y: auto;" id="formEditarFormaPago">
+                <!-- Se carga dinámicamente -->
+            </div>
+            <div class="modal-footer" style="border: none; padding: 15px 25px; background: #f8f9fa; border-radius: 0 0 15px 15px;" id="footerEditarFormaPago">
+                <!-- Se carga dinámicamente -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function verFormaPago(id) {
+    fetch(`/ventas/formas-pago/${id}/`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('detalleFormaPago').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('modalVerFormaPago')).show();
+        });
+}
+
+function editarFormaPago(id) {
+    fetch(`/ventas/formas-pago/${id}/editar/`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('formEditarFormaPago').innerHTML = html;
+            
+            // Generar footer del modal
+            const footerHtml = `
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="submit" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white;" form="formEditarFormaPagoSubmit">
+                    <i class="fas fa-save me-2"></i>Guardar Cambios
+                </button>
+            `;
+            document.getElementById('footerEditarFormaPago').innerHTML = footerHtml;
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarFormaPago'));
+            modal.show();
+            
+            // Manejar envío del formulario
+            const form = document.getElementById('formEditarFormaPagoSubmit');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(form);
+                    
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: formData
+                    }).then(response => response.json())
+                      .then(data => {
+                          if (data.success) {
+                              modal.hide();
+                              Swal.fire({
+                                  icon: 'success',
+                                  title: '¡Éxito!',
+                                  text: 'Forma de pago actualizada exitosamente',
+                                  timer: 2000
+                              }).then(() => location.reload());
+                          } else {
+                              Swal.fire({
+                                  icon: 'error',
+                                  title: 'Error',
+                                  text: 'Error al actualizar la forma de pago'
+                              });
+                          }
+                      });
+                });
+            }
+        });
+}
+
+function eliminarFormaPago(id, nombre) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Deseas eliminar la forma de pago ${nombre}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/ventas/formas-pago/${id}/eliminar/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                }
+            }).then(response => {
+                if (response.ok) {
+                    Swal.fire({
+                        title: '¡Eliminado!',
+                        text: 'La forma de pago ha sido eliminada exitosamente.',
+                        icon: 'success',
+                        timer: 2000
+                    }).then(() => {
+                        location.reload();
+                    });
+                }
+            });
+        }
+    });
+}
+
+// Manejar mensajes
+{% if messages %}
+    {% for message in messages %}
+        Swal.fire({
+            icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% else %}info{% endif %}',
+            title: '{{ message.tags|title }}',
+            text: '{{ message }}',
+            timer: 3000
+        });
+    {% endfor %}
+{% endif %}
+</script>
+{% endblock %}

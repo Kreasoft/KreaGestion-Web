@@ -1,0 +1,86 @@
+<form id="documentoForm" method="post" action="{% if documento %}{% url 'tesoreria:documento_pendiente_proveedor_edit' documento.pk %}{% else %}{% url 'tesoreria:documento_pendiente_proveedor_create' %}{% endif %}">
+    {% csrf_token %}
+    
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold" style="color: #6F5B44; font-size: 0.8rem;">
+                <i class="fas fa-truck me-1"></i>Proveedor *
+            </label>
+            <select name="proveedor" class="form-select form-select-sm" required>
+                <option value="">Seleccione...</option>
+                {% for prov in proveedores %}
+                    <option value="{{ prov.pk }}" {% if documento and documento.proveedor.pk == prov.pk %}selected{% endif %}>
+                        {{ prov.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <label class="form-label fw-bold" style="color: #6F5B44; font-size: 0.8rem;">
+                <i class="fas fa-file me-1"></i>Tipo *
+            </label>
+            <select name="tipo_documento" class="form-select form-select-sm" required>
+                <option value="factura" {% if documento and documento.tipo_documento == 'factura' %}selected{% endif %}>Factura</option>
+                <option value="boleta" {% if documento and documento.tipo_documento == 'boleta' %}selected{% endif %}>Boleta</option>
+                <option value="nota_credito" {% if documento and documento.tipo_documento == 'nota_credito' %}selected{% endif %}>Nota Crédito</option>
+                <option value="nota_debito" {% if documento and documento.tipo_documento == 'nota_debito' %}selected{% endif %}>Nota Débito</option>
+            </select>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <label class="form-label fw-bold" style="color: #6F5B44; font-size: 0.8rem;">
+                <i class="fas fa-hashtag me-1"></i>N° Doc *
+            </label>
+            <input type="text" name="numero_documento" class="form-control form-control-sm" 
+                   value="{% if documento %}{{ documento.numero_documento }}{% endif %}" 
+                   placeholder="12345" required>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold" style="color: #6F5B44; font-size: 0.8rem;">
+                <i class="fas fa-calendar me-1"></i>F. Emisión *
+            </label>
+            <input type="date" name="fecha_emision" class="form-control form-control-sm" 
+                   value="{% if documento %}{{ documento.fecha_emision|date:'Y-m-d' }}{% endif %}" required>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold" style="color: #6F5B44; font-size: 0.8rem;">
+                <i class="fas fa-calendar-check me-1"></i>F. Vencimiento
+            </label>
+            <input type="date" name="fecha_vencimiento" class="form-control form-control-sm" 
+                   value="{% if documento %}{{ documento.fecha_vencimiento|date:'Y-m-d' }}{% endif %}">
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold" style="color: #6F5B44; font-size: 0.8rem;">
+                <i class="fas fa-dollar-sign me-1"></i>Total *
+            </label>
+            <input type="number" name="total" class="form-control form-control-sm" 
+                   value="{% if documento %}{{ documento.total_documento }}{% endif %}" 
+                   placeholder="0" step="1" min="0" required>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12 mb-3">
+            <label class="form-label fw-bold" style="color: #6F5B44; font-size: 0.8rem;">
+                <i class="fas fa-comment me-1"></i>Observaciones
+            </label>
+            <textarea name="observaciones" class="form-control form-control-sm" rows="2" 
+                      placeholder="Observaciones...">{% if documento %}{{ documento.observaciones }}{% endif %}</textarea>
+        </div>
+    </div>
+    
+    <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i> Cancelar
+        </button>
+        <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white;">
+            <i class="fas fa-save me-1"></i> Guardar
+        </button>
+    </div>
+</form>

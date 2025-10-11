@@ -24,9 +24,9 @@ class ImpuestoEspecifico(models.Model):
         return f"{self.nombre} ({self.porcentaje}%)"
     
     def get_porcentaje_decimal(self):
-        """Retorna el porcentaje como Decimal"""
+        """Retorna el porcentaje como Decimal (dividido por 100)"""
         try:
-            return Decimal(str(self.porcentaje).replace(',', '.'))
+            return Decimal(str(self.porcentaje).replace(',', '.')) / Decimal('100')
         except:
             return Decimal('0.00')
 
@@ -189,7 +189,7 @@ class Articulo(models.Model):
         return self.tipo_articulo in ['insumo', 'ambos']
     
     def calcular_precio_final(self):
-        """Calcula el precio final con IVA de la categoría"""
+        """Calcula el precio final con IVA e impuesto específico de la categoría"""
         precio_venta = self._string_to_decimal(self.precio_venta)
         
         if precio_venta <= 0:
@@ -201,14 +201,22 @@ class Articulo(models.Model):
         # Calcular IVA
         iva_monto = (precio_venta * iva_porcentaje) / Decimal('100.00')
         
-        # Precio final = Precio venta + IVA
-        precio_final_calculado = precio_venta + iva_monto
+        # Obtener impuesto específico de la categoría
+        impuesto_especifico_decimal = Decimal('0.00')
+        if self.categoria and self.categoria.impuesto_especifico:
+            impuesto_especifico_decimal = self.categoria.impuesto_especifico.get_porcentaje_decimal()
+        
+        # Calcular impuesto específico
+        impuesto_especifico_monto = precio_venta * impuesto_especifico_decimal
+        
+        # Precio final = Precio venta + IVA + Impuesto Específico
+        precio_final_calculado = precio_venta + iva_monto + impuesto_especifico_monto
         self.precio_final = str(precio_final_calculado)
         
         return precio_final_calculado
     
     def calcular_precio_venta_desde_final(self):
-        """Calcula el precio de venta desde el precio final considerando impuestos de la categoría"""
+        """Calcula el precio de venta desde el precio final considerando IVA e impuesto específico de la categoría"""
         precio_final = self._string_to_decimal(self.precio_final)
         
         if precio_final <= 0:
@@ -217,13 +225,17 @@ class Articulo(models.Model):
         # Obtener configuración de impuestos de la categoría
         iva_porcentaje = self.categoria.get_iva_porcentaje()
         
-        # Calcular precio de venta descontando IVA
-        if iva_porcentaje > 0:
-            factor_iva = Decimal('100.00') / (Decimal('100.00') + iva_porcentaje)
-            precio_venta_calculado = precio_final * factor_iva
-            self.precio_venta = str(precio_venta_calculado)
-        else:
-            self.precio_venta = str(precio_final)
+        # Obtener impuesto específico de la categoría
+        impuesto_especifico_decimal = Decimal('0.00')
+        if self.categoria and self.categoria.impuesto_especifico:
+            impuesto_especifico_decimal = self.categoria.impuesto_especifico.get_porcentaje_decimal()
+        
+        # Calcular precio de venta descontando IVA e impuesto específico
+        # Precio Final = Precio Venta * (1 + IVA% + Imp.Esp%)
+        # Precio Venta = Precio Final / (1 + IVA% + Imp.Esp%)
+        factor_total = Decimal('1.00') + (iva_porcentaje / Decimal('100.00')) + impuesto_especifico_decimal
+        precio_venta_calculado = precio_final / factor_total
+        self.precio_venta = str(precio_venta_calculado)
         
         return precio_final
     
@@ -267,6 +279,57 @@ class Articulo(models.Model):
         except Exception as e:
             print(f"DEBUG - Error calculando stock para artículo {self.id}: {e}")
             return 0
+
+
+class ListaPrecio(models.Model):
+    """Listas de precios para artículos"""
+    
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    nombre = models.CharField(max_length=100, verbose_name="Nombre de la Lista")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    activa = models.BooleanField(default=True, verbose_name="Activa")
+    es_predeterminada = models.BooleanField(default=False, verbose_name="Lista Predeterminada")
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Actualización")
+    
+    class Meta:
+        verbose_name = "Lista de Precios"
+        verbose_name_plural = "Listas de Precios"
+        unique_together = ['empresa', 'nombre']
+        ordering = ['-es_predeterminada', 'nombre']
+    
+    def __str__(self):
+        return f"{self.nombre}{' (Predeterminada)' if self.es_predeterminada else ''}"
+    
+    def save(self, *args, **kwargs):
+        # Si se marca como predeterminada, desmarcar las demás
+        if self.es_predeterminada:
+            ListaPrecio.objects.filter(empresa=self.empresa, es_predeterminada=True).exclude(pk=self.pk).update(es_predeterminada=False)
+        super().save(*args, **kwargs)
+
+
+class PrecioArticulo(models.Model):
+    """Precios de artículos en diferentes listas"""
+    
+    articulo = models.ForeignKey(Articulo, on_delete=models.CASCADE, related_name='precios', verbose_name="Artículo")
+    lista_precio = models.ForeignKey(ListaPrecio, on_delete=models.CASCADE, related_name='precios', verbose_name="Lista de Precios")
+    precio = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name="Precio"
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Actualización")
+    
+    class Meta:
+        verbose_name = "Precio de Artículo"
+        verbose_name_plural = "Precios de Artículos"
+        unique_together = ['articulo', 'lista_precio']
+        ordering = ['lista_precio', 'articulo']
+    
+    def __str__(self):
+        return f"{self.articulo.nombre} - {self.lista_precio.nombre}: ${self.precio}"
 
 
 class StockArticulo(models.Model):

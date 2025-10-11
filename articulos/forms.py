@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from decimal import Decimal
-from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico
+from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo
 
 
 class ArticuloForm(forms.ModelForm):
@@ -277,3 +277,38 @@ class ImpuestoEspecificoForm(forms.ModelForm):
             except:
                 raise ValidationError('Ingrese un porcentaje válido.')
         return '0.00'
+
+
+class ListaPrecioForm(forms.ModelForm):
+    """Formulario para crear y editar listas de precios"""
+    
+    class Meta:
+        model = ListaPrecio
+        fields = ['nombre', 'descripcion', 'activa', 'es_predeterminada']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Precio Mayorista'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción de la lista de precios'}),
+            'activa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'es_predeterminada': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class PrecioArticuloForm(forms.ModelForm):
+    """Formulario para asignar precios a artículos en listas"""
+    
+    class Meta:
+        model = PrecioArticulo
+        fields = ['articulo', 'lista_precio', 'precio']
+        widgets = {
+            'articulo': forms.Select(attrs={'class': 'form-select'}),
+            'lista_precio': forms.Select(attrs={'class': 'form-select'}),
+            'precio': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        empresa = kwargs.pop('empresa', None)
+        super().__init__(*args, **kwargs)
+        
+        if empresa:
+            self.fields['articulo'].queryset = Articulo.objects.filter(empresa=empresa, activo=True)
+            self.fields['lista_precio'].queryset = ListaPrecio.objects.filter(empresa=empresa, activa=True)

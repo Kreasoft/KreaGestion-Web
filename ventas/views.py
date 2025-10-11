@@ -625,6 +625,23 @@ def pos_view(request):
     """Vista principal del Punto de Venta"""
     from articulos.models import Articulo
     from clientes.models import Cliente
+    from caja.models import Caja
+    from caja.forms import AperturaCajaForm
+    
+    # Verificar si hay caja abierta
+    apertura_activa = None
+    for caja in Caja.objects.filter(empresa=request.empresa, activo=True):
+        apertura = caja.get_apertura_activa()
+        if apertura:
+            apertura_activa = apertura
+            break
+    
+    # Si no hay caja abierta, preparar formulario de apertura
+    mostrar_modal_apertura = False
+    form_apertura = None
+    if not apertura_activa:
+        mostrar_modal_apertura = True
+        form_apertura = AperturaCajaForm(empresa=request.empresa)
     
     # Obtener datos para el POS con impuesto específico incluido
     articulos_queryset = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')[:50]  # Limitar para performance
@@ -672,6 +689,9 @@ def pos_view(request):
         'formas_pago': formas_pago,
         'estaciones': estaciones,
         'proximo_numero': proximo_numero,
+        'apertura_activa': apertura_activa,
+        'mostrar_modal_apertura': mostrar_modal_apertura,
+        'form_apertura': form_apertura,
     }
     
     return render(request, 'ventas/pos.html', context)
@@ -991,9 +1011,20 @@ def pos_procesar_preventa(request):
             from decimal import Decimal
             
             # Crear preventa
-            # Calcular el neto correctamente (precio sin impuestos)
+            # Usar los valores calculados correctamente desde el frontend
             subtotal = Decimal(str(data['totales']['subtotal']))
-            neto_calculado = subtotal / Decimal('1.37')  # Precio sin impuestos
+            neto = Decimal(str(data['totales']['neto']))
+            iva = Decimal(str(data['totales']['iva']))
+            impuesto_especifico = Decimal(str(data['totales']['impuesto_especifico']))
+            total = Decimal(str(data['totales']['total']))
+            descuento = Decimal(str(data['totales']['descuento']))
+            
+            print(f"DEBUG - Valores a guardar en BD:")
+            print(f"  Subtotal: {subtotal}")
+            print(f"  Neto: {neto}")
+            print(f"  IVA: {iva}")
+            print(f"  Impuesto Específico: {impuesto_especifico}")
+            print(f"  Total: {total}")
 
             preventa = Venta.objects.create(
                 empresa=request.empresa,
@@ -1004,11 +1035,11 @@ def pos_procesar_preventa(request):
                 tipo_documento=data['tipo_documento'],
                 tipo_documento_planeado=data.get('tipo_documento_planeado', data['tipo_documento']),  # ← GUARDAR TIPO PLANEADO
                 subtotal=subtotal,
-                descuento=Decimal(str(data['totales']['descuento'])),
-                neto=neto_calculado,
-                iva=Decimal(str(data['totales']['iva'])),
-                impuesto_especifico=Decimal(str(data['totales']['impuesto_especifico'])),
-                total=Decimal(str(data['totales']['total'])),
+                descuento=descuento,
+                neto=neto,
+                iva=iva,
+                impuesto_especifico=impuesto_especifico,
+                total=total,
                 estado='borrador',
                 estado_cotizacion='pendiente' if data['tipo_documento'] == 'cotizacion' else None,
                 usuario_creacion=request.user
@@ -1053,41 +1084,54 @@ def pos_procesar_preventa(request):
                 numero_ticket_vale = estacion.incrementar_correlativo_ticket()
                 numero_vale = f"{int(numero_ticket_vale):06d}"
                 
-            # Crear el vale
-            ticket_vale = Venta.objects.create(
-                empresa=request.empresa,
-                numero_venta=numero_vale,
-                cliente=cliente,
-                vendedor=vendedor,
-                estacion_trabajo=estacion,
-                tipo_documento='vale',
-                tipo_documento_planeado=data['tipo_documento'],  # ← GUARDAR TIPO PLANEADO
-                subtotal=subtotal,
-                descuento=Decimal(str(data['totales']['descuento'])),
-                neto=neto_calculado,
-                iva=Decimal(str(data['totales']['iva'])),
-                impuesto_especifico=Decimal(str(data['totales']['impuesto_especifico'])),
-                total=Decimal(str(data['totales']['total'])),
-                estado='borrador',
-                usuario_creacion=request.user,
-                observaciones=f"Ticket generado automáticamente para {data['tipo_documento']} #{proximo_numero}"
-            )
-
-            # Crear detalles del vale
-            for item in data['items']:
-                articulo = Articulo.objects.get(id=item['articuloId'], empresa=request.empresa)
-                VentaDetalle.objects.create(
-                    venta=ticket_vale,
-                    articulo=articulo,
-                    cantidad=Decimal(str(item['cantidad'])),
-                    precio_unitario=Decimal(str(item['precio'])),
-                    precio_total=Decimal(str(item['total'])),
-                    impuesto_especifico=Decimal('0.00')
+                # Crear el vale
+                print(f"DEBUG - Creando ticket vale...")
+                print(f"DEBUG - Items recibidos: {len(data['items'])}")
+                
+                ticket_vale = Venta.objects.create(
+                    empresa=request.empresa,
+                    numero_venta=numero_vale,
+                    fecha=timezone.now().date(),  # Establecer fecha explícitamente
+                    cliente=cliente,
+                    vendedor=vendedor,
+                    estacion_trabajo=estacion,
+                    tipo_documento='vale',
+                    tipo_documento_planeado=data['tipo_documento'],  # ← GUARDAR TIPO PLANEADO
+                    subtotal=subtotal,
+                    descuento=descuento,
+                    neto=neto,
+                    iva=iva,
+                    impuesto_especifico=impuesto_especifico,
+                    total=total,
+                    estado='borrador',
+                    usuario_creacion=request.user,
+                    observaciones=f"Ticket generado automáticamente para {data['tipo_documento']} #{proximo_numero}"
                 )
 
-            ticket_vale_id = ticket_vale.id
-            ticket_vale_numero = numero_vale
-            print(f"DEBUG - Ticket facturable (vale) #{numero_vale} generado exitosamente")
+                # Crear detalles del vale
+                for item in data['items']:
+                    articulo = Articulo.objects.get(id=item['articuloId'], empresa=request.empresa)
+                    
+                    # Obtener impuesto específico del item (viene del carrito del POS)
+                    impuesto_esp_item = Decimal(str(item.get('impuesto_especifico', 0)))
+                    
+                    print(f"DEBUG - Item: {item.get('nombre', 'Sin nombre')}")
+                    print(f"DEBUG - Impuesto específico unitario: {impuesto_esp_item}")
+                    print(f"DEBUG - Cantidad: {item['cantidad']}")
+                    print(f"DEBUG - Impuesto específico total: {impuesto_esp_item * Decimal(str(item['cantidad']))}")
+                    
+                    VentaDetalle.objects.create(
+                        venta=ticket_vale,
+                        articulo=articulo,
+                        cantidad=Decimal(str(item['cantidad'])),
+                        precio_unitario=Decimal(str(item['precio'])),
+                        precio_total=Decimal(str(item['total'])),
+                        impuesto_especifico=impuesto_esp_item * Decimal(str(item['cantidad']))
+                    )
+
+                ticket_vale_id = ticket_vale.id
+                ticket_vale_numero = numero_vale
+                print(f"DEBUG - Ticket facturable (vale) #{numero_vale} generado exitosamente")
             
             return JsonResponse({
                 'success': True,
@@ -1099,6 +1143,13 @@ def pos_procesar_preventa(request):
             })
             
         except Exception as e:
+            import traceback
+            print("=" * 80)
+            print("ERROR AL PROCESAR PREVENTA:")
+            print(f"Error: {str(e)}")
+            print("Traceback completo:")
+            print(traceback.format_exc())
+            print("=" * 80)
             return JsonResponse({'success': False, 'message': f'Error al procesar preventa: {str(e)}'})
     
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
@@ -1937,10 +1988,14 @@ def pos_tickets_hoy(request):
     from django.http import JsonResponse
     
     # Tickets del día actual
+    hoy_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    hoy_fin = timezone.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+    
     tickets = Venta.objects.filter(
         empresa=request.empresa,
         tipo_documento='vale',
-        fecha=timezone.now().date()
+        fecha_creacion__gte=hoy_inicio,
+        fecha_creacion__lte=hoy_fin
     ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')
     
     # Convertir a JSON

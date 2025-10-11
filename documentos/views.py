@@ -239,8 +239,8 @@ def documento_compra_detail(request, pk):
             messages.error(request, 'Usuario no tiene empresa asociada.')
             return redirect('dashboard')
     
-    # Historial de pagos
-    historial_pagos = documento.historial_pagos.all()
+    # Historial de pagos con formas de pago
+    historial_pagos = documento.historial_pagos.prefetch_related('formas_pago__forma_pago').all()
     
     context = {
         'documento': documento,

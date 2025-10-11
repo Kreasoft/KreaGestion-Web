@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Documentos Pendientes Proveedores - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid" style="margin-top: 20px;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-invoice fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Documentos Pendientes - Proveedores
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Gestiona facturas y documentos pendientes de pago a proveedores
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}" class="btn btn-sm me-2" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
+                            </a>
+                            <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;" data-bs-toggle="modal" data-bs-target="#modalDocumento">
+                                <i class="fas fa-plus me-1"></i> Nuevo Documento
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 12px; background: #FAFAF8;">
+
+                    <!-- FILTROS -->
+                    <div class="filter-section">
+                        <form method="get">
+                            <div class="row g-2">
+                                <div class="col-md-10">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-search me-1"></i>Buscar
+                                    </label>
+                                    <input type="text" name="search" class="form-control form-control-sm"
+                                           placeholder="🔍 Buscar por N° documento o proveedor..." value="{{ search }}">
+                                </div>
+                                <div class="col-md-2 d-flex gap-2">
+                                    <button type="submit" class="btn btn-filter flex-grow-1">
+                                        <i class="fas fa-filter me-1"></i>Filtrar
+                                    </button>
+                                    <a href="{% url 'tesoreria:documento_pendiente_proveedor_list' %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Lista de Documentos -->
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%;">#</th>
+                                    <th style="width: 10%;">Tipo</th>
+                                    <th style="width: 12%;">N° Documento</th>
+                                    <th style="width: 20%;">Proveedor</th>
+                                    <th style="width: 10%;">F. Emisión</th>
+                                    <th style="width: 10%;">F. Vencimiento</th>
+                                    <th style="width: 12%;">Total</th>
+                                    <th style="width: 10%;">Estado</th>
+                                    <th class="text-center" style="width: 11%;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for documento in page_obj %}
+                                <tr style="border-bottom: 1px solid #F5F1E8;">
+                                    <td style="font-size: 0.7rem;" class="text-muted">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
+                                    <td style="font-size: 0.7rem;">
+                                        <span class="badge bg-secondary" style="font-size: 0.6rem;">{{ documento.get_tipo_documento_display }}</span>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">
+                                        <strong>{{ documento.numero_documento }}</strong>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-truck text-muted me-2"></i>
+                                            {{ documento.proveedor.nombre }}
+                                        </div>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">{{ documento.fecha_emision|date:"d/m/Y" }}</td>
+                                    <td style="font-size: 0.7rem;">{{ documento.fecha_vencimiento|date:"d/m/Y"|default:"-" }}</td>
+                                    <td style="font-size: 0.7rem; font-weight: 600;">${{ documento.total|floatformat:0|intcomma }}</td>
+                                    <td style="font-size: 0.7rem;">
+                                        {% if documento.estado_pago == 'pagado' %}
+                                            <span class="badge bg-success" style="font-size: 0.6rem;">Pagado</span>
+                                        {% elif documento.estado_pago == 'vencida' %}
+                                            <span class="badge bg-danger" style="font-size: 0.6rem;">Vencido</span>
+                                        {% elif documento.estado_pago == 'parcial' %}
+                                            <span class="badge bg-warning" style="font-size: 0.6rem;">Parcial</span>
+                                        {% else %}
+                                            <span class="badge bg-info" style="font-size: 0.6rem;">Pendiente</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-action btn-outline-secondary"
+                                                    title="Editar"
+                                                    onclick="editarDocumento({{ documento.pk }})">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-action btn-outline-danger"
+                                                    title="Eliminar"
+                                                    onclick="eliminarDocumento({{ documento.pk }}, '{{ documento.numero_documento }}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-2">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay documentos pendientes registrados</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- PAGINACIÓN -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-center mt-2">
+                        <nav aria-label="Paginación">
+                            <ul class="pagination pagination-sm mb-0">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">«</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">‹</a>
+                                </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
+                                        {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">›</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">»</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .filter-section {
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+
+    .table-compact thead th {
+        padding: 4px 2px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+
+    .table-compact tbody td {
+        padding: 2px 3px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.7rem;
+    }
+
+    .table-compact tbody tr {
+        height: 28px;
+    }
+
+    .btn-filter {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-action {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+</style>
+
+<!-- Modal para Crear/Editar Documento -->
+<div class="modal fade" id="modalDocumento" tabindex="-1" aria-labelledby="modalDocumentoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border: 2px solid #E8DCC8; border-radius: 15px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-bottom: 2px solid #D4C4A8;">
+                <h5 class="modal-title" id="modalDocumentoLabel" style="color: #6F5B44; font-weight: 600;">
+                    <i class="fas fa-file-invoice me-2"></i>Nuevo Documento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modalDocumentoBody" style="background: #FAFAF8;">
+                <!-- Aquí se cargará el formulario -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Cargar formulario de crear documento
+document.addEventListener('DOMContentLoaded', function() {
+    const modalCrear = document.getElementById('modalDocumento');
+    if (modalCrear) {
+        modalCrear.addEventListener('show.bs.modal', function() {
+            document.getElementById('modalDocumentoLabel').innerHTML = '<i class="fas fa-file-invoice me-2"></i>Nuevo Documento';
+            document.getElementById('modalDocumentoBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div><p class="mt-2">Cargando...</p></div>';
+            
+            fetch('{% url "tesoreria:documento_pendiente_proveedor_create" %}')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('modalDocumentoBody').innerHTML = html;
+                setupFormHandler();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('modalDocumentoBody').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            });
+        });
+    }
+});
+
+function editarDocumento(documentoId) {
+    const modal = new bootstrap.Modal(document.getElementById('modalDocumento'));
+    document.getElementById('modalDocumentoLabel').innerHTML = '<i class="fas fa-edit me-2"></i>Editar Documento';
+    document.getElementById('modalDocumentoBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div><p class="mt-2">Cargando...</p></div>';
+    modal.show();
+    
+    fetch(`/tesoreria/documentos-pendientes/proveedores/${documentoId}/editar/`)
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('modalDocumentoBody').innerHTML = html;
+        setupFormHandler();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('modalDocumentoBody').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    });
+}
+
+function setupFormHandler() {
+    const form = document.querySelector('#modalDocumentoBody form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const url = this.action;
+            
+            fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalDocumento')).hide();
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Éxito!',
+                        text: data.message,
+                        confirmButtonColor: '#8B7355',
+                        timer: 2000
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message,
+                        confirmButtonColor: '#8B7355'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error al procesar la solicitud',
+                    confirmButtonColor: '#8B7355'
+                });
+            });
+        });
+    }
+}
+
+function eliminarDocumento(documentoId, numeroDocumento) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Deseas eliminar el documento "${numeroDocumento}"? Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/tesoreria/documentos-pendientes/proveedores/${documentoId}/eliminar/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Eliminado!',
+                        text: data.message,
+                        confirmButtonColor: '#8B7355',
+                        timer: 2000
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message,
+                        confirmButtonColor: '#8B7355'
+                    });
+                }
+            });
+        }
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+{% endblock %}

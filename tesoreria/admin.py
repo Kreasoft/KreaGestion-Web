@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CuentaCorrienteProveedor, MovimientoCuentaCorriente, CuentaCorrienteCliente, MovimientoCuentaCorrienteCliente
+from .models import CuentaCorrienteProveedor, MovimientoCuentaCorriente, CuentaCorrienteCliente, MovimientoCuentaCorrienteCliente, DocumentoCliente
 
 
 @admin.register(CuentaCorrienteCliente)
@@ -122,6 +122,39 @@ class MovimientoCuentaCorrienteAdmin(admin.ModelAdmin):
         }),
         ('Auditoría', {
             'fields': ('fecha_movimiento', 'registrado_por'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(DocumentoCliente)
+class DocumentoClienteAdmin(admin.ModelAdmin):
+    list_display = [
+        'numero_documento',
+        'tipo_documento',
+        'cliente',
+        'empresa',
+        'fecha_emision',
+        'total',
+        'saldo_pendiente',
+        'estado_pago'
+    ]
+    list_filter = ['tipo_documento', 'estado_pago', 'empresa', 'fecha_emision']
+    search_fields = ['numero_documento', 'cliente__nombre', 'cliente__rut']
+    readonly_fields = ['creado_por', 'fecha_creacion', 'fecha_modificacion']
+    
+    fieldsets = (
+        ('Información del Documento', {
+            'fields': ('empresa', 'cliente', 'tipo_documento', 'numero_documento', 'fecha_emision', 'fecha_vencimiento')
+        }),
+        ('Montos', {
+            'fields': ('total', 'monto_pagado', 'saldo_pendiente', 'estado_pago')
+        }),
+        ('Información Adicional', {
+            'fields': ('observaciones',)
+        }),
+        ('Auditoría', {
+            'fields': ('creado_por', 'fecha_creacion', 'fecha_modificacion'),
             'classes': ('collapse',)
         }),
     )

@@ -1,24 +1,92 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Gestión de Cajas{% endblock %}
+{% block title %}Gestión de Cajas - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+
+    .card-header-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        padding: 20px;
+        border: none;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .btn-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        transition: all 0.3s ease;
+    }
+
+    .btn-terroso:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-terroso-light {
+        background: rgba(139, 115, 85, 0.15);
+        border: 1px solid rgba(139, 115, 85, 0.25);
+        color: #8B7355;
+        font-weight: 500;
+    }
+
+    .btn-terroso-light:hover {
+        background: rgba(139, 115, 85, 0.25);
+        color: #6F5B44;
+    }
+
+    .table thead {
+        background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
+        color: #6F5B44;
+    }
+
+    .badge-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+    }
+
+    .badge-terroso-success {
+        background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%);
+        color: white;
+    }
+
+    .badge-terroso-warning {
+        background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%);
+        color: white;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <div class="card shadow-lg" style="border: none; border-radius: 15px;">
-        <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px;">
+<!-- Banner superior -->
+<div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #F5F1E8 0%, #E8DED5 100%); color: #6F5B44; text-align: center; padding: 8px; font-size: 0.8rem; font-weight: 500; font-family: 'Poppins', sans-serif; z-index: 9999; border-bottom: 1px solid #D4C4A8;">
+    Gestión de Cajas
+</div>
+
+<div class="container-fluid" style="margin-top: 80px;">
+    <div class="card shadow-lg" style="border: none; border-radius: 15px; overflow: hidden;">
+        <div class="card-header-terroso">
             <div class="row align-items-center">
                 <div class="col-md-8">
-                    <h5 class="mb-0">
+                    <h5 class="mb-0" style="font-size: 1.2rem; font-weight: 600;">
                         <i class="fas fa-cash-register me-2"></i>Gestión de Cajas
                     </h5>
-                    <small>Configuración de puntos de cobro</small>
+                    <small style="font-size: 0.8rem; opacity: 0.9;">Configuración de puntos de cobro</small>
                 </div>
                 <div class="col-md-4 text-end">
                     {% if perms.caja.add_caja or user.is_superuser %}
-                    <a href="{% url 'caja:caja_create' %}" class="btn btn-light">
+                    <a href="{% url 'caja:caja_create' %}" class="btn btn-terroso-light">
                         <i class="fas fa-plus me-2"></i>Nueva Caja
                     </a>
                     {% endif %}
@@ -26,38 +94,42 @@
             </div>
         </div>
 
-        <div class="card-body">
+        <div class="card-body" style="padding: 20px;">
             {% if cajas %}
             <div class="table-responsive">
                 <table class="table table-hover">
-                    <thead style="background: #f8f9fa;">
+                    <thead>
                         <tr>
-                            <th style="width: 10%;">Número</th>
-                            <th style="width: 30%;">Nombre</th>
-                            <th style="width: 30%;">Bodega (Stock)</th>
-                            <th style="width: 15%;">Estado</th>
-                            <th style="width: 15%; text-align: center;">Acciones</th>
+                            <th style="border: none; padding: 15px; font-weight: 600; width: 10%;">Número</th>
+                            <th style="border: none; padding: 15px; font-weight: 600; width: 30%;">Nombre</th>
+                            <th style="border: none; padding: 15px; font-weight: 600; width: 30%;">Bodega (Stock)</th>
+                            <th style="border: none; padding: 15px; font-weight: 600; width: 15%;">Estado</th>
+                            <th style="border: none; padding: 15px; font-weight: 600; width: 15%; text-align: center;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for caja in cajas %}
                         <tr>
-                            <td><span class="fw-bold text-primary" style="font-size: 1.2rem;">{{ caja.numero }}</span></td>
-                            <td><span class="fw-bold">{{ caja.nombre }}</span></td>
-                            <td>
+                            <td style="padding: 15px; vertical-align: middle;">
+                                <span class="fw-bold" style="font-size: 1.2rem; color: #8B7355;">{{ caja.numero }}</span>
+                            </td>
+                            <td style="padding: 15px; vertical-align: middle;">
+                                <span class="fw-bold" style="color: #6F5B44;">{{ caja.nombre }}</span>
+                            </td>
+                            <td style="padding: 15px; vertical-align: middle;">
                                 {% if caja.bodega %}
-                                <span class="badge bg-success" style="font-size: 0.9rem; padding: 8px 12px;">
+                                <span class="badge badge-terroso-success" style="font-size: 0.9rem; padding: 8px 12px;">
                                     <i class="fas fa-warehouse me-1"></i>{{ caja.bodega.nombre }}
                                 </span>
                                 {% else %}
-                                <span class="badge bg-danger" style="font-size: 0.9rem; padding: 8px 12px;">
+                                <span class="badge badge-terroso-warning" style="font-size: 0.9rem; padding: 8px 12px;">
                                     <i class="fas fa-exclamation-triangle me-1"></i>Sin bodega asignada
                                 </span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td style="padding: 15px; vertical-align: middle;">
                                 {% if caja.activo %}
-                                <span class="badge bg-success" style="font-size: 0.9rem; padding: 8px 12px;">
+                                <span class="badge badge-terroso-success" style="font-size: 0.9rem; padding: 8px 12px;">
                                     <i class="fas fa-check-circle me-1"></i>Activa
                                 </span>
                                 {% else %}
@@ -66,9 +138,9 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td style="text-align: center;">
+                            <td style="padding: 15px; vertical-align: middle; text-align: center;">
                                 {% if perms.caja.change_caja or user.is_superuser %}
-                                <a href="{% url 'caja:caja_update' caja.pk %}" class="btn btn-sm btn-warning">
+                                <a href="{% url 'caja:caja_update' caja.pk %}" class="btn btn-sm btn-terroso">
                                     <i class="fas fa-edit me-1"></i>Editar
                                 </a>
                                 {% endif %}
@@ -80,11 +152,11 @@
             </div>
             {% else %}
             <div class="text-center py-5">
-                <i class="fas fa-cash-register fa-4x text-muted mb-3"></i>
-                <h5 class="text-muted">No hay cajas configuradas</h5>
-                <p class="text-muted">Crea tu primera caja para empezar</p>
+                <i class="fas fa-cash-register fa-4x mb-3" style="color: #D4C4A8;"></i>
+                <h5 style="color: #8B7355;">No hay cajas configuradas</h5>
+                <p style="color: #A0826D;">Crea tu primera caja para empezar</p>
                 {% if perms.caja.add_caja or user.is_superuser %}
-                <a href="{% url 'caja:caja_create' %}" class="btn btn-success mt-3">
+                <a href="{% url 'caja:caja_create' %}" class="btn btn-terroso mt-3">
                     <i class="fas fa-plus me-2"></i>Crear Primera Caja
                 </a>
                 {% endif %}

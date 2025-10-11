@@ -721,6 +721,12 @@
                             <span>Unidades de Medida</span>
                         </a>
                         {% endif %}
+                        {% if perms.articulos.view_listaprecio or user.is_superuser %}
+                        <a href="{% url 'articulos:lista_precio_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'lista_precio_list' or request.resolver_match.url_name == 'lista_precio_create' or request.resolver_match.url_name == 'lista_precio_detail' or request.resolver_match.url_name == 'lista_precio_update' %}active{% endif %}">
+                            <i class="fas fa-dollar-sign me-2"></i>
+                            <span>Listas de Precios</span>
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -883,15 +889,9 @@
                             <span>Procesar Venta</span>
                         </a>
                         {% endif %}
-                        {% if perms.caja.add_aperturacaja or user.is_superuser %}
-                        <a href="{% url 'caja:apertura_create' %}" class="nav-link submenu-link">
-                            <i class="fas fa-unlock me-2" style="color: #28a745;"></i>
-                            <span>Abrir Caja</span>
-                        </a>
-                        {% endif %}
                         {% if perms.caja.view_aperturacaja or user.is_superuser %}
                         <a href="{% url 'caja:apertura_list' %}" class="nav-link submenu-link {% if 'apertura' in request.path %}active{% endif %}">
-                            <i class="fas fa-list me-2" style="color: #28a745;"></i>
+                            <i class="fas fa-cash-register me-2" style="color: #28a745;"></i>
                             <span>Aperturas de Caja</span>
                         </a>
                         {% endif %}
@@ -1257,6 +1257,21 @@
                 if (ventasSubmenu && ventasToggle) {
                     ventasSubmenu.classList.add('show');
                     ventasToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+            
+            // Auto-expand tesoreria submenu
+            const tesoreriaUrls = [
+                '/tesoreria/'
+            ];
+            
+            if (tesoreriaUrls.some(url => currentUrl.startsWith(url))) {
+                const tesoreriaSubmenu = document.getElementById('tesoreriaSubmenu');
+                const tesoreriaToggle = document.querySelector('[data-bs-target="#tesoreriaSubmenu"]');
+                
+                if (tesoreriaSubmenu && tesoreriaToggle) {
+                    tesoreriaSubmenu.classList.add('show');
+                    tesoreriaToggle.setAttribute('aria-expanded', 'true');
                 }
             }
             

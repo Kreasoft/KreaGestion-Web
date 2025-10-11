@@ -4,7 +4,7 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block title %}📝 {{ titulo }} - Estilo Terroso{% endblock %}
+{% block title %}{{ titulo }} - GestionCloud{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -82,14 +82,35 @@
         border-color: #8B7355;
         box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
     }
+
+    .form-label {
+        color: #6F5B44;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .input-group-text {
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        border-color: #D4C4A8;
+        color: #6F5B44;
+    }
+
+    .form-control, .form-select {
+        border-color: #D4C4A8;
+    }
+
+    .form-control:hover, .form-select:hover {
+        border-color: #8B7355;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- BANNER MUY VISIBLE PARA FORMULARIO -->
-<div class="style-applied-banner-form">
-    📝 FORMULARIO DE MOVIMIENTOS - NUEVO ESTILO TERROSO APLICADO 📝
+<!-- Banner superior -->
+<div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); color: #6F5B44; text-align: center; padding: 8px; font-size: 0.8rem; font-weight: 500; font-family: 'Poppins', sans-serif; z-index: 9999; border-bottom: 1px solid #D4C4A8;">
+    {{ titulo }}
 </div>
 
 <div class="container-fluid" style="margin-top: 80px;">
@@ -101,11 +122,11 @@
                         <div class="d-flex align-items-center">
                             <i class="fas fa-exchange-alt fa-lg me-2" style="color: #6F5B44;"></i>
                             <div>
-                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: white;">
-                                    🚨 {{ titulo }} - NUEVO ESTILO TERROSO APLICADO 🚨
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    {{ titulo }}
                                 </h5>
                                 <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
-                                    Registra un nuevo movimiento de inventario
+                                    {% if form.instance.pk %}Modifica los datos del movimiento{% else %}Registra un nuevo movimiento de inventario{% endif %}
                                 </small>
                             </div>
                         </div>
@@ -130,60 +151,62 @@
                                 <label for="{{ form.tipo_movimiento.id_for_label }}" class="form-label">
                                     <i class="fas fa-exchange-alt me-1"></i>Tipo de Movimiento *
                                 </label>
-                                <div class="input-group input-group-sm">
-                                    <div class="input-group-text">
-                                        <i class="fas fa-exchange-alt"></i>
-                                    </div>
-                                    {{ form.tipo_movimiento }}
-                                </div>
+                                {{ form.tipo_movimiento }}
                                 {% if form.tipo_movimiento.errors %}
                                     <div class="text-danger small">{{ form.tipo_movimiento.errors.0 }}</div>
                                 {% endif %}
                             </div>
 
-                            <!-- Bodega -->
+                            <!-- Estado -->
                             <div class="col-md-6">
-                                <label for="{{ form.bodega.id_for_label }}" class="form-label">
-                                    <i class="fas fa-warehouse me-1"></i>Bodega *
+                                <label for="{{ form.estado.id_for_label }}" class="form-label">
+                                    <i class="fas fa-info-circle me-1"></i>Estado *
                                 </label>
-                                <div class="input-group input-group-sm">
-                                    <div class="input-group-text">
-                                        <i class="fas fa-warehouse"></i>
-                                    </div>
-                                    {{ form.bodega }}
-                                </div>
-                                {% if form.bodega.errors %}
-                                    <div class="text-danger small">{{ form.bodega.errors.0 }}</div>
+                                {{ form.estado }}
+                                {% if form.estado.errors %}
+                                    <div class="text-danger small">{{ form.estado.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Bodega Origen -->
+                            <div class="col-md-6">
+                                <label for="{{ form.bodega_origen.id_for_label }}" class="form-label">
+                                    <i class="fas fa-warehouse me-1"></i>Bodega Origen
+                                </label>
+                                {{ form.bodega_origen }}
+                                {% if form.bodega_origen.errors %}
+                                    <div class="text-danger small">{{ form.bodega_origen.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Bodega Destino -->
+                            <div class="col-md-6">
+                                <label for="{{ form.bodega_destino.id_for_label }}" class="form-label">
+                                    <i class="fas fa-warehouse me-1"></i>Bodega Destino
+                                </label>
+                                {{ form.bodega_destino }}
+                                {% if form.bodega_destino.errors %}
+                                    <div class="text-danger small">{{ form.bodega_destino.errors.0 }}</div>
                                 {% endif %}
                             </div>
 
                             <!-- Artículo -->
-                            <div class="col-md-8">
+                            <div class="col-md-12">
                                 <label for="{{ form.articulo.id_for_label }}" class="form-label">
                                     <i class="fas fa-box me-1"></i>Artículo *
                                 </label>
-                                <div class="input-group input-group-sm">
-                                    <div class="input-group-text">
-                                        <i class="fas fa-box"></i>
-                                    </div>
-                                    {{ form.articulo }}
-                                </div>
+                                {{ form.articulo }}
                                 {% if form.articulo.errors %}
                                     <div class="text-danger small">{{ form.articulo.errors.0 }}</div>
                                 {% endif %}
                             </div>
 
                             <!-- Cantidad -->
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="{{ form.cantidad.id_for_label }}" class="form-label">
                                     <i class="fas fa-hashtag me-1"></i>Cantidad *
                                 </label>
-                                <div class="input-group input-group-sm">
-                                    <div class="input-group-text">
-                                        <i class="fas fa-hashtag"></i>
-                                    </div>
-                                    {{ form.cantidad }}
-                                </div>
+                                {{ form.cantidad }}
                                 {% if form.cantidad.errors %}
                                     <div class="text-danger small">{{ form.cantidad.errors.0 }}</div>
                                 {% endif %}
@@ -194,46 +217,53 @@
                                 <label for="{{ form.precio_unitario.id_for_label }}" class="form-label">
                                     <i class="fas fa-dollar-sign me-1"></i>Precio Unitario
                                 </label>
-                                <div class="input-group input-group-sm">
-                                    <div class="input-group-text">
-                                        <i class="fas fa-dollar-sign"></i>
-                                    </div>
-                                    {{ form.precio_unitario }}
-                                </div>
+                                {{ form.precio_unitario }}
                                 {% if form.precio_unitario.errors %}
                                     <div class="text-danger small">{{ form.precio_unitario.errors.0 }}</div>
                                 {% endif %}
                             </div>
 
-                            <!-- Fecha de Movimiento -->
+                            <!-- Número de Documento -->
                             <div class="col-md-6">
-                                <label for="{{ form.fecha_movimiento.id_for_label }}" class="form-label">
-                                    <i class="fas fa-calendar-alt me-1"></i>Fecha de Movimiento *
+                                <label for="{{ form.numero_documento.id_for_label }}" class="form-label">
+                                    <i class="fas fa-file-invoice me-1"></i>Número de Documento
                                 </label>
-                                <div class="input-group input-group-sm">
-                                    <div class="input-group-text">
-                                        <i class="fas fa-calendar-alt"></i>
-                                    </div>
-                                    {{ form.fecha_movimiento }}
-                                </div>
-                                {% if form.fecha_movimiento.errors %}
-                                    <div class="text-danger small">{{ form.fecha_movimiento.errors.0 }}</div>
+                                {{ form.numero_documento }}
+                                {% if form.numero_documento.errors %}
+                                    <div class="text-danger small">{{ form.numero_documento.errors.0 }}</div>
                                 {% endif %}
                             </div>
 
-                            <!-- Observaciones -->
-                            <div class="col-12">
-                                <label for="{{ form.observaciones.id_for_label }}" class="form-label">
-                                    <i class="fas fa-sticky-note me-1"></i>Observaciones
+                            <!-- Proveedor -->
+                            <div class="col-md-6">
+                                <label for="{{ form.proveedor.id_for_label }}" class="form-label">
+                                    <i class="fas fa-truck me-1"></i>Proveedor
                                 </label>
-                                <div class="input-group input-group-sm">
-                                    <div class="input-group-text">
-                                        <i class="fas fa-sticky-note"></i>
-                                    </div>
-                                    {{ form.observaciones }}
-                                </div>
-                                {% if form.observaciones.errors %}
-                                    <div class="text-danger small">{{ form.observaciones.errors.0 }}</div>
+                                {{ form.proveedor }}
+                                {% if form.proveedor.errors %}
+                                    <div class="text-danger small">{{ form.proveedor.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Descripción -->
+                            <div class="col-12">
+                                <label for="{{ form.descripcion.id_for_label }}" class="form-label">
+                                    <i class="fas fa-align-left me-1"></i>Descripción
+                                </label>
+                                {{ form.descripcion }}
+                                {% if form.descripcion.errors %}
+                                    <div class="text-danger small">{{ form.descripcion.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Motivo del Movimiento -->
+                            <div class="col-12">
+                                <label for="{{ form.motivo.id_for_label }}" class="form-label">
+                                    <i class="fas fa-sticky-note me-1"></i>Motivo del Movimiento
+                                </label>
+                                {{ form.motivo }}
+                                {% if form.motivo.errors %}
+                                    <div class="text-danger small">{{ form.motivo.errors.0 }}</div>
                                 {% endif %}
                             </div>
                         </div>

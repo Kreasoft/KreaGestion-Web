@@ -147,6 +147,7 @@ class Venta(models.Model):
         self.subtotal = subtotal
         self.neto = neto
         self.iva = iva
+        self.impuesto_especifico = impuesto_especifico
         self.total = total
         self.save()
     

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Listas de Precios - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+
+    .card-header-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        padding: 0.8rem 1rem;
+        border: none;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .btn-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        transition: all 0.3s ease;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+    }
+
+    .btn-terroso:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .table {
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+
+    .table thead {
+        background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
+        color: #6F5B44;
+    }
+
+    .table thead th {
+        padding: 0.5rem;
+        font-weight: 600;
+        border: none;
+    }
+
+    .table tbody td {
+        padding: 0.5rem;
+        vertical-align: middle;
+    }
+
+    .badge-predeterminada {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+    }
+
+    .badge-activa {
+        background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%);
+        color: white;
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+    }
+
+    .badge-inactiva {
+        background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%);
+        color: white;
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 0.5rem;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header-terroso">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-tags me-2"></i>
+                            <span style="font-size: 1rem; font-weight: 600;">Listas de Precios</span>
+                        </div>
+                        <a href="{% url 'articulos:lista_precio_create' %}" class="btn btn-sm btn-terroso">
+                            <i class="fas fa-plus me-1"></i> Nueva
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Tabla de listas -->
+                <div class="card-body" style="padding: 0.5rem;">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="35%">Nombre</th>
+                                    <th width="35%">Descripción</th>
+                                    <th width="15%" class="text-center">Estado</th>
+                                    <th width="15%" class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lista in listas %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ lista.nombre }}</strong>
+                                        {% if lista.es_predeterminada %}
+                                        <span class="badge badge-predeterminada ms-1">★</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ lista.descripcion|default:"-"|truncatewords:8 }}</td>
+                                    <td class="text-center">
+                                        {% if lista.activa %}
+                                        <span class="badge badge-activa">Activa</span>
+                                        {% else %}
+                                        <span class="badge badge-inactiva">Inactiva</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'articulos:lista_precio_detail' lista.pk %}" class="btn btn-sm btn-terroso me-1" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'articulos:lista_precio_update' lista.pk %}" class="btn btn-sm btn-terroso me-1" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'articulos:lista_precio_delete' lista.pk %}" class="btn btn-sm btn-terroso" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <i class="fas fa-tags fa-2x mb-2" style="color: #D4C4A8;"></i>
+                                        <p class="mb-2 text-muted">No hay listas de precios</p>
+                                        <a href="{% url 'articulos:lista_precio_create' %}" class="btn btn-sm btn-terroso">
+                                            <i class="fas fa-plus me-1"></i>Crear Primera Lista
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

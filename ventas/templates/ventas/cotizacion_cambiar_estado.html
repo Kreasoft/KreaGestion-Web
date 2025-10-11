@@ -3,46 +3,68 @@
 
 {% block title %}Cambiar Estado - Cotización #{{ cotizacion.numero_venta }}{% endblock %}
 
+{% block body_class %}hide-top-bar{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
     <div class="row justify-content-center">
         <div class="col-md-6">
-            <div class="card shadow">
-                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color: white;">
-                    <h4 class="mb-0">
-                        <i class="fas fa-edit me-2"></i>
-                        Cambiar Estado de Cotización
-                    </h4>
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; padding: 15px 20px; border-bottom: 3px solid #D4C4A8;">
+                    <h5 class="mb-0" style="font-size: 1.2rem; font-weight: 600;">
+                        <i class="fas fa-edit me-2"></i>Cambiar Estado de Cotización
+                    </h5>
                 </div>
-                <div class="card-body">
-                    <div class="mb-4">
-                        <h5>Cotización #{{ cotizacion.numero_venta }}</h5>
-                        <p class="text-muted">
-                            Cliente: {{ cotizacion.cliente.nombre|default:"Sin cliente" }}<br>
-                            Total: ${{ cotizacion.total|floatformat:0 }}<br>
-                            Estado actual: <span class="badge bg-primary">{{ cotizacion.get_estado_cotizacion_display|default:"Pendiente" }}</span>
-                        </p>
+                <div class="card-body" style="background: #FAFAF8; padding: 20px;">
+                    <!-- Información de la cotización -->
+                    <div class="card mb-3" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                        <div class="card-body" style="padding: 15px;">
+                            <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 10px;">
+                                Cotización #{{ cotizacion.numero_venta }}
+                            </h6>
+                            <div style="font-size: 0.85rem;">
+                                <div class="mb-1">
+                                    <i class="fas fa-user me-2 text-muted"></i>
+                                    <strong>Cliente:</strong> {{ cotizacion.cliente.nombre|default:"Sin cliente" }}
+                                </div>
+                                <div class="mb-1">
+                                    <i class="fas fa-dollar-sign me-2 text-muted"></i>
+                                    <strong>Total:</strong> <span style="color: #8B7355; font-weight: 600;">${{ cotizacion.total|floatformat:0 }}</span>
+                                </div>
+                                <div>
+                                    <i class="fas fa-info-circle me-2 text-muted"></i>
+                                    <strong>Estado actual:</strong> 
+                                    <span class="badge" style="background: {% if cotizacion.estado_cotizacion == 'pendiente' %}#ffc107{% elif cotizacion.estado_cotizacion == 'enviada' %}#17a2b8{% elif cotizacion.estado_cotizacion == 'aceptada' %}#28a745{% elif cotizacion.estado_cotizacion == 'rechazada' %}#dc3545{% elif cotizacion.estado_cotizacion == 'vencida' %}#6c757d{% elif cotizacion.estado_cotizacion == 'convertida' %}#6f42c1{% else %}#ffc107{% endif %}; font-size: 0.75rem;">
+                                        {{ cotizacion.get_estado_cotizacion_display|default:"Pendiente" }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <form method="post">
+                    <!-- Formulario -->
+                    <form method="post" id="formCambiarEstado">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <label for="estado" class="form-label">Nuevo Estado</label>
-                            <select name="estado" id="estado" class="form-select" required>
+                            <label for="estado" class="form-label fw-bold" style="font-size: 0.85rem; color: #6F5B44;">
+                                <i class="fas fa-exchange-alt me-1"></i>Nuevo Estado
+                            </label>
+                            <select name="estado" id="estado" class="form-select" required style="border: 1px solid #D4C4A8;">
                                 {% for value, label in estados %}
                                     <option value="{{ value }}" {% if cotizacion.estado_cotizacion == value %}selected{% endif %}>
                                         {{ label }}
                                     </option>
                                 {% endfor %}
                             </select>
+                            <small class="text-muted" style="font-size: 0.75rem;">Selecciona el nuevo estado para la cotización</small>
                         </div>
                         
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>Cancelar
+                        <div class="d-flex gap-2 justify-content-between">
+                            <a href="{% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn btn-outline-secondary" style="border-color: #D4C4A8; color: #6c757d; font-size: 0.85rem;">
+                                <i class="fas fa-arrow-left me-1"></i>Cancelar
                             </a>
-                            <button type="submit" class="btn" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color: white; border: none;">
-                                <i class="fas fa-save me-2"></i>Actualizar Estado
+                            <button type="button" class="btn" onclick="confirmarCambioEstado()" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; font-size: 0.85rem;">
+                                <i class="fas fa-save me-1"></i>Actualizar Estado
                             </button>
                         </div>
                     </form>
@@ -51,4 +73,112 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function confirmarCambioEstado() {
+    const select = document.getElementById('estado');
+    const nuevoEstado = select.options[select.selectedIndex].text;
+    const estadoActual = '{{ cotizacion.get_estado_cotizacion_display|default:"Pendiente" }}';
+    
+    Swal.fire({
+        title: '¿Cambiar estado?',
+        html: `
+            <div style="text-align: left; padding: 10px;">
+                <p style="margin-bottom: 10px;">¿Está seguro de cambiar el estado de la cotización?</p>
+                <div style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); padding: 15px; border-radius: 8px; border: 1px solid #D4C4A8;">
+                    <div style="margin-bottom: 8px;">
+                        <strong style="color: #6F5B44;">Cotización:</strong> #{{ cotizacion.numero_venta }}
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <strong style="color: #6F5B44;">Estado actual:</strong> 
+                        <span style="color: #dc3545;">${estadoActual}</span>
+                    </div>
+                    <div>
+                        <strong style="color: #6F5B44;">Nuevo estado:</strong> 
+                        <span style="color: #28a745; font-weight: 600;">${nuevoEstado}</span>
+                    </div>
+                </div>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-check me-1"></i> Sí, cambiar',
+        cancelButtonText: '<i class="fas fa-times me-1"></i> Cancelar',
+        customClass: {
+            popup: 'modal-terroso',
+            title: 'modal-title-terroso'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar loading
+            Swal.fire({
+                title: 'Actualizando...',
+                text: 'Cambiando estado de la cotización',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // Enviar formulario
+            document.getElementById('formCambiarEstado').submit();
+        }
+    });
+}
+
+// Estilos personalizados para el modal
+const style = document.createElement('style');
+style.textContent = `
+    .modal-terroso {
+        border: 3px solid #D4C4A8 !important;
+        border-radius: 15px !important;
+    }
+    .modal-title-terroso {
+        color: #6F5B44 !important;
+        font-weight: 600 !important;
+    }
+`;
+document.head.appendChild(style);
+
+// Mostrar mensaje de éxito si existe
+{% if messages %}
+    {% for message in messages %}
+        Swal.fire({
+            icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% else %}info{% endif %}',
+            title: '{% if message.tags == "success" %}¡Éxito!{% elif message.tags == "error" %}Error{% else %}Información{% endif %}',
+            text: '{{ message }}',
+            confirmButtonColor: '#8B7355',
+            timer: 2000
+        }).then(() => {
+            {% if message.tags == "success" %}
+                window.location.href = "{% url 'ventas:cotizacion_detail' cotizacion.pk %}";
+            {% endif %}
+        });
+    {% endfor %}
+{% endif %}
+</script>
+
+<style>
+/* Estilos adicionales para el select */
+#estado {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+#estado:focus {
+    border-color: #8B7355;
+    box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+}
+
+/* Hover en botones */
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(139, 115, 85, 0.2);
+    transition: all 0.2s ease;
+}
+</style>
 {% endblock %}

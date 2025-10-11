@@ -3,18 +3,98 @@
 {% load articulo_filters %}
 {% load l10n %}
 
-{% block title %}Procesar Ticket{% endblock %}
+{% block title %}Procesar Ticket - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+
+    .card-header-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        padding: 20px;
+        border: none;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .card-header-terroso-info {
+        background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%);
+        color: white;
+        padding: 20px;
+        border: none;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .btn-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        transition: all 0.3s ease;
+    }
+
+    .btn-terroso:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-terroso-outline {
+        background: transparent;
+        border: 2px solid #8B7355;
+        color: #8B7355;
+        font-weight: 500;
+    }
+
+    .btn-terroso-outline:hover {
+        background: #8B7355;
+        color: white;
+    }
+
+    .forma-pago-item {
+        background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
+        border-left: 4px solid #8B7355 !important;
+    }
+
+    .alert-info-terroso {
+        background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
+        border: 1px solid #D4C4A8;
+        border-left: 4px solid #8B7355;
+        color: #6F5B44;
+    }
+
+    .form-check-input:checked {
+        background-color: #8B7355;
+        border-color: #8B7355;
+    }
+
+    .text-terroso {
+        color: #8B7355;
+    }
+
+    .text-terroso-dark {
+        color: #6F5B44;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+<!-- Banner superior -->
+<div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #F5F1E8 0%, #E8DED5 100%); color: #6F5B44; text-align: center; padding: 8px; font-size: 0.8rem; font-weight: 500; font-family: 'Poppins', sans-serif; z-index: 9999; border-bottom: 1px solid #D4C4A8;">
+    Procesar Venta - Ticket #{{ ticket.numero_venta }}
+</div>
+<div class="container-fluid" style="margin-top: 80px;">
     <div class="row">
         <!-- Información del Ticket -->
         <div class="col-md-6">
-            <div class="card shadow-lg mb-4" style="border: none; border-radius: 15px;">
-                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; padding: 20px;">
-                    <h5 class="mb-0">
+            <div class="card shadow-lg mb-4" style="border: none; border-radius: 15px; overflow: hidden;">
+                <div class="card-header-terroso-info">
+                    <h5 class="mb-0" style="font-size: 1.1rem; font-weight: 600;">
                         <i class="fas fa-receipt me-2"></i>Ticket #{{ ticket.numero_venta }}
                     </h5>
                 </div>
@@ -70,25 +150,32 @@
                     <hr>
 
                     <div class="row">
-                        <div class="col-6">
-                            <small class="text-muted">Subtotal</small>
-                            <p class="mb-1">${{ ticket.subtotal|format_price }}</p>
+                        <div class="col-12">
+                            <small class="text-muted">Neto (Base Imponible)</small>
+                            <p class="mb-1 fw-bold">${{ ticket.neto|format_price }}</p>
                         </div>
                         <div class="col-6">
-                            <small class="text-muted">Descuento</small>
-                            <p class="mb-1">${{ ticket.descuento|format_price }}</p>
-                        </div>
-                        <div class="col-6">
-                            <small class="text-muted">Neto</small>
-                            <p class="mb-1">${{ ticket.neto|format_price }}</p>
-                        </div>
-                        <div class="col-6">
-                            <small class="text-muted">IVA</small>
+                            <small class="text-muted">IVA (19%)</small>
                             <p class="mb-1">${{ ticket.iva|format_price }}</p>
                         </div>
+                        {% if ticket.impuesto_especifico and ticket.impuesto_especifico > 0 %}
+                        <div class="col-6">
+                            <small class="text-muted">Impuesto Específico</small>
+                            <p class="mb-1">${{ ticket.impuesto_especifico|format_price }}</p>
+                        </div>
+                        {% else %}
+                        <!-- Debug: Impuesto específico = {{ ticket.impuesto_especifico|default:"None" }} -->
+                        {% endif %}
+                        {% if ticket.descuento > 0 %}
+                        <div class="col-6">
+                            <small class="text-muted">Descuento</small>
+                            <p class="mb-1 text-danger">-${{ ticket.descuento|format_price }}</p>
+                        </div>
+                        {% endif %}
                         <div class="col-12 mt-2">
+                            <hr class="my-2">
                             <small class="text-muted">TOTAL A PAGAR</small>
-                            <h3 class="text-success mb-0" style="font-weight: 700;">${{ ticket.total|format_price }}</h3>
+                            <h3 class="text-terroso mb-0" style="font-weight: 700;">${{ ticket.total|format_price }}</h3>
                         </div>
                     </div>
                 </div>
@@ -97,12 +184,12 @@
 
         <!-- Formulario de Procesamiento -->
         <div class="col-md-6">
-            <div class="card shadow-lg" style="border: none; border-radius: 15px;">
-                <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px;">
-                    <h5 class="mb-0">
+            <div class="card shadow-lg" style="border: none; border-radius: 15px; overflow: hidden;">
+                <div class="card-header-terroso">
+                    <h5 class="mb-0" style="font-size: 1.1rem; font-weight: 600;">
                         <i class="fas fa-cash-register me-2"></i>Procesar Pago
                     </h5>
-                    <small>Caja: {{ apertura_activa.caja.nombre }}</small>
+                    <small style="opacity: 0.9;">Caja: {{ apertura_activa.caja.nombre }}</small>
                 </div>
                 <div class="card-body">
                     <form method="post" id="formProcesar">
@@ -117,7 +204,7 @@
 
                             <!-- Información de Facturación Electrónica -->
                             {% if empresa.facturacion_electronica %}
-                                <div class="alert alert-info py-2 mb-3">
+                                <div class="alert alert-info-terroso py-2 mb-3">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div>
                                             <i class="fas fa-info-circle me-2"></i>
@@ -221,7 +308,7 @@
                             
                             <div id="formas-pago-container">
                                 <!-- Primera forma de pago (por defecto) -->
-                                <div class="forma-pago-item mb-3 p-3" style="background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
+                                <div class="forma-pago-item mb-3 p-3" style="border-radius: 8px;">
                                     <div class="row align-items-end">
                                         <div class="col-md-6">
                                             <label class="form-label small">Forma de Pago</label>
@@ -263,16 +350,16 @@
                             </div>
 
                             <!-- Botón para agregar otra forma de pago -->
-                            <button type="button" class="btn btn-outline-success btn-sm" id="btn-agregar-pago">
+                            <button type="button" class="btn btn-terroso-outline btn-sm" id="btn-agregar-pago">
                                 <i class="fas fa-plus me-1"></i>Agregar Otra Forma de Pago
                             </button>
 
                             <!-- Resumen de pagos -->
-                            <div class="mt-3 p-3" style="background: #e7f3ff; border-radius: 8px;">
+                            <div class="mt-3 p-3" style="background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%); border-radius: 8px; border: 1px solid #D4C4A8;">
                                 <div class="row">
                                     <div class="col-6">
                                         <small class="text-muted">Total a Pagar:</small>
-                                        <div class="fw-bold text-primary" style="font-size: 1.2rem;">
+                                        <div class="fw-bold text-terroso" style="font-size: 1.2rem;">
                                             $<span id="total-venta">{{ ticket.total|format_price }}</span>
                                         </div>
                                     </div>
@@ -300,10 +387,10 @@
 
                         <!-- Botones -->
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg" id="btn-procesar">
+                            <button type="submit" class="btn btn-terroso btn-lg" id="btn-procesar">
                                 <i class="fas fa-check me-2"></i>Procesar Pago
                             </button>
-                            <a href="{% url 'caja:procesar_venta_buscar' %}" class="btn btn-secondary">
+                            <a href="{% url 'caja:procesar_venta_buscar' %}" class="btn btn-terroso-outline">
                                 <i class="fas fa-times me-2"></i>Cancelar
                             </a>
                         </div>
@@ -646,4 +733,105 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
+<!-- Modal de Apertura de Caja -->
+{% if mostrar_modal_apertura %}
+<div class="modal fade" id="modalAperturaCaja" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border: none; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 1.5rem 2rem;">
+                <h4 class="modal-title mb-0">
+                    <i class="fas fa-lock-open me-2"></i>Abrir Caja
+                </h4>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Alerta Informativa -->
+                <div class="alert alert-info mb-4" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: none; border-left: 4px solid #2196F3;">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-info-circle me-3 mt-1" style="font-size: 1.5rem; color: #1976D2;"></i>
+                        <div>
+                            <h6 class="mb-2" style="color: #1565C0; font-weight: 600;">Importante:</h6>
+                            <p class="mb-0" style="color: #424242; line-height: 1.6;">
+                                Al abrir la caja, se iniciará un nuevo turno. Asegúrate de contar el efectivo inicial correctamente. 
+                                Este monto será la base para el cierre de caja al finalizar el turno.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="post" action="{% url 'caja:apertura_create' %}" id="formAperturaCaja">
+                    {% csrf_token %}
+                    
+                    <!-- Caja -->
+                    <div class="mb-4">
+                        <label for="{{ form_apertura.caja.id_for_label }}" class="form-label fw-bold" style="font-size: 1rem; color: #2c3e50;">
+                            <i class="fas fa-cash-register me-2" style="color: #28a745;"></i>Caja
+                        </label>
+                        {{ form_apertura.caja }}
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-check-circle me-1" style="color: #28a745;"></i>
+                            Solo se muestran cajas activas sin apertura
+                        </small>
+                    </div>
+
+                    <!-- Monto Inicial -->
+                    <div class="mb-4">
+                        <label for="{{ form_apertura.monto_inicial.id_for_label }}" class="form-label fw-bold" style="font-size: 1rem; color: #2c3e50;">
+                            <i class="fas fa-money-bill-wave me-2" style="color: #28a745;"></i>Monto Inicial
+                        </label>
+                        {{ form_apertura.monto_inicial }}
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-wallet me-1" style="color: #17a2b8;"></i>
+                            Efectivo físico disponible al iniciar el turno
+                        </small>
+                    </div>
+
+                    <!-- Observaciones -->
+                    <div class="mb-4">
+                        <label for="{{ form_apertura.observaciones_apertura.id_for_label }}" class="form-label fw-bold" style="font-size: 1rem; color: #2c3e50;">
+                            <i class="fas fa-comment me-2" style="color: #28a745;"></i>Observaciones
+                        </label>
+                        {{ form_apertura.observaciones_apertura }}
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-pencil-alt me-1" style="color: #6c757d;"></i>
+                            Opcional: Notas sobre el turno o condiciones especiales
+                        </small>
+                    </div>
+
+                    <!-- Nota Final -->
+                    <div class="alert alert-light mb-4" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-lightbulb me-3 mt-1" style="font-size: 1.3rem; color: #ffc107;"></i>
+                            <div>
+                                <strong style="color: #495057;">Recuerda:</strong>
+                                <p class="mb-0 mt-1" style="color: #6c757d; font-size: 0.9rem; line-height: 1.5;">
+                                    Una vez abierta la caja, podrás registrar movimientos, procesar ventas y cerrar al finalizar el turno.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg" style="padding: 0.75rem; font-size: 1.1rem; font-weight: 600;">
+                            <i class="fas fa-unlock me-2"></i>Abrir Caja y Comenzar Turno
+                        </button>
+                        <a href="{% url 'caja:apertura_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Mostrar modal automáticamente si no hay caja abierta
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = new bootstrap.Modal(document.getElementById('modalAperturaCaja'));
+    modal.show();
+});
+</script>
+{% endif %}
 

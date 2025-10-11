@@ -37,4 +37,11 @@ urlpatterns = [
     path('buscar-por-codigo-barras/', views.buscar_por_codigo_barras, name='buscar_por_codigo_barras'),
     path('stock-actual/', views.stock_actual, name='stock_actual'),
     
+    # Listas de Precios
+    path('listas-precios/', views.lista_precio_list, name='lista_precio_list'),
+    path('listas-precios/crear/', views.lista_precio_create, name='lista_precio_create'),
+    path('listas-precios/<int:pk>/', views.lista_precio_detail, name='lista_precio_detail'),
+    path('listas-precios/<int:pk>/editar/', views.lista_precio_update, name='lista_precio_update'),
+    path('listas-precios/<int:pk>/eliminar/', views.lista_precio_delete, name='lista_precio_delete'),
+    path('listas-precios/<int:pk>/gestionar-precios/', views.lista_precio_gestionar_precios, name='lista_precio_gestionar_precios'),
 ]

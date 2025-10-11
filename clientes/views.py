@@ -208,14 +208,22 @@ def cliente_update(request, pk):
     
     if request.method == 'POST':
         form = ClienteForm(request.POST, instance=cliente, empresa=empresa)
-        formset = ContactoFormSet(request.POST, instance=cliente)
         
-        if form.is_valid() and formset.is_valid():
+        # Debug: Imprimir estado de validación
+        print('=== VALIDACIÓN DE FORMULARIO ===')
+        print(f'Form válido: {form.is_valid()}')
+        
+        if form.is_valid():
             form.save()
-            formset.save()
-            
             messages.success(request, f'Cliente "{cliente.nombre}" actualizado exitosamente.')
             return redirect('clientes:cliente_detail', pk=cliente.pk)
+        else:
+            print('Errores del formulario:', form.errors)
+            messages.error(request, 'Por favor corrige los errores en el formulario antes de continuar.')
+            # Mostrar errores específicos
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = ClienteForm(instance=cliente, empresa=empresa)
         formset = ContactoFormSet(instance=cliente)

@@ -7,9 +7,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from decimal import Decimal
 import json
-from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico
+from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo
 from inventario.models import Stock
-from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm
+from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm, ListaPrecioForm, PrecioArticuloForm
 from empresas.decorators import requiere_empresa
 
 
@@ -40,7 +40,7 @@ def articulo_list(request):
         articulos = articulos.filter(activo=activo == 'true')
     
     # Paginación
-    paginator = Paginator(articulos, 5)
+    paginator = Paginator(articulos, 25)  # 25 artículos por página
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -749,3 +749,169 @@ def stock_actual(request):
             'success': False,
             'error': str(e)
         })
+
+
+# ==================== LISTAS DE PRECIOS ====================
+
+@requiere_empresa
+@login_required
+def lista_precio_list(request):
+    """Lista de listas de precios"""
+    listas = ListaPrecio.objects.filter(empresa=request.empresa).order_by('-es_predeterminada', 'nombre')
+    
+    context = {
+        'listas': listas,
+        'total_listas': listas.count(),
+    }
+    
+    return render(request, 'articulos/lista_precio_list.html', context)
+
+
+@requiere_empresa
+@login_required
+def lista_precio_create(request):
+    """Crear lista de precios"""
+    if request.method == 'POST':
+        form = ListaPrecioForm(request.POST)
+        if form.is_valid():
+            lista = form.save(commit=False)
+            lista.empresa = request.empresa
+            lista.save()
+            messages.success(request, f'Lista de precios "{lista.nombre}" creada exitosamente.')
+            return redirect('articulos:lista_precio_list')
+    else:
+        form = ListaPrecioForm()
+    
+    context = {
+        'form': form,
+        'titulo': 'Nueva Lista de Precios',
+    }
+    
+    return render(request, 'articulos/lista_precio_form.html', context)
+
+
+@requiere_empresa
+@login_required
+def lista_precio_update(request, pk):
+    """Editar lista de precios"""
+    lista = get_object_or_404(ListaPrecio, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = ListaPrecioForm(request.POST, instance=lista)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Lista de precios "{lista.nombre}" actualizada exitosamente.')
+            return redirect('articulos:lista_precio_list')
+    else:
+        form = ListaPrecioForm(instance=lista)
+    
+    context = {
+        'form': form,
+        'lista': lista,
+        'titulo': f'Editar Lista: {lista.nombre}',
+    }
+    
+    return render(request, 'articulos/lista_precio_form.html', context)
+
+
+@requiere_empresa
+@login_required
+def lista_precio_delete(request, pk):
+    """Eliminar lista de precios"""
+    lista = get_object_or_404(ListaPrecio, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        nombre = lista.nombre
+        lista.delete()
+        messages.success(request, f'Lista de precios "{nombre}" eliminada exitosamente.')
+        return redirect('articulos:lista_precio_list')
+    
+    context = {
+        'lista': lista,
+    }
+    
+    return render(request, 'articulos/lista_precio_confirm_delete.html', context)
+
+
+@requiere_empresa
+@login_required
+def lista_precio_detail(request, pk):
+    """Detalle de lista de precios con artículos"""
+    lista = get_object_or_404(ListaPrecio, pk=pk, empresa=request.empresa)
+    precios = PrecioArticulo.objects.filter(lista_precio=lista).select_related('articulo')
+    
+    context = {
+        'lista': lista,
+        'precios': precios,
+    }
+    
+    return render(request, 'articulos/lista_precio_detail.html', context)
+
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.change_listaprecio', raise_exception=True)
+def lista_precio_gestionar_precios(request, pk):
+    """Gestionar precios de artículos en una lista"""
+    lista = get_object_or_404(ListaPrecio, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        # Procesar los precios enviados
+        for key, value in request.POST.items():
+            if key.startswith('precio_'):
+                articulo_id = key.replace('precio_', '')
+                try:
+                    articulo = Articulo.objects.get(id=articulo_id, empresa=request.empresa)
+                    
+                    # Limpiar el valor: eliminar puntos (separadores de miles) y espacios
+                    if value:
+                        value_clean = value.replace('.', '').replace(' ', '').replace(',', '.')
+                        precio_value = Decimal(value_clean) if value_clean else None
+                    else:
+                        precio_value = None
+                    
+                    if precio_value and precio_value > 0:
+                        # Crear o actualizar precio
+                        PrecioArticulo.objects.update_or_create(
+                            articulo=articulo,
+                            lista_precio=lista,
+                            defaults={'precio': precio_value}
+                        )
+                    else:
+                        # Eliminar precio si está vacío o es 0
+                        PrecioArticulo.objects.filter(
+                            articulo=articulo,
+                            lista_precio=lista
+                        ).delete()
+                except (Articulo.DoesNotExist, ValueError, Decimal.InvalidOperation):
+                    continue
+        
+        messages.success(request, 'Precios actualizados exitosamente.')
+        return redirect('articulos:lista_precio_detail', pk=lista.pk)
+    
+    # Obtener todos los artículos con sus precios actuales en esta lista
+    articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria').order_by('nombre')
+    
+    # Obtener categorías para el filtro
+    categorias = CategoriaArticulo.objects.filter(empresa=request.empresa).order_by('nombre')
+    
+    # Obtener precios actuales de esta lista
+    precios_actuales = {}
+    for precio in PrecioArticulo.objects.filter(lista_precio=lista).select_related('articulo'):
+        # Convertir Decimal a float para evitar problemas en el template
+        precios_actuales[precio.articulo_id] = float(precio.precio)
+    
+    # Agregar el precio actual a cada artículo
+    articulos_list = []
+    for articulo in articulos:
+        precio = precios_actuales.get(articulo.id)
+        articulo.precio_en_lista = precio if precio is not None else None
+        articulos_list.append(articulo)
+    
+    context = {
+        'lista': lista,
+        'articulos': articulos_list,
+        'categorias': categorias,
+    }
+    
+    return render(request, 'articulos/lista_precio_gestionar.html', context)

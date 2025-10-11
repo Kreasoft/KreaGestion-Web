@@ -176,3 +176,55 @@ class MovimientoCuentaCorrienteCliente(models.Model):
 
     def __str__(self):
         return f"{self.get_tipo_movimiento_display()} - {self.monto} - {self.fecha_movimiento.strftime('%d/%m/%Y')}"
+
+
+class DocumentoCliente(models.Model):
+    """Modelo para gestionar documentos de clientes en cuenta corriente"""
+    
+    TIPO_DOCUMENTO_CHOICES = [
+        ('factura', 'Factura'),
+        ('boleta', 'Boleta'),
+        ('nota_credito', 'Nota de Crédito'),
+        ('nota_debito', 'Nota de Débito'),
+    ]
+    
+    ESTADO_PAGO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('parcial', 'Parcial'),
+        ('pagado', 'Pagado'),
+        ('vencido', 'Vencido'),
+    ]
+    
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, verbose_name="Cliente", related_name="documentos_cuenta_corriente")
+    
+    # Información del documento
+    tipo_documento = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, verbose_name="Tipo de Documento")
+    numero_documento = models.CharField(max_length=50, verbose_name="Número de Documento")
+    fecha_emision = models.DateField(verbose_name="Fecha de Emisión")
+    fecha_vencimiento = models.DateField(blank=True, null=True, verbose_name="Fecha de Vencimiento")
+    
+    # Montos
+    total = models.IntegerField(default=0, verbose_name="Total")
+    monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Monto Pagado")
+    saldo_pendiente = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Saldo Pendiente")
+    
+    # Estado
+    estado_pago = models.CharField(max_length=20, choices=ESTADO_PAGO_CHOICES, default='pendiente', verbose_name="Estado de Pago")
+    
+    # Información adicional
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    
+    # Auditoría
+    creado_por = models.ForeignKey(User, on_delete=models.CASCADE, related_name='documentos_cliente_creados', verbose_name="Creado por")
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    fecha_modificacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Modificación")
+    
+    class Meta:
+        verbose_name = "Documento de Cliente"
+        verbose_name_plural = "Documentos de Clientes"
+        unique_together = ['empresa', 'numero_documento', 'tipo_documento']
+        ordering = ['-fecha_creacion']
+    
+    def __str__(self):
+        return f"{self.get_tipo_documento_display()} {self.numero_documento} - {self.cliente.nombre}"

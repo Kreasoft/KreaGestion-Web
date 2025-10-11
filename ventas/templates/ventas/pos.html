@@ -6,6 +6,7 @@
     <title>Punto de Venta (POS) - GestionCloud</title>
     
     {% load articulo_filters %}
+    {% load l10n %}
     
     <!-- Bootstrap CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -336,16 +337,18 @@
     .pos-cart-items {
         flex: 1;
         overflow-y: auto;
+        overflow-x: auto;
             padding: 0;
     }
     
     .pos-cart-item {
         display: flex;
         align-items: center;
-            padding: 8px 15px;
+            padding: 5px 8px;
             border-bottom: 1px solid #f1f3f4;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             transition: background-color 0.2s ease;
+            min-width: 0;
         }
         
         .pos-cart-item:hover {
@@ -358,54 +361,72 @@
         
         .cart-item-name {
             flex: 1;
+            min-width: 0;
             font-weight: 500;
         color: #2c3e50;
-            margin-right: 10px;
+            margin-right: 6px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            line-height: 1.2;
         }
         
         .cart-item-price {
-            width: 80px;
+            min-width: 80px;
+            flex-shrink: 0;
             text-align: right;
             color: #28a745;
             font-weight: 500;
+            font-size: 0.8rem;
+            white-space: nowrap;
         }
         
         .cart-item-qty {
-            width: 80px;
+            min-width: 85px;
+            flex-shrink: 0;
             text-align: center;
-            margin: 0 10px;
+            margin: 0 3px;
         display: flex;
         align-items: center;
             justify-content: center;
-            gap: 5px;
+            gap: 3px;
     }
     
         .cart-item-discount {
-            width: 50px;
+            min-width: 40px;
+            flex-shrink: 0;
         text-align: center;
             color: #dc3545;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
         }
         
         .cart-item-total {
-            width: 80px;
+            min-width: 80px;
+            flex-shrink: 0;
             text-align: right;
             font-weight: 600;
             color: #2c3e50;
+            font-size: 0.8rem;
+            white-space: nowrap;
         }
         
         .cart-item-actions {
-            width: 40px;
+            min-width: 30px;
+            flex-shrink: 0;
             text-align: center;
         }
         
         .cart-item-actions .btn {
-            padding: 2px 6px;
-            font-size: 0.7rem;
-            border-radius: 4px;
+            padding: 1px 4px;
+            font-size: 0.65rem;
+            border-radius: 3px;
+        }
+        
+        .cart-item-qty .btn {
+            padding: 0 5px;
+            font-size: 0.75rem;
+            line-height: 1.1;
+            min-width: 22px;
         }
         
         /* Panel de totales COMPACTO */
@@ -439,6 +460,7 @@
         .totals-value {
             font-weight: 600;
         color: #2c3e50;
+            white-space: nowrap;
     }
     
         .totals-value.total-final {
@@ -612,14 +634,14 @@
                 {% for articulo in articulos %}
                 <div class="pos-product-card {% if articulo.stock_actual <= 0 %}disabled{% endif %}" 
                      data-articulo-id="{{ articulo.id }}" 
-                     data-precio="{{ articulo.precio_final_calculado }}"
-                     data-precio-neto="{{ articulo.precio_venta }}"
+                     data-precio="{{ articulo.precio_final_calculado|unlocalize }}"
+                     data-precio-neto="{{ articulo.precio_venta|unlocalize }}"
                      data-stock="{{ articulo.stock_actual|default:0 }}"
                      data-categoria="{{ articulo.categoria|default:'sin-categoria' }}"
                      data-categoria-exenta-iva="{% if articulo.categoria.exenta_iva %}true{% else %}false{% endif %}"
-                     data-impuesto-especifico="{% if articulo.categoria.impuesto_especifico %}{{ articulo.categoria.impuesto_especifico.get_porcentaje_decimal }}{% else %}0{% endif %}">
+                     data-impuesto-especifico="{% if articulo.categoria.impuesto_especifico %}{{ articulo.categoria.impuesto_especifico.get_porcentaje_decimal|unlocalize }}{% else %}0{% endif %}">
                     <div class="pos-product-name">{{ articulo.nombre }}</div>
-                    <div class="pos-product-price">${{ articulo.precio_final_calculado|floatformat:0|add:0|floatformat:0 }}</div>
+                    <div class="pos-product-price">${{ articulo.precio_final_calculado|format_price }}</div>
                     <div class="pos-product-stock {% if articulo.stock_actual <= 0 %}text-danger{% endif %}">
                         Stock: {{ articulo.stock_actual|default:"0" }}
                     </div>
@@ -699,7 +721,8 @@ let currentNeto = 0;
 let currentIva = 0;
 let currentImpuestoEspecifico = 0;
 let currentTotal = 0;
-    let currentCategory = 'all';
+let currentCategory = 'all';
+let wasScanningMode = false; // Variable global para rastrear el modo de escaneo antes de procesar
 
 // Array de artículos disponibles en el POS - se llena desde Django
 let articulos = [];
@@ -883,6 +906,8 @@ function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva = false
             if (existingItem.cantidad < stockActual) {
                 existingItem.cantidad += 1;
                 existingItem.total = parseFloat(existingItem.cantidad) * parseFloat(existingItem.precio);
+                // Recalcular impuestos para la nueva cantidad
+                // Los valores unitarios ya están en el item, solo multiplicamos por cantidad
             } else {
             Swal.fire({
                 icon: 'warning',
@@ -1055,7 +1080,10 @@ function formatChileanNumber(num) {
     if (typeof num === 'string') {
         num = parseFloat(num);
     }
-    return Math.round(num).toLocaleString('es-CL');
+    // Redondear y convertir a string
+    const rounded = Math.round(num).toString();
+    // Agregar separadores de miles (punto)
+    return rounded.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 // Hacer la función global para que esté disponible en todo momento
@@ -1064,7 +1092,7 @@ window.formatChileanNumber = formatChileanNumber;
 // Limpiar carrito
 function clearCart() {
     // Desactivar temporalmente el modo escaneo
-    const wasScanningMode = barcodeMode;
+    wasScanningMode = barcodeMode; // Guardar en variable global
     barcodeMode = false;
     
     Swal.fire({
@@ -1099,7 +1127,7 @@ function clearCart() {
     // Procesar venta
     function processSale() {
         // Desactivar temporalmente el modo escaneo
-        const wasScanningMode = barcodeMode;
+        wasScanningMode = barcodeMode; // Guardar en variable global
         barcodeMode = false;
         
         if (cart.length === 0) {
@@ -1137,6 +1165,9 @@ function clearCart() {
         showDocumentTypeSelector();
     }
     
+    // Alias para compatibilidad
+    const procesarPreventa = processSale;
+    
     // Mostrar selector de tipo de documento para preventa
     function showDocumentTypeSelector() {
         const tiposPermitidos = window.currentEstacion.tipos_documentos;
@@ -1163,6 +1194,10 @@ function clearCart() {
             return `<option value="${tipo}">${nombres[tipo]}</option>`;
         }).join('');
         
+        // Verificar si ya hay un cliente seleccionado
+        const clienteYaSeleccionado = window.clienteSeleccionado;
+        console.log('Cliente ya seleccionado:', clienteYaSeleccionado);
+        
         const html = `
             <div class="mb-3">
                 <label class="form-label">Tipo de Documento a Emitir *</label>
@@ -1175,7 +1210,7 @@ function clearCart() {
             <div class="mb-3">
                 <label class="form-label">Buscar Cliente *</label>
                 <div class="input-group">
-                    <input type="text" id="busqueda-cliente" class="form-control" placeholder="RUT o nombre del cliente" required>
+                    <input type="text" id="busqueda-cliente" class="form-control" placeholder="RUT o nombre del cliente" required ${clienteYaSeleccionado ? 'value="' + clienteYaSeleccionado.rut + '"' : ''}>
                     <button type="button" class="btn btn-outline-secondary" onclick="buscarCliente()">
                         <i class="fas fa-search"></i>
                     </button>
@@ -1185,10 +1220,11 @@ function clearCart() {
                         <!-- Resultados de búsqueda aparecerán aquí -->
                     </div>
                 </div>
-                <div id="cliente-info" class="mt-2" style="display: none;">
-                    <div class="alert alert-info">
-                        <strong id="cliente-nombre">-</strong><br>
-                        <small id="cliente-direccion">-</small>
+                <div id="cliente-info" class="mt-2" style="display: ${clienteYaSeleccionado ? 'block' : 'none'};">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong id="cliente-nombre">${clienteYaSeleccionado ? clienteYaSeleccionado.nombre : '-'}</strong><br>
+                        <small id="cliente-direccion">${clienteYaSeleccionado ? (clienteYaSeleccionado.direccion || 'Sin dirección') : '-'}</small>
                     </div>
                 </div>
                 <div id="cliente-no-encontrado" class="mt-2" style="display: none;">
@@ -1358,66 +1394,157 @@ function clearCart() {
         }
         // Para otros tipos, mostrar formulario de creación
     Swal.fire({
-            title: 'Crear Cliente',
+            title: '<i class="fas fa-user-plus me-2"></i>Crear Nuevo Cliente',
             html: `
-                <div class="mb-3">
-                    <label class="form-label">RUT *</label>
-                    <input type="text" id="nuevo-rut" class="form-control" value="${rut}" readonly>
+                <style>
+                    .swal2-popup {
+                        border-radius: 15px;
+                        font-family: 'Poppins', sans-serif;
+                    }
+                    .swal2-title {
+                        color: #6F5B44;
+                        font-weight: 600;
+                        font-size: 1.5rem;
+                        padding: 1rem 0 0.5rem 0;
+                    }
+                    .swal2-html-container {
+                        padding: 0 2rem 1rem 2rem;
+                    }
+                    .form-label-terroso {
+                        font-weight: 600;
+                        color: #6F5B44;
+                        font-size: 0.9rem;
+                        margin-bottom: 0.3rem;
+                        display: block;
+                        text-align: left;
+                    }
+                    .form-control-terroso {
+                        border: 2px solid #D4C4A8;
+                        border-radius: 8px;
+                        padding: 0.5rem 0.75rem;
+                        font-size: 0.9rem;
+                        transition: all 0.3s ease;
+                    }
+                    .form-control-terroso:focus {
+                        border-color: #8B7355;
+                        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+                        outline: none;
+                    }
+                    .campo-requerido::after {
+                        content: " *";
+                        color: #dc3545;
+                    }
+                    .info-box {
+                        background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
+                        border-left: 4px solid #8B7355;
+                        padding: 0.75rem;
+                        border-radius: 8px;
+                        margin-bottom: 1rem;
+                        text-align: left;
+                    }
+                    .info-box i {
+                        color: #8B7355;
+                        margin-right: 0.5rem;
+                    }
+                    .info-box p {
+                        margin: 0;
+                        color: #6F5B44;
+                        font-size: 0.85rem;
+                    }
+                </style>
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    <strong style="color: #6F5B44;">Importante:</strong>
+                    <p>Complete los datos del cliente. Los campos marcados con (*) son obligatorios.</p>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Nombre *</label>
-                    <input type="text" id="nuevo-nombre" class="form-control" placeholder="Nombre del cliente" required>
+                    <label class="form-label-terroso campo-requerido">RUT</label>
+                    <input type="text" id="nuevo-rut" class="form-control form-control-terroso" value="${rut}" placeholder="12.345.678-9">
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label-terroso campo-requerido">Nombre</label>
+                        <input type="text" id="nuevo-nombre" class="form-control form-control-terroso" placeholder="Nombre del cliente" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label-terroso campo-requerido">Giro</label>
+                        <input type="text" id="nuevo-giro" class="form-control form-control-terroso" placeholder="Giro comercial" required>
+                    </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Giro *</label>
-                    <input type="text" id="nuevo-giro" class="form-control" placeholder="Giro del cliente" required>
+                    <label class="form-label-terroso">Dirección</label>
+                    <input type="text" id="nueva-direccion" class="form-control form-control-terroso" placeholder="Calle y número">
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Dirección</label>
-                    <input type="text" id="nueva-direccion" class="form-control" placeholder="Dirección del cliente">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label-terroso campo-requerido">Comuna</label>
+                        <input type="text" id="nueva-comuna" class="form-control form-control-terroso" placeholder="Comuna" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label-terroso campo-requerido">Ciudad</label>
+                        <input type="text" id="nueva-ciudad" class="form-control form-control-terroso" placeholder="Ciudad" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label-terroso">Región</label>
+                        <input type="text" id="nueva-region" class="form-control form-control-terroso" placeholder="Región">
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Comuna *</label>
-                    <input type="text" id="nueva-comuna" class="form-control" placeholder="Comuna del cliente" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Ciudad *</label>
-                    <input type="text" id="nueva-ciudad" class="form-control" placeholder="Ciudad del cliente" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Región</label>
-                    <input type="text" id="nueva-region" class="form-control" placeholder="Región del cliente">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Teléfono</label>
-                    <input type="text" id="nuevo-telefono" class="form-control" placeholder="Teléfono del cliente">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <input type="email" id="nuevo-email" class="form-control" placeholder="Email del cliente">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label-terroso">Teléfono</label>
+                        <input type="text" id="nuevo-telefono" class="form-control form-control-terroso" placeholder="+56 9 1234 5678">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label-terroso">Email</label>
+                        <input type="email" id="nuevo-email" class="form-control form-control-terroso" placeholder="correo@ejemplo.com">
+                    </div>
                 </div>
             `,
+            width: '700px',
             showCancelButton: true,
-            confirmButtonText: 'Crear Cliente',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#17a2b8',
+            confirmButtonText: '<i class="fas fa-save me-2"></i>Crear Cliente',
+            cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+            confirmButtonColor: '#8B7355',
+            cancelButtonColor: '#6c757d',
+            customClass: {
+                confirmButton: 'btn btn-lg',
+                cancelButton: 'btn btn-lg'
+            },
+            buttonsStyling: true,
             preConfirm: () => {
-                const nombre = document.getElementById('nuevo-nombre').value;
-                const giro = document.getElementById('nuevo-giro').value;
-                const direccion = document.getElementById('nueva-direccion').value;
-                const comuna = document.getElementById('nueva-comuna').value;
-                const ciudad = document.getElementById('nueva-ciudad').value;
-                const region = document.getElementById('nueva-region').value;
-                const telefono = document.getElementById('nuevo-telefono').value;
-                const email = document.getElementById('nuevo-email').value;
+                const rutInput = document.getElementById('nuevo-rut').value.trim();
+                const nombre = document.getElementById('nuevo-nombre').value.trim();
+                const giro = document.getElementById('nuevo-giro').value.trim();
+                const direccion = document.getElementById('nueva-direccion').value.trim();
+                const comuna = document.getElementById('nueva-comuna').value.trim();
+                const ciudad = document.getElementById('nueva-ciudad').value.trim();
+                const region = document.getElementById('nueva-region').value.trim();
+                const telefono = document.getElementById('nuevo-telefono').value.trim();
+                const email = document.getElementById('nuevo-email').value.trim();
                 
+                if (!rutInput) {
+                    Swal.showValidationMessage('<i class="fas fa-exclamation-circle me-2"></i>El RUT es requerido');
+                    return false;
+                }
                 if (!nombre) {
-                    Swal.showValidationMessage('El nombre es requerido');
+                    Swal.showValidationMessage('<i class="fas fa-exclamation-circle me-2"></i>El nombre es requerido');
+                    return false;
+                }
+                if (!giro) {
+                    Swal.showValidationMessage('<i class="fas fa-exclamation-circle me-2"></i>El giro es requerido');
+                    return false;
+                }
+                if (!comuna) {
+                    Swal.showValidationMessage('<i class="fas fa-exclamation-circle me-2"></i>La comuna es requerida');
+                    return false;
+                }
+                if (!ciudad) {
+                    Swal.showValidationMessage('<i class="fas fa-exclamation-circle me-2"></i>La ciudad es requerida');
                     return false;
                 }
                 
                 return {
-                    rut: rut,
+                    rut: rutInput,
                     nombre: nombre,
                     giro: giro,
                     direccion: direccion,
@@ -1491,6 +1618,9 @@ function clearCart() {
     
     // Crear cliente nuevo
     function crearClienteNuevo(datos) {
+        console.log('=== CREAR CLIENTE NUEVO ===');
+        console.log('Datos enviados:', datos);
+        
         fetch('/ventas/pos/crear-cliente/', {
             method: 'POST',
             headers: {
@@ -1500,45 +1630,103 @@ function clearCart() {
             body: JSON.stringify(datos)
         })
         .then(response => {
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+            
             if (!response.ok) {
                 if (response.status === 403) {
-                    throw new Error('No tienes permisos para crear clientes. Contacta al administrador.');
+                    throw new Error('PERMISO DENEGADO: No tienes permisos para crear clientes. Contacta al administrador del sistema.');
                 }
-                throw new Error(`Error en el servidor: ${response.status}`);
+                return response.text().then(text => {
+                    console.error('Error response text:', text);
+                    throw new Error(`ERROR DEL SERVIDOR (${response.status}): ${text.substring(0, 100)}`);
+                });
             }
             return response.json();
         })
         .then(data => {
+            console.log('=== RESPUESTA DEL SERVIDOR ===');
+            console.log('Data completa:', data);
+            console.log('Success:', data.success);
+            console.log('Cliente:', data.cliente);
+            console.log('Message:', data.message);
             
             if (data.success) {
-                // Mostrar información del cliente creado
-                document.getElementById('cliente-nombre').textContent = data.cliente.nombre;
-                document.getElementById('cliente-direccion').textContent = data.cliente.direccion || 'Sin dirección';
-                document.getElementById('cliente-info').style.display = 'block';
-                document.getElementById('cliente-no-encontrado').style.display = 'none';
-                window.clienteSeleccionado = data.cliente;
+                console.log('✓ Cliente creado exitosamente');
                 
+                // Guardar cliente seleccionado globalmente
+                window.clienteSeleccionado = data.cliente;
+                console.log('✓ Cliente guardado en window.clienteSeleccionado:', window.clienteSeleccionado);
+                
+                // Mostrar mensaje de éxito y luego reabrir el modal de procesar preventa
                 Swal.fire({
                     icon: 'success',
-                    title: 'Cliente Creado',
-                    text: 'Cliente creado exitosamente',
-                    timer: 2000
+                    title: '✓ Cliente Creado Exitosamente',
+                    html: `
+                        <div style="text-align: left; padding: 1rem;">
+                            <p><strong>RUT:</strong> ${data.cliente.rut}</p>
+                            <p><strong>Nombre:</strong> ${data.cliente.nombre}</p>
+                            <p><strong>Dirección:</strong> ${data.cliente.direccion || 'Sin dirección'}</p>
+                        </div>
+                        <hr>
+                        <p style="text-align: center; color: #666; font-size: 0.9rem;">
+                            El cliente ha sido seleccionado automáticamente.<br>
+                            Ahora puedes procesar la preventa.
+                        </p>
+                    `,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    showConfirmButton: true,
+                    confirmButtonText: 'Continuar',
+                    confirmButtonColor: '#8B7355'
+                }).then(() => {
+                    // Reabrir el modal de procesar preventa con el cliente ya seleccionado
+                    console.log('✓ Reabriendo modal de procesar preventa');
+                    procesarPreventa();
                 });
             } else {
+                console.error('✗ ERROR: data.success = false');
+                console.error('Mensaje de error:', data.message);
+                
                 Swal.fire({
                     icon: 'error',
-                    title: 'Error',
-                    text: data.message || 'Error al crear cliente',
-                    timer: 3000
+                    title: '✗ Error al Crear Cliente',
+                    html: `
+                        <div style="text-align: left;">
+                            <p><strong>Mensaje:</strong> ${data.message || 'Error desconocido'}</p>
+                            <p style="font-size: 0.85rem; color: #666;">
+                                Revisa la consola del navegador (F12) para más detalles.
+                            </p>
+                        </div>
+                    `,
+                    timer: 5000,
+                    timerProgressBar: true
                 });
             }
         })
         .catch(error => {
+            console.error('=== ERROR CAPTURADO ===');
+            console.error('Error completo:', error);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+            
             Swal.fire({
                 icon: 'error',
-                title: 'Error',
-                text: error.message || 'Error al crear cliente. Intenta nuevamente.',
-                timer: 3000
+                title: '✗ Error de Conexión',
+                html: `
+                    <div style="text-align: left;">
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <hr>
+                        <p style="font-size: 0.85rem; color: #666;">
+                            <strong>Detalles técnicos:</strong><br>
+                            Abre la consola del navegador (F12 → Consola) para ver información detallada del error.
+                        </p>
+                    </div>
+                `,
+                timer: 8000,
+                timerProgressBar: true,
+                showConfirmButton: true,
+                confirmButtonText: 'Entendido'
             });
         });
     }
@@ -1592,6 +1780,11 @@ function clearCart() {
                 total: total
             }
         };
+        
+        console.log('=== DATOS QUE SE ENVÍAN AL SERVIDOR ===');
+        console.log('Items del carrito:', cart);
+        console.log('Totales:', preventaData.totales);
+        console.log('========================================');
     
     // Mostrar loading
     Swal.fire({
@@ -1763,6 +1956,17 @@ function clearCart() {
             });
         });
 }
+
+// Event listener para el botón de crear cliente
+document.addEventListener('click', function(e) {
+    // Verificar si el click fue en el botón o en algún elemento hijo (como el ícono)
+    const btnCrearCliente = e.target.closest('#btn-crear-cliente');
+    if (btnCrearCliente) {
+        e.preventDefault();
+        e.stopPropagation();
+        crearCliente();
+    }
+});
 
 // Cerrar función DOMContentLoaded
 console.log('*** DOMContentLoaded FINALIZADO ***');
@@ -2457,13 +2661,6 @@ function seleccionarCliente(id, nombre, rut, direccion) {
     document.getElementById('busqueda-cliente').value = rut;
 }
 
-// Event listener para el botón de crear cliente
-document.addEventListener('click', function(e) {
-    if (e.target && e.target.id === 'btn-crear-cliente') {
-        crearCliente();
-    }
-});
-
 // Función para mostrar historial de tickets del día
 function mostrarHistorialTickets() {
     fetch('/ventas/pos/tickets-hoy/', {
@@ -2546,5 +2743,107 @@ function mostrarHistorialTickets() {
     });
 }
 </script>
+
+<!-- Modal de Apertura de Caja -->
+{% if mostrar_modal_apertura %}
+<div class="modal fade" id="modalAperturaCaja" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border: none; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 1.5rem 2rem;">
+                <h4 class="modal-title mb-0">
+                    <i class="fas fa-lock-open me-2"></i>Abrir Caja
+                </h4>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Alerta Informativa -->
+                <div class="alert alert-info mb-4" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: none; border-left: 4px solid #2196F3;">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-info-circle me-3 mt-1" style="font-size: 1.5rem; color: #1976D2;"></i>
+                        <div>
+                            <h6 class="mb-2" style="color: #1565C0; font-weight: 600;">Importante:</h6>
+                            <p class="mb-0" style="color: #424242; line-height: 1.6;">
+                                Al abrir la caja, se iniciará un nuevo turno. Asegúrate de contar el efectivo inicial correctamente. 
+                                Este monto será la base para el cierre de caja al finalizar el turno.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="post" action="{% url 'caja:apertura_create' %}" id="formAperturaCaja">
+                    {% csrf_token %}
+                    
+                    <!-- Caja -->
+                    <div class="mb-4">
+                        <label for="{{ form_apertura.caja.id_for_label }}" class="form-label fw-bold" style="font-size: 1rem; color: #2c3e50;">
+                            <i class="fas fa-cash-register me-2" style="color: #28a745;"></i>Caja
+                        </label>
+                        {{ form_apertura.caja }}
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-check-circle me-1" style="color: #28a745;"></i>
+                            Solo se muestran cajas activas sin apertura
+                        </small>
+                    </div>
+
+                    <!-- Monto Inicial -->
+                    <div class="mb-4">
+                        <label for="{{ form_apertura.monto_inicial.id_for_label }}" class="form-label fw-bold" style="font-size: 1rem; color: #2c3e50;">
+                            <i class="fas fa-money-bill-wave me-2" style="color: #28a745;"></i>Monto Inicial
+                        </label>
+                        {{ form_apertura.monto_inicial }}
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-wallet me-1" style="color: #17a2b8;"></i>
+                            Efectivo físico disponible al iniciar el turno
+                        </small>
+                    </div>
+
+                    <!-- Observaciones -->
+                    <div class="mb-4">
+                        <label for="{{ form_apertura.observaciones_apertura.id_for_label }}" class="form-label fw-bold" style="font-size: 1rem; color: #2c3e50;">
+                            <i class="fas fa-comment me-2" style="color: #28a745;"></i>Observaciones
+                        </label>
+                        {{ form_apertura.observaciones_apertura }}
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-pencil-alt me-1" style="color: #6c757d;"></i>
+                            Opcional: Notas sobre el turno o condiciones especiales
+                        </small>
+                    </div>
+
+                    <!-- Nota Final -->
+                    <div class="alert alert-light mb-4" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-lightbulb me-3 mt-1" style="font-size: 1.3rem; color: #ffc107;"></i>
+                            <div>
+                                <strong style="color: #495057;">Recuerda:</strong>
+                                <p class="mb-0 mt-1" style="color: #6c757d; font-size: 0.9rem; line-height: 1.5;">
+                                    Una vez abierta la caja, podrás registrar movimientos, procesar ventas y cerrar al finalizar el turno.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg" style="padding: 0.75rem; font-size: 1.1rem; font-weight: 600;">
+                            <i class="fas fa-unlock me-2"></i>Abrir Caja y Comenzar Turno
+                        </button>
+                        <a href="{% url 'caja:apertura_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Mostrar modal automáticamente si no hay caja abierta
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = new bootstrap.Modal(document.getElementById('modalAperturaCaja'));
+    modal.show();
+});
+</script>
+{% endif %}
+
 </body>
 </html>

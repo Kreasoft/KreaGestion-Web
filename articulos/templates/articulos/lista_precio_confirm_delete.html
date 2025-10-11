@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Eliminar Lista de Precios - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+
+    .delete-container {
+        background: white;
+        border: 2px solid #E8DCC8;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        overflow: hidden;
+        max-width: 600px;
+        margin: 2rem auto;
+    }
+
+    .delete-header {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .delete-body {
+        padding: 2rem;
+        background: #FAFAF8;
+    }
+
+    .btn-delete {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-delete:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-cancel {
+        background: rgba(139, 115, 85, 0.15);
+        border: 1px solid rgba(139, 115, 85, 0.25);
+        color: #8B7355;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+        border-radius: 8px;
+    }
+
+    .btn-cancel:hover {
+        background: rgba(139, 115, 85, 0.25);
+        color: #6F5B44;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="margin-top: 80px;">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="delete-container">
+                <div class="delete-header">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <h4 class="mb-0" style="font-weight: 600; font-family: 'Poppins', sans-serif;">
+                        Confirmar Eliminación
+                    </h4>
+                    <p class="mb-0 mt-2" style="font-size: 0.9rem; opacity: 0.9;">
+                        Esta acción no se puede deshacer
+                    </p>
+                </div>
+
+                <div class="delete-body">
+                    <div class="text-center mb-4">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                            <i class="fas fa-tags fa-2x text-white"></i>
+                        </div>
+                        <h5 style="color: #2c3e50; font-weight: 600; margin-bottom: 10px;">{{ lista.nombre }}</h5>
+                        <p class="text-muted mb-0">{{ lista.descripcion|default:"Sin descripción" }}</p>
+                    </div>
+
+                    <div class="alert alert-warning" style="border: none; border-radius: 10px; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107;">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning me-3 mt-1"></i>
+                            <div>
+                                <h6 class="alert-heading" style="font-weight: 600;">¿Estás seguro?</h6>
+                                <p class="mb-0">
+                                    Se eliminará la lista de precios "{{ lista.nombre }}" y todos los precios asociados a esta lista.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" class="d-flex justify-content-between mt-4">
+                        {% csrf_token %}
+                        <a href="{% url 'articulos:lista_precio_list' %}" class="btn btn-cancel">
+                            <i class="fas fa-arrow-left me-2"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-delete">
+                            <i class="fas fa-trash me-2"></i>Eliminar Lista
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

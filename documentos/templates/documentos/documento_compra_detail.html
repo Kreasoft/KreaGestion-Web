@@ -496,8 +496,16 @@
                         {% for pago in historial_pagos %}
                         <tr>
                             <td>{{ pago.fecha_pago|date:"d/m/Y H:i" }}</td>
-                            <td><strong>${{ pago.monto_pagado|currency_format }}</strong></td>
-                            <td>{{ pago.get_metodo_pago_display }}</td>
+                            <td><strong>${{ pago.monto_total_pagado|currency_format }}</strong></td>
+                            <td>
+                                {% if pago.formas_pago.exists %}
+                                    {% for forma in pago.formas_pago.all %}
+                                        {{ forma.forma_pago.nombre }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
                             <td>{{ pago.observaciones|default:"-" }}</td>
                             <td>{{ pago.registrado_por.get_full_name|default:pago.registrado_por.username }}</td>
                         </tr>

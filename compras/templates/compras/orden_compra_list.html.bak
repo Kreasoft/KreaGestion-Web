@@ -1,0 +1,517 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Órdenes de Compra - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-shopping-cart fa-lg text-white me-2"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.2rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    Gestión de Órdenes de Compra
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">Administra las órdenes de compra a proveedores</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <!-- Toggle de Vista -->
+                            <div class="btn-group me-2" role="group" aria-label="Toggle de vista">
+                                <input type="radio" class="btn-check" name="viewToggle" id="cardView" value="card" autocomplete="off">
+                                <label class="btn btn-outline-light btn-sm" for="cardView" title="Vista de Tarjetas">
+                                    <i class="fas fa-th-large"></i>
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="viewToggle" id="listView" value="list" autocomplete="off">
+                                <label class="btn btn-outline-light btn-sm" for="listView" title="Vista de Lista">
+                                    <i class="fas fa-list"></i>
+                                </label>
+                            </div>
+                            
+                            <a href="{% url 'compras:orden_compra_create' %}" class="btn btn-sm" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); border: none; color: white; font-family: 'Poppins', sans-serif;">
+                                <i class="fas fa-plus me-1"></i> Nueva Orden
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Estadísticas dentro de la tarjeta -->
+                <div class="card-body" style="padding: 10px 15px;">
+                    <div class="row mb-2">
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #D2B48C 0%, #DEB887 100%); border: none; box-shadow: 0 2px 8px rgba(210, 180, 140, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Total Órdenes</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.total_ordenes }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">Registradas</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-file-alt" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #DAA520 0%, #F4A460 100%); border: none; box-shadow: 0 2px 8px rgba(218, 165, 32, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Pendientes</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.pendientes_aprobacion }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">Por aprobar</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-clock" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #8FBC8F 0%, #9ACD32 100%); border: none; box-shadow: 0 2px 8px rgba(143, 188, 143, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Aprobadas</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.aprobadas }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">En proceso</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-check-circle" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #CD853F 0%, #A0522D 100%); border: none; box-shadow: 0 2px 8px rgba(205, 133, 63, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Completadas</h6>
+                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.completadas }}</h4>
+                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">Finalizadas</small>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-truck" style="color: rgba(255, 255, 255, 0.6);"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formulario de búsqueda -->
+                    <div class="card" style="background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%); border: 1px solid #e3e6f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-radius: 10px; margin-bottom: 15px;">
+                        <div class="card-body" style="padding: 15px;">
+                            <form method="get" class="row g-2">
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">Buscar</label>
+                                    <div class="input-group input-group-sm">
+                                        {{ search_form.search }}
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">Estado</label>
+                                    <div class="input-group input-group-sm">
+                                        {{ search_form.estado_orden }}
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">Prioridad</label>
+                                    <div class="input-group input-group-sm">
+                                        {{ search_form.prioridad }}
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">Desde</label>
+                                    <div class="input-group input-group-sm">
+                                        {{ search_form.fecha_desde }}
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">Hasta</label>
+                                    <div class="input-group input-group-sm">
+                                        {{ search_form.fecha_hasta }}
+                                    </div>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-sm w-100" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; border-radius: 6px; font-weight: 500; font-family: 'Poppins', sans-serif;">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Lista de órdenes -->
+                    <!-- Vista de Tarjetas -->
+                    <div id="cardViewContainer" class="row">
+                        {% for orden in page_obj %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card h-100" style="border: 1px solid #e3e6f0; border-radius: 10px; transition: all 0.3s ease; background: white; overflow: hidden; position: relative;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'">
+                                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);"></div>
+                                <div class="card-body" style="padding: 15px;">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="card-title mb-1" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif; font-size: 0.9rem;">{{ orden.numero_orden }}</h6>
+                                            <p class="text-muted mb-0" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">{{ orden.proveedor }}</p>
+                                        </div>
+                                        <div class="text-end">
+                                            {% if orden.estado_orden == 'en_proceso' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; font-size: 0.65rem; padding: 0.3rem 0.6rem; border-radius: 15px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">En Proceso</span>
+                                            {% elif orden.estado_orden == 'aprobada' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; font-size: 0.65rem; padding: 0.3rem 0.6rem; border-radius: 15px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Aprobada</span>
+                                            {% elif orden.estado_orden == 'completada' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color: white; font-size: 0.65rem; padding: 0.3rem 0.6rem; border-radius: 15px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Completada</span>
+                                            {% elif orden.estado_orden == 'cancelada' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white; font-size: 0.65rem; padding: 0.3rem 0.6rem; border-radius: 15px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Cancelada</span>
+                                            {% else %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; font-size: 0.65rem; padding: 0.3rem 0.6rem; border-radius: 15px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">{{ orden.get_estado_orden_display }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif; font-size: 0.75rem;">
+                                            <i class="fas fa-calendar me-1"></i>
+                                            {{ orden.fecha_orden|date:"d/m/Y" }}
+                                        </small>
+                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif; font-size: 0.75rem;">
+                                            <i class="fas fa-truck me-1"></i>
+                                            Entrega: {{ orden.fecha_entrega_esperada|date:"d/m/Y" }}
+                                        </small>
+                                        {% if orden.prioridad == 'urgente' %}
+                                            <small class="text-danger d-block" style="font-family: 'Poppins', sans-serif; font-size: 0.75rem;">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                Prioridad: {{ orden.get_prioridad_display }}
+                                            </small>
+                                        {% elif orden.prioridad == 'alta' %}
+                                            <small class="text-warning d-block" style="font-family: 'Poppins', sans-serif; font-size: 0.75rem;">
+                                                <i class="fas fa-arrow-up me-1"></i>
+                                                Prioridad: {{ orden.get_prioridad_display }}
+                                            </small>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small class="text-muted" style="font-family: 'Poppins', sans-serif; font-size: 0.75rem;">Total: </small>
+                                            <strong style="color: #2c3e50; font-family: 'Poppins', sans-serif; font-size: 0.9rem;">$<span class="format-number">{{ orden.total_orden|floatformat:0 }}</span></strong>
+                                        </div>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'compras:orden_compra_detail' orden.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; border-radius: 6px 0 0 6px; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 0.25rem 0.5rem;" title="Ver Detalle">
+                                                <i class="fas fa-eye" style="font-size: 0.75rem;"></i>
+                                            </a>
+                                            {% if orden.estado_orden != 'completada' %}
+                                                <a href="{% url 'compras:orden_compra_update' orden.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); border: none; color: white; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 0.25rem 0.5rem;" title="Editar Orden">
+                                                    <i class="fas fa-edit" style="font-size: 0.75rem;"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); border: none; color: white; border-radius: 0 6px 6px 0; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 0.25rem 0.5rem;" onclick="confirmarEliminar('{{ orden.pk }}', '{{ orden.numero_orden }}')" title="Eliminar Orden">
+                                                    <i class="fas fa-trash" style="font-size: 0.75rem;"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <div class="text-center py-5">
+                                <div style="background: white; border-radius: 20px; padding: 3rem 2rem; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border: 1px solid #e3e6f0;">
+                                    <div class="mb-4" style="opacity: 0.6;">
+                                        <i class="fas fa-shopping-cart fa-4x text-muted"></i>
+                                    </div>
+                                    <h3 class="text-muted mb-3" style="font-family: 'Poppins', sans-serif;">No hay órdenes de compra</h3>
+                                    <p class="text-muted mb-4" style="font-family: 'Poppins', sans-serif;">Comienza creando tu primera orden de compra para gestionar tus compras</p>
+                                    <a href="{% url 'compras:orden_compra_create' %}" class="btn btn-lg" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; border-radius: 25px; font-weight: 500; font-family: 'Poppins', sans-serif;">
+                                        <i class="fas fa-plus me-2"></i>
+                                        Crear Primera Orden
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Vista de Lista -->
+                    <div id="listViewContainer" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm">
+                                <thead style="background: linear-gradient(135deg, #D2B48C 0%, #DEB887 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(210, 180, 140, 0.2);">
+                                    <tr>
+                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Orden</th>
+                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Proveedor</th>
+                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Fecha</th>
+                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Estado</th>
+                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Total</th>
+                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 12px 15px; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for orden in page_obj %}
+                                    <tr style="border-bottom: 1px solid #e3e6f0;">
+                                        <td style="border: none; padding: 10px 12px; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">
+                                            <strong style="color: #2c3e50;">{{ orden.numero_orden }}</strong>
+                                        </td>
+                                        <td style="border: none; padding: 10px 12px; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">
+                                            {{ orden.proveedor.nombre }}
+                                        </td>
+                                        <td style="border: none; padding: 10px 12px; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">
+                                            {{ orden.fecha_orden|date:"d/m/Y" }}
+                                        </td>
+                                        <td style="border: none; padding: 10px 12px;">
+                                            {% if orden.estado_orden == 'en_proceso' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; font-size: 0.65rem; padding: 0.25rem 0.5rem; border-radius: 15px; font-weight: 500;">En Proceso</span>
+                                            {% elif orden.estado_orden == 'aprobada' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; font-size: 0.65rem; padding: 0.25rem 0.5rem; border-radius: 15px; font-weight: 500;">Aprobada</span>
+                                            {% elif orden.estado_orden == 'completada' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color: white; font-size: 0.65rem; padding: 0.25rem 0.5rem; border-radius: 15px; font-weight: 500;">Completada</span>
+                                            {% elif orden.estado_orden == 'cancelada' %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white; font-size: 0.65rem; padding: 0.25rem 0.5rem; border-radius: 15px; font-weight: 500;">Cancelada</span>
+                                            {% else %}
+                                                <span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; font-size: 0.65rem; padding: 0.25rem 0.5rem; border-radius: 15px; font-weight: 500;">{{ orden.get_estado_orden_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="border: none; padding: 10px 12px; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">
+                                            <strong style="color: #2c3e50;">$<span class="format-number">{{ orden.total_orden|floatformat:0 }}</span></strong>
+                                        </td>
+                                        <td style="border: none; padding: 10px 12px;">
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'compras:orden_compra_detail' orden.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; border-radius: 6px 0 0 6px; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 0.2rem 0.4rem;" title="Ver Detalle">
+                                                    <i class="fas fa-eye" style="font-size: 0.7rem;"></i>
+                                                </a>
+                                                {% if orden.estado_orden != 'completada' %}
+                                                    <a href="{% url 'compras:orden_compra_update' orden.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); border: none; color: white; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 0.2rem 0.4rem;" title="Editar">
+                                                        <i class="fas fa-edit" style="font-size: 0.7rem;"></i>
+                                                    </a>
+                                                    <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); border: none; color: white; border-radius: 0 6px 6px 0; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 0.2rem 0.4rem;" onclick="confirmarEliminar('{{ orden.pk }}', '{{ orden.numero_orden }}')" title="Eliminar">
+                                                        <i class="fas fa-trash" style="font-size: 0.7rem;"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-5">
+                                            <div style="background: white; border-radius: 20px; padding: 3rem 2rem; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border: 1px solid #e3e6f0;">
+                                                <div class="mb-4" style="opacity: 0.6;">
+                                                    <i class="fas fa-shopping-cart fa-4x text-muted"></i>
+                                                </div>
+                                                <h3 class="text-muted mb-3" style="font-family: 'Poppins', sans-serif;">No hay órdenes de compra</h3>
+                                                <p class="text-muted mb-4" style="font-family: 'Poppins', sans-serif;">Comienza creando tu primera orden de compra para gestionar tus compras</p>
+                                                <a href="{% url 'compras:orden_compra_create' %}" class="btn btn-lg" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; border-radius: 25px; font-weight: 500; font-family: 'Poppins', sans-serif;">
+                                                    <i class="fas fa-plus me-2"></i>
+                                                    Crear Primera Orden
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Paginación -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Paginación de órdenes">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.prioridad %}&prioridad={{ request.GET.prioridad }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #4e73df; font-weight: 500;">
+                                        <i class="fas fa-angle-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.prioridad %}&prioridad={{ request.GET.prioridad }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #4e73df; font-weight: 500;">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border-color: #4e73df; border-radius: 10px; margin: 0 2px;">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.prioridad %}&prioridad={{ request.GET.prioridad }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #4e73df; font-weight: 500;" onmouseover="this.style.backgroundColor='#f8f9fc'; this.style.color='#224abe'; this.style.transform='translateY(-1px)'" onmouseout="this.style.backgroundColor=''; this.style.color='#4e73df'; this.style.transform='translateY(0)'">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.prioridad %}&prioridad={{ request.GET.prioridad }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #4e73df; font-weight: 500;">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.prioridad %}&prioridad={{ request.GET.prioridad }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #4e73df; font-weight: 500;">
+                                        <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+// Función para confirmar eliminación
+function confirmarEliminar(ordenId, numeroOrden) {
+    Swal.fire({
+        title: '¿Eliminar Orden?',
+        html: `¿Estás seguro de eliminar la orden <strong>${numeroOrden}</strong>?<br><small class="text-muted">Esta acción no se puede deshacer</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-trash me-1"></i> Sí, eliminar',
+        cancelButtonText: '<i class="fas fa-times me-1"></i> Cancelar',
+        reverseButtons: true,
+        customClass: {
+            confirmButton: 'btn btn-danger',
+            cancelButton: 'btn btn-secondary'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar loading
+            Swal.fire({
+                title: 'Eliminando...',
+                html: 'Por favor espera',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Enviar petición de eliminación
+            fetch(`/compras/ordenes-compra/${ordenId}/eliminar/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Eliminada!',
+                        text: 'La orden ha sido eliminada exitosamente',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'No se pudo eliminar la orden'
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error al eliminar la orden'
+                });
+            });
+        }
+    });
+}
+
+// Función para obtener el CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Obtener elementos
+    const cardViewRadio = document.getElementById('cardView');
+    const listViewRadio = document.getElementById('listView');
+    const cardViewContainer = document.getElementById('cardViewContainer');
+    const listViewContainer = document.getElementById('listViewContainer');
+    
+    // Función para cambiar vista
+    function toggleView(viewType) {
+        if (viewType === 'card') {
+            cardViewContainer.classList.remove('d-none');
+            listViewContainer.classList.add('d-none');
+            cardViewRadio.checked = true;
+            localStorage.setItem('ordenCompraView', 'card');
+        } else {
+            cardViewContainer.classList.add('d-none');
+            listViewContainer.classList.remove('d-none');
+            listViewRadio.checked = true;
+            localStorage.setItem('ordenCompraView', 'list');
+        }
+    }
+    
+    // Event listeners para los radio buttons
+    cardViewRadio.addEventListener('change', function() {
+        if (this.checked) {
+            toggleView('card');
+        }
+    });
+    
+    listViewRadio.addEventListener('change', function() {
+        if (this.checked) {
+            toggleView('list');
+        }
+    });
+    
+    // Cargar preferencia guardada
+    const savedView = localStorage.getItem('ordenCompraView');
+    if (savedView === 'list') {
+        toggleView('list');
+    } else {
+        toggleView('card');
+    }
+    
+    // Formatear números con separador de miles
+    document.querySelectorAll('.format-number').forEach(function(element) {
+        const number = parseInt(element.textContent);
+        if (!isNaN(number)) {
+            element.textContent = number.toLocaleString('es-CL');
+        }
+    });
+});
+</script>
+{% endblock %}

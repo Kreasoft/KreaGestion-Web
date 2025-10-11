@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if documento %}Editar{% else %}Crear{% endif %} Documento Pendiente - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid" style="margin-top: 20px;">
+    <div class="row">
+        <div class="col-12 col-lg-8 mx-auto">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-invoice fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    {% if documento %}Editar Documento Pendiente{% else %}Nuevo Documento Pendiente{% endif %}
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Proveedor
+                                </small>
+                            </div>
+                        </div>
+                        <a href="{% url 'tesoreria:documento_pendiente_proveedor_list' %}" class="btn btn-sm" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
+                            <i class="fas fa-arrow-left me-1"></i> Volver
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 20px; background: #FAFAF8;">
+                    
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold" style="color: #6F5B44;">
+                                    <i class="fas fa-truck me-1"></i>Proveedor *
+                                </label>
+                                <select name="proveedor" class="form-select" required>
+                                    <option value="">Seleccione un proveedor...</option>
+                                    {% for prov in proveedores %}
+                                        <option value="{{ prov.pk }}" {% if documento and documento.proveedor.pk == prov.pk %}selected{% endif %}>
+                                            {{ prov.nombre }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label fw-bold" style="color: #6F5B44;">
+                                    <i class="fas fa-file me-1"></i>Tipo Documento *
+                                </label>
+                                <select name="tipo_documento" class="form-select" required>
+                                    <option value="factura" {% if documento and documento.tipo_documento == 'factura' %}selected{% endif %}>Factura</option>
+                                    <option value="boleta" {% if documento and documento.tipo_documento == 'boleta' %}selected{% endif %}>Boleta</option>
+                                    <option value="nota_credito" {% if documento and documento.tipo_documento == 'nota_credito' %}selected{% endif %}>Nota de Crédito</option>
+                                    <option value="nota_debito" {% if documento and documento.tipo_documento == 'nota_debito' %}selected{% endif %}>Nota de Débito</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label fw-bold" style="color: #6F5B44;">
+                                    <i class="fas fa-hashtag me-1"></i>N° Documento *
+                                </label>
+                                <input type="text" name="numero_documento" class="form-control" 
+                                       value="{% if documento %}{{ documento.numero_documento }}{% endif %}" 
+                                       placeholder="Ej: 12345" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold" style="color: #6F5B44;">
+                                    <i class="fas fa-calendar me-1"></i>Fecha Emisión *
+                                </label>
+                                <input type="date" name="fecha_emision" class="form-control" 
+                                       value="{% if documento %}{{ documento.fecha_emision|date:'Y-m-d' }}{% endif %}" required>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold" style="color: #6F5B44;">
+                                    <i class="fas fa-calendar-check me-1"></i>Fecha Vencimiento
+                                </label>
+                                <input type="date" name="fecha_vencimiento" class="form-control" 
+                                       value="{% if documento %}{{ documento.fecha_vencimiento|date:'Y-m-d' }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold" style="color: #6F5B44;">
+                                    <i class="fas fa-dollar-sign me-1"></i>Total *
+                                </label>
+                                <input type="number" name="total" class="form-control" 
+                                       value="{% if documento %}{{ documento.total }}{% endif %}" 
+                                       placeholder="0" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="form-label fw-bold" style="color: #6F5B44;">
+                                    <i class="fas fa-comment me-1"></i>Observaciones
+                                </label>
+                                <textarea name="observaciones" class="form-control" rows="3" 
+                                          placeholder="Observaciones adicionales...">{% if documento %}{{ documento.observaciones }}{% endif %}</textarea>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'tesoreria:documento_pendiente_proveedor_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white;">
+                                <i class="fas fa-save me-1"></i> Guardar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

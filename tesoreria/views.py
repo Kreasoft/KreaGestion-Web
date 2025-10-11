@@ -3,8 +3,10 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.template.loader import render_to_string
+from django.utils import timezone
 import json
 from decimal import Decimal
 
@@ -12,6 +14,7 @@ from .models import CuentaCorrienteProveedor, MovimientoCuentaCorriente
 from documentos.models import DocumentoCompra
 from proveedores.models import Proveedor
 from empresas.models import Empresa
+from bodegas.models import Bodega
 from .decorators import requiere_empresa
 
 
@@ -91,6 +94,7 @@ def cuenta_corriente_proveedor_list(request):
         'search': search,
         'estado_pago': estado_pago,
         'empresa': empresa,
+        'today': timezone.now().date(),
     }
     
     return render(request, 'tesoreria/cuenta_corriente_proveedor_list.html', context)
@@ -110,14 +114,19 @@ def cuenta_corriente_proveedor_detail(request, proveedor_id):
             messages.error(request, 'Usuario no tiene empresa asociada.')
             return redirect('dashboard')
     
-    proveedor = get_object_or_404(Proveedor, pk=proveedor_id, empresa=empresa)
-    
-    # Obtener documentos del proveedor
+    # Obtener documentos del proveedor de la empresa activa
     documentos = DocumentoCompra.objects.filter(
         empresa=empresa,
-        proveedor=proveedor,
+        proveedor_id=proveedor_id,
         en_cuenta_corriente=True
-    ).order_by('fecha_vencimiento')
+    ).select_related('proveedor').order_by('fecha_vencimiento')
+    
+    # Si no hay documentos, el proveedor no es válido para esta empresa
+    if not documentos.exists():
+        messages.error(request, 'No se encontraron documentos para este proveedor en la empresa actual.')
+        return redirect('tesoreria:cuenta_corriente_proveedor_list')
+    
+    proveedor = documentos.first().proveedor
     
     # Estadísticas
     stats = {
@@ -141,13 +150,23 @@ def cuenta_corriente_proveedor_detail(request, proveedor_id):
 @requiere_empresa
 @permission_required('tesoreria.view_cuentacorriente', raise_exception=True)
 def cuenta_corriente_cliente_list(request):
-    """Lista de cuentas corrientes de clientes (placeholder)"""
+    """Lista de cuentas corrientes de clientes"""
     # Obtener la empresa del usuario
     if request.user.is_superuser:
-        empresa = Empresa.objects.first()
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.first()
+        else:
+            empresa = Empresa.objects.first()
+        
         if not empresa:
             messages.error(request, 'No hay empresas configuradas en el sistema.')
             return redirect('dashboard')
+        
+        request.session['empresa_activa'] = empresa.id
     else:
         try:
             empresa = request.user.perfil.empresa
@@ -155,9 +174,51 @@ def cuenta_corriente_cliente_list(request):
             messages.error(request, 'Usuario no tiene empresa asociada.')
             return redirect('dashboard')
     
-    # Por ahora mostrar una página simple que indica que está en desarrollo
+    # Obtener documentos de clientes
+    from .models import DocumentoCliente
+    from clientes.models import Cliente
+    
+    # Filtros
+    search = request.GET.get('search', '')
+    estado_pago = request.GET.get('estado_pago', '')
+    
+    documentos_query = DocumentoCliente.objects.filter(
+        empresa=empresa
+    ).select_related('cliente').order_by('-fecha_creacion')
+    
+    # Aplicar filtros
+    if search:
+        documentos_query = documentos_query.filter(
+            Q(numero_documento__icontains=search) |
+            Q(cliente__nombre__icontains=search) |
+            Q(cliente__rut__icontains=search)
+        )
+    
+    if estado_pago:
+        documentos_query = documentos_query.filter(estado_pago=estado_pago)
+    
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(documentos_query, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Estadísticas
+    from django.db.models import Sum
+    stats = {
+        'total_documentos': documentos_query.count(),
+        'total_pendiente': documentos_query.filter(estado_pago='pendiente').aggregate(Sum('saldo_pendiente'))['saldo_pendiente__sum'] or 0,
+        'total_vencido': documentos_query.filter(estado_pago='vencido').aggregate(Sum('saldo_pendiente'))['saldo_pendiente__sum'] or 0,
+        'total_parcial': documentos_query.filter(estado_pago='parcial').aggregate(Sum('saldo_pendiente'))['saldo_pendiente__sum'] or 0,
+    }
+    
     context = {
         'empresa': empresa,
+        'page_obj': page_obj,
+        'stats': stats,
+        'search': search,
+        'estado_pago': estado_pago,
+        'today': timezone.now().date(),
     }
     
     return render(request, 'tesoreria/cuenta_corriente_cliente_list.html', context)
@@ -356,6 +417,38 @@ def cambiar_empresa_activa(request):
 
 
 @login_required
+def historial_pagos_documento(request, documento_id):
+    """Obtener historial de pagos de un documento"""
+    try:
+        from documentos.models import HistorialPagoDocumento
+        
+        documento = get_object_or_404(DocumentoCompra, pk=documento_id)
+        pagos = documento.historial_pagos.all().order_by('-fecha_pago')
+        
+        pagos_data = []
+        total_pagado = 0
+        
+        for pago in pagos:
+            formas = []
+            for fp in pago.formas_pago.all():
+                formas.append(fp.forma_pago.nombre)
+            
+            pagos_data.append({
+                'fecha': pago.fecha_pago.strftime('%d/%m/%Y'),
+                'monto': str(pago.monto_total_pagado),
+                'forma_pago': ', '.join(formas) if formas else 'N/A'
+            })
+            total_pagado += float(pago.monto_total_pagado)
+        
+        return JsonResponse({
+            'pagos': pagos_data,
+            'total_pagado': total_pagado
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
 def detalle_pago(request, pago_id):
     """Ver detalle de un pago específico"""
     try:
@@ -502,3 +595,407 @@ def editar_pago(request, pago_id):
         
     except Exception as e:
         return JsonResponse({'error': f'Error al actualizar el pago: {str(e)}'}, status=500)
+
+
+# ==================== CRUD DOCUMENTOS PENDIENTES ====================
+
+@login_required
+@requiere_empresa
+def documento_pendiente_proveedor_list(request):
+    """Lista de documentos pendientes de proveedores"""
+    empresa = request.empresa if hasattr(request, 'empresa') else request.user.perfil.empresa
+    
+    documentos = DocumentoCompra.objects.filter(
+        empresa=empresa,
+        en_cuenta_corriente=True
+    ).select_related('proveedor').order_by('-fecha_emision')
+    
+    # Filtros
+    search = request.GET.get('search', '')
+    if search:
+        documentos = documentos.filter(
+            Q(numero_documento__icontains=search) |
+            Q(proveedor__nombre__icontains=search)
+        )
+    
+    paginator = Paginator(documentos, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+    }
+    return render(request, 'tesoreria/documento_pendiente_proveedor_list.html', context)
+
+
+@login_required
+def documento_pendiente_proveedor_create(request):
+    """Crear documento pendiente de proveedor (modal)"""
+    empresa = request.empresa if hasattr(request, 'empresa') else request.user.perfil.empresa
+    
+    if request.method == 'POST':
+        try:
+            proveedor_id = request.POST.get('proveedor')
+            proveedor = get_object_or_404(Proveedor, pk=proveedor_id, empresa=empresa)
+            total = int(request.POST.get('total', 0))
+            
+            documento = DocumentoCompra.objects.create(
+                empresa=empresa,
+                proveedor=proveedor,
+                bodega=Bodega.objects.filter(empresa=empresa).first(),
+                tipo_documento=request.POST.get('tipo_documento'),
+                numero_documento=request.POST.get('numero_documento'),
+                fecha_emision=request.POST.get('fecha_emision'),
+                fecha_vencimiento=request.POST.get('fecha_vencimiento'),
+                total_documento=total,
+                saldo_pendiente=Decimal(total),
+                en_cuenta_corriente=True,
+                estado_pago='credito',
+                observaciones=request.POST.get('observaciones', ''),
+                creado_por=request.user
+            )
+            
+            return JsonResponse({'success': True, 'message': f'Documento {documento.numero_documento} creado exitosamente.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+    
+    proveedores = Proveedor.objects.filter(empresa=empresa, estado='activo')
+    context = {'proveedores': proveedores}
+    return HttpResponse(render_to_string('tesoreria/includes/documento_form_modal.html', context, request=request))
+
+
+@login_required
+def documento_pendiente_proveedor_edit(request, pk):
+    """Editar documento pendiente de proveedor (modal)"""
+    empresa = request.empresa if hasattr(request, 'empresa') else request.user.perfil.empresa
+    documento = get_object_or_404(DocumentoCompra, pk=pk, empresa=empresa)
+    
+    if request.method == 'POST':
+        try:
+            proveedor_id = request.POST.get('proveedor')
+            proveedor = get_object_or_404(Proveedor, pk=proveedor_id, empresa=empresa)
+            total = int(request.POST.get('total', 0))
+            
+            documento.proveedor = proveedor
+            documento.tipo_documento = request.POST.get('tipo_documento')
+            documento.numero_documento = request.POST.get('numero_documento')
+            documento.fecha_emision = request.POST.get('fecha_emision')
+            documento.fecha_vencimiento = request.POST.get('fecha_vencimiento')
+            documento.total_documento = total
+            documento.saldo_pendiente = Decimal(total) - documento.monto_pagado
+            documento.observaciones = request.POST.get('observaciones', '')
+            documento.save()
+            
+            return JsonResponse({'success': True, 'message': f'Documento {documento.numero_documento} actualizado exitosamente.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+    
+    proveedores = Proveedor.objects.filter(empresa=empresa, estado='activo')
+    context = {'documento': documento, 'proveedores': proveedores}
+    return HttpResponse(render_to_string('tesoreria/includes/documento_form_modal.html', context, request=request))
+
+
+@login_required
+@requiere_empresa
+def documento_pendiente_proveedor_delete(request, pk):
+    """Eliminar documento pendiente de proveedor"""
+    empresa = request.empresa if hasattr(request, 'empresa') else request.user.perfil.empresa
+    documento = get_object_or_404(DocumentoCompra, pk=pk, empresa=empresa)
+    
+    if request.method == 'POST':
+        numero = documento.numero_documento
+        documento.delete()
+        return JsonResponse({'success': True, 'message': f'Documento {numero} eliminado exitosamente.'})
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
+
+# ==================== CRUD DOCUMENTOS PENDIENTES CLIENTES ====================
+
+@login_required
+def obtener_clientes(request):
+    """Obtener lista de clientes activos de la empresa"""
+    try:
+        # Obtener empresa del usuario
+        if request.user.is_superuser:
+            empresa_id = request.session.get('empresa_activa')
+            if empresa_id:
+                try:
+                    empresa = Empresa.objects.get(id=empresa_id)
+                except Empresa.DoesNotExist:
+                    empresa = Empresa.objects.first()
+            else:
+                empresa = Empresa.objects.first()
+        else:
+            try:
+                empresa = request.user.perfil.empresa
+            except:
+                return JsonResponse({'error': 'Usuario no tiene empresa asociada'}, status=400)
+        
+        if not empresa:
+            return JsonResponse({'error': 'No se encontró empresa'}, status=400)
+        
+        from clientes.models import Cliente
+        clientes = Cliente.objects.filter(empresa=empresa).order_by('nombre')
+        
+        clientes_data = [{
+            'id': cliente.id,
+            'nombre': cliente.nombre,
+            'rut': cliente.rut or ''
+        } for cliente in clientes]
+        
+        return JsonResponse({'clientes': clientes_data})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def crear_documento_cliente(request):
+    """Crear documento pendiente de cliente"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'})
+    
+    try:
+        # Obtener empresa del usuario
+        if request.user.is_superuser:
+            empresa_id = request.session.get('empresa_activa')
+            if empresa_id:
+                try:
+                    empresa = Empresa.objects.get(id=empresa_id)
+                except Empresa.DoesNotExist:
+                    empresa = Empresa.objects.first()
+            else:
+                empresa = Empresa.objects.first()
+        else:
+            try:
+                empresa = request.user.perfil.empresa
+            except:
+                return JsonResponse({'success': False, 'message': 'Usuario no tiene empresa asociada'})
+        
+        if not empresa:
+            return JsonResponse({'success': False, 'message': 'No se encontró empresa'})
+        
+        from clientes.models import Cliente
+        from .models import DocumentoCliente
+        
+        data = json.loads(request.body)
+        
+        cliente_id = data.get('cliente')
+        cliente = get_object_or_404(Cliente, pk=cliente_id, empresa=empresa)
+        
+        total = int(data.get('total', 0))
+        
+        # Crear documento de cliente en cuenta corriente
+        documento = DocumentoCliente.objects.create(
+            empresa=empresa,
+            cliente=cliente,
+            tipo_documento=data.get('tipo_documento', 'factura'),
+            numero_documento=data.get('numero_documento'),
+            fecha_emision=data.get('fecha_emision'),
+            fecha_vencimiento=data.get('fecha_vencimiento') or None,
+            total=total,
+            saldo_pendiente=Decimal(total),
+            estado_pago='pendiente',
+            observaciones=data.get('observaciones', ''),
+            creado_por=request.user
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Documento {documento.numero_documento} creado exitosamente.'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al crear documento: {str(e)}'
+        })
+
+
+@login_required
+def historial_pagos_documento_cliente(request, documento_id):
+    """Obtener historial de pagos de un documento de cliente"""
+    try:
+        from .models import DocumentoCliente
+        
+        documento = get_object_or_404(DocumentoCliente, pk=documento_id)
+        # Por ahora retornar vacío, implementaremos pagos después
+        
+        return JsonResponse({
+            'pagos': [],
+            'total_pagado': float(documento.monto_pagado)
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def registrar_pago_cliente(request):
+    """Registrar un pago de cliente con múltiples formas de pago"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'})
+    
+    try:
+        from .models import DocumentoCliente
+        
+        data = json.loads(request.body)
+        
+        documento_id = data.get('documento_id')
+        formas_pago = data.get('formas_pago', [])
+        observaciones = data.get('observaciones', '')
+        
+        documento = get_object_or_404(DocumentoCliente, pk=documento_id)
+        
+        # Validar que hay formas de pago
+        if not formas_pago:
+            return JsonResponse({'success': False, 'message': 'Debe especificar al menos una forma de pago'})
+        
+        # Calcular monto total
+        monto_total = sum(Decimal(str(forma['monto'])) for forma in formas_pago)
+        
+        # Validar monto
+        if monto_total <= 0:
+            return JsonResponse({'success': False, 'message': 'El monto debe ser mayor a 0'})
+        
+        if monto_total > documento.saldo_pendiente:
+            return JsonResponse({'success': False, 'message': 'El monto excede el saldo pendiente'})
+        
+        # Registrar el pago
+        documento.monto_pagado += monto_total
+        documento.saldo_pendiente -= monto_total
+        
+        # Actualizar estado
+        if documento.saldo_pendiente <= 0:
+            documento.estado_pago = 'pagado'
+        elif documento.monto_pagado > 0:
+            documento.estado_pago = 'parcial'
+        
+        documento.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Pago registrado exitosamente por ${int(monto_total):,}'.replace(',', '.')
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al procesar el pago: {str(e)}'
+        })
+
+
+@login_required
+def obtener_documento_cliente(request, pk):
+    """Obtener datos de un documento de cliente"""
+    try:
+        from .models import DocumentoCliente
+        
+        # Obtener empresa
+        if request.user.is_superuser:
+            empresa_id = request.session.get('empresa_activa')
+            empresa = Empresa.objects.get(id=empresa_id) if empresa_id else Empresa.objects.first()
+        else:
+            empresa = request.user.perfil.empresa
+        
+        documento = get_object_or_404(DocumentoCliente, pk=pk, empresa=empresa)
+        
+        return JsonResponse({
+            'success': True,
+            'documento': {
+                'id': documento.id,
+                'cliente_id': documento.cliente.id,
+                'tipo_documento': documento.tipo_documento,
+                'numero_documento': documento.numero_documento,
+                'fecha_emision': documento.fecha_emision.strftime('%Y-%m-%d'),
+                'fecha_vencimiento': documento.fecha_vencimiento.strftime('%Y-%m-%d') if documento.fecha_vencimiento else '',
+                'total': int(documento.total),
+                'observaciones': documento.observaciones
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al obtener documento: {str(e)}'
+        })
+
+
+@login_required
+def editar_documento_cliente(request, pk):
+    """Editar documento de cliente"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'})
+    
+    try:
+        from .models import DocumentoCliente
+        from clientes.models import Cliente
+        
+        # Obtener empresa
+        if request.user.is_superuser:
+            empresa_id = request.session.get('empresa_activa')
+            empresa = Empresa.objects.get(id=empresa_id) if empresa_id else Empresa.objects.first()
+        else:
+            empresa = request.user.perfil.empresa
+        
+        documento = get_object_or_404(DocumentoCliente, pk=pk, empresa=empresa)
+        
+        data = json.loads(request.body)
+        
+        cliente_id = data.get('cliente')
+        cliente = get_object_or_404(Cliente, pk=cliente_id, empresa=empresa)
+        
+        total = int(data.get('total', 0))
+        
+        # Actualizar documento
+        documento.cliente = cliente
+        documento.tipo_documento = data.get('tipo_documento')
+        documento.numero_documento = data.get('numero_documento')
+        documento.fecha_emision = data.get('fecha_emision')
+        documento.fecha_vencimiento = data.get('fecha_vencimiento') or None
+        documento.total = total
+        documento.saldo_pendiente = Decimal(total) - documento.monto_pagado
+        documento.observaciones = data.get('observaciones', '')
+        documento.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Documento {documento.numero_documento} actualizado exitosamente.'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al actualizar documento: {str(e)}'
+        })
+
+
+@login_required
+def eliminar_documento_cliente(request, pk):
+    """Eliminar documento de cliente"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'})
+    
+    try:
+        from .models import DocumentoCliente
+        
+        # Obtener empresa
+        if request.user.is_superuser:
+            empresa_id = request.session.get('empresa_activa')
+            empresa = Empresa.objects.get(id=empresa_id) if empresa_id else Empresa.objects.first()
+        else:
+            empresa = request.user.perfil.empresa
+        
+        documento = get_object_or_404(DocumentoCliente, pk=pk, empresa=empresa)
+        numero = documento.numero_documento
+        documento.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Documento {numero} eliminado exitosamente.'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al eliminar documento: {str(e)}'
+        })

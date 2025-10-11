@@ -107,9 +107,18 @@ def apertura_list(request):
     if estado:
         aperturas = aperturas.filter(estado=estado)
     
+    # Obtener cajas disponibles para abrir
+    cajas_disponibles = Caja.objects.filter(
+        empresa=request.empresa,
+        activo=True
+    ).exclude(
+        id__in=AperturaCaja.objects.filter(estado='abierta').values_list('caja_id', flat=True)
+    )
+    
     context = {
         'aperturas': aperturas,
         'estado_filtro': estado,
+        'cajas_disponibles': cajas_disponibles,
     }
     return render(request, 'caja/apertura_list.html', context)
 
@@ -120,22 +129,46 @@ def apertura_list(request):
 def apertura_create(request):
     """Abrir caja"""
     if request.method == 'POST':
-        form = AperturaCajaForm(request.POST, empresa=request.empresa)
-        if form.is_valid():
-            apertura = form.save(commit=False)
-            apertura.usuario_apertura = request.user
-            apertura.save()
+        # Crear apertura manualmente desde el modal
+        caja_id = request.POST.get('caja')
+        monto_inicial = request.POST.get('monto_inicial', 0)
+        observaciones = request.POST.get('observaciones_apertura', '')
+        
+        try:
+            caja = Caja.objects.get(id=caja_id, empresa=request.empresa, activo=True)
+            
+            # Verificar que la caja no esté ya abierta
+            if caja.get_apertura_activa():
+                messages.error(request, f'La caja "{caja.nombre}" ya está abierta.')
+                return redirect('caja:apertura_list')
+            
+            # Crear apertura
+            apertura = AperturaCaja.objects.create(
+                caja=caja,
+                usuario_apertura=request.user,
+                monto_inicial=monto_inicial,
+                observaciones_apertura=observaciones,
+                estado='abierta'
+            )
+            
             messages.success(request, f'Caja "{apertura.caja.nombre}" abierta exitosamente.')
             return redirect('caja:apertura_detail', pk=apertura.pk)
+            
+        except Caja.DoesNotExist:
+            messages.error(request, 'La caja seleccionada no existe o no está disponible.')
+            return redirect('caja:apertura_list')
+        except Exception as e:
+            messages.error(request, f'Error al abrir la caja: {str(e)}')
+            return redirect('caja:apertura_list')
     else:
+        # Si se accede por GET, mostrar el formulario tradicional
         form = AperturaCajaForm(empresa=request.empresa)
-    
-    context = {
-        'form': form,
-        'title': 'Abrir Caja',
-        'submit_text': 'Abrir Caja',
-    }
-    return render(request, 'caja/apertura_form.html', context)
+        context = {
+            'form': form,
+            'title': 'Abrir Caja',
+            'submit_text': 'Abrir Caja',
+        }
+        return render(request, 'caja/apertura_form.html', context)
 
 
 @login_required
@@ -354,9 +387,12 @@ def procesar_venta_buscar(request):
             apertura_activa = apertura
             break
     
+    # Si no hay caja abierta, preparar formulario de apertura
+    mostrar_modal_apertura = False
+    form_apertura = None
     if not apertura_activa:
-        messages.error(request, 'No hay ninguna caja abierta. Debe abrir una caja primero.')
-        return redirect('caja:apertura_create')
+        mostrar_modal_apertura = True
+        form_apertura = AperturaCajaForm(empresa=request.empresa)
     
     # Buscar ticket
     if request.method == 'POST':
@@ -377,16 +413,22 @@ def procesar_venta_buscar(request):
             messages.error(request, 'Debe ingresar un número de ticket.')
     
     # Obtener tickets pendientes del día
+    hoy_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    hoy_fin = timezone.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+    
     tickets_pendientes = Venta.objects.filter(
         empresa=request.empresa,
         tipo_documento='vale',
         estado='borrador',
-        fecha=timezone.now().date()
+        fecha_creacion__gte=hoy_inicio,
+        fecha_creacion__lte=hoy_fin
     ).select_related('cliente', 'vendedor').order_by('-fecha_creacion')
     
     context = {
         'apertura_activa': apertura_activa,
         'tickets_pendientes': tickets_pendientes,
+        'mostrar_modal_apertura': mostrar_modal_apertura,
+        'form_apertura': form_apertura,
     }
     return render(request, 'caja/procesar_venta_buscar.html', context)
 
@@ -417,9 +459,12 @@ def procesar_venta(request, ticket_id):
             apertura_activa = apertura
             break
     
+    # Si no hay caja abierta, preparar formulario de apertura
+    mostrar_modal_apertura = False
+    form_apertura = None
     if not apertura_activa:
-        messages.error(request, 'No hay ninguna caja abierta. Debe abrir una caja primero.')
-        return redirect('caja:apertura_create')
+        mostrar_modal_apertura = True
+        form_apertura = AperturaCajaForm(empresa=request.empresa)
     
     # Inicializar form para GET o POST con errores
     form = ProcesarVentaForm(empresa=request.empresa, ticket=ticket, initial={'ticket_id': ticket.id})
@@ -749,6 +794,8 @@ def procesar_venta(request, ticket_id):
         'disponibilidad_folios_json': disponibilidad_folios,  # Para JavaScript
         'tipo_documento_planeado': ticket.tipo_documento_planeado,  # ← TIPO PLANEADO
         'title': f'Procesar Ticket #{ticket.numero_venta}',
+        'mostrar_modal_apertura': mostrar_modal_apertura,
+        'form_apertura': form_apertura,
     }
     return render(request, 'caja/procesar_venta.html', context)
 

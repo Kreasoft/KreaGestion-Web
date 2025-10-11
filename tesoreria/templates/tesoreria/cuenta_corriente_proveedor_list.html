@@ -1,868 +1,803 @@
 {% extends "base.html" %}
 {% load static %}
-{% load currency_filters %}
-<!-- Template updated: 2025-10-04 19:55 -->
+{% load humanize %}
 
 {% block title %}Cuenta Corriente Proveedores - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block extra_css %}
+{% block extra_head %}
 <style>
-    /* Paleta terrosa suave */
-    :root {
-        --earth-primary: #8B7355;
-        --earth-secondary: #A68B5B;
-        --earth-light: #D2C4A6;
-        --earth-lighter: #F5F1E8;
-        --earth-dark: #6B5B47;
-        --earth-accent: #B8860B;
-        --earth-success: #9CAF88;
-        --earth-warning: #D4A574;
-        --earth-danger: #C48A6B;
-    }
-    
-    .page-header {
-        background: var(--earth-lighter);
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        border-left: 3px solid var(--earth-primary);
-    }
-    
-    .stats-card {
-        background: white;
-        border-radius: 8px;
-        padding: 1rem;
-        box-shadow: 0 2px 8px rgba(139, 115, 85, 0.1);
-        border: 1px solid var(--earth-light);
-        margin-bottom: 1rem;
-    }
-    
-    .document-card {
-        background: white;
-        border-radius: 8px;
-        padding: 0.75rem;
-        box-shadow: 0 2px 8px rgba(139, 115, 85, 0.1);
-        border: 1px solid var(--earth-light);
-        margin-bottom: 0.75rem;
-        transition: all 0.3s ease;
-    }
-    
-    .document-card:hover {
-        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
-        transform: translateY(-1px);
-    }
-    
-    .status-badge {
-        font-size: 0.65rem;
-        padding: 0.2rem 0.5rem;
-        border-radius: 12px;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-    }
-    
-    .badge-credito { background: var(--earth-secondary); color: white; }
-    .badge-parcial { background: var(--earth-warning); color: white; }
-    .badge-vencida { background: var(--earth-danger); color: white; }
-    
-    .btn-pagar {
-        background: linear-gradient(135deg, var(--earth-success) 0%, var(--earth-primary) 100%);
-        border: none;
-        color: white;
-        padding: 0.3rem 0.8rem;
-        border-radius: 15px;
-        font-size: 0.75rem;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-pagar:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3);
-        color: white;
-    }
-    
-    .filters {
-        background: white;
-        border-radius: 8px;
-        padding: 1rem;
-        box-shadow: 0 2px 8px rgba(139, 115, 85, 0.1);
-        border: 1px solid var(--earth-light);
-        margin-bottom: 1rem;
-    }
-    
-    .form-control {
-        border: 1px solid var(--earth-light);
-        border-radius: 6px;
-        font-size: 0.8rem;
-    }
-    
-    .form-control:focus {
-        border-color: var(--earth-primary);
-        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+    /* Fondo terroso suave como en libro de ventas */
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Header -->
-    <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h5 class="mb-1" style="color: var(--earth-dark); font-weight: 600;">
-                    <i class="fas fa-coins me-2" style="color: var(--earth-primary);"></i>
-                    Cuenta Corriente Proveedores
-                </h5>
-                <small class="text-muted">Documentos pendientes de pago</small>
-            </div>
-            <div class="d-flex gap-2 align-items-center">
-                {% if user.is_superuser %}
-                <div class="d-flex align-items-center">
-                    <label class="text-muted me-2 mb-0 small">Empresa:</label>
-                    <select id="selectorEmpresa" class="form-select form-select-sm" style="width: 200px;">
-                        <option value="">Cargando...</option>
-                    </select>
-                </div>
-                {% endif %}
-                <a href="{% url 'documentos:documento_compra_list' %}" class="btn" style="background: linear-gradient(135deg, var(--earth-primary) 0%, var(--earth-dark) 100%); border: none; color: white;">
-                    <i class="fas fa-arrow-left me-1"></i>Volver a Compras
-                </a>
-            </div>
-        </div>
-    </div>
 
-    <!-- Estadísticas -->
+<div class="container-fluid" style="margin-top: 20px;">
     <div class="row">
-        <div class="col-md-3">
-            <div class="stats-card text-center">
-                <h6 style="color: var(--earth-primary); font-weight: 600;">Total Documentos</h6>
-                <h4 style="color: var(--earth-dark);">{{ stats.total_documentos }}</h4>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card text-center">
-                <h6 style="color: var(--earth-secondary); font-weight: 600;">Pendientes</h6>
-                <h4 style="color: var(--earth-dark);">{{ stats.total_pendiente|currency_format_with_symbol }}</h4>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card text-center">
-                <h6 style="color: var(--earth-warning); font-weight: 600;">Parciales</h6>
-                <h4 style="color: var(--earth-dark);">{{ stats.total_parcial|currency_format_with_symbol }}</h4>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card text-center">
-                <h6 style="color: var(--earth-danger); font-weight: 600;">Vencidos</h6>
-                <h4 style="color: var(--earth-dark);">{{ stats.total_vencido|currency_format_with_symbol }}</h4>
-            </div>
-        </div>
-    </div>
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
 
-    <!-- Filtros -->
-    <div class="filters">
-        <form method="get" class="row g-3">
-            <div class="col-md-6">
-                <label class="form-label">Buscar</label>
-                <input type="text" name="search" class="form-control" placeholder="Número documento, proveedor o RUT..." value="{{ search }}">
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Estado de Pago</label>
-                <select name="estado_pago" class="form-control">
-                    <option value="">Todos</option>
-                    <option value="credito" {% if estado_pago == 'credito' %}selected{% endif %}>Crédito</option>
-                    <option value="parcial" {% if estado_pago == 'parcial' %}selected{% endif %}>Parcial</option>
-                    <option value="vencida" {% if estado_pago == 'vencida' %}selected{% endif %}>Vencida</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">&nbsp;</label>
-                <button type="submit" class="btn d-block w-100" style="background: linear-gradient(135deg, var(--earth-primary) 0%, var(--earth-dark) 100%); border: none; color: white;">
-                    <i class="fas fa-search me-1"></i>Filtrar
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Lista de Documentos -->
-    {% for documento in page_obj %}
-    <div class="document-card">
-        <div class="row align-items-center">
-            <div class="col-md-2">
-                <div style="font-weight: 600; color: var(--earth-dark); font-size: 0.85rem;">
-                    {{ documento.get_tipo_documento_display }} {{ documento.numero_documento }}
-                </div>
-                <small class="text-muted">{{ documento.fecha_emision|date:"d/m/Y" }}</small>
-            </div>
-            <div class="col-md-3">
-                <div style="font-weight: 500; color: var(--earth-primary); font-size: 0.85rem;">
-                    {{ documento.proveedor.nombre|truncatechars:30 }}
-                </div>
-                <small class="text-muted">{{ documento.proveedor.rut }}</small>
-            </div>
-            <div class="col-md-2">
-                <div style="font-weight: 600; color: var(--earth-dark); font-size: 0.85rem;">
-                    {{ documento.total_documento|currency_format_with_symbol }}
-                </div>
-                <small class="text-muted">Total</small>
-            </div>
-            <div class="col-md-2">
-                <div style="font-weight: 600; color: var(--earth-danger); font-size: 0.85rem;">
-                    {{ documento.saldo_pendiente|currency_format_with_symbol }}
-                </div>
-                <small class="text-muted">Pendiente</small>
-            </div>
-            <div class="col-md-2">
-                {% if documento.fecha_vencimiento %}
-                <div style="font-size: 0.8rem; color: var(--earth-primary);">
-                    V: {{ documento.fecha_vencimiento|date:"d/m/Y" }}
-                </div>
-                {% endif %}
-                <span class="status-badge badge-{{ documento.estado_pago }}">
-                    {{ documento.get_estado_pago_display }}
-                </span>
-            </div>
-            <div class="col-md-2">
-                <div class="btn-group" role="group">
-                    <button class="btn btn-pagar" onclick="abrirModalPago({{ documento.id }}, '{{ documento.numero_documento }}', {{ documento.saldo_pendiente }})" title="Registrar Pago">
-                        <i class="fas fa-credit-card"></i>
-                    </button>
-                    {% if documento.pagos %}
-                    <button class="btn btn-info btn-sm" onclick="verDetallePagos({{ documento.id }})" title="Ver Pagos">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    {% if documento.pagos.count == 1 %}
-                    <button class="btn btn-warning btn-sm" onclick="editarPago({{ documento.pagos.first.id }})" title="Editar Pago">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    {% endif %}
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <!-- Información oculta de pagos para JavaScript -->
-        {% for pago in documento.pagos %}
-        <div style="display: none;" 
-             data-pago-id="{{ pago.id }}" 
-             data-fecha-pago="{{ pago.fecha_pago|date:'d/m/Y H:i' }}" 
-             data-monto="{{ pago.monto_total_pagado }}">
-        </div>
-        {% endfor %}
-    </div>
-    {% empty %}
-    <div class="text-center py-5">
-        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-        <h5 class="text-muted">No hay documentos pendientes</h5>
-        <p class="text-muted">Todos los documentos están al día</p>
-    </div>
-    {% endfor %}
-
-    <!-- Paginación -->
-    {% if page_obj.has_other_pages %}
-    <nav aria-label="Paginación">
-        <ul class="pagination justify-content-center">
-            {% if page_obj.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if estado_pago %}&estado_pago={{ estado_pago }}{% endif %}">Primera</a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado_pago %}&estado_pago={{ estado_pago }}{% endif %}">Anterior</a>
-                </li>
-            {% endif %}
-            
-            <li class="page-item active">
-                <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-            </li>
-            
-            {% if page_obj.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado_pago %}&estado_pago={{ estado_pago }}{% endif %}">Siguiente</a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if estado_pago %}&estado_pago={{ estado_pago }}{% endif %}">Última</a>
-                </li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
-</div>
-
-<!-- Modal de Pago -->
-<div class="modal fade" id="modalPago" tabindex="-1" aria-labelledby="modalPagoLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content" style="border-radius: 8px; border: 1px solid var(--earth-light);">
-            <div class="modal-header" style="background: var(--earth-primary); color: white; border-radius: 8px 8px 0 0;">
-                <h5 class="modal-title" id="modalPagoLabel">
-                    <i class="fas fa-credit-card me-2"></i>Registrar Pago
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="formPago">
-                    <input type="hidden" id="documentoId" name="documento_id">
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Documento</label>
-                        <input type="text" id="numeroDocumento" class="form-control" readonly>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Saldo Pendiente</label>
-                        <input type="text" id="saldoPendiente" class="form-control" readonly>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Formas de Pago</label>
-                        <div id="formasPago">
-                            <div class="forma-pago-row mb-2">
-                                <div class="row forma-pago">
-                                    <div class="col-md-5">
-                                        <select class="form-control forma-pago-select">
-                                            <option value="">Seleccionar forma de pago...</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <input type="number" class="form-control monto-pago" step="0.01" min="0.01" placeholder="Monto">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <button type="button" class="btn btn-sm btn-danger eliminar-forma w-100" style="background: var(--earth-danger); border: none; color: white;">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="campos-adicionales mt-2">
-                                    <!-- Los campos adicionales se mostrarán dinámicamente según el método de pago -->
-                                </div>
+                <!-- HEADER PRINCIPAL -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-truck fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Cuenta Corriente Proveedores
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Documentos de compra en cuenta corriente
+                                </small>
                             </div>
                         </div>
-                        <button type="button" id="agregarFormaPago" class="btn btn-sm" style="background: var(--earth-secondary); border: none; color: white;">
-                            <i class="fas fa-plus me-1"></i>Agregar Forma de Pago
-                        </button>
-                        <div id="totalFormasPago" class="mt-2" style="font-weight: 600; color: var(--earth-dark);"></div>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i>
+                            </button>
+                            <a href="{% url 'tesoreria:documento_pendiente_proveedor_list' %}" class="btn btn-sm me-2" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
+                                <i class="fas fa-list me-1"></i> Ver Todos
+                            </a>
+                            <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;" data-bs-toggle="modal" data-bs-target="#modalDocumento">
+                                <i class="fas fa-plus me-1"></i> Nuevo Documento
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 12px; background: #FAFAF8;">
+
+                    <!-- ESTADÍSTICAS PRINCIPALES -->
+                    <div class="row mb-2">
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-1 p-2 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">{{ stats.total_documentos|default:0 }}</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Documentos</div>
+                                <i class="fas fa-file-invoice stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-2 p-2 position-relative">
+                                <div class="stat-value format-number" style="font-size: 1rem;" data-value="{{ stats.total_pendiente|default:0 }}" data-prefix="$"></div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Pendiente</div>
+                                <i class="fas fa-clock stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-3 p-2 position-relative">
+                                <div class="stat-value format-number" style="font-size: 1rem;" data-value="{{ stats.total_vencido|default:0 }}" data-prefix="$"></div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Vencido</div>
+                                <i class="fas fa-exclamation-triangle stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-1">
+                            <div class="stat-card stat-card-4 p-2 position-relative">
+                                <div class="stat-value format-number" style="font-size: 1rem;" data-value="{{ stats.total_parcial|default:0 }}" data-prefix="$"></div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Pago Parcial</div>
+                                <i class="fas fa-coins stat-icon"></i>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Observaciones</label>
-                        <textarea id="observaciones" class="form-control" rows="2" placeholder="Observaciones del pago..."></textarea>
+                    <!-- FILTROS -->
+                    <div class="filter-section">
+                        <form method="get">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-search me-1"></i>Buscar
+                                    </label>
+                                    <input type="text" name="search" class="form-control form-control-sm"
+                                           placeholder="🔍 Buscar por N° documento, proveedor, RUT..." value="{{ search }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-filter me-1"></i>Estado de Pago
+                                    </label>
+                                    <select name="estado_pago" class="form-select form-select-sm">
+                                        <option value="">Todos</option>
+                                        <option value="credito" {% if estado_pago == "credito" %}selected{% endif %}>Pendiente</option>
+                                        <option value="parcial" {% if estado_pago == "parcial" %}selected{% endif %}>Pago Parcial</option>
+                                        <option value="vencida" {% if estado_pago == "vencida" %}selected{% endif %}>Vencido</option>
+                                        <option value="pagado" {% if estado_pago == "pagado" %}selected{% endif %}>Pagado</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 d-flex gap-2">
+                                    <button type="submit" class="btn btn-filter flex-grow-1">
+                                        <i class="fas fa-filter me-1"></i>Filtrar
+                                    </button>
+                                    <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
                     </div>
-                </form>
-            </div>
-            <div class="modal-footer" style="border-top: 1px solid var(--earth-light);">
-                <button type="button" class="btn" style="background: var(--earth-light); border: none; color: var(--earth-dark);" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn" style="background: linear-gradient(135deg, var(--earth-success) 0%, var(--earth-primary) 100%); border: none; color: white;" onclick="procesarPago()">
-                    <i class="fas fa-check me-1"></i>Registrar Pago
-                </button>
+                    
+                    <!-- Lista de Documentos -->
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 4%;">#</th>
+                                    <th style="width: 10%;">N° Documento</th>
+                                    <th style="width: 18%;">Proveedor</th>
+                                    <th style="width: 8%;">Fecha</th>
+                                    <th style="width: 10%;">Total</th>
+                                    <th style="width: 10%;">Pagado</th>
+                                    <th style="width: 10%;">Saldo</th>
+                                    <th style="width: 8%;">Estado</th>
+                                    <th class="text-center" style="width: 12%;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for documento in page_obj %}
+                                <tr style="border-bottom: 1px solid #F5F1E8;">
+                                    <td style="font-size: 0.7rem;" class="text-muted">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
+                                    <td style="font-size: 0.7rem;">
+                                        <strong>{{ documento.numero_documento }}</strong>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-truck text-muted me-2"></i>
+                                            {{ documento.proveedor.nombre }}
+                                        </div>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">{{ documento.fecha_emision|date:"d/m/Y"|default:"-" }}</td>
+                                    <td style="font-size: 0.7rem; font-weight: 600;" class="format-number" data-value="{{ documento.total_documento|floatformat:0|default:0 }}">$</td>
+                                    <td style="font-size: 0.7rem; font-weight: 600; color: #28a745;" class="format-number" data-value="{{ documento.monto_pagado|floatformat:0|default:0 }}">$</td>
+                                    <td style="font-size: 0.7rem; font-weight: 700; color: #6F5B44;" class="format-number" data-value="{{ documento.saldo_pendiente|floatformat:0|default:0 }}">$</td>
+                                    <td style="font-size: 0.7rem;">
+                                        {% if documento.saldo_pendiente <= 0 %}
+                                            <span class="badge bg-success" style="font-size: 0.6rem;">Pagado</span>
+                                        {% elif documento.monto_pagado > 0 and documento.saldo_pendiente > 0 %}
+                                            <span class="badge bg-warning" style="font-size: 0.6rem;">Parcial</span>
+                                        {% elif documento.fecha_vencimiento and documento.fecha_vencimiento < today and documento.saldo_pendiente > 0 %}
+                                            <span class="badge bg-danger" style="font-size: 0.6rem;">Vencido</span>
+                                        {% else %}
+                                            <span class="badge bg-info" style="font-size: 0.6rem;">Pendiente</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            {% if documento.saldo_pendiente > 0 %}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-action btn-outline-success"
+                                                    title="Registrar Pago"
+                                                    data-doc-id="{{ documento.pk }}"
+                                                    data-doc-numero="{{ documento.numero_documento }}"
+                                                    data-doc-saldo="{{ documento.saldo_pendiente|floatformat:0 }}"
+                                                    onclick="registrarPago(this)">
+                                                <i class="fas fa-dollar-sign"></i>
+                                            </button>
+                                            {% endif %}
+                                            {% if documento.monto_pagado > 0 %}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-action btn-outline-info"
+                                                    title="Ver Pagos"
+                                                    data-doc-id="{{ documento.pk }}"
+                                                    data-doc-numero="{{ documento.numero_documento }}"
+                                                    onclick="verPagos(this)">
+                                                <i class="fas fa-list-alt"></i>
+                                            </button>
+                                            {% endif %}
+                                            {% if documento.proveedor %}
+                                            <a href="{% url 'tesoreria:cuenta_corriente_proveedor_detail' documento.proveedor.pk %}"
+                                               class="btn btn-sm btn-action btn-outline-primary"
+                                               title="Ver detalle">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-2">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay documentos en cuenta corriente</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- PAGINACIÓN -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-center mt-2">
+                        <nav aria-label="Paginación">
+                            <ul class="pagination pagination-sm mb-0" style="font-size: 0.75rem;">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">«</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">‹</a>
+                                </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
+                                        {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">›</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">»</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    /* Paleta terrosa para tarjetas de estadísticas */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .stat-card-1 {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+    }
+
+    .stat-card-2 {
+        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
+    }
+
+    .stat-card-3 {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    }
+
+    .stat-card-4 {
+        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        color: rgba(255,255,255,0.9);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.3);
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+    }
+
+    .filter-section {
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+
+    .table-compact thead th {
+        padding: 4px 2px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+
+    .table-compact tbody td {
+        padding: 2px 3px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.7rem;
+    }
+
+    .table-compact tbody tr {
+        height: 28px;
+    }
+
+    .btn-filter {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-action {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+</style>
+
+<!-- Modal para Crear Documento -->
+<div class="modal fade" id="modalDocumento" tabindex="-1" aria-labelledby="modalDocumentoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border: 2px solid #E8DCC8; border-radius: 15px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-bottom: 2px solid #D4C4A8;">
+                <h5 class="modal-title" id="modalDocumentoLabel" style="color: #6F5B44; font-weight: 600;">
+                    <i class="fas fa-file-invoice me-2"></i>Nuevo Documento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modalDocumentoBody" style="background: #FAFAF8;">
+                <!-- Aquí se cargará el formulario -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-function abrirModalPago(documentoId, numeroDocumento, saldoPendiente) {
-    document.getElementById('documentoId').value = documentoId;
-    document.getElementById('numeroDocumento').value = numeroDocumento;
-    document.getElementById('saldoPendiente').value = '$' + saldoPendiente.toLocaleString();
-    document.getElementById('observaciones').value = '';
+// Función para formatear números con punto como separador de miles
+function formatearNumero(numero) {
+    // Convertir a número y redondear
+    const num = Math.round(parseFloat(numero) || 0);
+    // Convertir a string y agregar separador de miles
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Formatear todos los números en la página
+    document.querySelectorAll('.format-number').forEach(element => {
+        const value = element.dataset.value;
+        const prefix = element.dataset.prefix || '';
+        const currentText = element.textContent.trim();
+        
+        if (value) {
+            // Limpiar el valor de cualquier formato previo
+            const cleanValue = value.toString().replace(/[^\d.-]/g, '');
+            // Si ya tiene un prefijo (como $), mantenerlo
+            const finalPrefix = currentText.startsWith('$') ? '$' : prefix;
+            element.textContent = finalPrefix + formatearNumero(cleanValue);
+        }
+    });
     
-    // Limpiar formas de pago y agregar una inicial
-    document.getElementById('formasPago').innerHTML = `
-        <div class="forma-pago-row mb-2">
-            <div class="row forma-pago">
-                <div class="col-md-5">
-                    <select class="form-control forma-pago-select">
-                        <option value="">Seleccionar forma de pago...</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <input type="number" class="form-control monto-pago" step="0.01" min="0.01" placeholder="Monto" max="${saldoPendiente}">
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-sm btn-danger eliminar-forma w-100" style="background: var(--earth-danger); border: none; color: white;">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
+    const modalCrear = document.getElementById('modalDocumento');
+    if (modalCrear) {
+        modalCrear.addEventListener('show.bs.modal', function() {
+            document.getElementById('modalDocumentoLabel').innerHTML = '<i class="fas fa-file-invoice me-2"></i>Nuevo Documento';
+            document.getElementById('modalDocumentoBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div><p class="mt-2">Cargando...</p></div>';
+            
+            fetch('{% url "tesoreria:documento_pendiente_proveedor_create" %}')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('modalDocumentoBody').innerHTML = html;
+                setupFormHandler();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('modalDocumentoBody').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            });
+        });
+    }
+});
+
+function setupFormHandler() {
+    const form = document.querySelector('#modalDocumentoBody form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const url = this.action;
+            
+            fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalDocumento')).hide();
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Éxito!',
+                        text: data.message,
+                        confirmButtonColor: '#8B7355',
+                        timer: 2000
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message,
+                        confirmButtonColor: '#8B7355'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error al procesar la solicitud',
+                    confirmButtonColor: '#8B7355'
+                });
+            });
+        });
+    }
+}
+
+let formasPagoGlobal = [];
+let formasPagoSeleccionadas = [];
+
+function registrarPago(btn) {
+    const documentoId = btn.dataset.docId;
+    const numeroDocumento = btn.dataset.docNumero;
+    // Limpiar el valor del saldo (eliminar puntos, comas, espacios)
+    const saldoRaw = btn.dataset.docSaldo.toString().replace(/[^\d.-]/g, '');
+    const saldoPendiente = parseFloat(saldoRaw) || 0;
+    
+    console.log('Saldo raw:', btn.dataset.docSaldo, 'Saldo limpio:', saldoRaw, 'Saldo parseado:', saldoPendiente);
+    
+    formasPagoSeleccionadas = [];
+    
+    // Obtener formas de pago disponibles
+    fetch('/tesoreria/obtener-formas-pago/')
+        .then(response => response.json())
+        .then(data => {
+            formasPagoGlobal = data.formas_pago || [];
+            mostrarModalPago(documentoId, numeroDocumento, saldoPendiente);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudieron cargar las formas de pago',
+                confirmButtonColor: '#8B7355'
+            });
+        });
+}
+
+function mostrarModalPago(documentoId, numeroDocumento, saldoPendiente) {
+    const saldoFormateado = formatearNumero(saldoPendiente);
+    
+    const html = `
+        <div class="text-start">
+            <div class="mb-3 p-3" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-radius: 8px; border: 2px solid #D4C4A8;">
+                <p class="mb-2"><strong style="color: #6F5B44;">Documento:</strong> <span class="fw-bold">${numeroDocumento}</span></p>
+                <p class="mb-0"><strong style="color: #6F5B44;">Saldo Pendiente:</strong> <span class="text-danger fw-bold" style="font-size: 1.2rem;">$${saldoFormateado}</span></p>
             </div>
-            <div class="campos-adicionales mt-2">
-                <!-- Los campos adicionales se mostrarán dinámicamente según el método de pago -->
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Formas de Pago:</label>
+                <div id="formasPagoContainer">
+                    <!-- Aquí se agregarán las formas de pago -->
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="agregarFormaPago()">
+                    <i class="fas fa-plus me-1"></i> Agregar Forma de Pago
+                </button>
             </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Total a Pagar:</label>
+                <input type="text" id="totalPagar" class="form-control fw-bold text-success" value="$0" readonly>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Observaciones:</label>
+                <textarea id="observacionesPago" class="form-control" rows="2" placeholder="Observaciones del pago..."></textarea>
+            </div>
+            
+            <input type="hidden" id="documentoIdPago" value="${documentoId}">
+            <input type="hidden" id="saldoPendientePago" value="${saldoPendiente}">
         </div>
     `;
     
-    // Cargar formas de pago del sistema
-    cargarFormasPago();
-    
-    var modal = new bootstrap.Modal(document.getElementById('modalPago'));
-    modal.show();
+    Swal.fire({
+        title: '<span style="color: #6F5B44;"><i class="fas fa-dollar-sign me-2"></i>Registrar Pago</span>',
+        html: html,
+        width: 700,
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-save me-1"></i> Registrar Pago',
+        cancelButtonText: 'Cancelar',
+        customClass: {
+            popup: 'modal-pago-terroso',
+            title: 'modal-pago-title'
+        },
+        didOpen: () => {
+            // Agregar estilos al modal
+            const style = document.createElement('style');
+            style.textContent = `
+                .modal-pago-terroso {
+                    border: 3px solid #D4C4A8 !important;
+                }
+                .modal-pago-title {
+                    background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%) !important;
+                    padding: 15px !important;
+                    border-radius: 8px 8px 0 0 !important;
+                    border-bottom: 2px solid #D4C4A8 !important;
+                }
+            `;
+            document.head.appendChild(style);
+            agregarFormaPago(); // Agregar primera forma de pago por defecto
+        },
+        preConfirm: () => {
+            return validarYEnviarPago();
+        }
+    });
 }
 
 function agregarFormaPago() {
-    const template = `
-        <div class="forma-pago-row mb-2">
-            <div class="row forma-pago">
-                <div class="col-md-5">
-                    <select class="form-control forma-pago-select">
-                        <option value="">Seleccionar forma de pago...</option>
-                    </select>
+    const container = document.getElementById('formasPagoContainer');
+    const index = formasPagoSeleccionadas.length;
+    
+    const formaPagoHtml = `
+        <div class="card mb-2 forma-pago-item" data-index="${index}">
+            <div class="card-body p-2">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label" style="font-size: 0.8rem;">Forma de Pago</label>
+                        <select class="form-select form-select-sm forma-pago-select" data-index="${index}">
+                            <option value="">Seleccione...</option>
+                            ${formasPagoGlobal.map(fp => `<option value="${fp.id}">${fp.nombre}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" style="font-size: 0.8rem;">Monto</label>
+                        <input type="number" class="form-control form-control-sm monto-pago" data-index="${index}" 
+                               min="1" step="1" placeholder="0" onchange="calcularTotal()">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="eliminarFormaPago(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="col-md-4">
-                    <input type="number" class="form-control monto-pago" step="0.01" min="0.01" placeholder="Monto">
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-sm btn-danger eliminar-forma w-100" style="background: var(--earth-danger); border: none; color: white;">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="campos-adicionales mt-2">
-                <!-- Los campos adicionales se mostrarán dinámicamente según el método de pago -->
             </div>
         </div>
     `;
     
-    document.getElementById('formasPago').insertAdjacentHTML('beforeend', template);
-    cargarFormasPago();
-    configurarEventosFormasPago();
+    container.insertAdjacentHTML('beforeend', formaPagoHtml);
+    formasPagoSeleccionadas.push({ forma_pago_id: null, monto: 0 });
 }
 
-function cargarFormasPago() {
-    fetch('{% url "tesoreria:obtener_formas_pago" %}')
-        .then(response => response.json())
-        .then(data => {
-            if (data.formas_pago) {
-                document.querySelectorAll('.forma-pago-select').forEach(select => {
-                    // Limpiar opciones existentes excepto la primera
-                    while (select.children.length > 1) {
-                        select.removeChild(select.lastChild);
-                    }
-                    
-                    // Agregar formas de pago
-                    data.formas_pago.forEach(fp => {
-                        const option = document.createElement('option');
-                        option.value = fp.id;
-                        option.textContent = `${fp.codigo} - ${fp.nombre}`;
-                        option.dataset.requiere_cheque = fp.requiere_cheque;
-                        select.appendChild(option);
-                    });
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error al cargar formas de pago:', error);
-        });
-}
-
-function configurarEventosFormasPago() {
-    // Evento para eliminar forma de pago
-    document.querySelectorAll('.eliminar-forma').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const container = this.closest('.forma-pago-row');
-            if (container) {
-                container.remove();
-                actualizarTotalFormasPago();
-            }
-        });
-    });
-    
-    // Evento para cambio de forma de pago
-    document.querySelectorAll('.forma-pago-select').forEach(select => {
-        select.addEventListener('change', function() {
-            mostrarCamposAdicionales(this);
-        });
-    });
-    
-    // Evento para cambio de monto
-    document.querySelectorAll('.monto-pago').forEach(input => {
-        input.addEventListener('input', function() {
-            actualizarTotalFormasPago();
-        });
-    });
-    
-    actualizarTotalFormasPago();
-}
-
-function mostrarCamposAdicionales(select) {
-    const selectedOption = select.options[select.selectedIndex];
-    const requiereCheque = selectedOption.dataset.requiere_cheque === 'true';
-    const container = select.closest('.forma-pago-row');
-    const camposAdicionales = container.querySelector('.campos-adicionales');
-    
-    let camposHTML = '';
-    
-    if (requiereCheque) {
-        camposHTML = `
-            <div class="row">
-                <div class="col-md-4">
-                    <input type="text" class="form-control numero-cheque" placeholder="Número de cheque">
-                </div>
-                <div class="col-md-4">
-                    <input type="text" class="form-control banco-cheque" placeholder="Banco">
-                </div>
-                <div class="col-md-4">
-                    <input type="date" class="form-control fecha-vencimiento-cheque">
-                </div>
-            </div>
-        `;
-    } else {
-        // Para las formas de pago específicas de Kreasoft
-        const formaPagoNombre = selectedOption.textContent.toLowerCase();
-        if (formaPagoNombre.includes('transferencia') || formaPagoNombre.includes('03')) {
-            camposHTML = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <input type="text" class="form-control numero-transferencia" placeholder="Número de transferencia">
-                    </div>
-                    <div class="col-md-6">
-                        <input type="text" class="form-control banco-transferencia" placeholder="Banco">
-                    </div>
-                </div>
-            `;
-        } else if (formaPagoNombre.includes('tarjeta') || formaPagoNombre.includes('01') || formaPagoNombre.includes('02')) {
-            camposHTML = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <input type="text" class="form-control numero-tarjeta" placeholder="Últimos 4 dígitos">
-                    </div>
-                    <div class="col-md-6">
-                        <input type="text" class="form-control codigo-autorizacion" placeholder="Código de autorización">
-                    </div>
-                </div>
-            `;
-        } else if (formaPagoNombre.includes('contado') || formaPagoNombre.includes('00')) {
-            // Para contado, no se necesitan campos adicionales
-            camposHTML = '';
-        }
+function eliminarFormaPago(index) {
+    const item = document.querySelector(`.forma-pago-item[data-index="${index}"]`);
+    if (item) {
+        item.remove();
+        formasPagoSeleccionadas[index] = null;
+        calcularTotal();
     }
-    
-    camposAdicionales.innerHTML = camposHTML;
 }
 
-function actualizarTotalFormasPago() {
+function calcularTotal() {
     let total = 0;
     document.querySelectorAll('.monto-pago').forEach(input => {
         const monto = parseFloat(input.value) || 0;
         total += monto;
     });
     
-    const totalElement = document.getElementById('totalFormasPago');
-    if (totalElement) {
-        totalElement.textContent = `Total: $${total.toLocaleString('es-CL', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
-    }
+    document.getElementById('totalPagar').value = `$${formatearNumero(total)}`;
+    return total;
 }
 
-function procesarPago() {
-    const documentoId = document.getElementById('documentoId').value;
-    const observaciones = document.getElementById('observaciones').value;
+function validarYEnviarPago() {
+    const documentoId = document.getElementById('documentoIdPago').value;
+    const saldoPendiente = parseFloat(document.getElementById('saldoPendientePago').value);
+    const observaciones = document.getElementById('observacionesPago').value;
     
-    // Recopilar todas las formas de pago
+    // Recopilar formas de pago
     const formasPago = [];
-    let montoTotal = 0;
+    let totalPago = 0;
     
-    document.querySelectorAll('.forma-pago').forEach((forma, index) => {
-        const formaPagoSelect = forma.querySelector('.forma-pago-select');
-        const formaPagoId = formaPagoSelect.value;
-        const monto = parseFloat(forma.querySelector('.monto-pago').value);
+    document.querySelectorAll('.forma-pago-item').forEach(item => {
+        const index = item.dataset.index;
+        const formaPagoId = item.querySelector('.forma-pago-select').value;
+        const monto = parseFloat(item.querySelector('.monto-pago').value) || 0;
         
-        if (monto && monto > 0 && formaPagoId) {
-            const formaPagoData = {
+        if (formaPagoId && monto > 0) {
+            formasPago.push({
                 forma_pago_id: formaPagoId,
-                monto: monto.toString()  // Convertir a string para evitar problemas con Decimal
-            };
-            
-            // Agregar información específica según los campos adicionales
-            const numeroCheque = forma.querySelector('.numero-cheque')?.value || '';
-            const bancoCheque = forma.querySelector('.banco-cheque')?.value || '';
-            const fechaVencimiento = forma.querySelector('.fecha-vencimiento-cheque')?.value || '';
-            const numeroTransferencia = forma.querySelector('.numero-transferencia')?.value || '';
-            const bancoTransferencia = forma.querySelector('.banco-transferencia')?.value || '';
-            const numeroTarjeta = forma.querySelector('.numero-tarjeta')?.value || '';
-            const codigoAutorizacion = forma.querySelector('.codigo-autorizacion')?.value || '';
-            
-            if (numeroCheque) formaPagoData.numero_cheque = numeroCheque;
-            if (bancoCheque) formaPagoData.banco_cheque = bancoCheque;
-            if (fechaVencimiento) formaPagoData.fecha_vencimiento_cheque = fechaVencimiento;
-            if (numeroTransferencia) formaPagoData.numero_transferencia = numeroTransferencia;
-            if (bancoTransferencia) formaPagoData.banco_transferencia = bancoTransferencia;
-            if (numeroTarjeta) formaPagoData.numero_tarjeta = numeroTarjeta;
-            if (codigoAutorizacion) formaPagoData.codigo_autorizacion = codigoAutorizacion;
-            
-            formasPago.push(formaPagoData);
-            montoTotal += monto;
+                monto: monto
+            });
+            totalPago += monto;
         }
     });
     
+    // Validaciones
     if (formasPago.length === 0) {
-        Swal.fire('Error', 'Debe especificar al menos una forma de pago con monto', 'error');
-        return;
+        Swal.showValidationMessage('Debe agregar al menos una forma de pago');
+        return false;
     }
     
-    if (montoTotal <= 0) {
-        Swal.fire('Error', 'El monto total debe ser mayor a 0', 'error');
-        return;
+    if (totalPago <= 0) {
+        Swal.showValidationMessage('El monto total debe ser mayor a 0');
+        return false;
     }
     
-    // Mostrar loading
+    if (totalPago > saldoPendiente) {
+        Swal.showValidationMessage(`El monto total ($${formatearNumero(totalPago)}) excede el saldo pendiente ($${formatearNumero(saldoPendiente)})`);
+        return false;
+    }
+    
+    // Enviar pago
     Swal.fire({
         title: 'Procesando...',
-        text: 'Registrando el pago',
+        text: 'Registrando pago',
         allowOutsideClick: false,
         didOpen: () => {
             Swal.showLoading();
         }
     });
     
-    const datosEnvio = {
-        documento_id: documentoId,
-        formas_pago: formasPago,
-        observaciones: observaciones
-    };
-    
-    fetch('{% url "tesoreria:registrar_pago" %}', {
+    fetch('/tesoreria/registrar-pago/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
         },
-        body: JSON.stringify(datosEnvio)
+        body: JSON.stringify({
+            documento_id: documentoId,
+            formas_pago: formasPago,
+            observaciones: observaciones
+        })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            Swal.fire('Éxito', data.message, 'success').then(() => {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Pago Registrado!',
+                text: data.message,
+                confirmButtonColor: '#8B7355',
+                timer: 2000
+            }).then(() => {
                 location.reload();
             });
         } else {
-            Swal.fire('Error', data.error, 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.error || 'No se pudo registrar el pago',
+                confirmButtonColor: '#8B7355'
+            });
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        Swal.fire('Error', 'Error al procesar el pago', 'error');
-    });
-}
-
-// Configurar eventos cuando se carga la página
-document.addEventListener('DOMContentLoaded', function() {
-    const btnAgregarForma = document.getElementById('agregarFormaPago');
-    if (btnAgregarForma) {
-        btnAgregarForma.addEventListener('click', agregarFormaPago);
-    }
-    
-    // Configurar selector de empresa para superusuarios
-    {% if user.is_superuser %}
-    cargarEmpresas();
-    const selectorEmpresa = document.getElementById('selectorEmpresa');
-    if (selectorEmpresa) {
-        selectorEmpresa.addEventListener('change', cambiarEmpresa);
-    }
-    {% endif %}
-});
-
-{% if user.is_superuser %}
-function cargarEmpresas() {
-    fetch('{% url "tesoreria:cambiar_empresa_activa" %}')
-        .then(response => response.json())
-        .then(data => {
-            const selector = document.getElementById('selectorEmpresa');
-            if (selector && data.empresas) {
-                selector.innerHTML = '';
-                data.empresas.forEach(empresa => {
-                    const option = document.createElement('option');
-                    option.value = empresa.id;
-                    option.textContent = empresa.nombre;
-                    if (empresa.activa) {
-                        option.selected = true;
-                    }
-                    selector.appendChild(option);
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error al cargar empresas:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al procesar el pago',
+            confirmButtonColor: '#8B7355'
         });
+    });
+    
+    return false; // Evitar que se cierre el modal automáticamente
 }
 
-function cambiarEmpresa() {
-    const selector = document.getElementById('selectorEmpresa');
-    const empresaId = selector.value;
-    
-    if (!empresaId) return;
-    
-    const formData = new FormData();
-    formData.append('empresa_id', empresaId);
-    
-    fetch('{% url "tesoreria:cambiar_empresa_activa" %}', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Recargar la página para aplicar los cambios
-            location.reload();
-        } else {
-            console.error('Error al cambiar empresa:', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error al cambiar empresa:', error);
-    });
+    }
+    return cookieValue;
 }
 
-function verDetallePagos(documentoId) {
-    // Buscar todos los pagos del documento
-    const documentoCard = event.target.closest('.document-card');
-    const pagos = documentoCard.querySelectorAll('[data-pago-id]');
+function verPagos(btn) {
+    const documentoId = btn.dataset.docId;
+    const numeroDocumento = btn.dataset.docNumero;
     
-    if (pagos.length === 0) {
-        Swal.fire('Información', 'No hay pagos registrados para este documento', 'info');
-        return;
-    }
-    
-    // Si hay solo un pago, mostrar su detalle directamente
-    if (pagos.length === 1) {
-        const pagoId = pagos[0].dataset.pagoId;
-        verDetallePago(pagoId);
-        return;
-    }
-    
-    // Si hay múltiples pagos, mostrar lista para seleccionar
-    let html = '<div class="list-group">';
-    pagos.forEach(pago => {
-        html += `<a href="#" class="list-group-item list-group-item-action" onclick="verDetallePago(${pago.dataset.pagoId})">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">Pago ${pago.dataset.pagoId}</h6>
-                        <small>${pago.dataset.fechaPago}</small>
-                    </div>
-                    <p class="mb-1">Monto: $${parseFloat(pago.dataset.monto).toLocaleString()}</p>
-                 </a>`;
-    });
-    html += '</div>';
-    
-    Swal.fire({
-        title: 'Seleccionar Pago',
-        html: html,
-        showCancelButton: false,
-        showConfirmButton: false,
-        width: '500px'
-    });
-}
-
-function verDetallePago(pagoId) {
+    // Mostrar loading
     Swal.fire({
         title: 'Cargando...',
-        text: 'Obteniendo detalles del pago',
+        text: 'Obteniendo historial de pagos',
         allowOutsideClick: false,
-        showConfirmButton: false,
         didOpen: () => {
             Swal.showLoading();
         }
     });
     
-    fetch(`{% url "tesoreria:detalle_pago" 0 %}`.replace('0', pagoId))
+    // Obtener historial de pagos
+    fetch(`/tesoreria/historial-pagos/${documentoId}/`)
         .then(response => response.json())
         .then(data => {
-            if (data.error) {
-                Swal.fire('Error', data.error, 'error');
-                return;
+            if (data.pagos && data.pagos.length > 0) {
+                let html = `<div class="text-start"><p><strong>Documento:</strong> ${numeroDocumento}</p>`;
+                html += '<table class="table table-sm table-bordered mt-3">';
+                html += '<thead><tr><th>Fecha</th><th>Monto</th><th>Forma Pago</th></tr></thead><tbody>';
+                
+                data.pagos.forEach(pago => {
+                    html += `<tr>
+                        <td>${pago.fecha}</td>
+                        <td>$${formatearNumero(pago.monto)}</td>
+                        <td>${pago.forma_pago}</td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                html += `<p class="mt-3"><strong>Total Pagado:</strong> $${formatearNumero(data.total_pagado)}</p></div>`;
+                
+                Swal.fire({
+                    title: 'Historial de Pagos',
+                    html: html,
+                    width: 600,
+                    confirmButtonColor: '#8B7355'
+                });
+            } else {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Sin Pagos',
+                    text: 'No hay pagos registrados para este documento',
+                    confirmButtonColor: '#8B7355'
+                });
             }
-            
-            let html = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Información del Pago</h6>
-                        <p><strong>Fecha:</strong> ${data.pago.fecha_pago}</p>
-                        <p><strong>Monto Total:</strong> $${parseFloat(data.pago.monto_total_pagado).toLocaleString()}</p>
-                        <p><strong>Registrado por:</strong> ${data.pago.registrado_por}</p>
-                        ${data.pago.observaciones ? `<p><strong>Observaciones:</strong> ${data.pago.observaciones}</p>` : ''}
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Documento</h6>
-                        <p><strong>Número:</strong> ${data.documento.numero_documento}</p>
-                        <p><strong>Proveedor:</strong> ${data.documento.proveedor}</p>
-                        <p><strong>Total:</strong> $${parseFloat(data.documento.total_documento).toLocaleString()}</p>
-                        <p><strong>Saldo:</strong> $${parseFloat(data.documento.saldo_pendiente).toLocaleString()}</p>
-                    </div>
-                </div>
-                <hr>
-                <h6>Formas de Pago</h6>
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Forma de Pago</th>
-                                <th>Monto</th>
-                                <th>Detalles</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-            
-            data.formas_pago.forEach(fp => {
-                html += `<tr>
-                            <td>${fp.codigo} - ${fp.forma_pago}</td>
-                            <td>$${parseFloat(fp.monto).toLocaleString()}</td>
-                            <td>`;
-                
-                if (fp.numero_cheque) html += `Cheque: ${fp.numero_cheque}<br>`;
-                if (fp.banco_cheque) html += `Banco: ${fp.banco_cheque}<br>`;
-                if (fp.fecha_vencimiento_cheque) html += `Vencimiento: ${fp.fecha_vencimiento_cheque}<br>`;
-                if (fp.numero_transferencia) html += `Transferencia: ${fp.numero_transferencia}<br>`;
-                if (fp.banco_transferencia) html += `Banco: ${fp.banco_transferencia}<br>`;
-                if (fp.numero_tarjeta) html += `Tarjeta: ****${fp.numero_tarjeta}<br>`;
-                if (fp.codigo_autorizacion) html += `Código: ${fp.codigo_autorizacion}<br>`;
-                if (fp.observaciones) html += `Obs: ${fp.observaciones}`;
-                
-                html += `</td></tr>`;
-            });
-            
-            html += `</tbody></table></div>`;
-            
+        })
+        .catch(error => {
+            console.error('Error:', error);
             Swal.fire({
-                title: 'Detalle del Pago',
-                html: html,
-                width: '800px',
-                showCancelButton: true,
-                cancelButtonText: 'Cerrar',
-                confirmButtonText: 'Editar',
-                confirmButtonColor: '#ffc107',
-                showDenyButton: false
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    editarPago(pagoId);
-                }
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo obtener el historial de pagos',
+                confirmButtonColor: '#8B7355'
             });
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire('Error', 'Error al cargar el detalle del pago', 'error');
         });
 }
-
-function editarPago(pagoId) {
-    // Cargar datos del pago para editarlo
-    fetch(`{% url "tesoreria:detalle_pago" 0 %}`.replace('0', pagoId))
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                Swal.fire('Error', data.error, 'error');
-                return;
-            }
-            
-            // Usar el mismo modal de pago pero en modo edición
-            abrirModalPago(data.documento.numero_documento, data.pago.monto_total_pagado, data.documento.saldo_pendiente, pagoId, data);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire('Error', 'Error al cargar los datos del pago', 'error');
-        });
-}
-{% endif %}
 </script>
+
 {% endblock %}

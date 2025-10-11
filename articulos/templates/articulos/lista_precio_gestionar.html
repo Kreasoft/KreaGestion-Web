@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% load static %}
+{% load l10n %}
+
+{% block title %}Gestionar Precios - {{ lista.nombre }}{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+
+    .form-header {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        border: none;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .btn-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        transition: all 0.3s ease;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .btn-terroso:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .table {
+        font-size: 0.9rem;
+        margin-bottom: 0;
+        border-collapse: collapse;
+    }
+
+    .table thead {
+        background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
+        color: #6F5B44;
+    }
+
+    .table thead th {
+        padding: 0.5rem;
+        font-weight: 600;
+        border: none;
+        font-size: 0.9rem;
+    }
+
+    .table tbody td {
+        padding: 0.2rem 0.3rem !important;
+        vertical-align: middle;
+        line-height: 1;
+        border: none !important;
+    }
+
+    .table tbody tr {
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .precio-input {
+        width: 120px;
+        border-color: #D4C4A8;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.9rem;
+        text-align: right;
+        margin-left: auto;
+        display: block;
+    }
+
+    .precio-input:focus {
+        border-color: #8B7355;
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+    }
+
+    .search-box {
+        background: #F5F0EB;
+        border: 1px solid #D4C4A8;
+        border-radius: 5px;
+        padding: 0.4rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .articulo-row:hover {
+        background-color: rgba(139, 115, 85, 0.05);
+    }
+
+    .codigo-badge {
+        background: #F5F0EB;
+        color: #6F5B44;
+        padding: 0.2rem 0.4rem;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        font-family: monospace;
+    }
+
+    .precio-ref {
+        color: #999;
+        font-size: 0.85rem;
+    }
+
+    .filter-box {
+        background: #F5F0EB;
+        border: 1px solid #D4C4A8;
+        border-radius: 5px;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 0.3rem;">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="form-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-dollar-sign me-3" style="font-size: 2rem;"></i>
+                                <div>
+                                    <h4 class="mb-1" style="font-weight: 700;">Gestionar Precios</h4>
+                                    <h5 class="mb-0" style="font-weight: 600; opacity: 0.9;">{{ lista.nombre }}</h5>
+                                </div>
+                            </div>
+                            <p class="mb-0" style="font-size: 0.9rem; opacity: 0.85; line-height: 1.4;">
+                                Configura los precios de cada artículo para esta lista. Los precios se aplicarán automáticamente en las ventas cuando selecciones esta lista.
+                            </p>
+                        </div>
+                        <div class="d-flex flex-column gap-2">
+                            <button type="button" class="btn btn-terroso" onclick="copiarPreciosVenta()">
+                                <i class="fas fa-copy me-2"></i>Copiar Precios de Venta
+                            </button>
+                            <button type="button" class="btn btn-terroso" onclick="limpiarPrecios()">
+                                <i class="fas fa-eraser me-2"></i>Limpiar Todos
+                            </button>
+                            <a href="{% url 'articulos:lista_precio_detail' lista.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario -->
+                <div class="card-body" style="padding: 0.5rem;">
+                    <!-- Filtros -->
+                    <div class="filter-box">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <input type="text" id="searchInput" class="form-control" placeholder="🔍 Buscar artículo..." style="border-color: #D4C4A8;">
+                            </div>
+                            <div class="col-md-6">
+                                <select id="categoriaFilter" class="form-select" style="border-color: #D4C4A8;">
+                                    <option value="">📁 Todas las categorías</option>
+                                    {% for categoria in categorias %}
+                                    <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" id="preciosForm">
+                        {% csrf_token %}
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover" id="articulosTable">
+                                <thead>
+                                    <tr>
+                                        <th width="10%">Código</th>
+                                        <th width="45%">Artículo</th>
+                                        <th width="20%" class="text-end">Precio Venta</th>
+                                        <th width="25%" class="text-end">Precio Lista</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for articulo in articulos %}
+                                    <tr class="articulo-row" data-nombre="{{ articulo.nombre|lower }}" data-codigo="{{ articulo.codigo|lower }}" data-categoria="{{ articulo.categoria.id }}">
+                                        <td>
+                                            <span class="codigo-badge">{{ articulo.codigo }}</span>
+                                        </td>
+                                        <td>{{ articulo.nombre }}</td>
+                                        <td class="text-end">
+                                            <span class="precio-ref" data-precio-venta="{{ articulo.precio_venta }}">${{ articulo.precio_venta|floatformat:0 }}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <input 
+                                                type="number" 
+                                                name="precio_{{ articulo.id }}" 
+                                                class="form-control form-control-sm precio-input" 
+                                                step="1" 
+                                                min="0"
+                                                {% if articulo.precio_en_lista %}value="{{ articulo.precio_en_lista|unlocalize }}"{% endif %}
+                                                placeholder="-"
+                                            >
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4">
+                                            <i class="fas fa-box-open fa-2x mb-2" style="color: #D4C4A8;"></i>
+                                            <p class="mb-0 text-muted">No hay artículos activos</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-end gap-1 mt-1">
+                            <a href="{% url 'articulos:lista_precio_detail' lista.pk %}" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-times"></i>
+                            </a>
+                            <button type="submit" class="btn btn-sm btn-terroso">
+                                <i class="fas fa-save me-1"></i>Guardar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Filtrar artículos
+function filtrarArticulos() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const categoriaId = document.getElementById('categoriaFilter').value;
+    const rows = document.querySelectorAll('.articulo-row');
+    
+    rows.forEach(row => {
+        const nombre = row.dataset.nombre;
+        const codigo = row.dataset.codigo;
+        const categoria = row.dataset.categoria;
+        
+        const matchSearch = nombre.includes(searchTerm) || codigo.includes(searchTerm);
+        const matchCategoria = !categoriaId || categoria === categoriaId;
+        
+        if (matchSearch && matchCategoria) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Búsqueda en tiempo real
+document.getElementById('searchInput').addEventListener('keyup', filtrarArticulos);
+document.getElementById('categoriaFilter').addEventListener('change', filtrarArticulos);
+
+// Copiar precios de venta a la lista
+function copiarPreciosVenta() {
+    if (!confirm('¿Desea copiar todos los precios de venta a esta lista?')) {
+        return;
+    }
+    
+    const rows = document.querySelectorAll('.articulo-row');
+    rows.forEach(row => {
+        if (row.style.display !== 'none') {
+            const precioVenta = row.querySelector('[data-precio-venta]').dataset.precioVenta;
+            const input = row.querySelector('.precio-input');
+            if (precioVenta && input) {
+                input.value = Math.round(parseFloat(precioVenta));
+            }
+        }
+    });
+}
+
+// Limpiar todos los precios
+function limpiarPrecios() {
+    if (!confirm('¿Desea limpiar todos los precios de esta lista?')) {
+        return;
+    }
+    
+    const inputs = document.querySelectorAll('.precio-input');
+    inputs.forEach(input => {
+        input.value = '';
+    });
+}
+</script>
+{% endblock %}

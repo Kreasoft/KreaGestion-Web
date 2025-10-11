@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Orden {{ orden.numero_orden }} - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<!-- Orden de Compra - Diseño Compacto Mejorado -->
+<div class="container-fluid py-3">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header Principal -->
+            <div class="d-flex justify-content-between align-items-center mb-4 p-3" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border-radius: 15px; color: white;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-shopping-cart fa-2x text-white me-3"></i>
+                    <div>
+                        <h3 class="mb-0 fw-bold">Orden de Compra {{ orden.numero_orden }}</h3>
+                        <p class="mb-0 opacity-75">{{ orden.proveedor.nombre }} • {{ orden.fecha_orden|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <a href="{% url 'compras:orden_compra_list' %}" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i> Volver
+                    </a>
+                    {% if orden.estado_orden != 'completada' %}
+                        <a href="{% url 'compras:orden_compra_update' orden.pk %}" class="btn btn-outline-light btn-sm">
+                            <i class="fas fa-edit me-1"></i> Editar
+                        </a>
+                    {% endif %}
+                    <button class="btn btn-outline-light btn-sm" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i> Imprimir
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenido Principal - Una sola tarjeta compacta -->
+            <div class="card border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
+                <div class="card-body p-0">
+                    <div class="row g-0">
+                        <!-- Información del Proveedor y Orden (40%) -->
+                        <div class="col-lg-4 p-4" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-right: 1px solid #dee2e6;">
+                            <!-- Datos del Proveedor -->
+                            <div class="mb-4">
+                                <h5 class="text-muted mb-3">
+                                    <i class="fas fa-building me-2"></i>Datos del Proveedor
+                                </h5>
+                                <div class="provider-info">
+                                    <h6 class="fw-bold text-dark mb-2">{{ orden.proveedor.nombre }}</h6>
+                                    <p class="text-muted small mb-1">{{ orden.proveedor.direccion }}</p>
+                                    <p class="text-muted small mb-1">{{ orden.proveedor.telefono }}</p>
+                                    <p class="text-muted small">{{ orden.proveedor.email }}</p>
+                                </div>
+                            </div>
+
+                            <!-- Información de la Orden -->
+                            <div class="mb-4">
+                                <h5 class="text-muted mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>Información de la Orden
+                                </h5>
+                                <div class="order-info">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="text-muted small">Bodega:</label>
+                                            <p class="fw-semibold small">{{ orden.bodega.nombre }}</p>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="text-muted small">Fecha Orden:</label>
+                                            <p class="fw-semibold small">{{ orden.fecha_orden|date:"d/m/Y" }}</p>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="text-muted small">Entrega Esperada:</label>
+                                            <p class="fw-semibold small">{{ orden.fecha_entrega_esperada|date:"d/m/Y" }}</p>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="text-muted small">Estado:</label>
+                                            <div class="mt-1">
+                                                {% if orden.estado_orden == 'en_proceso' %}
+                                                    <span class="badge bg-primary">En Proceso</span>
+                                                {% elif orden.estado_orden == 'aprobada' %}
+                                                    <span class="badge bg-success">Aprobada</span>
+                                                {% elif orden.estado_orden == 'completada' %}
+                                                    <span class="badge bg-info">Completada</span>
+                                                {% elif orden.estado_orden == 'cancelada' %}
+                                                    <span class="badge bg-danger">Cancelada</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ orden.get_estado_orden_display }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Totales Compactos -->
+                            <div class="totals-section">
+                                <h5 class="text-muted mb-3">
+                                    <i class="fas fa-calculator me-2"></i>Totales
+                                </h5>
+                                <div class="bg-white p-3 rounded">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted small">Subtotal:</span>
+                                        <span class="fw-semibold">$<span class="format-number">{{ orden.subtotal|floatformat:0 }}</span></span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted small">Descuentos:</span>
+                                        <span class="text-danger fw-semibold">-$<span class="format-number">{{ orden.descuentos_totales|floatformat:0 }}</span></span>
+                                    </div>
+                                    <hr class="my-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="fw-bold">Total Orden:</span>
+                                        <span class="fw-bold text-primary">$<span class="format-number">{{ orden.total_orden|floatformat:0 }}</span></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Acciones Rápidas -->
+                            <!-- Funcionalidad de recepciones deshabilitada por el momento -->
+                        </div>
+
+                        <!-- Productos Solicitados (60%) - Diseño Compacto -->
+                        <div class="col-lg-8 p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="text-muted mb-0">
+                                    <i class="fas fa-boxes me-2"></i>Productos Solicitados
+                                </h5>
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-primary">{{ orden.items.count }} productos</span>
+                                    {% if orden.prioridad == 'urgente' %}
+                                        <span class="badge bg-danger">Urgente</span>
+                                    {% elif orden.prioridad == 'alta' %}
+                                        <span class="badge bg-warning">Alta</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Normal</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Lista Compacta de Productos -->
+                            <div class="products-container" style="max-height: 600px; overflow-y: auto;">
+                                {% if orden.items.exists %}
+                                    <div class="products-list">
+                                        {% for item in orden.items.all %}
+                                        <div class="product-item d-flex align-items-center justify-content-between py-3 px-2" style="border-bottom: 1px solid #f8f9fa;">
+                                            <div class="product-info flex-grow-1">
+                                                <div class="d-flex align-items-start justify-content-between">
+                                                    <div class="flex-grow-1">
+                                                        <h6 class="fw-bold text-dark mb-1" style="font-size: 0.9rem;">{{ item.articulo.nombre }}</h6>
+                                                        {% if item.especificaciones %}
+                                                            <p class="text-muted small mb-1">{{ item.especificaciones }}</p>
+                                                        {% endif %}
+                                                        <div class="d-flex gap-3 text-muted small">
+                                                            <span><i class="fas fa-hashtag me-1"></i>{{ item.articulo.codigo }}</span>
+                                                            {% if item.fecha_entrega_item %}
+                                                                <span><i class="fas fa-calendar me-1"></i>{{ item.fecha_entrega_item|date:"d/m/Y" }}</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                    <div class="product-status text-end">
+                                                        <div class="quantity-badge mb-1">
+                                                            <span class="badge bg-light text-dark border">Cantidad: {{ item.cantidad_solicitada }}</span>
+                                                        </div>
+                                                        {% if item.cantidad_recibida > 0 %}
+                                                            <div class="received-badge">
+                                                                <span class="badge bg-success">Recibido: {{ item.cantidad_recibida }}</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="product-pricing text-end ms-3">
+                                                <div class="price-info">
+                                                    <div class="unit-price text-muted small">
+                                                        $<span class="format-number">{{ item.precio_unitario|floatformat:0 }}</span> c/u
+                                                    </div>
+                                                    {% if item.descuento_porcentaje > 0 %}
+                                                        <div class="discount text-danger small">
+                                                            -{{ item.descuento_porcentaje }}%
+                                                        </div>
+                                                    {% endif %}
+                                                    <div class="subtotal fw-bold">
+                                                        $<span class="format-number">{{ item.get_subtotal|floatformat:0 }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">No hay productos en esta orden</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Información Adicional Compacta -->
+                            {% if orden.observaciones or orden.condiciones_pago %}
+                            <div class="additional-info mt-4 p-3 bg-light rounded">
+                                <h6 class="text-muted mb-2">
+                                    <i class="fas fa-sticky-note me-2"></i>Información Adicional
+                                </h6>
+                                <div class="row g-3">
+                                    {% if orden.condiciones_pago %}
+                                    <div class="col-md-6">
+                                        <label class="text-muted small">Condiciones de Pago:</label>
+                                        <p class="small fw-semibold">{{ orden.condiciones_pago }}</p>
+                                    </div>
+                                    {% endif %}
+                                    {% if orden.plazo_entrega %}
+                                    <div class="col-md-6">
+                                        <label class="text-muted small">Plazo de Entrega:</label>
+                                        <p class="small fw-semibold">{{ orden.plazo_entrega }}</p>
+                                    </div>
+                                    {% endif %}
+                                    {% if orden.observaciones %}
+                                    <div class="col-12">
+                                        <label class="text-muted small">Observaciones:</label>
+                                        <p class="small">{{ orden.observaciones }}</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Footer con información del sistema -->
+                    <div class="card-footer bg-light">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <div class="system-info">
+                                    <div class="d-flex gap-4 text-muted small">
+                                        <span><i class="fas fa-user me-1"></i>Creado por: {{ orden.creado_por.get_full_name|default:orden.creado_por.username }}</span>
+                                        <span><i class="fas fa-calendar me-1"></i>{{ orden.fecha_creacion|date:"d/m/Y H:i" }}</span>
+                                        {% if orden.fecha_modificacion %}
+                                            <span><i class="fas fa-edit me-1"></i>Modificado: {{ orden.fecha_modificacion|date:"d/m/Y H:i" }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="order-actions">
+                                    <!-- Aquí pueden ir acciones adicionales si es necesario -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Formatear números con separador de miles
+    document.querySelectorAll('.format-number').forEach(function(element) {
+        const text = element.textContent.trim();
+        const number = parseInt(text.replace(/[.$]/g, ''));
+        if (!isNaN(number)) {
+            element.textContent = number.toLocaleString('es-ES');
+        }
+    });
+
+    // Agregar scroll suave a la lista de productos
+    const productsContainer = document.querySelector('.products-container');
+    if (productsContainer) {
+        productsContainer.addEventListener('scroll', function() {
+            // Agregar sombra cuando hay scroll
+            if (this.scrollTop > 0) {
+                this.style.boxShadow = 'inset 0 4px 8px rgba(0,0,0,0.1)';
+            } else {
+                this.style.boxShadow = 'none';
+            }
+        });
+    }
+});
+</script>
+
+<style>
+/* Estilos adicionales para el diseño compacto */
+.products-container {
+    scrollbar-width: thin;
+    scrollbar-color: #17a2b8 #f8f9fa;
+}
+
+.products-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.products-container::-webkit-scrollbar-track {
+    background: #f8f9fa;
+    border-radius: 3px;
+}
+
+.products-container::-webkit-scrollbar-thumb {
+    background: #17a2b8;
+    border-radius: 3px;
+}
+
+.products-container::-webkit-scrollbar-thumb:hover {
+    background: #117a8b;
+}
+
+/* Hover effects para productos */
+.product-item {
+    transition: all 0.2s ease;
+    border-radius: 8px;
+}
+
+.product-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .products-container {
+        max-height: 400px;
+    }
+
+    .product-item {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 0.5rem;
+    }
+
+    .product-pricing {
+        margin-left: 0 !important;
+        margin-top: 0.5rem;
+        width: 100%;
+        text-align: left !important;
+    }
+}
+</style>
+{% endblock %}
