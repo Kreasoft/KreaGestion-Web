@@ -186,7 +186,7 @@
     
     /* Panel izquierdo - Productos */
     .pos-left-panel {
-            width: 50%;
+            width: 60%;
         background: white;
         border-right: 2px solid #e3e6f0;
         display: flex;
@@ -222,22 +222,36 @@
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         
         .category-btn {
-            padding: 4px 12px;
+            padding: 6px 14px;
             border: 1px solid #dee2e6;
-        background: white;
+            background: white;
             border-radius: 15px;
             font-size: 0.8rem;
             cursor: pointer;
             transition: all 0.3s ease;
+            font-weight: 500;
         }
         
-        .category-btn:hover, .category-btn.active {
+        .category-btn:hover {
+            background: #e9ecef;
+            border-color: #17a2b8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(23, 162, 184, 0.2);
+        }
+        
+        .category-btn.active {
             background: #17a2b8;
             color: white;
             border-color: #17a2b8;
+            box-shadow: 0 2px 6px rgba(23, 162, 184, 0.3);
         }
         
         /* Grid de productos compacto */
@@ -310,7 +324,7 @@
     
     /* Panel derecho - Carrito y Totales */
     .pos-right-panel {
-            width: 50%;
+            width: 40%;
             background: white;
         display: flex;
         flex-direction: column;
@@ -527,10 +541,10 @@
         /* Responsive */
         @media (max-width: 1200px) {
             .pos-left-panel {
-                width: 45%;
+                width: 55%;
             }
             .pos-right-panel {
-                width: 55%;
+                width: 45%;
             }
         }
         
@@ -619,6 +633,16 @@
         <div class="pos-left-panel">
                 <!-- Filtros y búsqueda -->
                 <div class="pos-filters">
+                    <!-- Selector de Lista de Precios -->
+                    <div class="mb-2">
+                        <label class="form-label fw-bold" style="font-size: 0.85rem; margin-bottom: 0.25rem;">
+                            <i class="fas fa-tags me-1"></i>Lista de Precios
+                        </label>
+                        <select class="form-select form-select-sm" id="listaPrecioSelect" style="border: 2px solid #e9ecef;">
+                            <option value="">Cargando...</option>
+                        </select>
+                    </div>
+                    
                     <div class="pos-search">
                         <input type="text" id="pos-search" class="form-control" placeholder="Buscar productos...">
                     </div>
@@ -713,6 +737,8 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+console.log('=== POS SCRIPT CARGADO - VERSION 2025-10-11-19:37 ===');
+// Version: 2025-10-11-19:37 - Fixed addToCart function
 // Variables globales
 let cart = [];
 let currentSubtotal = 0;
@@ -728,9 +754,247 @@ let wasScanningMode = false; // Variable global para rastrear el modo de escaneo
 let articulos = [];
 window.articulos = articulos;
 
+// ===== FUNCIONES GLOBALES (FUERA DE DOMContentLoaded) =====
+
+// Agregar al carrito - DEBE ESTAR EN SCOPE GLOBAL
+function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva = false, impuestoEspecifico = 0, precioNeto = null) {
+    console.log('*** FUNCIÓN addToCart LLAMADA ***', { articuloId: articuloId, nombre: nombre, precio: precio, stock: stock, categoriaExentaIva: categoriaExentaIva, impuestoEspecifico: impuestoEspecifico, precioNeto: precioNeto });
+    
+    // Asegurar que precio sea un número
+    precio = parseFloat(precio);
+    
+    const existingItem = cart.find(item => item.articuloId === articuloId);
+    
+    // Obtener stock actual del DOM
+    const card = document.querySelector(`[data-articulo-id="${articuloId}"]`);
+    const stockActual = card ? parseInt(card.dataset.stock) : stock;
+    
+    if (existingItem) {
+        if (existingItem.cantidad < stockActual) {
+            existingItem.cantidad += 1;
+            existingItem.total = parseFloat(existingItem.cantidad) * parseFloat(existingItem.precio);
+            // Recalcular impuestos para la nueva cantidad
+            // Los valores unitarios ya están en el item, solo multiplicamos por cantidad
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Stock Insuficiente',
+                text: 'No hay suficiente stock para este producto',
+                timer: 2000
+            });
+            return;
+        }
+    } else {
+        // Calcular impuestos correctamente según la categoría
+        let precioNetoCalculado, ivaCalculado, impuestoEspecificoCalculado;
+        
+        if (precioNeto && !categoriaExentaIva) {
+            // Si tenemos precio neto y NO está exenta de IVA
+            precioNetoCalculado = precioNeto;
+            ivaCalculado = precioNeto * 0.19;
+            impuestoEspecificoCalculado = precioNeto * (impuestoEspecifico / 100);
+        } else if (precioNeto && categoriaExentaIva) {
+            // Si tenemos precio neto y SÍ está exenta de IVA
+            precioNetoCalculado = precioNeto;
+            ivaCalculado = 0;
+            impuestoEspecificoCalculado = precioNeto * (impuestoEspecifico / 100);
+        } else {
+            // Fallback: calcular desde el precio final (método anterior)
+            const factorTotal = 1 + (categoriaExentaIva ? 0 : 0.19) + (impuestoEspecifico / 100);
+            precioNetoCalculado = precio / factorTotal;
+            ivaCalculado = categoriaExentaIva ? 0 : precioNetoCalculado * 0.19;
+            impuestoEspecificoCalculado = precioNetoCalculado * (impuestoEspecifico / 100);
+        }
+        
+        cart.push({
+            articuloId: articuloId,
+            nombre: nombre,
+            precio: parseFloat(precio), // Precio final con impuestos
+            precio_neto: precioNetoCalculado,
+            iva: ivaCalculado,
+            impuesto_especifico: impuestoEspecificoCalculado,
+            categoriaExentaIva: categoriaExentaIva,
+            impuestoEspecifico: impuestoEspecifico,
+            cantidad: 1,
+            descuento: 0,
+            total: parseFloat(precio)
+        });
+    }
+    
+    updateCartDisplay();
+    updateTotals();
+}
+
+// Actualizar display del carrito - DEBE ESTAR EN SCOPE GLOBAL
+function updateCartDisplay() {
+    const cartContainer = document.getElementById('pos-cart-items');
+    cartContainer.innerHTML = '';
+
+    if (cart.length === 0) {
+        cartContainer.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-shopping-cart fa-2x mb-2"></i><p>Carrito vacío</p></div>';
+        return;
+    }
+
+    cart.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'pos-cart-item';
+        itemDiv.innerHTML = `
+            <div class="cart-item-name">${item.nombre}</div>
+            <div class="cart-item-price">$${formatChileanNumber(item.precio)}</div>
+            <div class="cart-item-qty">
+                <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, -1)">-</button>
+                <span>${item.cantidad}</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>
+            </div>
+            <div class="cart-item-discount">${item.descuento}%</div>
+            <div class="cart-item-total">$${formatChileanNumber(item.total)}</div>
+            <div class="cart-item-actions">
+                <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${index})" title="Eliminar">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        cartContainer.appendChild(itemDiv);
+    });
+}
+
+// Actualizar cantidad - DEBE ESTAR EN SCOPE GLOBAL
+function updateQuantity(index, change) {
+    const item = cart[index];
+    const newQuantity = item.cantidad + change;
+
+    if (newQuantity <= 0) {
+        removeFromCart(index);
+        return;
+    }
+    
+    // Verificar stock
+    const card = document.querySelector(`[data-articulo-id="${item.articuloId}"]`);
+    const stock = card ? parseInt(card.dataset.stock) : 999;
+    if (newQuantity > stock) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Stock Insuficiente',
+            text: 'No hay suficiente stock para este producto',
+            timer: 2000
+        });
+        return;
+    }
+    
+    item.cantidad = newQuantity;
+    item.total = parseFloat(item.cantidad) * parseFloat(item.precio);
+    
+    updateCartDisplay();
+    updateTotals();
+}
+
+// Eliminar del carrito - DEBE ESTAR EN SCOPE GLOBAL
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    updateCartDisplay();
+    updateTotals();
+}
+
+// Actualizar totales - DEBE ESTAR EN SCOPE GLOBAL
+function updateTotals() {
+    console.log('Cart items:', cart);
+    
+    currentSubtotal = cart.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+    currentDescuento = 0;
+    
+    currentNeto = 0;
+    currentIva = 0;
+    currentImpuestoEspecifico = 0;
+    
+    cart.forEach(item => {
+        const precioNeto = parseFloat(item.precio_neto || 0);
+        const iva = parseFloat(item.iva || 0);
+        const impEsp = parseFloat(item.impuesto_especifico || 0);
+        
+        currentNeto += precioNeto * parseFloat(item.cantidad);
+        currentIva += iva * parseFloat(item.cantidad);
+        currentImpuestoEspecifico += impEsp * parseFloat(item.cantidad);
+    });
+    
+    currentTotal = currentSubtotal;
+    
+    document.getElementById('subtotal').textContent = `$${formatChileanNumber(currentSubtotal)}`;
+    document.getElementById('descuento').textContent = `$${formatChileanNumber(currentDescuento)}`;
+    document.getElementById('neto').textContent = `$${formatChileanNumber(currentNeto)}`;
+    document.getElementById('iva').textContent = `$${formatChileanNumber(currentIva)}`;
+    document.getElementById('impuesto_especifico').textContent = `$${formatChileanNumber(currentImpuestoEspecifico)}`;
+    document.getElementById('total').textContent = `$${formatChileanNumber(currentTotal)}`;
+}
+
+// Formatear números - DEBE ESTAR EN SCOPE GLOBAL
+function formatChileanNumber(num) {
+    if (typeof num === 'string') {
+        num = parseFloat(num);
+    }
+    const rounded = Math.round(num).toString();
+    return rounded.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+window.formatChileanNumber = formatChileanNumber;
+
+console.log('=== FUNCIONES GLOBALES DEFINIDAS ===', {
+    addToCart: typeof addToCart,
+    updateCartDisplay: typeof updateCartDisplay,
+    updateTotals: typeof updateTotals,
+    formatChileanNumber: typeof formatChileanNumber
+});
+
+// Variable global para lista de precios
+let listaPrecioActual = null;
+
+// Cargar listas de precios
+function cargarListasPrecios() {
+    fetch('/articulos/api/listas-precios/')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('listaPrecioSelect');
+            select.innerHTML = '';
+            
+            // Agregar opción "Precio Base" al inicio
+            const optionBase = document.createElement('option');
+            optionBase.value = '';
+            optionBase.textContent = '💰 Precio Base (Sin Lista)';
+            select.appendChild(optionBase);
+            
+            if (data.listas && data.listas.length > 0) {
+                data.listas.forEach(lista => {
+                    const option = document.createElement('option');
+                    option.value = lista.id;
+                    option.textContent = lista.nombre + (lista.es_predeterminada ? ' ⭐' : '');
+                    if (lista.es_predeterminada) {
+                        option.selected = true;
+                        listaPrecioActual = lista.id;
+                    }
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar listas de precios:', error);
+            document.getElementById('listaPrecioSelect').innerHTML = '<option value="">Error al cargar</option>';
+        });
+}
+
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
     console.log('*** DOMContentLoaded INICIADO ***');
+    
+    // Cargar listas de precios
+    cargarListasPrecios();
+    
+    // Event listener para cambio de lista de precios
+    document.getElementById('listaPrecioSelect').addEventListener('change', function() {
+        listaPrecioActual = this.value;
+        console.log('Lista de precios cambiada a:', listaPrecioActual);
+        
+        // Recargar productos con nueva lista
+        filterProducts();
+    });
+    
     updateDateTime();
     setInterval(updateDateTime, 1000);
         
@@ -741,6 +1005,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('pos-search').addEventListener('input', filterProducts);
         document.getElementById('btn-process').addEventListener('click', processSale);
         document.getElementById('btn-clear').addEventListener('click', clearCart);
+    
+    // Configurar botón "Todas" para filtro de categorías
+    const btnTodas = document.querySelector('.category-btn[data-category="all"]');
+    if (btnTodas) {
+        btnTodas.addEventListener('click', (e) => filterByCategory('all', e.target));
+        console.log('Botón "Todas" configurado');
+    }
     
     // Cargar artículos desde el DOM
     loadArticulosFromDOM();
@@ -840,254 +1111,220 @@ function updateDateTime() {
         });
         
         const categoryContainer = document.querySelector('.pos-category-filter');
-        categories.forEach(category => {
+        
+        // Agregar categorías dinámicamente
+        Array.from(categories).sort().forEach(category => {
             const btn = document.createElement('button');
             btn.className = 'category-btn';
             btn.textContent = category;
             btn.dataset.category = category;
-            btn.addEventListener('click', () => filterByCategory(category));
+            btn.addEventListener('click', (e) => filterByCategory(category, e.target));
             categoryContainer.appendChild(btn);
         });
+        
+        console.log('Categorías cargadas:', categories.size);
     }
 
     // Filtrar por categoría
-    function filterByCategory(category) {
+    function filterByCategory(category, buttonElement) {
+        console.log('Filtrando por categoría:', category);
         currentCategory = category;
         
-        // Actualizar botones
+        // Actualizar botones - quitar active de todos
         document.querySelectorAll('.category-btn').forEach(btn => {
             btn.classList.remove('active');
         });
-        event.target.classList.add('active');
+        
+        // Agregar active al botón clickeado
+        if (buttonElement) {
+            buttonElement.classList.add('active');
+        } else {
+            // Si no hay elemento (llamada programática), buscar el botón correcto
+            const targetBtn = document.querySelector(`.category-btn[data-category="${category}"]`);
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+            }
+        }
+        
+        // Limpiar búsqueda
+        const searchInput = document.getElementById('pos-search');
+        if (searchInput) {
+            searchInput.value = '';
+        }
         
         // Filtrar productos
+        let visibleCount = 0;
         document.querySelectorAll('.pos-product-card').forEach(card => {
-            if (category === 'all' || card.dataset.categoria === category) {
+            const cardCategory = card.dataset.categoria;
+            if (category === 'all' || cardCategory === category) {
                 card.style.display = 'block';
+                visibleCount++;
             } else {
                 card.style.display = 'none';
             }
         });
+        
+        console.log(`Mostrando ${visibleCount} productos de categoría: ${category}`);
 }
 
-// Filtrar productos
+// Variable para controlar el timeout de búsqueda
+let searchTimeout = null;
+
+// Filtrar productos - ahora busca en toda la base de datos
 function filterProducts() {
-    const searchTerm = document.getElementById('pos-search').value.toLowerCase();
+    const searchInput = document.getElementById('pos-search');
+    if (!searchInput) {
+        console.error('Input de búsqueda no encontrado');
+        return;
+    }
     
+    const searchTerm = searchInput.value.trim();
+    console.log('Buscando:', searchTerm);
+    
+    // Cancelar búsqueda anterior si existe
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+    
+    if (!searchTerm) {
+        // Si no hay término de búsqueda, mostrar productos cargados según categoría
+        let count = 0;
         document.querySelectorAll('.pos-product-card').forEach(card => {
-        const name = card.querySelector('.pos-product-name').textContent.toLowerCase();
             const category = card.dataset.categoria;
-            
-            const matchesSearch = name.includes(searchTerm);
             const matchesCategory = currentCategory === 'all' || category === currentCategory;
-            
-            if (matchesSearch && matchesCategory) {
-            card.style.display = 'block';
-        } else {
-            card.style.display = 'none';
-        }
-    });
-}
-
-// Agregar al carrito
-function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva = false, impuestoEspecifico = 0, precioNeto = null) {
-    console.log('*** FUNCIÓN addToCart LLAMADA ***', { articuloId: articuloId, nombre: nombre, precio: precio, stock: stock, categoriaExentaIva: categoriaExentaIva, impuestoEspecifico: impuestoEspecifico, precioNeto: precioNeto });
-    
-    // Asegurar que precio sea un número
-    precio = parseFloat(precio);
-    
-    const existingItem = cart.find(item => item.articuloId === articuloId);
-    
-    // Obtener stock actual del DOM
-    const card = document.querySelector(`[data-articulo-id="${articuloId}"]`);
-    const stockActual = card ? parseInt(card.dataset.stock) : stock;
-    
-    if (existingItem) {
-            if (existingItem.cantidad < stockActual) {
-                existingItem.cantidad += 1;
-                existingItem.total = parseFloat(existingItem.cantidad) * parseFloat(existingItem.precio);
-                // Recalcular impuestos para la nueva cantidad
-                // Los valores unitarios ya están en el item, solo multiplicamos por cantidad
+            if (matchesCategory) {
+                card.style.display = 'block';
+                count++;
             } else {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Stock Insuficiente',
-                    text: 'No hay suficiente stock para este producto',
-                timer: 2000
-            });
-            return;
-        }
-    } else {
-        // Calcular impuestos correctamente según la categoría
-        let precioNetoCalculado, ivaCalculado, impuestoEspecificoCalculado;
-        
-        if (precioNeto && !categoriaExentaIva) {
-            // Si tenemos precio neto y NO está exenta de IVA
-            precioNetoCalculado = precioNeto;
-            ivaCalculado = precioNeto * 0.19;
-            impuestoEspecificoCalculado = precioNeto * (impuestoEspecifico / 100);
-        } else if (precioNeto && categoriaExentaIva) {
-            // Si tenemos precio neto y SÍ está exenta de IVA
-            precioNetoCalculado = precioNeto;
-            ivaCalculado = 0;
-            impuestoEspecificoCalculado = precioNeto * (impuestoEspecifico / 100);
-        } else {
-            // Fallback: calcular desde el precio final (método anterior)
-            const factorTotal = 1 + (categoriaExentaIva ? 0 : 0.19) + (impuestoEspecifico / 100);
-            precioNetoCalculado = precio / factorTotal;
-            ivaCalculado = categoriaExentaIva ? 0 : precioNetoCalculado * 0.19;
-            impuestoEspecificoCalculado = precioNetoCalculado * (impuestoEspecifico / 100);
-        }
-        
-        cart.push({
-            articuloId: articuloId,
-            nombre: nombre,
-            precio: parseFloat(precio), // Precio final con impuestos
-            precio_neto: precioNetoCalculado,
-            iva: ivaCalculado,
-            impuesto_especifico: impuestoEspecificoCalculado,
-            categoriaExentaIva: categoriaExentaIva,
-            impuestoEspecifico: impuestoEspecifico,
-            cantidad: 1,
-            descuento: 0,
-            total: parseFloat(precio)
+                card.style.display = 'none';
+            }
         });
-    }
-    
-        updateCartDisplay();
-    updateTotals();
-}
-
-    // Actualizar display del carrito
-    function updateCartDisplay() {
-        const cartContainer = document.getElementById('pos-cart-items');
-        cartContainer.innerHTML = '';
-    
-    if (cart.length === 0) {
-            cartContainer.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-shopping-cart fa-2x mb-2"></i><p>Carrito vacío</p></div>';
+        console.log(`Mostrando ${count} productos (sin búsqueda)`);
         return;
     }
     
-        cart.forEach((item, index) => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'pos-cart-item';
-            itemDiv.innerHTML = `
-                <div class="cart-item-name">${item.nombre}</div>
-                <div class="cart-item-price">$${formatChileanNumber(item.precio)}</div>
-                <div class="cart-item-qty">
-                    <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, -1)">-</button>
-                    <span>${item.cantidad}</span>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>
-            </div>
-                <div class="cart-item-discount">${item.descuento}%</div>
-                <div class="cart-item-total">$${formatChileanNumber(item.total)}</div>
-                <div class="cart-item-actions">
-                    <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${index})" title="Eliminar">
-                        <i class="fas fa-trash"></i>
-                </button>
-            </div>
-            `;
-            cartContainer.appendChild(itemDiv);
-        });
+    // Esperar 500ms antes de buscar (debounce)
+    searchTimeout = setTimeout(() => {
+        buscarEnBaseDatos(searchTerm);
+    }, 500);
+}
+
+// Buscar en toda la base de datos
+function buscarEnBaseDatos(query) {
+    console.log('Buscando en base de datos:', query);
+    
+    // Remover mensaje de "no resultados" si existe
+    const mensajeAnterior = document.getElementById('no-results-message');
+    if (mensajeAnterior) {
+        mensajeAnterior.remove();
     }
-
-    // Actualizar cantidad
-    function updateQuantity(index, change) {
-        const item = cart[index];
-        const newQuantity = item.cantidad + change;
     
-    if (newQuantity <= 0) {
-            removeFromCart(index);
-        return;
-        }
-        
-        // Verificar stock (simplificado)
-        const stock = parseInt(document.querySelector(`[data-articulo-id="${item.articuloId}"]`).dataset.stock);
-        if (newQuantity > stock) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Stock Insuficiente',
-                text: 'No hay suficiente stock para este producto',
-            timer: 2000
-        });
-        return;
-        }
-        
-        item.cantidad = newQuantity;
-        item.total = parseFloat(item.cantidad) * parseFloat(item.precio);
-        
-        updateCartDisplay();
-    updateTotals();
-}
-
-    // Eliminar del carrito
-function removeFromCart(index) {
-    cart.splice(index, 1);
-        updateCartDisplay();
-    updateTotals();
-}
-
-// Actualizar totales
-function updateTotals() {
-        // Debug: verificar valores del carrito
-        console.log('Cart items:', cart);
-        cart.forEach((item, index) => {
-            console.log(`Item ${index}:`, {
-                total: item.total,
-                totalType: typeof item.total,
-                precio: item.precio,
-                precioType: typeof item.precio,
-                cantidad: item.cantidad,
-                cantidadType: typeof item.cantidad
-            });
-        });
-        
-    // Los precios ya incluyen IVA e impuesto específico
-    currentSubtotal = cart.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
-    currentDescuento = 0; // Por ahora sin descuento
-    
-    // CÁLCULO SIMPLE Y CORRECTO
-    // Para cada item: precio final = precio neto + IVA + impuesto específico
-    // precio neto = precio final / 1.37
-    currentNeto = 0;
-    currentIva = 0;
-    currentImpuestoEspecifico = 0;
-    
-    cart.forEach(item => {
-        // Usar los datos ya calculados del carrito
-        const precioNeto = parseFloat(item.precio_neto || 0);
-        const iva = parseFloat(item.iva || 0);
-        const impEsp = parseFloat(item.impuesto_especifico || 0);
-        
-        currentNeto += precioNeto * parseFloat(item.cantidad);
-        currentIva += iva * parseFloat(item.cantidad);
-        currentImpuestoEspecifico += impEsp * parseFloat(item.cantidad);
+    // Remover productos dinámicos anteriores (los que fueron agregados por búsquedas previas)
+    document.querySelectorAll('.pos-product-card[data-dinamico="true"]').forEach(card => {
+        card.remove();
     });
     
-    // El total es el subtotal (ya incluye todos los impuestos)
-    currentTotal = currentSubtotal;
+    // Ocultar todos los productos cargados inicialmente
+    document.querySelectorAll('.pos-product-card').forEach(card => {
+        card.style.display = 'none';
+    });
     
-    document.getElementById('subtotal').textContent = `$${formatChileanNumber(currentSubtotal)}`;
-    document.getElementById('descuento').textContent = `$${formatChileanNumber(currentDescuento)}`;
-    document.getElementById('neto').textContent = `$${formatChileanNumber(currentNeto)}`;
-    document.getElementById('iva').textContent = `$${formatChileanNumber(currentIva)}`;
-    document.getElementById('impuesto_especifico').textContent = `$${formatChileanNumber(currentImpuestoEspecifico)}`;
-    document.getElementById('total').textContent = `$${formatChileanNumber(currentTotal)}`;
-}
-
-// Formatear números con separadores de miles (formato chileno)
-function formatChileanNumber(num) {
-    if (typeof num === 'string') {
-        num = parseFloat(num);
+    // Construir URL con lista de precios si está seleccionada
+    let url = `/ventas/pos/buscar-articulo/?q=${encodeURIComponent(query)}`;
+    if (listaPrecioActual) {
+        url += `&lista_precio=${listaPrecioActual}`;
+        console.log('Usando lista de precios:', listaPrecioActual);
     }
-    // Redondear y convertir a string
-    const rounded = Math.round(num).toString();
-    // Agregar separadores de miles (punto)
-    return rounded.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    // Buscar en el backend
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Resultados de búsqueda:', data.articulos ? data.articulos.length : 0);
+            
+            if (data.articulos && data.articulos.length > 0) {
+                console.log('=== PROCESANDO', data.articulos.length, 'PRODUCTOS ===');
+                // Mostrar todos los productos que coinciden con la búsqueda
+                data.articulos.forEach((articulo, index) => {
+                    console.log(`[${index + 1}] ID: ${articulo.id}, Nombre: ${articulo.nombre}`);
+                    const card = document.querySelector(`.pos-product-card[data-articulo-id="${articulo.id}"]`);
+                    if (card) {
+                        // Si el producto ya está cargado, mostrarlo
+                        card.style.display = 'block';
+                        console.log(`  ✓ Mostrando producto existente en DOM`);
+                    } else {
+                        // Si no está cargado, agregarlo dinámicamente
+                        console.log(`  + Agregando producto nuevo al DOM`);
+                        agregarProductoDinamico(articulo);
+                    }
+                });
+                console.log('=== FIN PROCESAMIENTO ===');
+            } else {
+                // No se encontraron resultados
+                console.log('No se encontraron productos');
+                mostrarMensajeNoResultados();
+            }
+        })
+        .catch(error => {
+            console.error('Error en búsqueda:', error);
+        });
 }
 
-// Hacer la función global para que esté disponible en todo momento
-window.formatChileanNumber = formatChileanNumber;
+// Agregar producto dinámicamente al grid
+function agregarProductoDinamico(articulo) {
+    const grid = document.getElementById('pos-products-grid');
+    if (!grid) return;
+    
+    // Verificar si ya existe
+    if (document.querySelector(`.pos-product-card[data-articulo-id="${articulo.id}"]`)) {
+        return;
+    }
+    
+    const card = document.createElement('div');
+    card.className = 'pos-product-card';
+    card.dataset.articuloId = articulo.id;
+    card.dataset.categoria = 'Búsqueda';
+    card.dataset.dinamico = 'true';  // Marcar como producto dinámico
+    
+    // Guardar datos del artículo en el elemento para que el event listener global pueda accederlos
+    card.dataset.precio = articulo.precio;
+    card.dataset.stock = articulo.stock;
+    card.dataset.categoriaExentaIva = articulo.categoria_exenta_iva || false;
+    card.dataset.impuestoEspecificoPorcentaje = articulo.impuesto_especifico_porcentaje || 0;
+    
+    card.innerHTML = `
+        <div class="pos-product-name">${articulo.nombre || articulo.descripcion || articulo.codigo}</div>
+        <div class="pos-product-code">${articulo.codigo}</div>
+        <div class="pos-product-price">$${new Intl.NumberFormat('es-CL').format(Math.round(articulo.precio))}</div>
+        <div class="pos-product-stock">Stock: ${articulo.stock}</div>
+    `;
+    
+    // NO agregar event listener aquí - el global ya lo maneja
+    
+    // Agregar al inicio del grid
+    grid.insertBefore(card, grid.firstChild);
+}
+
+// Mostrar mensaje cuando no hay resultados
+function mostrarMensajeNoResultados() {
+    const grid = document.getElementById('pos-products-grid');
+    if (!grid) return;
+    
+    // Remover mensaje anterior si existe
+    const mensajeAnterior = document.getElementById('no-results-message');
+    if (mensajeAnterior) {
+        mensajeAnterior.remove();
+    }
+    
+    const mensaje = document.createElement('div');
+    mensaje.id = 'no-results-message';
+    mensaje.style.cssText = 'grid-column: 1/-1; text-align: center; padding: 2rem; color: #6c757d;';
+    mensaje.innerHTML = '<i class="fas fa-search fa-2x mb-2"></i><br>No se encontraron productos';
+    
+    grid.appendChild(mensaje);
+}
+
+// NOTA: Funciones del carrito ahora están en el scope global (líneas 736-920)
 
 // Limpiar carrito
 function clearCart() {
@@ -2284,30 +2521,41 @@ function processBarcode(codigo) {
                 const productos = window.articulos || [];
                 const producto = productos.find(p => p.id == data.articulo.id);
                 
-                if (producto) {
-                    // Agregar al carrito usando el precio del POS
-                    addToCart(
-                        data.articulo.id,
-                        data.articulo.nombre,
-                        producto.precio, // Usar el precio calculado del POS
-                        producto.stock // Usar el stock actualizado
-                    );
-                    
-                    setBarcodeStatus('ready', 'Producto agregado', 'fas fa-check-circle');
-                    
-                    // Limpiar el campo después de un breve delay
-                    setTimeout(() => {
-                        clearBarcodeInput();
-                        setBarcodeStatus('ready', 'Listo para escanear', 'fas fa-check-circle');
-                    }, 1000);
-                    
-                } else {
-                    setBarcodeStatus('error', 'Producto no encontrado en POS', 'fas fa-exclamation-triangle');
-                    setTimeout(() => {
-                        clearBarcodeInput();
-                        setBarcodeStatus('ready', 'Listo para escanear', 'fas fa-check-circle');
-                    }, 2000);
-                }
+                // Si el producto está en la lista del POS, usar sus datos
+                // Si no está, usar los datos del backend directamente
+                const precio = producto ? producto.precio : parseFloat(data.articulo.precio_final || data.articulo.precio_venta || 0);
+                const stock = producto ? producto.stock : 100; // Asumir stock disponible si no está en la lista
+                const categoriaExentaIva = producto ? producto.categoria_exenta_iva : (data.articulo.categoria_exenta_iva || false);
+                const impuestoEspecifico = producto ? producto.impuesto_especifico_porcentaje : (data.articulo.impuesto_especifico_porcentaje || 0);
+                
+                // Agregar al carrito con todos los parámetros necesarios
+                console.log('*** LLAMANDO addToCart con parámetros:', {
+                    id: data.articulo.id,
+                    nombre: data.articulo.nombre,
+                    precio: precio,
+                    stock: stock,
+                    categoriaExentaIva: categoriaExentaIva,
+                    impuestoEspecifico: impuestoEspecifico
+                });
+                
+                addToCart(
+                    data.articulo.id,
+                    data.articulo.nombre,
+                    precio,
+                    stock,
+                    categoriaExentaIva,
+                    impuestoEspecifico
+                );
+                
+                console.log('*** CARRITO DESPUÉS DE AGREGAR:', cart);
+                
+                setBarcodeStatus('ready', 'Producto agregado', 'fas fa-check-circle');
+                
+                // Limpiar el campo después de un breve delay
+                setTimeout(() => {
+                    clearBarcodeInput();
+                    setBarcodeStatus('ready', 'Listo para escanear', 'fas fa-check-circle');
+                }, 1000);
             } else {
                 console.log('*** PRODUCTO NO ENCONTRADO ***');
                 setBarcodeStatus('error', 'Producto no encontrado', 'fas fa-exclamation-triangle');
@@ -2444,59 +2692,8 @@ function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1) {
     }, 100);
 }
 
-// Función para agregar producto al carrito (si no existe ya)
-function addToCart(articuloId, nombre, precio, cantidad = 1) {
-    console.log('*** AGREGANDO AL CARRITO: ', {articuloId: articuloId, nombre: nombre, precio: precio, cantidad: cantidad}, ' ***');
-    console.log('*** CARRITO ANTES: ', cart.length, ' items ***');
-    
-    // Verificar si ya existe en el carrito
-    const existingItemIndex = cart.findIndex(item => item.articuloId == articuloId);
-    
-    if (existingItemIndex !== -1) {
-        // Si ya existe, incrementar cantidad
-        cart[existingItemIndex].cantidad += cantidad;
-        cart[existingItemIndex].total = cart[existingItemIndex].precio * cart[existingItemIndex].cantidad;
-        console.log('*** CANTIDAD INCREMENTADA: ', cart[existingItemIndex], ' ***');
-    } else {
-        // Agregar nuevo item al carrito
-        const newItem = {
-            articuloId: articuloId,
-            nombre: nombre,
-            precio: precio,
-            cantidad: cantidad,
-            descuento: 0,
-            total: precio * cantidad
-        };
-        cart.push(newItem);
-        console.log('*** NUEVO ITEM AGREGADO: ', newItem, ' ***');
-    }
-    
-    console.log('*** CARRITO DESPUÉS: ', cart.length, ' items ***');
-    console.log('*** CARRITO COMPLETO: ', cart, ' ***');
-    
-    // Actualizar la visualización (verificar que las funciones existan)
-    console.log('*** VERIFICANDO FUNCIONES DE ACTUALIZACIÓN ***');
-    console.log('updateCartDisplay existe:', typeof updateCartDisplay === 'function');
-    console.log('updateTotals existe:', typeof updateTotals === 'function');
-    
-    if (typeof updateCartDisplay === 'function') {
-        console.log('*** LLAMANDO updateCartDisplay ***');
-        updateCartDisplay();
-    } else {
-        console.log('*** updateCartDisplay NO DISPONIBLE - ACTUALIZANDO MANUALMENTE ***');
-        updateCartDisplayManual();
-    }
-    
-    if (typeof updateTotals === 'function') {
-        console.log('*** LLAMANDO updateTotals ***');
-        updateTotals();
-    } else {
-        console.log('*** updateTotals NO DISPONIBLE - ACTUALIZANDO MANUALMENTE ***');
-        updateTotalsManual();
-    }
-    
-    console.log('*** CARRITO ACTUALIZADO ***');
-}
+// FUNCIÓN DUPLICADA ELIMINADA - Se usa la función addToCart principal (línea 1057)
+// que tiene la firma completa: addToCart(articuloId, nombre, precio, stock, categoriaExentaIva, impuestoEspecifico, precioNeto)
 
 // Función manual para actualizar la visualización del carrito
 function updateCartDisplayManual() {
@@ -2673,17 +2870,122 @@ function mostrarHistorialTickets() {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.tickets.length > 0) {
-            // Construir tabla HTML
+            // Construir tabla HTML compacta y elegante
             let tablaHTML = `
-                <div style="max-height: 400px; overflow-y: auto;">
-                    <table class="table table-sm table-hover">
-                        <thead style="position: sticky; top: 0; background: #f8f9fa;">
+                <style>
+                    .historial-table {
+                        width: 100%;
+                        font-size: 0.75rem;
+                        border-collapse: collapse;
+                    }
+                    .historial-table thead {
+                        position: sticky;
+                        top: 0;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        z-index: 10;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    }
+                    .historial-table th {
+                        padding: 0.35rem 0.5rem;
+                        font-weight: 600;
+                        font-size: 0.7rem;
+                        text-transform: uppercase;
+                        letter-spacing: 0.3px;
+                        border: none;
+                    }
+                    .historial-table tbody tr {
+                        border-bottom: 1px solid #f0f0f0;
+                        transition: background 0.15s ease;
+                    }
+                    .historial-table tbody tr:hover {
+                        background: #f8f9fa;
+                    }
+                    .historial-table td {
+                        padding: 0.25rem 0.5rem;
+                        vertical-align: middle;
+                        border: none;
+                        line-height: 1.3;
+                    }
+                    .ticket-hora {
+                        color: #6c757d;
+                        font-size: 0.7rem;
+                        font-weight: 500;
+                    }
+                    .ticket-numero {
+                        font-weight: 700;
+                        color: #667eea;
+                        font-size: 0.75rem;
+                    }
+                    .ticket-cliente {
+                        color: #495057;
+                        font-size: 0.72rem;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        max-width: 200px;
+                    }
+                    .ticket-total {
+                        font-weight: 700;
+                        color: #28a745;
+                        font-size: 0.8rem;
+                    }
+                    .btn-print-compact {
+                        padding: 0.15rem 0.4rem;
+                        font-size: 0.65rem;
+                        border-radius: 3px;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        border: none;
+                        color: white;
+                        transition: all 0.15s ease;
+                        text-decoration: none;
+                        display: inline-block;
+                    }
+                    .btn-print-compact:hover {
+                        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+                        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+                        color: white;
+                    }
+                    .historial-container {
+                        max-height: 550px;
+                        overflow-y: auto;
+                        border-radius: 6px;
+                        box-shadow: inset 0 1px 4px rgba(0,0,0,0.05);
+                    }
+                    .historial-container::-webkit-scrollbar {
+                        width: 8px;
+                    }
+                    .historial-container::-webkit-scrollbar-track {
+                        background: #f1f1f1;
+                        border-radius: 4px;
+                    }
+                    .historial-container::-webkit-scrollbar-thumb {
+                        background: #667eea;
+                        border-radius: 4px;
+                    }
+                    .historial-container::-webkit-scrollbar-thumb:hover {
+                        background: #764ba2;
+                    }
+                    .historial-footer {
+                        margin-top: 0.75rem;
+                        padding: 0.5rem;
+                        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                        border-radius: 4px;
+                        font-weight: 600;
+                        color: #495057;
+                        font-size: 0.8rem;
+                    }
+                </style>
+                <div class="historial-container">
+                    <table class="historial-table">
+                        <thead>
                             <tr>
-                                <th style="width: 15%;">Hora</th>
-                                <th style="width: 15%;">N° Ticket</th>
-                                <th style="width: 30%;">Cliente</th>
-                                <th style="width: 20%;">Total</th>
-                                <th style="width: 20%;">Acción</th>
+                                <th style="width: 10%;">Hora</th>
+                                <th style="width: 11%;">Ticket</th>
+                                <th style="width: 9%;">Doc.</th>
+                                <th style="width: 32%;">Cliente</th>
+                                <th style="width: 18%;">Total</th>
+                                <th style="width: 20%; text-align: center;">Acción</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2691,15 +2993,29 @@ function mostrarHistorialTickets() {
             
             data.tickets.forEach(ticket => {
                 const total = new Intl.NumberFormat('es-CL').format(Math.round(ticket.total));
+                
+                // Color del badge según tipo de documento
+                const badgeColor = {
+                    'BOL': '#17a2b8',
+                    'FACT': '#28a745',
+                    'GUÍA': '#ffc107',
+                    'N/C': '#dc3545',
+                    'N/D': '#fd7e14',
+                    'COT': '#6f42c1',
+                    'VALE': '#6c757d'
+                };
+                const color = badgeColor[ticket.tipo_documento] || '#6c757d';
+                
                 tablaHTML += `
                     <tr>
-                        <td style="font-size: 0.85rem;">${ticket.fecha}</td>
-                        <td style="font-weight: 600; color: #17a2b8;">#${ticket.numero}</td>
-                        <td style="font-size: 0.85rem;">${ticket.cliente}</td>
-                        <td style="font-weight: 600; color: #28a745;">$${total}</td>
-                        <td>
-                            <a href="/ventas/vales/${ticket.id}/html/" target="_blank" class="btn btn-sm btn-primary">
-                                <i class="fas fa-print"></i> Imprimir
+                        <td class="ticket-hora">${ticket.fecha}</td>
+                        <td class="ticket-numero">#${ticket.numero}</td>
+                        <td><span style="display: inline-block; padding: 0.15rem 0.35rem; background: ${color}; color: white; border-radius: 3px; font-size: 0.65rem; font-weight: 600;">${ticket.tipo_documento}</span></td>
+                        <td class="ticket-cliente">${ticket.cliente}</td>
+                        <td class="ticket-total">$${total}</td>
+                        <td style="text-align: center;">
+                            <a href="/ventas/vales/${ticket.id}/html/" target="_blank" class="btn btn-print-compact">
+                                <i class="fas fa-print me-1"></i>Imprimir
                             </a>
                         </td>
                     </tr>
@@ -2710,19 +3026,22 @@ function mostrarHistorialTickets() {
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-3 text-center">
-                    <strong>Total de tickets hoy:</strong> ${data.total_count}
+                <div class="historial-footer text-center">
+                    <i class="fas fa-receipt me-2"></i>Total de tickets hoy: <span style="color: #667eea;">${data.total_count}</span>
                 </div>
             `;
             
             Swal.fire({
                 title: '<i class="fas fa-history me-2"></i>Historial de Tickets del Día',
                 html: tablaHTML,
-                width: '800px',
+                width: '900px',
                 showCancelButton: true,
                 showConfirmButton: false,
                 cancelButtonText: 'Cerrar',
                 cancelButtonColor: '#6c757d',
+                customClass: {
+                    popup: 'swal-historial-popup'
+                }
             });
         } else {
             Swal.fire({

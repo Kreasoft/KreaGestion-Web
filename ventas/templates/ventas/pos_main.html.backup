@@ -368,6 +368,16 @@
                     <i class="fas fa-search me-2"></i>Buscar Artículos
                 </div>
                 <div class="pos-card-body">
+                    <!-- Selector de Lista de Precios -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" style="font-size: 0.9rem;">
+                            <i class="fas fa-tags me-1"></i>Lista de Precios
+                        </label>
+                        <select class="form-select" id="listaPrecioSelect" style="border: 2px solid #e9ecef; border-radius: 8px;">
+                            <option value="">Cargando...</option>
+                        </select>
+                    </div>
+                    
                     <div class="search-container">
                         <input type="text" 
                                class="search-input" 
@@ -566,7 +576,13 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
 function buscarArticulos(query) {
     document.getElementById('loadingArticulos').classList.add('show');
     
-    fetch(`/ventas/pos/buscar-articulo/?q=${encodeURIComponent(query)}`)
+    // Construir URL con lista de precios si está seleccionada
+    let url = `/ventas/pos/buscar-articulo/?q=${encodeURIComponent(query)}`;
+    if (listaPrecioActual) {
+        url += `&lista_precio=${listaPrecioActual}`;
+    }
+    
+    fetch(url)
         .then(response => response.json())
         .then(data => {
             document.getElementById('loadingArticulos').classList.remove('show');
@@ -796,9 +812,57 @@ function nuevaVenta() {
     });
 }
 
+// Variable global para la lista de precios seleccionada
+let listaPrecioActual = null;
+
+// Cargar listas de precios
+function cargarListasPrecios() {
+    fetch('/articulos/api/listas-precios/')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('listaPrecioSelect');
+            select.innerHTML = '';
+            
+            // Agregar opción "Precio Base" al inicio
+            const optionBase = document.createElement('option');
+            optionBase.value = '';
+            optionBase.textContent = '💰 Precio Base (Sin Lista)';
+            select.appendChild(optionBase);
+            
+            if (data.listas && data.listas.length > 0) {
+                data.listas.forEach(lista => {
+                    const option = document.createElement('option');
+                    option.value = lista.id;
+                    option.textContent = lista.nombre + (lista.es_predeterminada ? ' ⭐' : '');
+                    if (lista.es_predeterminada) {
+                        option.selected = true;
+                        listaPrecioActual = lista.id;
+                    }
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar listas de precios:', error);
+            document.getElementById('listaPrecioSelect').innerHTML = '<option value="">Error al cargar</option>';
+        });
+}
+
 // Cargar detalles al inicializar
 document.addEventListener('DOMContentLoaded', function() {
+    cargarListasPrecios();
     cargarDetallesVenta();
+    
+    // Event listener para cambio de lista de precios
+    document.getElementById('listaPrecioSelect').addEventListener('change', function() {
+        listaPrecioActual = this.value;
+        
+        // Si hay texto en el buscador, volver a buscar con la nueva lista
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput.value.trim()) {
+            buscarArticulos(searchInput.value.trim());
+        }
+    });
     
     // Enfocar el campo de búsqueda
     document.getElementById('searchInput').focus();

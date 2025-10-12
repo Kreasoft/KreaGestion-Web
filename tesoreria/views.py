@@ -174,42 +174,101 @@ def cuenta_corriente_cliente_list(request):
             messages.error(request, 'Usuario no tiene empresa asociada.')
             return redirect('dashboard')
     
-    # Obtener documentos de clientes
-    from .models import DocumentoCliente
+    # Obtener MOVIMIENTOS individuales de cuenta corriente (cada factura)
+    from .models import DocumentoCliente, CuentaCorrienteCliente, MovimientoCuentaCorrienteCliente
     from clientes.models import Cliente
+    from ventas.models import Venta
     
     # Filtros
     search = request.GET.get('search', '')
     estado_pago = request.GET.get('estado_pago', '')
     
-    documentos_query = DocumentoCliente.objects.filter(
-        empresa=empresa
-    ).select_related('cliente').order_by('-fecha_creacion')
+    # Mostrar movimientos DEBE (facturas a crédito) individuales
+    from django.db.models import Sum, Q, Case, When, Value, CharField
     
-    # Aplicar filtros
+    movimientos_query = MovimientoCuentaCorrienteCliente.objects.filter(
+        cuenta_corriente__empresa=empresa,
+        tipo_movimiento='debe'  # Solo facturas (deudas del cliente)
+    ).select_related('cuenta_corriente__cliente', 'venta').order_by('-fecha_movimiento')
+    
+    # Anotar cada movimiento con el total pagado
+    from decimal import Decimal
+    
+    movimientos_list = []
+    for mov in movimientos_query:
+        # Calcular total pagado para esta factura
+        total_pagado_result = MovimientoCuentaCorrienteCliente.objects.filter(
+            cuenta_corriente=mov.cuenta_corriente,
+            venta=mov.venta,
+            tipo_movimiento='haber'
+        ).aggregate(total=Sum('monto'))['total']
+        
+        # Convertir a Decimal para evitar problemas de tipo
+        total_pagado = Decimal(str(total_pagado_result)) if total_pagado_result else Decimal('0')
+        monto_factura = Decimal(str(mov.monto))
+        
+        # Determinar estado
+        if total_pagado >= monto_factura:
+            mov.estado_pago = 'pagado'
+        elif total_pagado > 0:
+            mov.estado_pago = 'parcial'
+        else:
+            mov.estado_pago = 'pendiente'
+        
+        # Convertir a enteros para evitar problemas de formato
+        mov.monto_display = int(monto_factura)
+        mov.total_pagado = int(total_pagado)
+        mov.saldo_pendiente_factura = int(monto_factura - total_pagado)
+        movimientos_list.append(mov)
+    
+    # Convertir de vuelta a queryset-like para paginación
+    class MovimientosList(list):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+        
+        def filter(self, **kwargs):
+            result = list(self)
+            if 'estado' in kwargs:
+                estado = kwargs['estado']
+                result = [m for m in result if m.estado_pago == estado]
+            return MovimientosList(result)
+        
+        def aggregate(self, **kwargs):
+            if 'monto__sum' in kwargs:
+                return {'monto__sum': sum(m.monto for m in self)}
+            return {}
+        
+        def count(self):
+            return len(self)
+    
+    movimientos_query = MovimientosList(movimientos_list)
+    
+    # Aplicar filtro de búsqueda
     if search:
-        documentos_query = documentos_query.filter(
-            Q(numero_documento__icontains=search) |
-            Q(cliente__nombre__icontains=search) |
-            Q(cliente__rut__icontains=search)
-        )
+        filtered_list = []
+        for mov in movimientos_query:
+            if (search.lower() in mov.cuenta_corriente.cliente.nombre.lower() or
+                search.lower() in mov.cuenta_corriente.cliente.rut.lower() or
+                (mov.venta and search in mov.venta.numero_venta)):
+                filtered_list.append(mov)
+        movimientos_query = MovimientosList(filtered_list)
     
+    # Filtrar por estado de pago
     if estado_pago:
-        documentos_query = documentos_query.filter(estado_pago=estado_pago)
+        movimientos_query = MovimientosList([m for m in movimientos_query if m.estado_pago == estado_pago])
     
     # Paginación
     from django.core.paginator import Paginator
-    paginator = Paginator(documentos_query, 20)
+    paginator = Paginator(list(movimientos_query), 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
     # Estadísticas
-    from django.db.models import Sum
     stats = {
-        'total_documentos': documentos_query.count(),
-        'total_pendiente': documentos_query.filter(estado_pago='pendiente').aggregate(Sum('saldo_pendiente'))['saldo_pendiente__sum'] or 0,
-        'total_vencido': documentos_query.filter(estado_pago='vencido').aggregate(Sum('saldo_pendiente'))['saldo_pendiente__sum'] or 0,
-        'total_parcial': documentos_query.filter(estado_pago='parcial').aggregate(Sum('saldo_pendiente'))['saldo_pendiente__sum'] or 0,
+        'total_documentos': len(movimientos_list),
+        'total_pendiente': sum(m.saldo_pendiente_factura for m in movimientos_list if m.estado_pago == 'pendiente'),
+        'total_pagado': sum(m.total_pagado for m in movimientos_list if m.estado_pago == 'pagado'),
+        'total_parcial': sum(m.saldo_pendiente_factura for m in movimientos_list if m.estado_pago == 'parcial'),
     }
     
     context = {
@@ -999,3 +1058,152 @@ def eliminar_documento_cliente(request, pk):
             'success': False,
             'message': f'Error al eliminar documento: {str(e)}'
         })
+
+
+@csrf_exempt
+@login_required
+@requiere_empresa
+def registrar_pago_movimiento(request):
+    """Registrar pago de un movimiento de cuenta corriente (factura a crédito)"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+    
+    try:
+        from decimal import Decimal
+        import json
+        from .models import MovimientoCuentaCorrienteCliente
+        from ventas.models import FormaPago
+        from django.db import models, transaction
+        
+        data = json.loads(request.body)
+        movimiento_id = data.get('movimiento_id')
+        formas_pago = data.get('formas_pago', [])
+        observaciones = data.get('observaciones', '')
+        
+        # Validaciones
+        if not movimiento_id:
+            return JsonResponse({'success': False, 'message': 'ID de movimiento requerido'}, status=400)
+        
+        if not formas_pago:
+            return JsonResponse({'success': False, 'message': 'Debe especificar al menos una forma de pago'}, status=400)
+        
+        # Obtener el movimiento
+        movimiento = get_object_or_404(
+            MovimientoCuentaCorrienteCliente,
+            pk=movimiento_id,
+            cuenta_corriente__empresa=request.empresa
+        )
+        
+        # Calcular monto total del pago
+        monto_total_pago = sum(Decimal(str(fp['monto'])) for fp in formas_pago)
+        
+        # Validar que el monto no exceda el monto del movimiento
+        if monto_total_pago > movimiento.monto:
+            return JsonResponse({
+                'success': False,
+                'message': f'El monto total ({monto_total_pago}) excede el monto de la factura ({movimiento.monto})'
+            }, status=400)
+        
+        # Registrar el pago como un movimiento HABER (abono)
+        with transaction.atomic():
+            cuenta = movimiento.cuenta_corriente
+            saldo_anterior = cuenta.saldo_pendiente
+            
+            # Crear movimiento de pago (HABER)
+            movimiento_pago = MovimientoCuentaCorrienteCliente.objects.create(
+                cuenta_corriente=cuenta,
+                venta=movimiento.venta,  # Relacionar con la misma venta
+                tipo_movimiento='haber',  # Pago recibido
+                monto=monto_total_pago,
+                saldo_anterior=saldo_anterior,
+                saldo_nuevo=saldo_anterior - monto_total_pago,
+                estado='confirmado',
+                observaciones=f"Pago de factura #{movimiento.venta.numero_venta if movimiento.venta else 'N/A'}. {observaciones}",
+                registrado_por=request.user
+            )
+            
+            # Actualizar saldo de la cuenta corriente
+            cuenta.saldo_pendiente -= monto_total_pago
+            cuenta.save()
+            
+            # Si el movimiento original está completamente pagado, marcarlo como anulado
+            # (porque ya fue pagado)
+            total_pagado = MovimientoCuentaCorrienteCliente.objects.filter(
+                cuenta_corriente=cuenta,
+                venta=movimiento.venta,
+                tipo_movimiento='haber'
+            ).aggregate(total=models.Sum('monto'))['total'] or Decimal('0')
+            
+            if total_pagado >= movimiento.monto:
+                # Marcar como completamente pagado agregando observación
+                movimiento.observaciones += f"\n[PAGADO] Total pagado: ${total_pagado}"
+                movimiento.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Pago de ${monto_total_pago:,.0f} registrado exitosamente'
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"Error al registrar pago: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al registrar pago: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@requiere_empresa
+def historial_pagos_movimiento(request, movimiento_id):
+    """Obtener historial de pagos de un movimiento de cuenta corriente"""
+    try:
+        from .models import MovimientoCuentaCorrienteCliente
+        from django.db.models import Sum
+        
+        # Obtener el movimiento original (debe)
+        movimiento = get_object_or_404(
+            MovimientoCuentaCorrienteCliente,
+            pk=movimiento_id,
+            cuenta_corriente__empresa=request.empresa,
+            tipo_movimiento='debe'
+        )
+        
+        # Obtener todos los pagos (movimientos haber) relacionados a esta venta
+        pagos = MovimientoCuentaCorrienteCliente.objects.filter(
+            cuenta_corriente=movimiento.cuenta_corriente,
+            venta=movimiento.venta,
+            tipo_movimiento='haber'
+        ).order_by('-fecha_movimiento')
+        
+        # Preparar datos de los pagos
+        pagos_data = []
+        for pago in pagos:
+            pagos_data.append({
+                'id': pago.pk,
+                'fecha': pago.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
+                'monto': float(pago.monto),
+                'observaciones': pago.observaciones,
+                'registrado_por': pago.registrado_por.get_full_name() or pago.registrado_por.username
+            })
+        
+        # Calcular total pagado
+        total_pagado = pagos.aggregate(total=Sum('monto'))['total'] or 0
+        
+        return JsonResponse({
+            'success': True,
+            'pagos': pagos_data,
+            'total_pagado': float(total_pagado),
+            'monto_factura': float(movimiento.monto),
+            'saldo_pendiente': float(movimiento.monto - total_pagado)
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"Error al obtener historial: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al obtener historial: {str(e)}'
+        }, status=500)

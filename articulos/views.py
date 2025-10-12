@@ -123,11 +123,23 @@ def articulo_create(request):
     if request.method == 'POST':
         form = ArticuloForm(request.POST, initial={'empresa': request.empresa})
         if form.is_valid():
-            articulo = form.save(commit=False)
-            articulo.empresa = request.empresa
-            articulo.save()
-            messages.success(request, f'Artículo "{articulo.nombre}" creado exitosamente.')
-            return redirect('articulos:articulo_list')
+            try:
+                articulo = form.save(commit=False)
+                articulo.empresa = request.empresa
+                articulo.save()
+                messages.success(request, f'Artículo "{articulo.nombre}" creado exitosamente.')
+                return redirect('articulos:articulo_list')
+            except Exception as e:
+                error_msg = str(e)
+                if 'UNIQUE constraint failed' in error_msg:
+                    if 'codigo_barras' in error_msg:
+                        messages.error(request, f'El código de barras "{articulo.codigo_barras}" ya existe en esta empresa. Por favor, use un código de barras diferente.')
+                    elif 'codigo' in error_msg:
+                        messages.error(request, f'El código "{articulo.codigo}" ya existe en esta empresa. Por favor, use un código diferente.')
+                    else:
+                        messages.error(request, 'Ya existe un artículo con estos datos en esta empresa.')
+                else:
+                    messages.error(request, f'Error al guardar el artículo: {error_msg}')
         else:
             messages.error(request, 'Error en el formulario. Revise los datos.')
             # Debug: mostrar errores específicos
@@ -160,10 +172,22 @@ def articulo_update(request, pk):
     if request.method == 'POST':
         form = ArticuloForm(request.POST, instance=articulo, initial={'empresa': request.empresa})
         if form.is_valid():
-            articulo = form.save(commit=False)
-            articulo.save()
-            messages.success(request, f'Artículo "{articulo.nombre}" actualizado exitosamente.')
-            return redirect('articulos:articulo_list')
+            try:
+                articulo = form.save(commit=False)
+                articulo.save()
+                messages.success(request, f'Artículo "{articulo.nombre}" actualizado exitosamente.')
+                return redirect('articulos:articulo_list')
+            except Exception as e:
+                error_msg = str(e)
+                if 'UNIQUE constraint failed' in error_msg:
+                    if 'codigo_barras' in error_msg:
+                        messages.error(request, f'El código de barras "{articulo.codigo_barras}" ya existe en esta empresa. Por favor, use un código de barras diferente.')
+                    elif 'codigo' in error_msg:
+                        messages.error(request, f'El código "{articulo.codigo}" ya existe en esta empresa. Por favor, use un código diferente.')
+                    else:
+                        messages.error(request, 'Ya existe un artículo con estos datos en esta empresa.')
+                else:
+                    messages.error(request, f'Error al guardar el artículo: {error_msg}')
         else:
             messages.error(request, 'Error en el formulario. Revise los datos.')
             # Debug: mostrar errores específicos
@@ -297,20 +321,34 @@ def categoria_update(request, pk):
 @permission_required('articulos.delete_categoriaarticulo', raise_exception=True)
 def categoria_delete(request, pk):
     """Eliminar categoría"""
+    from django.db.models import ProtectedError
+    
     # Para superusuarios, no filtrar por empresa
     if request.user.is_superuser:
         categoria = get_object_or_404(CategoriaArticulo, pk=pk)
     else:
         categoria = get_object_or_404(CategoriaArticulo, pk=pk, empresa=request.empresa)
     
+    # Verificar si tiene artículos asociados
+    articulos_count = categoria.articulo_set.count()
+    
     if request.method == 'POST':
         nombre = categoria.nombre
-        categoria.delete()
-        messages.success(request, f'Categoría "{nombre}" eliminada exitosamente.')
-        return redirect('articulos:categoria_list')
+        try:
+            categoria.delete()
+            messages.success(request, f'Categoría "{nombre}" eliminada exitosamente.')
+            return redirect('articulos:categoria_list')
+        except ProtectedError:
+            messages.error(
+                request, 
+                f'No se puede eliminar la categoría "{nombre}" porque tiene {articulos_count} artículo(s) asociado(s). '
+                f'Primero debe reasignar o eliminar los artículos de esta categoría.'
+            )
+            return redirect('articulos:categoria_list')
     
     context = {
         'categoria': categoria,
+        'articulos_count': articulos_count,
         'title': 'Eliminar Categoría',
     }
     
@@ -626,6 +664,8 @@ def buscar_por_codigo_barras(request):
     """Vista AJAX para buscar artículo por código de barras"""
     try:
         codigo = request.GET.get('codigo', '').strip()
+        print(f"=== BÚSQUEDA CÓDIGO DE BARRAS: '{codigo}' (len: {len(codigo)}) ===")
+        print(f"Empresa del usuario: {request.empresa.nombre} (ID: {request.empresa.id})")
         
         if not codigo:
             return JsonResponse({
@@ -633,14 +673,37 @@ def buscar_por_codigo_barras(request):
                 'message': 'Código de barras requerido'
             })
         
+        # Verificar si existe el código en la base de datos (sin filtros)
+        todos = Articulo.objects.filter(codigo_barras__icontains=codigo)
+        print(f"Artículos con ese código (sin filtros): {todos.count()}")
+        for art in todos:
+            print(f"  - ID: {art.id}, Nombre: {art.nombre}, Código: '{art.codigo_barras}', Activo: {art.activo}, Empresa: {art.empresa.id} ({art.empresa.nombre})")
+        
         # Buscar artículo por código de barras en la empresa actual
+        # Primero intentar coincidencia exacta
         articulo = Articulo.objects.filter(
             codigo_barras=codigo,
             empresa=request.empresa,
             activo=True
         ).first()
+        print(f"Coincidencia exacta: {articulo.id if articulo else 'No encontrado'}")
+        
+        # Si no se encuentra, intentar búsqueda parcial
+        if not articulo:
+            articulo = Articulo.objects.filter(
+                codigo_barras__icontains=codigo,
+                empresa=request.empresa,
+                activo=True
+            ).first()
+            print(f"Coincidencia parcial: {articulo.id if articulo else 'No encontrado'}")
         
         if articulo:
+            # Obtener información de impuestos de la categoría
+            categoria_exenta_iva = articulo.categoria.exenta_iva if articulo.categoria else False
+            impuesto_especifico_porcentaje = 0
+            if articulo.categoria and articulo.categoria.impuesto_especifico:
+                impuesto_especifico_porcentaje = float(articulo.categoria.impuesto_especifico.porcentaje or 0)
+            
             return JsonResponse({
                 'success': True,
                 'articulo': {
@@ -652,6 +715,8 @@ def buscar_por_codigo_barras(request):
                     'precio_final': str(articulo.precio_final),
                     'margen_porcentaje': str(articulo.margen_porcentaje),
                     'categoria_id': articulo.categoria.id if articulo.categoria else None,
+                    'categoria_exenta_iva': categoria_exenta_iva,
+                    'impuesto_especifico_porcentaje': impuesto_especifico_porcentaje,
                     'unidad_medida_id': articulo.unidad_medida.id if articulo.unidad_medida else None,
                 }
             })
@@ -1188,3 +1253,33 @@ def lista_precio_exportar_pdf(request, pk):
     doc.build(elements)
     
     return response
+
+
+@login_required
+@requiere_empresa
+def api_listas_precios(request):
+    """API para obtener listas de precios activas"""
+    try:
+        listas = ListaPrecio.objects.filter(
+            empresa=request.empresa,
+            activa=True
+        ).order_by('-es_predeterminada', 'nombre')
+        
+        listas_data = []
+        for lista in listas:
+            listas_data.append({
+                'id': lista.id,
+                'nombre': lista.nombre,
+                'descripcion': lista.descripcion,
+                'es_predeterminada': lista.es_predeterminada
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'listas': listas_data
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)

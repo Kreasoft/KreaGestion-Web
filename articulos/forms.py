@@ -51,10 +51,14 @@ class ArticuloForm(forms.ModelForm):
         if empresa is not None:
             self.fields['categoria'].queryset = CategoriaArticulo.objects.filter(
                 empresa=empresa, activa=True
-            )
+            ).order_by('nombre')
             self.fields['unidad_medida'].queryset = UnidadMedida.objects.filter(
                 empresa=empresa, activa=True
-            )
+            ).order_by('nombre')
+        
+        # Asegurar que el label del campo categoría sea "Familia"
+        self.fields['categoria'].label = 'Familia'
+        self.fields['categoria'].label_suffix = ''
         
     
     def clean_codigo(self):
@@ -165,8 +169,9 @@ class CategoriaArticuloForm(forms.ModelForm):
     
     class Meta:
         model = CategoriaArticulo
-        fields = ['nombre', 'descripcion', 'exenta_iva', 'impuesto_especifico', 'activa']
+        fields = ['codigo', 'nombre', 'descripcion', 'exenta_iva', 'impuesto_especifico', 'activa']
         widgets = {
+            'codigo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: ACC, AMB, etc.'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'exenta_iva': forms.CheckboxInput(attrs={'class': 'form-check-input'}),

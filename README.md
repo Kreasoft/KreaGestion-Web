@@ -257,6 +257,36 @@ SII_PASSWORD=tu-password-sii
 - Prefijos de documentos
 - Configuración de impresión
 
+## 📦 Scripts de Carga de Stock Inicial
+
+El sistema incluye varios scripts para facilitar la carga inicial de inventario:
+
+### **Script Rápido** (Recomendado para inicio)
+```bash
+# Editar configuración en el archivo
+python cargar_stock_rapido.py
+```
+
+### **Script Interactivo** (Control total)
+```bash
+python cargar_stock_inicial.py
+# Menú interactivo con opciones
+```
+
+### **Script desde CSV**
+```bash
+# Crear archivo CSV con formato: codigo,cantidad
+python cargar_stock_desde_csv.py stock.csv
+```
+
+### **Verificar Stock**
+```bash
+python verificar_stock.py
+# Ver resumen y exportar reportes
+```
+
+📖 **Documentación completa**: Ver `GUIA_CARGA_STOCK_INICIAL.md` y `README_SCRIPTS_STOCK.md`
+
 ## 🚀 Despliegue
 
 ### **Desarrollo**

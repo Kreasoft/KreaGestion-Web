@@ -46,4 +46,7 @@ urlpatterns = [
     path('listas-precios/<int:pk>/gestionar-precios/', views.lista_precio_gestionar_precios, name='lista_precio_gestionar_precios'),
     path('listas-precios/<int:pk>/exportar-excel/', views.lista_precio_exportar_excel, name='lista_precio_exportar_excel'),
     path('listas-precios/<int:pk>/exportar-pdf/', views.lista_precio_exportar_pdf, name='lista_precio_exportar_pdf'),
+    
+    # API
+    path('api/listas-precios/', views.api_listas_precios, name='api_listas_precios'),
 ]

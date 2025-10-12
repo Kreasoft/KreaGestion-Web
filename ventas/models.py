@@ -135,14 +135,28 @@ class Venta(models.Model):
         return f"Venta {self.numero_venta} - {self.fecha}"
     
     def calcular_totales(self):
-        """Calcula todos los totales de la venta"""
+        """
+        Calcula todos los totales de la venta.
+        IMPORTANTE: Los precios en precio_total YA INCLUYEN IVA e impuestos.
+        Este método extrae el IVA del subtotal, no lo agrega.
+        """
         detalles = self.ventadetalle_set.all()
         
+        # Subtotal: suma de todos los precios totales (YA incluye IVA)
         subtotal = sum(detalle.precio_total for detalle in detalles)
-        neto = subtotal - self.descuento
-        iva = neto * Decimal('0.19')  # IVA 19%
+        
+        # Impuesto específico: suma de impuestos específicos de cada detalle
         impuesto_especifico = sum(detalle.impuesto_especifico for detalle in detalles)
-        total = neto + iva + impuesto_especifico
+        
+        # El total es el subtotal (que ya incluye IVA) más impuestos específicos
+        total = subtotal + impuesto_especifico - self.descuento
+        
+        # Extraer el IVA del subtotal (subtotal incluye IVA)
+        # subtotal = neto + iva
+        # subtotal = neto * 1.19
+        # neto = subtotal / 1.19
+        neto = (subtotal - self.descuento) / Decimal('1.19')
+        iva = (subtotal - self.descuento) - neto
         
         self.subtotal = subtotal
         self.neto = neto

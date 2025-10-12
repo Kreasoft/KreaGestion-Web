@@ -35,6 +35,7 @@ class CategoriaArticulo(models.Model):
     """Categorías para clasificar los artículos"""
     
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    codigo = models.CharField(max_length=50, blank=True, verbose_name="Código")
     nombre = models.CharField(max_length=100, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     
@@ -54,9 +55,12 @@ class CategoriaArticulo(models.Model):
     class Meta:
         verbose_name = "Categoría de Artículo"
         verbose_name_plural = "Categorías de Artículos"
-        unique_together = ['empresa', 'nombre']
+        unique_together = ['empresa', 'codigo']
     
     def __str__(self):
+        # Mostrar código y nombre si existe código, sino solo nombre
+        if self.codigo:
+            return f"{self.codigo} - {self.nombre}"
         return self.nombre
     
     def get_iva_porcentaje(self):
@@ -98,8 +102,8 @@ class Articulo(models.Model):
     unidad_medida = models.ForeignKey(UnidadMedida, on_delete=models.PROTECT, verbose_name="Unidad de Medida")
     
     # Información básica
-    codigo = models.CharField(max_length=50, unique=True, verbose_name="Código")
-    codigo_barras = models.CharField(max_length=50, blank=True, null=True, unique=True, verbose_name="Código de Barras")
+    codigo = models.CharField(max_length=50, verbose_name="Código")
+    codigo_barras = models.CharField(max_length=50, blank=True, null=True, verbose_name="Código de Barras")
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     logo = models.ImageField(upload_to='articulos/logos/', blank=True, null=True, verbose_name="Logo del Artículo")
@@ -172,6 +176,10 @@ class Articulo(models.Model):
         verbose_name = "Artículo"
         verbose_name_plural = "Artículos"
         ordering = ['nombre']
+        unique_together = [
+            ('empresa', 'codigo'),
+            ('empresa', 'codigo_barras'),
+        ]
     
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
@@ -279,6 +287,11 @@ class Articulo(models.Model):
         except Exception as e:
             print(f"DEBUG - Error calculando stock para artículo {self.id}: {e}")
             return 0
+    
+    @property
+    def stock_disponible(self):
+        """Alias de stock_actual para compatibilidad"""
+        return self.stock_actual
 
 
 class ListaPrecio(models.Model):

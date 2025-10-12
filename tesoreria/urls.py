@@ -28,4 +28,8 @@ urlpatterns = [
     path('eliminar-documento-cliente/<int:pk>/', views.eliminar_documento_cliente, name='eliminar_documento_cliente'),
     path('historial-pagos-cliente/<int:documento_id>/', views.historial_pagos_documento_cliente, name='historial_pagos_documento_cliente'),
     path('registrar-pago-cliente/', views.registrar_pago_cliente, name='registrar_pago_cliente'),
+    
+    # Pagos de movimientos de cuenta corriente
+    path('registrar-pago-movimiento/', views.registrar_pago_movimiento, name='registrar_pago_movimiento'),
+    path('historial-pagos-movimiento/<int:movimiento_id>/', views.historial_pagos_movimiento, name='historial_pagos_movimiento'),
 ]

@@ -199,6 +199,18 @@
                             </table>
                         </div>
 
+                        <!-- Paginación -->
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <span class="text-muted">Mostrando <span id="showing-from">0</span> - <span id="showing-to">0</span> de <span id="showing-total">0</span> artículos</span>
+                            </div>
+                            <nav>
+                                <ul class="pagination mb-0" id="pagination">
+                                    <!-- Paginación generada dinámicamente -->
+                                </ul>
+                            </nav>
+                        </div>
+
                         <!-- Botones de Acción -->
                         <div class="mt-4 text-center">
                             <button class="btn btn-save me-3" onclick="guardarCambios()">
@@ -222,6 +234,9 @@
 let productos = [];
 let productosModificados = new Set();
 let bodegaId = {% if bodega_seleccionada %}{{ bodega_seleccionada.id }}{% else %}null{% endif %};
+let paginaActual = 1;
+let productosPorPagina = 20;
+let productosFiltrados = [];
 
         // Función para inicializar todo
         function inicializar() {
@@ -279,13 +294,20 @@ async function cargarProductos() {
     }
 }
 
-function renderizarProductos(productosFiltrados = productos) {
+function renderizarProductos(filtrados = null) {
     const tbody = document.getElementById('products-tbody');
     
     if (!tbody) {
         console.error('No se encontró el elemento products-tbody');
         return;
     }
+    
+    // Si no se pasan productos filtrados, usar todos
+    if (filtrados === null) {
+        filtrados = productos;
+    }
+    
+    productosFiltrados = filtrados;
     
     if (productosFiltrados.length === 0) {
         tbody.innerHTML = `
@@ -296,10 +318,16 @@ function renderizarProductos(productosFiltrados = productos) {
                 </td>
             </tr>
         `;
+        actualizarPaginacion();
         return;
     }
     
-    tbody.innerHTML = productosFiltrados.map(producto => `
+    // Calcular índices de paginación
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    const productosPagina = productosFiltrados.slice(inicio, fin);
+    
+    tbody.innerHTML = productosPagina.map(producto => `
         <tr class="product-row" data-product-id="${producto.id}">
             <td><strong>${producto.codigo}</strong></td>
             <td>
@@ -312,16 +340,16 @@ function renderizarProductos(productosFiltrados = productos) {
             <td class="text-center">
                 <span class="badge bg-info">${producto.cantidad}</span>
             </td>
-                    <td class="text-center">
-                        <input type="number" 
-                               class="form-control stock-input" 
-                               value="${producto.stock_inicial || producto.cantidad}" 
-                               min="0" 
-                               step="0.01"
-                               onchange="marcarModificado(${producto.id}, this.value)"
-                               data-original="${producto.cantidad}"
-                               data-product-id="${producto.id}">
-                    </td>
+            <td class="text-center">
+                <input type="number" 
+                       class="form-control stock-input" 
+                       value="${producto.stock_inicial || producto.cantidad}" 
+                       min="0" 
+                       step="0.01"
+                       onchange="marcarModificado(${producto.id}, this.value)"
+                       data-original="${producto.cantidad}"
+                       data-product-id="${producto.id}">
+            </td>
             <td class="text-center">
                 <span class="badge bg-warning">${producto.stock_minimo}</span>
             </td>
@@ -329,12 +357,14 @@ function renderizarProductos(productosFiltrados = productos) {
                 <span class="badge bg-success">${producto.stock_maximo}</span>
             </td>
             <td class="text-center">
-                <button class="btn btn-sm btn-outline-primary" onclick="copiarStockActual(${producto.id})">
+                <button class="btn btn-sm btn-outline-primary" onclick="copiarStockActual(${producto.id})" title="Copiar stock actual">
                     <i class="fas fa-copy"></i>
                 </button>
             </td>
         </tr>
     `).join('');
+    
+    actualizarPaginacion();
 }
 
 function filtrarProductos() {
@@ -342,13 +372,109 @@ function filtrarProductos() {
     if (!searchInput) return;
     
     const searchTerm = searchInput.value.toLowerCase();
-    const productosFiltrados = productos.filter(producto => 
+    const filtrados = productos.filter(producto => 
         producto.codigo.toLowerCase().includes(searchTerm) ||
         producto.nombre.toLowerCase().includes(searchTerm) ||
         (producto.descripcion && producto.descripcion.toLowerCase().includes(searchTerm))
     );
     
+    paginaActual = 1; // Resetear a primera página al filtrar
+    renderizarProductos(filtrados);
+}
+
+function actualizarPaginacion() {
+    const totalPaginas = Math.ceil(productosFiltrados.length / productosPorPagina);
+    const paginationEl = document.getElementById('pagination');
+    
+    if (!paginationEl) return;
+    
+    // Actualizar información de "Mostrando X - Y de Z"
+    const inicio = (paginaActual - 1) * productosPorPagina + 1;
+    const fin = Math.min(paginaActual * productosPorPagina, productosFiltrados.length);
+    
+    document.getElementById('showing-from').textContent = productosFiltrados.length > 0 ? inicio : 0;
+    document.getElementById('showing-to').textContent = fin;
+    document.getElementById('showing-total').textContent = productosFiltrados.length;
+    
+    if (totalPaginas <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    // Botón Anterior
+    html += `
+        <li class="page-item ${paginaActual === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="cambiarPagina(${paginaActual - 1}); return false;">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+    `;
+    
+    // Páginas
+    const maxBotones = 5;
+    let inicio_pag = Math.max(1, paginaActual - Math.floor(maxBotones / 2));
+    let fin_pag = Math.min(totalPaginas, inicio_pag + maxBotones - 1);
+    
+    if (fin_pag - inicio_pag < maxBotones - 1) {
+        inicio_pag = Math.max(1, fin_pag - maxBotones + 1);
+    }
+    
+    if (inicio_pag > 1) {
+        html += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="cambiarPagina(1); return false;">1</a>
+            </li>
+        `;
+        if (inicio_pag > 2) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    for (let i = inicio_pag; i <= fin_pag; i++) {
+        html += `
+            <li class="page-item ${i === paginaActual ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="cambiarPagina(${i}); return false;">${i}</a>
+            </li>
+        `;
+    }
+    
+    if (fin_pag < totalPaginas) {
+        if (fin_pag < totalPaginas - 1) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+        html += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="cambiarPagina(${totalPaginas}); return false;">${totalPaginas}</a>
+            </li>
+        `;
+    }
+    
+    // Botón Siguiente
+    html += `
+        <li class="page-item ${paginaActual === totalPaginas ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="cambiarPagina(${paginaActual + 1}); return false;">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+    `;
+    
+    paginationEl.innerHTML = html;
+}
+
+function cambiarPagina(nuevaPagina) {
+    const totalPaginas = Math.ceil(productosFiltrados.length / productosPorPagina);
+    
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) {
+        return;
+    }
+    
+    paginaActual = nuevaPagina;
     renderizarProductos(productosFiltrados);
+    
+    // Scroll al inicio de la tabla
+    document.querySelector('.table-container').scrollTop = 0;
 }
 
 function marcarModificado(productoId, nuevoValor) {
@@ -381,22 +507,26 @@ function marcarModificado(productoId, nuevoValor) {
 }
 
 function copiarStockActual(productoId) {
+    console.log('copiarStockActual llamado para producto ID:', productoId);
     const producto = productos.find(p => p.id === productoId);
     
-    // Intentar múltiples selectores para encontrar el input
-    let input = document.querySelector(`tr[data-product-id="${productoId}"] input.stock-input`);
-    if (!input) {
-        input = document.querySelector(`input[data-product-id="${productoId}"]`);
-    }
-    if (!input) {
-        input = document.querySelector(`tr[data-product-id="${productoId}"] input[type="number"]`);
+    if (!producto) {
+        console.error('Producto no encontrado:', productoId);
+        return;
     }
     
+    console.log('Producto encontrado:', producto);
+    
+    // Buscar el input específico del producto
+    const input = document.querySelector(`input[data-product-id="${productoId}"]`);
+    
     if (input) {
+        console.log('Input encontrado, copiando stock actual:', producto.cantidad);
         input.value = producto.cantidad;
-        marcarModificado(productoId, producto.cantidad);
+        // Disparar el evento change para marcar como modificado
+        input.dispatchEvent(new Event('change'));
     } else {
-        console.error(`No se encontró el input para copiar stock del producto ID: ${productoId}`);
+        console.error(`No se encontró el input para el producto ID: ${productoId}`);
     }
 }
 

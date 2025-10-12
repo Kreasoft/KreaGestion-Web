@@ -58,7 +58,7 @@
                         <div class="col-md-3 mb-1">
                             <div class="stat-card stat-card-1 p-2 position-relative">
                                 <div class="stat-value" style="font-size: 1.1rem;">{{ stats.total_documentos|default:0 }}</div>
-                                <div class="stat-label" style="font-size: 0.7rem;">Total Documentos</div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Facturas</div>
                                 <i class="fas fa-file-invoice stat-icon"></i>
                             </div>
                         </div>
@@ -71,9 +71,9 @@
                         </div>
                         <div class="col-md-3 mb-1">
                             <div class="stat-card stat-card-3 p-2 position-relative">
-                                <div class="stat-value format-number" style="font-size: 1rem;" data-value="{{ stats.total_vencido|default:0 }}" data-prefix="$"></div>
-                                <div class="stat-label" style="font-size: 0.7rem;">Total Vencido</div>
-                                <i class="fas fa-exclamation-triangle stat-icon"></i>
+                                <div class="stat-value format-number" style="font-size: 1rem;" data-value="{{ stats.total_pagado|default:0 }}" data-prefix="$"></div>
+                                <div class="stat-label" style="font-size: 0.7rem;">Total Pagado</div>
+                                <i class="fas fa-check-circle stat-icon"></i>
                             </div>
                         </div>
                         <div class="col-md-3 mb-1">
@@ -136,87 +136,86 @@
                             <thead>
                                 <tr>
                                     <th style="width: 4%;">#</th>
-                                    <th style="width: 10%;">N° Documento</th>
+                                    <th style="width: 10%;">N° Factura</th>
                                     <th style="width: 18%;">Cliente</th>
-                                    <th style="width: 8%;">Fecha</th>
-                                    <th style="width: 10%;">Total</th>
-                                    <th style="width: 10%;">Pagado</th>
-                                    <th style="width: 10%;">Saldo</th>
-                                    <th style="width: 8%;">Estado</th>
+                                    <th style="width: 10%;">Fecha</th>
+                                    <th style="width: 12%;">Monto Total</th>
+                                    <th style="width: 12%;">Total Pagado</th>
+                                    <th style="width: 12%;">Saldo Pendiente</th>
+                                    <th style="width: 10%;">Estado</th>
                                     <th class="text-center" style="width: 12%;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for documento in page_obj %}
+                                {% for movimiento in page_obj %}
                                 <tr style="border-bottom: 1px solid #F5F1E8;">
                                     <td style="font-size: 0.7rem;" class="text-muted">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
                                     <td style="font-size: 0.7rem;">
-                                        <strong>{{ documento.numero_documento }}</strong>
+                                        <strong>{{ movimiento.venta.numero_venta|default:"-" }}</strong>
                                     </td>
                                     <td style="font-size: 0.7rem;">
                                         <div class="d-flex align-items-center">
                                             <i class="fas fa-user text-muted me-2"></i>
-                                            {{ documento.cliente.nombre }}
+                                            <div>
+                                                <strong>{{ movimiento.cuenta_corriente.cliente.nombre }}</strong><br>
+                                                <small class="text-muted">{{ movimiento.cuenta_corriente.cliente.rut }}</small>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td style="font-size: 0.7rem;">{{ documento.fecha_emision|date:"d/m/Y"|default:"-" }}</td>
-                                    <td style="font-size: 0.7rem; font-weight: 600;" class="format-number" data-value="{{ documento.total|floatformat:0|default:0 }}">$</td>
-                                    <td style="font-size: 0.7rem; font-weight: 600; color: #28a745;" class="format-number" data-value="{{ documento.monto_pagado|floatformat:0|default:0 }}">$</td>
-                                    <td style="font-size: 0.7rem; font-weight: 700; color: #6F5B44;" class="format-number" data-value="{{ documento.saldo_pendiente|floatformat:0|default:0 }}">$</td>
+                                    <td style="font-size: 0.7rem;">{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</td>
+                                    <td style="font-size: 0.7rem; font-weight: 600; color: #6F5B44;" class="format-number" data-value="{{ movimiento.monto_display }}">$</td>
+                                    <td style="font-size: 0.7rem; font-weight: 600; color: #28a745;" class="format-number" data-value="{{ movimiento.total_pagado }}">$</td>
+                                    <td style="font-size: 0.7rem; font-weight: 700; color: #dc3545;" class="format-number" data-value="{{ movimiento.saldo_pendiente_factura }}">$</td>
                                     <td style="font-size: 0.7rem;">
-                                        {% if documento.saldo_pendiente <= 0 %}
+                                        {% if movimiento.estado_pago == 'pagado' %}
                                             <span class="badge bg-success" style="font-size: 0.6rem;">Pagado</span>
-                                        {% elif documento.monto_pagado > 0 and documento.saldo_pendiente > 0 %}
+                                        {% elif movimiento.estado_pago == 'parcial' %}
                                             <span class="badge bg-warning" style="font-size: 0.6rem;">Parcial</span>
-                                        {% elif documento.fecha_vencimiento and documento.fecha_vencimiento < today and documento.saldo_pendiente > 0 %}
-                                            <span class="badge bg-danger" style="font-size: 0.6rem;">Vencido</span>
+                                        {% elif movimiento.estado_pago == 'pendiente' %}
+                                            <span class="badge bg-danger" style="font-size: 0.6rem;">Pendiente</span>
                                         {% else %}
-                                            <span class="badge bg-info" style="font-size: 0.6rem;">Pendiente</span>
+                                            <span class="badge bg-info" style="font-size: 0.6rem;">{{ movimiento.estado_pago|title }}</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group" role="group">
-                                            {% if documento.saldo_pendiente > 0 %}
-                                            <button type="button"
-                                                    class="btn btn-sm btn-action btn-outline-success"
-                                                    title="Registrar Pago"
-                                                    data-doc-id="{{ documento.pk }}"
-                                                    data-doc-numero="{{ documento.numero_documento }}"
-                                                    data-doc-saldo="{{ documento.saldo_pendiente|floatformat:0 }}"
-                                                    onclick="registrarPagoCliente(this)">
-                                                <i class="fas fa-dollar-sign"></i>
-                                            </button>
+                                            {% if movimiento.venta %}
+                                            <a href="/ventas/vales/{{ movimiento.venta.id }}/html/" target="_blank"
+                                               class="btn btn-sm btn-action btn-outline-primary"
+                                               title="Ver Factura">
+                                                <i class="fas fa-file-invoice"></i>
+                                            </a>
                                             {% endif %}
-                                            {% if documento.monto_pagado > 0 %}
+                                            
+                                            {% if movimiento.total_pagado > 0 %}
                                             <button type="button"
-                                                    class="btn btn-sm btn-action btn-outline-info"
+                                                    class="btn btn-sm btn-action btn-outline-info btn-ver-pagos"
                                                     title="Ver Pagos"
-                                                    data-doc-id="{{ documento.pk }}"
-                                                    data-doc-numero="{{ documento.numero_documento }}"
-                                                    onclick="verPagosCliente(this)">
+                                                    data-movimiento-id="{{ movimiento.pk }}"
+                                                    data-numero-factura="{{ movimiento.venta.numero_venta|default:'Sin número' }}">
                                                 <i class="fas fa-list-alt"></i>
                                             </button>
                                             {% endif %}
+                                            
+                                            {% if movimiento.estado_pago != 'pagado' %}
+                                            {% load l10n %}
                                             <button type="button"
-                                                    class="btn btn-sm btn-action btn-outline-secondary"
-                                                    title="Editar"
-                                                    onclick="editarDocumentoCliente({{ documento.pk }})">
-                                                <i class="fas fa-edit"></i>
+                                                    class="btn btn-sm btn-action btn-outline-success btn-pago-movimiento"
+                                                    title="Registrar Pago"
+                                                    data-movimiento-id="{{ movimiento.pk }}"
+                                                    data-numero-factura="{{ movimiento.venta.numero_venta|default:'Sin número' }}"
+                                                    data-saldo-pendiente="{{ movimiento.saldo_pendiente_factura|unlocalize }}">
+                                                <i class="fas fa-dollar-sign"></i>
                                             </button>
-                                            <button type="button"
-                                                    class="btn btn-sm btn-action btn-outline-danger"
-                                                    title="Eliminar"
-                                                    onclick="eliminarDocumentoCliente({{ documento.pk }}, '{{ documento.numero_documento }}')">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="9" class="text-center py-2">
+                                    <td colspan="9" class="text-center py-4">
                                         <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
-                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay documentos registrados</p>
+                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay facturas a crédito registradas</p>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -466,6 +465,27 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Event listener para botones de pago de movimientos
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-pago-movimiento')) {
+            const btn = e.target.closest('.btn-pago-movimiento');
+            const movimientoId = btn.dataset.movimientoId;
+            const numeroFactura = btn.dataset.numeroFactura;
+            const saldoPendiente = parseInt(btn.dataset.saldoPendiente, 10);
+            
+            registrarPagoMovimiento(movimientoId, numeroFactura, saldoPendiente);
+        }
+        
+        // Event listener para ver pagos
+        if (e.target.closest('.btn-ver-pagos')) {
+            const btn = e.target.closest('.btn-ver-pagos');
+            const movimientoId = btn.dataset.movimientoId;
+            const numeroFactura = btn.dataset.numeroFactura;
+            
+            verPagosMovimiento(movimientoId, numeroFactura);
+        }
+    });
+    
     // Cargar clientes al abrir el modal
     const modalCliente = document.getElementById('modalDocumentoCliente');
     if (modalCliente) {
@@ -963,6 +983,326 @@ function verPagosCliente(btn) {
             });
         });
 }
+
+// ========== FUNCIONES PARA PAGOS DE MOVIMIENTOS DE CUENTA CORRIENTE ==========
+
+let formasPagoMovimiento = [];
+let formasPagoGlobalMovimiento = [];
+
+// Registrar pago de movimiento de cuenta corriente
+function registrarPagoMovimiento(movimientoId, numeroFactura, montoTotal) {
+    formasPagoMovimiento = [];
+    
+    // Obtener formas de pago disponibles
+    fetch('/tesoreria/obtener-formas-pago/')
+        .then(response => response.json())
+        .then(data => {
+            formasPagoGlobalMovimiento = data.formas_pago || [];
+            mostrarModalPagoMovimiento(movimientoId, numeroFactura, montoTotal);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudieron cargar las formas de pago',
+                confirmButtonColor: '#8B7355'
+            });
+        });
+}
+
+function mostrarModalPagoMovimiento(movimientoId, numeroFactura, montoTotal) {
+    // Asegurar que sea un número válido
+    const montoNumerico = parseFloat(montoTotal) || 0;
+    const montoFormateado = formatearNumero(montoNumerico);
+    
+    const html = `
+        <div class="text-start">
+            <div class="mb-3 p-3" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-radius: 8px; border: 2px solid #D4C4A8;">
+                <p class="mb-2"><strong style="color: #6F5B44;">Factura:</strong> <span class="fw-bold">${numeroFactura}</span></p>
+                <p class="mb-0"><strong style="color: #6F5B44;">Monto Total:</strong> <span class="text-danger fw-bold" style="font-size: 1.2rem;">$${montoFormateado}</span></p>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Formas de Pago:</label>
+                <div id="formasPagoContainerMovimiento">
+                    <!-- Aquí se agregarán las formas de pago -->
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="agregarFormaPagoMovimiento()">
+                    <i class="fas fa-plus me-1"></i> Agregar Forma de Pago
+                </button>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Total a Pagar:</label>
+                <input type="text" id="totalPagarMovimiento" class="form-control fw-bold text-success" value="$0" readonly>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Observaciones:</label>
+                <textarea id="observacionesPagoMovimiento" class="form-control" rows="2" placeholder="Observaciones del pago..."></textarea>
+            </div>
+            
+            <input type="hidden" id="movimientoIdPago" value="${movimientoId}">
+            <input type="hidden" id="montoTotalPago" value="${montoTotal}">
+        </div>
+    `;
+    
+    Swal.fire({
+        title: '<span style="color: #6F5B44;"><i class="fas fa-dollar-sign me-2"></i>Registrar Pago de Factura</span>',
+        html: html,
+        width: 700,
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-save me-1"></i> Registrar Pago',
+        cancelButtonText: 'Cancelar',
+        customClass: {
+            popup: 'modal-pago-terroso',
+            title: 'modal-pago-title'
+        },
+        didOpen: () => {
+            agregarFormaPagoMovimiento(); // Agregar primera forma de pago por defecto
+        },
+        preConfirm: () => {
+            return validarYEnviarPagoMovimiento();
+        }
+    });
+}
+
+function agregarFormaPagoMovimiento() {
+    const container = document.getElementById('formasPagoContainerMovimiento');
+    const index = formasPagoMovimiento.length;
+    
+    const formaPagoHtml = `
+        <div class="card mb-2 forma-pago-item-movimiento" data-index="${index}">
+            <div class="card-body p-2">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label" style="font-size: 0.8rem;">Forma de Pago</label>
+                        <select class="form-select form-select-sm forma-pago-select-movimiento" data-index="${index}">
+                            <option value="">Seleccione...</option>
+                            ${formasPagoGlobalMovimiento.map(fp => `<option value="${fp.id}">${fp.nombre}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" style="font-size: 0.8rem;">Monto</label>
+                        <input type="number" class="form-control form-control-sm monto-pago-movimiento" data-index="${index}" 
+                               min="1" step="1" placeholder="0" onchange="calcularTotalMovimiento()">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="eliminarFormaPagoMovimiento(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', formaPagoHtml);
+    formasPagoMovimiento.push({ forma_pago_id: null, monto: 0 });
+}
+
+function eliminarFormaPagoMovimiento(index) {
+    const item = document.querySelector(`.forma-pago-item-movimiento[data-index="${index}"]`);
+    if (item) {
+        item.remove();
+        formasPagoMovimiento[index] = null;
+        calcularTotalMovimiento();
+    }
+}
+
+function calcularTotalMovimiento() {
+    let total = 0;
+    document.querySelectorAll('.monto-pago-movimiento').forEach(input => {
+        const monto = parseFloat(input.value) || 0;
+        total += monto;
+    });
+    
+    document.getElementById('totalPagarMovimiento').value = `$${formatearNumero(total)}`;
+    return total;
+}
+
+function validarYEnviarPagoMovimiento() {
+    const movimientoId = document.getElementById('movimientoIdPago').value;
+    const montoTotal = parseFloat(document.getElementById('montoTotalPago').value);
+    const observaciones = document.getElementById('observacionesPagoMovimiento').value;
+    
+    // Recopilar formas de pago
+    const formasPago = [];
+    let totalPago = 0;
+    
+    document.querySelectorAll('.forma-pago-item-movimiento').forEach(item => {
+        const index = item.dataset.index;
+        const formaPagoId = item.querySelector('.forma-pago-select-movimiento').value;
+        const monto = parseFloat(item.querySelector('.monto-pago-movimiento').value) || 0;
+        
+        if (formaPagoId && monto > 0) {
+            formasPago.push({
+                forma_pago_id: formaPagoId,
+                monto: monto
+            });
+            totalPago += monto;
+        }
+    });
+    
+    // Validaciones
+    if (formasPago.length === 0) {
+        Swal.showValidationMessage('Debe agregar al menos una forma de pago');
+        return false;
+    }
+    
+    if (totalPago <= 0) {
+        Swal.showValidationMessage('El monto total debe ser mayor a 0');
+        return false;
+    }
+    
+    if (totalPago > montoTotal) {
+        Swal.showValidationMessage(`El monto total ($${formatearNumero(totalPago)}) excede el monto de la factura ($${formatearNumero(montoTotal)})`);
+        return false;
+    }
+    
+    // Enviar pago
+    Swal.fire({
+        title: 'Procesando...',
+        text: 'Registrando pago',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    fetch('/tesoreria/registrar-pago-movimiento/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            movimiento_id: movimientoId,
+            formas_pago: formasPago,
+            observaciones: observaciones
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Pago Registrado!',
+                text: data.message,
+                confirmButtonColor: '#8B7355',
+                timer: 2000
+            }).then(() => {
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'No se pudo registrar el pago',
+                confirmButtonColor: '#8B7355'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al procesar el pago',
+            confirmButtonColor: '#8B7355'
+        });
+    });
+    
+    return false; // Evitar que se cierre el modal automáticamente
+}
+
+// Ver historial de pagos de un movimiento
+function verPagosMovimiento(movimientoId, numeroFactura) {
+    Swal.fire({
+        title: 'Cargando...',
+        text: 'Obteniendo historial de pagos',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    fetch(`/tesoreria/historial-pagos-movimiento/${movimientoId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.pagos && data.pagos.length > 0) {
+                let html = `
+                    <div class="text-start">
+                        <div class="mb-3 p-3" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-radius: 8px;">
+                            <p class="mb-0"><strong style="color: #6F5B44;">Factura:</strong> ${numeroFactura}</p>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead style="background: #F5F1E8;">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Monto</th>
+                                        <th>Observaciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                data.pagos.forEach(pago => {
+                    html += `
+                        <tr>
+                            <td>${pago.fecha}</td>
+                            <td class="fw-bold text-success">$${formatearNumero(pago.monto)}</td>
+                            <td>${pago.observaciones || '-'}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                                </tbody>
+                                <tfoot style="background: #F5F1E8;">
+                                    <tr>
+                                        <th>Total Pagado:</th>
+                                        <th class="text-success">$${formatearNumero(data.total_pagado)}</th>
+                                        <th></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                
+                Swal.fire({
+                    title: '<span style="color: #6F5B44;"><i class="fas fa-list-alt me-2"></i>Historial de Pagos</span>',
+                    html: html,
+                    width: 700,
+                    confirmButtonColor: '#8B7355',
+                    confirmButtonText: 'Cerrar'
+                });
+            } else {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Sin Pagos',
+                    text: 'No hay pagos registrados para esta factura',
+                    confirmButtonColor: '#8B7355'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo obtener el historial de pagos',
+                confirmButtonColor: '#8B7355'
+            });
+        });
+}
+
+// ========== FIN FUNCIONES PARA PAGOS DE MOVIMIENTOS ==========
 
 let documentoEditandoId = null;
 

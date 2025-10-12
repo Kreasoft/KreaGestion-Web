@@ -8,17 +8,73 @@
 {% block content %}
 <!-- Mensajes de Django -->
 {% if messages %}
-    <div class="container-fluid mt-3">
+    <div class="container-fluid mt-3" id="messages-container">
         {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mensaje-persistente" role="alert">
+                <strong>
+                    {% if message.tags == 'error' or message.tags == 'danger' %}
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                    {% elif message.tags == 'success' %}
+                        <i class="fas fa-check-circle me-2"></i>
+                    {% elif message.tags == 'warning' %}
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle me-2"></i>
+                    {% endif %}
+                </strong>
                 {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
             </div>
         {% endfor %}
     </div>
 {% endif %}
 
 <style>
+/* Estilos para mensajes persistentes */
+.mensaje-persistente {
+    animation: none !important;
+    position: sticky;
+    top: 10px;
+    z-index: 9999;
+    font-size: 1rem;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-left: 4px solid;
+}
+
+.mensaje-persistente.alert-danger,
+.mensaje-persistente.alert-error {
+    border-left-color: #dc3545;
+    background-color: #f8d7da;
+}
+
+.mensaje-persistente.alert-success {
+    border-left-color: #28a745;
+    background-color: #d4edda;
+}
+
+/* Estilos para pestañas activas */
+.nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, #A89080 0%, #8B7355 100%) !important;
+    color: white !important;
+    font-weight: 600;
+    border-color: #8B7355 #8B7355 #fff !important;
+    box-shadow: 0 2px 4px rgba(139, 115, 85, 0.3);
+}
+
+.nav-tabs .nav-link {
+    color: #6F5B44;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.nav-tabs .nav-link:hover:not(.active) {
+    background-color: #F5F1E8;
+    border-color: #D4C5B0 #D4C5B0 #dee2e6;
+    color: #6F5B44;
+}
+
 /* Estilos para campos inválidos en pestañas */
 .tab-pane .is-invalid {
     border-color: #dc3545 !important;

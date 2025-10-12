@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from usuarios.decorators import requiere_empresa
 from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TIPO_DOCUMENTO_CHOICES
 from .forms import VendedorForm, FormaPagoForm, EstacionTrabajoForm
+from articulos.models import Articulo
 import io
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -403,34 +404,99 @@ def pos_main(request):
 @requiere_empresa
 def pos_buscar_articulo(request):
     """API para buscar artículos por código de barras, código o descripción"""
-    query = request.GET.get('q', '').strip()
-    
-    if not query:
-        return JsonResponse({'articulos': []})
-    
-    # Buscar por código de barras, código o descripción
-    articulos = Articulo.objects.filter(
-        empresa=request.empresa,
-        activo=True
-    ).filter(
-        Q(codigo_barras__icontains=query) |
-        Q(codigo__icontains=query) |
-        Q(descripcion__icontains=query)
-    ).order_by('descripcion')[:10]
-    
-    results = []
-    for articulo in articulos:
-        results.append({
-            'id': articulo.id,
-            'codigo': articulo.codigo,
-            'codigo_barras': articulo.codigo_barras or '',
-            'descripcion': articulo.descripcion,
-            'precio': float(articulo.precio_venta),
-            'stock': float(articulo.stock_disponible),
-            'impuesto_especifico': float(articulo.impuesto_especifico or 0),
-        })
-    
-    return JsonResponse({'articulos': results})
+    try:
+        query = request.GET.get('q', '').strip()
+        lista_precio_id = request.GET.get('lista_precio', '').strip()
+        print(f"=== BÚSQUEDA POS: '{query}' | Lista Precio: {lista_precio_id} ===")
+        
+        if not query:
+            return JsonResponse({'articulos': []})
+        
+        # Buscar por código de barras, código, nombre o descripción
+        articulos = Articulo.objects.filter(
+            empresa=request.empresa,
+            activo=True
+        ).filter(
+            Q(codigo_barras__icontains=query) |
+            Q(codigo__icontains=query) |
+            Q(nombre__icontains=query) |
+            Q(descripcion__icontains=query)
+        ).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')[:100]
+        
+        print(f"Artículos encontrados: {articulos.count()}")
+        
+        # Obtener precios de la lista si está seleccionada
+        precios_lista = {}
+        if lista_precio_id:
+            from articulos.models import PrecioArticulo
+            precios = PrecioArticulo.objects.filter(
+                lista_precio_id=lista_precio_id,
+                articulo__in=articulos
+            ).select_related('articulo')
+            
+            for precio in precios:
+                precios_lista[precio.articulo_id] = float(precio.precio)
+        
+        results = []
+        for articulo in articulos:
+            try:
+                # Usar precio de la lista si existe, sino usar precio_venta del artículo
+                if articulo.id in precios_lista:
+                    precio_neto = precios_lista[articulo.id]
+                else:
+                    precio_neto = float(articulo.precio_venta)
+                
+                # Calcular IVA solo si la categoría NO está exenta
+                if articulo.categoria and articulo.categoria.exenta_iva:
+                    iva = 0.0
+                else:
+                    iva = precio_neto * 0.19
+                
+                # Calcular impuesto específico si aplica
+                impuesto_especifico = 0.0
+                impuesto_esp_pct = 0
+                if articulo.categoria and articulo.categoria.impuesto_especifico:
+                    try:
+                        porcentaje_decimal = float(articulo.categoria.impuesto_especifico.get_porcentaje_decimal())
+                        impuesto_especifico = precio_neto * porcentaje_decimal
+                        impuesto_esp_pct = float(articulo.categoria.impuesto_especifico.porcentaje)
+                    except:
+                        pass
+                
+                precio_final = round(precio_neto + iva + impuesto_especifico)
+                
+                # Obtener stock desde la bodega activa
+                from inventario.models import Stock
+                stock_disponible = 0
+                try:
+                    stock_obj = Stock.objects.filter(articulo=articulo, bodega__activa=True).first()
+                    if stock_obj:
+                        stock_disponible = float(stock_obj.cantidad)
+                except:
+                    pass
+                
+                results.append({
+                    'id': articulo.id,
+                    'codigo': articulo.codigo or '',
+                    'codigo_barras': articulo.codigo_barras or '',
+                    'nombre': articulo.nombre or '',
+                    'descripcion': articulo.descripcion or articulo.nombre or '',
+                    'precio': precio_final,
+                    'stock': stock_disponible,
+                    'categoria_exenta_iva': articulo.categoria.exenta_iva if articulo.categoria else False,
+                    'impuesto_especifico_porcentaje': impuesto_esp_pct,
+                })
+            except Exception as e:
+                print(f"Error procesando artículo {articulo.id}: {e}")
+                continue
+        
+        print(f"Retornando {len(results)} artículos para búsqueda '{query}'")
+        return JsonResponse({'articulos': results})
+    except Exception as e:
+        print(f"Error en pos_buscar_articulo: {e}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'error': str(e), 'articulos': []}, status=500)
 
 
 @login_required
@@ -451,6 +517,21 @@ def pos_agregar_articulo(request):
         
         if cantidad <= 0:
             return JsonResponse({'success': False, 'error': 'La cantidad debe ser mayor a 0'})
+        
+        # Verificar stock disponible si el artículo tiene control de stock
+        if articulo.control_stock:
+            stock_disponible = articulo.stock_disponible
+            
+            # Verificar si el artículo ya está en la venta para calcular el total
+            detalle_existente = VentaDetalle.objects.filter(venta=venta, articulo=articulo).first()
+            cantidad_en_venta = detalle_existente.cantidad if detalle_existente else Decimal('0')
+            cantidad_total = cantidad_en_venta + cantidad
+            
+            if cantidad_total > stock_disponible:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Stock insuficiente. Disponible: {stock_disponible}, Solicitado: {cantidad_total}'
+                })
         
         # Verificar si el artículo ya está en la venta
         detalle_existente = VentaDetalle.objects.filter(venta=venta, articulo=articulo).first()
@@ -494,6 +575,16 @@ def pos_actualizar_detalle(request):
         
         if cantidad <= 0:
             return JsonResponse({'success': False, 'error': 'La cantidad debe ser mayor a 0'})
+        
+        # Verificar stock disponible si el artículo tiene control de stock
+        if detalle.articulo.control_stock:
+            stock_disponible = detalle.articulo.stock_disponible
+            
+            if cantidad > stock_disponible:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Stock insuficiente. Disponible: {stock_disponible}, Solicitado: {cantidad}'
+                })
         
         detalle.cantidad = cantidad
         detalle.save()
@@ -644,7 +735,7 @@ def pos_view(request):
         form_apertura = AperturaCajaForm(empresa=request.empresa)
     
     # Obtener datos para el POS con impuesto específico incluido
-    articulos_queryset = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')[:50]  # Limitar para performance
+    articulos_queryset = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')[:500]  # Limitar para performance
     
     # Calcular precios finales directamente en la vista
     articulos = []
@@ -1394,7 +1485,13 @@ def estaciontrabajo_delete(request, pk):
 def vale_html(request, pk):
     """Vista para imprimir vale de venta con código de barras"""
     try:
-        venta = Venta.objects.get(pk=pk, empresa=request.empresa, tipo_documento='vale')
+        # Intentar primero con tipo_documento='vale'
+        try:
+            venta = Venta.objects.get(pk=pk, empresa=request.empresa, tipo_documento='vale')
+        except Venta.DoesNotExist:
+            # Si no es vale, buscar cualquier tipo de documento
+            venta = Venta.objects.get(pk=pk, empresa=request.empresa)
+        
         detalles = VentaDetalle.objects.filter(venta=venta)
         
         context = {
@@ -1406,7 +1503,7 @@ def vale_html(request, pk):
         return render(request, 'ventas/vale_html.html', context)
     
     except Venta.DoesNotExist:
-        return JsonResponse({'success': False, 'message': 'Vale no encontrado'})
+        return JsonResponse({'success': False, 'message': 'Documento no encontrado'})
 
 
 # ========== COTIZACIONES ==========
@@ -2001,6 +2098,18 @@ def pos_tickets_hoy(request):
     # Convertir a JSON
     tickets_data = []
     for ticket in tickets:
+        # Determinar el tipo de documento de cierre
+        tipo_doc = ticket.tipo_documento_planeado or ticket.tipo_documento
+        tipo_doc_display = {
+            'boleta': 'BOL',
+            'factura': 'FACT',
+            'guia': 'GUÍA',
+            'nota_credito': 'N/C',
+            'nota_debito': 'N/D',
+            'cotizacion': 'COT',
+            'vale': 'VALE'
+        }.get(tipo_doc, tipo_doc.upper())
+        
         tickets_data.append({
             'id': ticket.id,
             'numero': ticket.numero_venta,
@@ -2010,6 +2119,7 @@ def pos_tickets_hoy(request):
             'estacion': ticket.estacion_trabajo.nombre if ticket.estacion_trabajo else 'Sin estación',
             'total': float(ticket.total),
             'estado': ticket.get_estado_display(),
+            'tipo_documento': tipo_doc_display,
         })
     
     return JsonResponse({
