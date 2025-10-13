@@ -181,13 +181,18 @@ def apertura_detail(request, pk):
     # Obtener movimientos
     movimientos = apertura.movimientos.all().select_related('forma_pago', 'usuario', 'venta')
     
-    # Obtener tickets pendientes de procesar (del día de la apertura)
-    fecha_apertura = apertura.fecha_apertura.date()
+    # Obtener tickets pendientes del día ACTUAL (no del día de apertura)
+    # Usar timezone.now() para consistencia con procesar_venta_buscar
+    from django.utils import timezone
+    hoy_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    hoy_fin = timezone.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+    
     tickets_pendientes = Venta.objects.filter(
         empresa=request.empresa,
         tipo_documento='vale',
         estado='borrador',
-        fecha=fecha_apertura
+        fecha_creacion__gte=hoy_inicio,
+        fecha_creacion__lte=hoy_fin
     ).select_related('cliente', 'vendedor').order_by('-fecha_creacion')
     
     context = {
@@ -835,7 +840,8 @@ def descontar_stock_venta(venta, bodega):
 def actualizar_cuenta_corriente_cliente(venta, cliente):
     """Actualiza la cuenta corriente del cliente con la venta a crédito"""
     try:
-        from tesoreria.models import CuentaCorrienteCliente, MovimientoCuentaCorrienteCliente
+        from tesoreria.models import CuentaCorrienteCliente, MovimientoCuentaCorrienteCliente, DocumentoCliente
+        from datetime import timedelta
 
         # Obtener o crear la cuenta corriente del cliente
         cuenta_corriente, created = CuentaCorrienteCliente.objects.get_or_create(
@@ -849,6 +855,26 @@ def actualizar_cuenta_corriente_cliente(venta, cliente):
 
         if created:
             print(f"✓ Nueva cuenta corriente creada para {cliente.nombre}")
+
+        # Crear o actualizar DocumentoCliente
+        documento, doc_created = DocumentoCliente.objects.get_or_create(
+            empresa=venta.empresa,
+            numero_documento=venta.numero_venta,
+            tipo_documento='factura' if venta.tipo_documento == 'factura' else 'boleta',
+            defaults={
+                'cliente': cliente,
+                'fecha_emision': venta.fecha,
+                'fecha_vencimiento': venta.fecha + timedelta(days=cuenta_corriente.dias_credito),
+                'total': int(venta.total),
+                'monto_pagado': 0,
+                'saldo_pendiente': venta.total,
+                'estado_pago': 'pendiente',
+                'creado_por': venta.usuario_creacion
+            }
+        )
+        
+        if doc_created:
+            print(f"✓ Documento creado: {documento.tipo_documento} {documento.numero_documento}")
 
         # Registrar el movimiento
         saldo_anterior = cuenta_corriente.saldo_total

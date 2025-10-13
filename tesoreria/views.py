@@ -875,13 +875,22 @@ def crear_documento_cliente(request):
 def historial_pagos_documento_cliente(request, documento_id):
     """Obtener historial de pagos de un documento de cliente"""
     try:
-        from .models import DocumentoCliente
+        from .models import DocumentoCliente, PagoDocumentoCliente
         
         documento = get_object_or_404(DocumentoCliente, pk=documento_id)
-        # Por ahora retornar vacío, implementaremos pagos después
+        pagos = documento.pagos.all().order_by('-fecha_pago')
+        
+        pagos_data = []
+        for pago in pagos:
+            pagos_data.append({
+                'fecha': pago.fecha_pago.strftime('%d/%m/%Y %H:%M'),
+                'monto': float(pago.monto),
+                'forma_pago': pago.forma_pago,
+                'observaciones': pago.observaciones
+            })
         
         return JsonResponse({
-            'pagos': [],
+            'pagos': pagos_data,
             'total_pagado': float(documento.monto_pagado)
         })
     except Exception as e:
@@ -919,7 +928,19 @@ def registrar_pago_cliente(request):
         if monto_total > documento.saldo_pendiente:
             return JsonResponse({'success': False, 'message': 'El monto excede el saldo pendiente'})
         
-        # Registrar el pago
+        # Registrar cada forma de pago
+        from .models import PagoDocumentoCliente
+        
+        for forma in formas_pago:
+            PagoDocumentoCliente.objects.create(
+                documento=documento,
+                monto=Decimal(str(forma['monto'])),
+                forma_pago=forma['forma_pago'],
+                observaciones=observaciones,
+                registrado_por=request.user
+            )
+        
+        # Actualizar documento
         documento.monto_pagado += monto_total
         documento.saldo_pendiente -= monto_total
         
@@ -1122,6 +1143,61 @@ def registrar_pago_movimiento(request):
                 registrado_por=request.user
             )
             
+            # Registrar en DocumentoCliente y PagoDocumentoCliente
+            if movimiento.venta:
+                from .models import DocumentoCliente, PagoDocumentoCliente
+                
+                print(f"DEBUG PAGO: Buscando documento para factura {movimiento.venta.numero_venta}")
+                print(f"DEBUG PAGO: Empresa: {request.empresa.nombre}")
+                
+                try:
+                    documento = DocumentoCliente.objects.get(
+                        empresa=request.empresa,
+                        numero_documento=movimiento.venta.numero_venta
+                    )
+                    
+                    print(f"✓ Documento encontrado: ID={documento.id}, Número={documento.numero_documento}")
+                    
+                    # Registrar cada forma de pago
+                    for forma in formas_pago:
+                        # Obtener el nombre de la forma de pago
+                        forma_pago_nombre = forma.get('forma_pago', None)
+                        if not forma_pago_nombre and 'forma_pago_id' in forma:
+                            # Si viene el ID, obtener el nombre
+                            try:
+                                forma_pago_obj = FormaPago.objects.get(id=forma['forma_pago_id'])
+                                forma_pago_nombre = forma_pago_obj.nombre
+                            except FormaPago.DoesNotExist:
+                                forma_pago_nombre = 'No especificado'
+                        
+                        pago_creado = PagoDocumentoCliente.objects.create(
+                            documento=documento,
+                            monto=Decimal(str(forma['monto'])),
+                            forma_pago=forma_pago_nombre or 'No especificado',
+                            observaciones=observaciones,
+                            registrado_por=request.user
+                        )
+                        print(f"✓ Pago creado: ID={pago_creado.id}, Monto=${pago_creado.monto}, Forma={pago_creado.forma_pago}")
+                    
+                    # Actualizar documento
+                    documento.monto_pagado += monto_total_pago
+                    documento.saldo_pendiente -= monto_total_pago
+                    
+                    if documento.saldo_pendiente <= 0:
+                        documento.estado_pago = 'pagado'
+                    elif documento.monto_pagado > 0:
+                        documento.estado_pago = 'parcial'
+                    
+                    documento.save()
+                    print(f"✓ Documento actualizado: Pagado=${documento.monto_pagado}, Saldo=${documento.saldo_pendiente}")
+                    
+                except DocumentoCliente.DoesNotExist:
+                    print(f"⚠ ERROR: No se encontró documento para factura {movimiento.venta.numero_venta}")
+                    print(f"⚠ Buscando con: empresa={request.empresa.id}, numero_documento={movimiento.venta.numero_venta}")
+                    # Listar documentos existentes para debug
+                    docs = DocumentoCliente.objects.filter(empresa=request.empresa).values_list('numero_documento', flat=True)
+                    print(f"⚠ Documentos existentes: {list(docs)[:10]}")
+            
             # Actualizar saldo de la cuenta corriente
             cuenta.saldo_pendiente -= monto_total_pago
             cuenta.save()
@@ -1170,33 +1246,72 @@ def historial_pagos_movimiento(request, movimiento_id):
             tipo_movimiento='debe'
         )
         
-        # Obtener todos los pagos (movimientos haber) relacionados a esta venta
-        pagos = MovimientoCuentaCorrienteCliente.objects.filter(
-            cuenta_corriente=movimiento.cuenta_corriente,
-            venta=movimiento.venta,
-            tipo_movimiento='haber'
-        ).order_by('-fecha_movimiento')
+        # Buscar si existe un documento asociado a esta venta
+        from .models import DocumentoCliente, PagoDocumentoCliente
         
-        # Preparar datos de los pagos
-        pagos_data = []
-        for pago in pagos:
-            pagos_data.append({
-                'id': pago.pk,
-                'fecha': pago.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
-                'monto': float(pago.monto),
-                'observaciones': pago.observaciones,
-                'registrado_por': pago.registrado_por.get_full_name() or pago.registrado_por.username
-            })
-        
-        # Calcular total pagado
-        total_pagado = pagos.aggregate(total=Sum('monto'))['total'] or 0
+        try:
+            # Buscar documento por número de factura
+            if movimiento.venta:
+                print(f"DEBUG: Buscando documento para factura {movimiento.venta.numero_venta}")
+                documento = DocumentoCliente.objects.filter(
+                    empresa=request.empresa,
+                    numero_documento=movimiento.venta.numero_venta
+                ).first()
+                
+                if documento:
+                    print(f"DEBUG: Documento encontrado: {documento.id}")
+                    # Usar pagos del nuevo sistema
+                    pagos_nuevos = documento.pagos.all().order_by('-fecha_pago')
+                    print(f"DEBUG: Pagos encontrados en nuevo sistema: {pagos_nuevos.count()}")
+                    
+                    pagos_data = []
+                    for pago in pagos_nuevos:
+                        print(f"DEBUG: Pago - Monto: {pago.monto}, Forma: {pago.forma_pago}")
+                        pagos_data.append({
+                            'id': pago.pk,
+                            'fecha': pago.fecha_pago.strftime('%d/%m/%Y %H:%M'),
+                            'monto': float(pago.monto),
+                            'forma_pago': pago.forma_pago,
+                            'observaciones': pago.observaciones,
+                            'registrado_por': pago.registrado_por.get_full_name() or pago.registrado_por.username
+                        })
+                    total_pagado = sum(float(p.monto) for p in pagos_nuevos)
+                else:
+                    print(f"DEBUG: No se encontró documento para factura {movimiento.venta.numero_venta}")
+                    # Usar movimientos antiguos
+                    pagos = MovimientoCuentaCorrienteCliente.objects.filter(
+                        cuenta_corriente=movimiento.cuenta_corriente,
+                        venta=movimiento.venta,
+                        tipo_movimiento='haber'
+                    ).order_by('-fecha_movimiento')
+                    
+                    pagos_data = []
+                    for pago in pagos:
+                        pagos_data.append({
+                            'id': pago.pk,
+                            'fecha': pago.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
+                            'monto': float(pago.monto),
+                            'forma_pago': 'No especificado',
+                            'observaciones': pago.observaciones,
+                            'registrado_por': pago.registrado_por.get_full_name() or pago.registrado_por.username
+                        })
+                    
+                    from django.db.models import Sum
+                    total_pagado = float(pagos.aggregate(total=Sum('monto'))['total'] or 0)
+            else:
+                pagos_data = []
+                total_pagado = 0
+        except Exception as e:
+            print(f"Error buscando pagos: {e}")
+            pagos_data = []
+            total_pagado = 0
         
         return JsonResponse({
             'success': True,
             'pagos': pagos_data,
             'total_pagado': float(total_pagado),
             'monto_factura': float(movimiento.monto),
-            'saldo_pendiente': float(movimiento.monto - total_pagado)
+            'saldo_pendiente': float(Decimal(str(movimiento.monto)) - Decimal(str(total_pagado)))
         })
         
     except Exception as e:

@@ -1084,9 +1084,25 @@ def pos_procesar_preventa(request):
             cliente = Cliente.objects.get(id=data['cliente_id'], empresa=request.empresa)
             print(f"DEBUG - Cliente encontrado: {cliente.nombre}")
             
-            # Generar número de preventa usando correlativo de ticket de la estación
-            numero_ticket = estacion.incrementar_correlativo_ticket()
-            proximo_numero = f"{int(numero_ticket):06d}"
+            # Generar número de preventa único
+            # Buscar el último número de venta de la empresa
+            ultima_venta = Venta.objects.filter(empresa=request.empresa).order_by('-id').first()
+            if ultima_venta and ultima_venta.numero_venta and ultima_venta.numero_venta != 'TEMP':
+                try:
+                    ultimo_numero = int(ultima_venta.numero_venta)
+                    proximo_numero = f"{ultimo_numero + 1:06d}"
+                except ValueError:
+                    # Si el número no es convertible, usar correlativo de ticket
+                    numero_ticket = estacion.incrementar_correlativo_ticket()
+                    proximo_numero = f"{int(numero_ticket):06d}"
+            else:
+                # Si no hay ventas previas, usar correlativo de ticket
+                numero_ticket = estacion.incrementar_correlativo_ticket()
+                proximo_numero = f"{int(numero_ticket):06d}"
+            
+            # Verificar que el número no exista (por seguridad)
+            while Venta.objects.filter(empresa=request.empresa, numero_venta=proximo_numero).exists():
+                proximo_numero = f"{int(proximo_numero) + 1:06d}"
             
             # Debug: verificar datos recibidos
             print(f"DEBUG - Datos recibidos:")
@@ -1171,9 +1187,22 @@ def pos_procesar_preventa(request):
             if data['tipo_documento'] in ['factura', 'boleta', 'guia']:
                 print(f"DEBUG - Generando ticket facturable (vale) para {data['tipo_documento']}...")
                 
-                # Generar número de ticket usando correlativo
-                numero_ticket_vale = estacion.incrementar_correlativo_ticket()
-                numero_vale = f"{int(numero_ticket_vale):06d}"
+                # Generar número de vale único
+                ultima_venta_vale = Venta.objects.filter(empresa=request.empresa).order_by('-id').first()
+                if ultima_venta_vale and ultima_venta_vale.numero_venta and ultima_venta_vale.numero_venta != 'TEMP':
+                    try:
+                        ultimo_numero_vale = int(ultima_venta_vale.numero_venta)
+                        numero_vale = f"{ultimo_numero_vale + 1:06d}"
+                    except ValueError:
+                        numero_ticket_vale = estacion.incrementar_correlativo_ticket()
+                        numero_vale = f"{int(numero_ticket_vale):06d}"
+                else:
+                    numero_ticket_vale = estacion.incrementar_correlativo_ticket()
+                    numero_vale = f"{int(numero_ticket_vale):06d}"
+                
+                # Verificar que el número no exista
+                while Venta.objects.filter(empresa=request.empresa, numero_venta=numero_vale).exists():
+                    numero_vale = f"{int(numero_vale) + 1:06d}"
                 
                 # Crear el vale
                 print(f"DEBUG - Creando ticket vale...")
@@ -1943,10 +1972,31 @@ def cotizacion_convertir_venta(request, pk):
         tipo_venta = request.POST.get('tipo_venta')
         
         if tipo_venta in ['factura', 'boleta', 'guia']:
+            # Generar número único para la nueva venta
+            ultima_venta = Venta.objects.filter(empresa=cotizacion.empresa).order_by('-id').first()
+            if ultima_venta and ultima_venta.numero_venta and ultima_venta.numero_venta != 'TEMP':
+                try:
+                    ultimo_numero = int(ultima_venta.numero_venta)
+                    numero_nueva_venta = f"{ultimo_numero + 1:06d}"
+                except ValueError:
+                    # Si no se puede convertir, usar un número basado en la cotización
+                    numero_nueva_venta = f"V{cotizacion.numero_venta}"
+            else:
+                numero_nueva_venta = f"V{cotizacion.numero_venta}"
+            
+            # Verificar que el número no exista
+            while Venta.objects.filter(empresa=cotizacion.empresa, numero_venta=numero_nueva_venta).exists():
+                try:
+                    numero_nueva_venta = f"{int(numero_nueva_venta) + 1:06d}"
+                except ValueError:
+                    # Si tiene prefijo, agregar sufijo numérico
+                    import random
+                    numero_nueva_venta = f"{numero_nueva_venta}{random.randint(1000, 9999)}"
+            
             # Crear nueva venta basada en la cotización
             nueva_venta = Venta.objects.create(
                 empresa=cotizacion.empresa,
-                numero_venta=f"V{cotizacion.numero_venta}",
+                numero_venta=numero_nueva_venta,
                 cliente=cotizacion.cliente,
                 vendedor=cotizacion.vendedor,
                 estacion_trabajo=cotizacion.estacion_trabajo,

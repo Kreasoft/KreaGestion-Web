@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Stock Bajo{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print { .no-print { display: none !important; } }
+    .tabla-informe thead { background: #dc3545; color: white; }
+    .tabla-informe tbody tr:hover { background: #f8f9fa; }
+    .tabla-informe th, .tabla-informe td { padding: 0.5rem !important; font-size: 0.875rem; }
+    .badge-critico { background: #dc3545; }
+    .badge-bajo { background: #ffc107; color: #333; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3 no-print">
+        <div class="col-md-8">
+            <h5 class="mb-1" style="color: #2c3e50;"><i class="fas fa-exclamation-triangle me-2" style="color: #dc3545;"></i>Stock Bajo</h5>
+            <small class="text-muted">Productos que requieren reposición</small>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'informes:dashboard' %}" class="btn btn-sm btn-outline-secondary me-1"><i class="fas fa-arrow-left"></i></a>
+            <button onclick="window.print()" class="btn btn-sm btn-danger"><i class="fas fa-print"></i></button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0 tabla-informe">
+                            <thead>
+                                <tr>
+                                    <th>Bodega</th>
+                                    <th>Código</th>
+                                    <th>Artículo</th>
+                                    <th class="text-end">Stock Actual</th>
+                                    <th class="text-end">Stock Mínimo</th>
+                                    <th class="text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stock in stocks_bajos %}
+                                <tr>
+                                    <td><small class="text-muted">{{ stock.bodega.nombre }}</small></td>
+                                    <td><small class="text-muted">{{ stock.articulo.codigo }}</small></td>
+                                    <td>{{ stock.articulo.nombre }}</td>
+                                    <td class="text-end text-danger fw-bold">{{ stock.cantidad|floatformat:0 }}</td>
+                                    <td class="text-end">{{ stock.articulo.stock_minimo|floatformat:0 }}</td>
+                                    <td class="text-center">
+                                        {% if stock.cantidad == 0 %}
+                                            <span class="badge badge-critico">SIN STOCK</span>
+                                        {% else %}
+                                            <span class="badge badge-bajo">BAJO</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-3">
+                                        <small class="text-success">✓ No hay productos con stock bajo</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CuentaCorrienteProveedor, MovimientoCuentaCorriente, CuentaCorrienteCliente, MovimientoCuentaCorrienteCliente, DocumentoCliente
+from .models import CuentaCorrienteProveedor, MovimientoCuentaCorriente, CuentaCorrienteCliente, MovimientoCuentaCorrienteCliente, DocumentoCliente, PagoDocumentoCliente
 
 
 @admin.register(CuentaCorrienteCliente)
@@ -155,6 +155,33 @@ class DocumentoClienteAdmin(admin.ModelAdmin):
         }),
         ('Auditoría', {
             'fields': ('creado_por', 'fecha_creacion', 'fecha_modificacion'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(PagoDocumentoCliente)
+class PagoDocumentoClienteAdmin(admin.ModelAdmin):
+    list_display = [
+        'documento',
+        'fecha_pago',
+        'monto',
+        'forma_pago',
+        'registrado_por'
+    ]
+    list_filter = ['fecha_pago', 'forma_pago', 'documento__empresa']
+    search_fields = ['documento__numero_documento', 'documento__cliente__nombre', 'observaciones']
+    readonly_fields = ['fecha_creacion', 'registrado_por']
+    
+    fieldsets = (
+        ('Información del Pago', {
+            'fields': ('documento', 'fecha_pago', 'monto', 'forma_pago')
+        }),
+        ('Observaciones', {
+            'fields': ('observaciones',)
+        }),
+        ('Auditoría', {
+            'fields': ('registrado_por', 'fecha_creacion'),
             'classes': ('collapse',)
         }),
     )

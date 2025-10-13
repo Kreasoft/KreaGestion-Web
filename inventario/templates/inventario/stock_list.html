@@ -150,7 +150,7 @@
                             <tbody>
                                 {% for stock in page_obj %}
                                 <tr style="border-bottom: 1px solid #F5F1E8;">
-                                    <td style="font-size: 0.7rem;" class="text-muted">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
+                                    <td style="font-size: 0.7rem;" class="text-muted">{{ forloop.counter0|add:page_obj.start_index }}</td>
                                     <td style="font-size: 0.7rem;">
                                         <div class="d-flex align-items-center">
                                             <i class="fas fa-box text-muted me-2"></i>
@@ -375,7 +375,14 @@
 </div>
 
 <script>
+let currentStockId = null;
+
 function editarStock(stockId) {
+    console.log('=== INICIANDO EDICIÓN DE STOCK ===');
+    console.log('Stock ID:', stockId);
+    
+    currentStockId = stockId;
+    
     document.getElementById('modalEditarStockBody').innerHTML = `
         <div class="text-center py-4">
             <div class="spinner-border text-primary" role="status">
@@ -388,21 +395,138 @@ function editarStock(stockId) {
     const modal = new bootstrap.Modal(document.getElementById('modalEditarStock'));
     modal.show();
     
-    fetch(`/inventario/stock/${stockId}/editar-modal/`, {
+    const url = `/inventario/stock/${stockId}/editar-modal/`;
+    console.log('Cargando formulario desde:', url);
+    
+    fetch(url, {
         method: 'GET',
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(response => response.text())
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.text();
+    })
     .then(html => {
+        console.log('HTML recibido, longitud:', html.length);
         document.getElementById('modalEditarStockBody').innerHTML = html;
+        console.log('HTML insertado en modal');
+        // Adjuntar el evento submit después de cargar el HTML
+        attachFormHandler();
     })
     .catch(error => {
+        console.error('Error al cargar formulario:', error);
         document.getElementById('modalEditarStockBody').innerHTML = `
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-triangle me-2"></i>
                 Error al cargar el formulario: ${error.message}
             </div>
         `;
+    });
+}
+
+function attachFormHandler() {
+    console.log('=== BUSCANDO FORMULARIO ===');
+    const modalBody = document.getElementById('modalEditarStockBody');
+    console.log('Modal body HTML:', modalBody.innerHTML.substring(0, 200));
+    
+    // Buscar por ID o por tag
+    let form = document.getElementById('formEditarStock');
+    if (!form) {
+        form = document.getElementById('stockForm');
+    }
+    if (!form) {
+        form = modalBody.querySelector('form');
+    }
+    
+    console.log('Formulario encontrado:', form);
+    
+    if (!form) {
+        console.error('Formulario no encontrado');
+        console.log('Contenido completo del modal:', modalBody.innerHTML);
+        return;
+    }
+    
+    console.log('Formulario encontrado, adjuntando handler');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const url = `/inventario/stock/${currentStockId}/editar-modal/`;
+        
+        console.log('Enviando a URL:', url);
+        console.log('FormData:', Object.fromEntries(formData));
+        
+        // Deshabilitar botón de submit
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Guardando...';
+        }
+        
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data);
+            
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Éxito!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                // Rehabilitar botón
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Guardar Cambios';
+                }
+                
+                let errorHtml = data.message || 'Ocurrió un error al guardar';
+                if (data.errors) {
+                    errorHtml += '<br><br><div class="text-start small">';
+                    for (let field in data.errors) {
+                        errorHtml += `<strong>${field}:</strong> ${data.errors[field].join(', ')}<br>`;
+                    }
+                    errorHtml += '</div>';
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    html: errorHtml
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+            
+            // Rehabilitar botón
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Guardar Cambios';
+            }
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de Conexión',
+                text: 'No se pudo conectar con el servidor: ' + error.message
+            });
+        });
     });
 }
 </script>

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Cuentas por Cobrar{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print { .no-print { display: none !important; } }
+    .stat-card { background: white; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+    .stat-value { font-size: 1.5rem; font-weight: 600; color: #8B7355; margin: 0; }
+    .stat-label { font-size: 0.75rem; color: #6c757d; margin: 0; }
+    .tabla-informe thead { background: #8B7355; color: white; }
+    .tabla-informe tbody tr:hover { background: #f8f9fa; }
+    .tabla-informe th, .tabla-informe td { padding: 0.5rem !important; font-size: 0.875rem; }
+    .vencido { color: #dc3545; font-weight: 600; }
+    .por-vencer { color: #ffc107; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3 no-print">
+        <div class="col-md-8">
+            <h5 class="mb-1" style="color: #2c3e50;"><i class="fas fa-file-invoice-dollar me-2" style="color: #8B7355;"></i>Cuentas por Cobrar</h5>
+            <small class="text-muted">Documentos pendientes de pago</small>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'informes:dashboard' %}" class="btn btn-sm btn-outline-secondary me-1"><i class="fas fa-arrow-left"></i></a>
+            <a href="{% url 'informes:exportar_cuentas_cobrar_excel' %}" class="btn btn-sm btn-success me-1"><i class="fas fa-file-excel"></i></a>
+            <button onclick="window.print()" class="btn btn-sm" style="background: #8B7355; color: white;"><i class="fas fa-print"></i></button>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6 mb-2">
+            <div class="stat-card">
+                <p class="stat-label">Total por Cobrar</p>
+                <p class="stat-value">${{ total_por_cobrar|floatformat:0|intcomma }}</p>
+            </div>
+        </div>
+        <div class="col-md-6 mb-2">
+            <div class="stat-card">
+                <p class="stat-label">Total Vencido</p>
+                <p class="stat-value text-danger">${{ total_vencido|floatformat:0|intcomma }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0 tabla-informe">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Documento</th>
+                                    <th>Emisión</th>
+                                    <th>Vencimiento</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-end">Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in documentos %}
+                                <tr>
+                                    <td>{{ doc.cliente.nombre }}</td>
+                                    <td><small class="text-muted">{{ doc.tipo_documento|upper }} {{ doc.numero_documento }}</small></td>
+                                    <td>{{ doc.fecha_emision|date:"d/m/Y" }}</td>
+                                    <td class="{% if doc.fecha_vencimiento < today %}vencido{% else %}por-vencer{% endif %}">
+                                        {{ doc.fecha_vencimiento|date:"d/m/Y" }}
+                                    </td>
+                                    <td class="text-end">${{ doc.total|floatformat:0|intcomma }}</td>
+                                    <td class="text-end fw-bold">${{ doc.saldo_pendiente|floatformat:0|intcomma }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-3">
+                                        <small class="text-success">✓ No hay cuentas por cobrar</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

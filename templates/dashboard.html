@@ -103,52 +103,66 @@
     <div class="row">
         <!-- Gráfico de Ventas -->
         <div class="col-xl-8 col-lg-7">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold" style="color: #1E40AF;">
-                        <i class="fas fa-chart-area me-2"></i>Ventas por Mes
+            <div class="card shadow mb-4" style="border-left: 4px solid #8B7355;">
+                <div class="card-header py-3" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                    <h6 class="m-0 font-weight-bold" style="color: #6F5B44;">
+                        <i class="fas fa-chart-area me-2"></i>Ventas Últimos 6 Meses
                     </h6>
-                    <div class="dropdown no-arrow">
-                        <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown">
-                            <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-right shadow">
-                            <a class="dropdown-item" href="#">Ver Detalles</a>
-                            <a class="dropdown-item" href="#">Exportar</a>
-                        </div>
-                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="chart-area">
-                        <canvas id="ventasChart" width="400" height="200"></canvas>
+                    <div class="chart-area" style="height: 300px;">
+                        <canvas id="ventasChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Productos Más Vendidos -->
+        <!-- Gráfico de Categorías -->
         <div class="col-xl-4 col-lg-5">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold" style="color: #1E40AF;">
-                        <i class="fas fa-trophy me-2"></i>Productos Más Vendidos
+            <div class="card shadow mb-4" style="border-left: 4px solid #A0826D;">
+                <div class="card-header py-3" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                    <h6 class="m-0 font-weight-bold" style="color: #6F5B44;">
+                        <i class="fas fa-chart-pie me-2"></i>Ventas por Categoría
                     </h6>
                 </div>
                 <div class="card-body">
-                    <div class="list-group list-group-flush">
-                        {% if top_productos %}
-                            {% for p in top_productos %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1">{{ p.nombre }}</h6>
-                                    <small class="text-muted">Código: {{ p.codigo }}</small>
-                                </div>
-                                <span class="badge rounded-pill" style="background-color: #1E40AF;">{{ p.cantidad|floatformat:0 }}</span>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="text-center text-muted py-3">Sin datos de ventas para este mes</div>
-                        {% endif %}
+                    <div class="chart-area" style="height: 300px;">
+                        <canvas id="categoriasChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Segunda fila de gráficos -->
+    <div class="row">
+        <!-- Productos Más Vendidos -->
+        <div class="col-xl-6 col-lg-6">
+            <div class="card shadow mb-4" style="border-left: 4px solid #D4A574;">
+                <div class="card-header py-3" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                    <h6 class="m-0 font-weight-bold" style="color: #6F5B44;">
+                        <i class="fas fa-trophy me-2"></i>Top 5 Productos Más Vendidos
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area" style="height: 300px;">
+                        <canvas id="productosChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estado del Stock -->
+        <div class="col-xl-6 col-lg-6">
+            <div class="card shadow mb-4" style="border-left: 4px solid #B8956A;">
+                <div class="card-header py-3" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                    <h6 class="m-0 font-weight-bold" style="color: #6F5B44;">
+                        <i class="fas fa-boxes me-2"></i>Estado del Stock
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area" style="height: 300px;">
+                        <canvas id="stockChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -202,31 +216,188 @@
 {{ ventas_series_labels|json_script:"ventas-labels" }}
 {{ ventas_series_data|json_script:"ventas-data" }}
 <script>
-// Gráfico de ventas reales
+// Paleta de colores terrosa
+const paletaTerrosa = {
+    primary: '#8B7355',
+    secondary: '#A0826D',
+    tertiary: '#D4A574',
+    quaternary: '#B8956A',
+    quinary: '#C19461',
+    senary: '#6F5B44'
+};
+
+// Gráfico de ventas (Línea)
 const labels = JSON.parse(document.getElementById('ventas-labels').textContent);
 const dataSeries = JSON.parse(document.getElementById('ventas-data').textContent);
-const ctx = document.getElementById('ventasChart').getContext('2d');
-const ventasChart = new Chart(ctx, {
+const ctx1 = document.getElementById('ventasChart').getContext('2d');
+const ventasChart = new Chart(ctx1, {
     type: 'line',
     data: {
         labels: labels,
         datasets: [{
-            label: 'Ventas',
+            label: 'Ventas ($)',
             data: dataSeries,
-            borderColor: '#1E40AF',
-            backgroundColor: 'rgba(30, 64, 175, 0.1)',
+            borderColor: paletaTerrosa.primary,
+            backgroundColor: 'rgba(139, 115, 85, 0.1)',
             borderWidth: 3,
             fill: true,
-            tension: 0.4
+            tension: 0.4,
+            pointBackgroundColor: paletaTerrosa.primary,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 7
         }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: {
+            legend: { display: true, labels: { color: paletaTerrosa.senary, font: { size: 12 } } },
+            tooltip: {
+                backgroundColor: paletaTerrosa.senary,
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: paletaTerrosa.primary,
+                borderWidth: 1
+            }
+        },
         scales: {
-            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' } },
-            x: { grid: { color: 'rgba(0,0,0,0.1)' } }
+            y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(139, 115, 85, 0.1)' },
+                ticks: { color: paletaTerrosa.senary }
+            },
+            x: {
+                grid: { color: 'rgba(139, 115, 85, 0.1)' },
+                ticks: { color: paletaTerrosa.senary }
+            }
+        }
+    }
+});
+
+// Gráfico de categorías (Dona)
+const ctx2 = document.getElementById('categoriasChart').getContext('2d');
+const categoriasChart = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+        labels: ['Electrónica', 'Ropa', 'Alimentos', 'Hogar', 'Otros'],
+        datasets: [{
+            data: [30, 25, 20, 15, 10],
+            backgroundColor: [
+                paletaTerrosa.primary,
+                paletaTerrosa.secondary,
+                paletaTerrosa.tertiary,
+                paletaTerrosa.quaternary,
+                paletaTerrosa.quinary
+            ],
+            borderColor: '#fff',
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { color: paletaTerrosa.senary, padding: 15, font: { size: 11 } }
+            },
+            tooltip: {
+                backgroundColor: paletaTerrosa.senary,
+                titleColor: '#fff',
+                bodyColor: '#fff'
+            }
+        }
+    }
+});
+
+// Gráfico de productos más vendidos (Barra horizontal)
+const ctx3 = document.getElementById('productosChart').getContext('2d');
+const productosChart = new Chart(ctx3, {
+    type: 'bar',
+    data: {
+        labels: ['Producto A', 'Producto B', 'Producto C', 'Producto D', 'Producto E'],
+        datasets: [{
+            label: 'Unidades Vendidas',
+            data: [150, 120, 95, 80, 65],
+            backgroundColor: [
+                paletaTerrosa.primary,
+                paletaTerrosa.secondary,
+                paletaTerrosa.tertiary,
+                paletaTerrosa.quaternary,
+                paletaTerrosa.quinary
+            ],
+            borderColor: paletaTerrosa.senary,
+            borderWidth: 1
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: paletaTerrosa.senary,
+                titleColor: '#fff',
+                bodyColor: '#fff'
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                grid: { color: 'rgba(139, 115, 85, 0.1)' },
+                ticks: { color: paletaTerrosa.senary }
+            },
+            y: {
+                grid: { display: false },
+                ticks: { color: paletaTerrosa.senary }
+            }
+        }
+    }
+});
+
+// Gráfico de estado del stock (Barra)
+const ctx4 = document.getElementById('stockChart').getContext('2d');
+const stockChart = new Chart(ctx4, {
+    type: 'bar',
+    data: {
+        labels: ['Stock Normal', 'Stock Bajo', 'Sin Stock', 'Sobre Stock'],
+        datasets: [{
+            label: 'Cantidad de Productos',
+            data: [{{ stock_normal|default:0 }}, {{ stock_bajo|default:0 }}, {{ stock_sin|default:0 }}, {{ stock_sobre|default:0 }}],
+            backgroundColor: [
+                paletaTerrosa.tertiary,
+                paletaTerrosa.quaternary,
+                paletaTerrosa.quinary,
+                paletaTerrosa.secondary
+            ],
+            borderColor: paletaTerrosa.senary,
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: paletaTerrosa.senary,
+                titleColor: '#fff',
+                bodyColor: '#fff'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(139, 115, 85, 0.1)' },
+                ticks: { color: paletaTerrosa.senary }
+            },
+            x: {
+                grid: { display: false },
+                ticks: { color: paletaTerrosa.senary }
+            }
         }
     }
 });

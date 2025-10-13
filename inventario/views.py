@@ -554,33 +554,56 @@ def inventario_detail(request, pk):
 @requiere_empresa
 def stock_list(request):
     """Lista el stock actual de todos los artículos"""
+    from bodegas.models import Bodega
+    
     stocks = Stock.objects.filter(empresa=request.empresa).select_related(
-        'bodega_destino', 'articulo', 'actualizado_por'
+        'bodega', 'articulo'
     ).order_by('articulo__nombre', 'bodega__nombre')
     
     # Filtros
-    bodega_id = request.GET.get('bodega_destino')
+    bodega_id = request.GET.get('bodega')
     if bodega_id:
         stocks = stocks.filter(bodega_id=bodega_id)
     
-    # Paginación
-    paginator = Paginator(stocks, 20)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    estado = request.GET.get('estado')
+    if estado == 'sin_stock':
+        stocks = stocks.filter(cantidad__lte=0)
+    elif estado == 'bajo':
+        stocks = stocks.filter(cantidad__gt=0, cantidad__lte=F('stock_minimo'))
+    elif estado == 'normal':
+        stocks = stocks.filter(cantidad__gt=F('stock_minimo'))
     
-    # Estadísticas
+    search = request.GET.get('search')
+    if search:
+        stocks = stocks.filter(
+            Q(articulo__codigo__icontains=search) |
+            Q(articulo__nombre__icontains=search)
+        )
+    
+    # Estadísticas (sobre el queryset filtrado)
     total_articulos = stocks.count()
     sin_stock = stocks.filter(cantidad__lte=0).count()
     stock_bajo = stocks.filter(
         cantidad__gt=0, 
         cantidad__lte=F('stock_minimo')
     ).count()
+    stock_normal = stocks.filter(cantidad__gt=F('stock_minimo')).count()
+    
+    # Paginación
+    paginator = Paginator(stocks, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Obtener todas las bodegas
+    bodegas = Bodega.objects.filter(empresa=request.empresa)
     
     context = {
         'page_obj': page_obj,
+        'bodegas': bodegas,
         'total_articulos': total_articulos,
         'sin_stock': sin_stock,
         'stock_bajo': stock_bajo,
+        'stock_normal': stock_normal,
         'titulo': 'Control de Stock'
     }
     

@@ -12,6 +12,13 @@ from clientes.models import Cliente
 from proveedores.models import Proveedor
 from articulos.models import Articulo, CategoriaArticulo, UnidadMedida
 
+# Importar funciones de mantenimiento
+from .mantenimiento_utils import (
+    optimizar_tablas, crear_backup, verificar_integridad,
+    limpiar_sesiones, detectar_duplicados, limpiar_archivos,
+    ver_logs, exportar_logs, purgar_logs
+)
+
 
 @login_required
 @requiere_empresa
@@ -21,6 +28,26 @@ def utilidades_dashboard(request):
         'title': 'Utilidades del Sistema',
     }
     return render(request, 'utilidades/dashboard.html', context)
+
+
+@login_required
+@requiere_empresa
+def exportar_datos_view(request):
+    """Vista para exportar datos"""
+    context = {
+        'title': 'Exportar Datos',
+    }
+    return render(request, 'utilidades/exportar_datos.html', context)
+
+
+@login_required
+@requiere_empresa
+def mantenimiento_view(request):
+    """Vista principal de mantenimiento"""
+    context = {
+        'title': 'Mantenimiento del Sistema',
+    }
+    return render(request, 'utilidades/mantenimiento.html', context)
 
 
 @login_required

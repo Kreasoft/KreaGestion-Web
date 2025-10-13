@@ -228,3 +228,25 @@ class DocumentoCliente(models.Model):
     
     def __str__(self):
         return f"{self.get_tipo_documento_display()} {self.numero_documento} - {self.cliente.nombre}"
+
+
+class PagoDocumentoCliente(models.Model):
+    """Modelo para registrar pagos de documentos de clientes"""
+    
+    documento = models.ForeignKey(DocumentoCliente, on_delete=models.CASCADE, related_name='pagos', verbose_name="Documento")
+    fecha_pago = models.DateTimeField(default=timezone.now, verbose_name="Fecha de Pago")
+    monto = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0.01)], verbose_name="Monto")
+    forma_pago = models.CharField(max_length=100, verbose_name="Forma de Pago")
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    
+    # Auditoría
+    registrado_por = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Registrado por")
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    
+    class Meta:
+        verbose_name = "Pago de Documento de Cliente"
+        verbose_name_plural = "Pagos de Documentos de Clientes"
+        ordering = ['-fecha_pago']
+    
+    def __str__(self):
+        return f"Pago {self.documento.numero_documento} - ${self.monto} - {self.fecha_pago.strftime('%d/%m/%Y')}"

@@ -19,7 +19,7 @@ urlpatterns = [
     path('movimientos/<int:pk>/eliminar/', views.inventario_delete, name='inventario_delete'),
     
     # Control de Stock
-    path('stock/', views_stock_updated.stock_list, name='stock_list'),
+    path('stock/', views.stock_list, name='stock_list'),
     path('stock/nuevo/', views.stock_create, name='stock_create'),
     path('stock/<int:pk>/editar/', views.stock_update, name='stock_update'),
     path('stock/<int:pk>/editar-modal/', views_stock_modal.stock_update_modal, name='stock_update_modal'),

@@ -267,6 +267,12 @@
             gap: 8px;
     }
     
+    /* Vista de lista */
+    .pos-products-grid.vista-lista {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+    
     .pos-product-card {
         background: white;
             border: 1px solid #e3e6f0;
@@ -279,6 +285,39 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
+    }
+    
+    /* Estilo de tarjeta en vista lista */
+    .vista-lista .pos-product-card {
+        flex-direction: row;
+        text-align: left;
+        min-height: auto;
+        padding: 6px 10px;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 4px;
+    }
+    
+    .vista-lista .pos-product-name {
+        flex: 1;
+        margin-bottom: 0;
+        -webkit-line-clamp: 1;
+        font-size: 0.85rem;
+    }
+    
+    .vista-lista .pos-product-price {
+        margin-bottom: 0;
+        margin-left: 12px;
+        font-size: 0.85rem;
+        min-width: 80px;
+        text-align: right;
+    }
+    
+    .vista-lista .pos-product-stock {
+        margin-left: 12px;
+        font-size: 0.75rem;
+        min-width: 60px;
+        text-align: right;
     }
     
     .pos-product-card:hover {
@@ -643,8 +682,18 @@
                         </select>
                     </div>
                     
-                    <div class="pos-search">
-                        <input type="text" id="pos-search" class="form-control" placeholder="Buscar productos...">
+                    <div class="d-flex gap-2 align-items-center mb-2">
+                        <div class="pos-search flex-grow-1">
+                            <input type="text" id="pos-search" class="form-control" placeholder="Buscar productos...">
+                        </div>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-secondary btn-sm active" id="btnVistaGrid" title="Vista en Cuadrícula">
+                                <i class="fas fa-th"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnVistaLista" title="Vista en Lista">
+                                <i class="fas fa-list"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="pos-category-filter">
                         <button class="category-btn active" data-category="all">Todas</button>
@@ -979,6 +1028,25 @@ function cargarListasPrecios() {
         });
 }
 
+// Toggle entre vista grid y lista
+function toggleVista(vista) {
+    const grid = document.getElementById('pos-products-grid');
+    const btnGrid = document.getElementById('btnVistaGrid');
+    const btnLista = document.getElementById('btnVistaLista');
+    
+    if (vista === 'lista') {
+        grid.classList.add('vista-lista');
+        btnLista.classList.add('active');
+        btnGrid.classList.remove('active');
+        localStorage.setItem('posVista', 'lista');
+    } else {
+        grid.classList.remove('vista-lista');
+        btnGrid.classList.add('active');
+        btnLista.classList.remove('active');
+        localStorage.setItem('posVista', 'grid');
+    }
+}
+
 // Inicialización
 document.addEventListener('DOMContentLoaded', function() {
     console.log('*** DOMContentLoaded INICIADO ***');
@@ -994,6 +1062,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Recargar productos con nueva lista
         filterProducts();
     });
+    
+    // Event listeners para botones de vista
+    document.getElementById('btnVistaGrid').addEventListener('click', function() {
+        toggleVista('grid');
+    });
+    
+    document.getElementById('btnVistaLista').addEventListener('click', function() {
+        toggleVista('lista');
+    });
+    
+    // Restaurar vista guardada
+    const vistaGuardada = localStorage.getItem('posVista');
+    if (vistaGuardada === 'lista') {
+        toggleVista('lista');
+    }
     
     updateDateTime();
     setInterval(updateDateTime, 1000);
@@ -1154,10 +1237,14 @@ function updateDateTime() {
         
         // Filtrar productos
         let visibleCount = 0;
+        const grid = document.getElementById('pos-products-grid');
+        const esVistaLista = grid.classList.contains('vista-lista');
+        
         document.querySelectorAll('.pos-product-card').forEach(card => {
             const cardCategory = card.dataset.categoria;
             if (category === 'all' || cardCategory === category) {
-                card.style.display = 'block';
+                // Usar flex para mantener el estilo correcto según la vista
+                card.style.display = esVistaLista ? 'flex' : 'flex';
                 visibleCount++;
             } else {
                 card.style.display = 'none';
@@ -1189,11 +1276,14 @@ function filterProducts() {
     if (!searchTerm) {
         // Si no hay término de búsqueda, mostrar productos cargados según categoría
         let count = 0;
+        const grid = document.getElementById('pos-products-grid');
+        const esVistaLista = grid.classList.contains('vista-lista');
+        
         document.querySelectorAll('.pos-product-card').forEach(card => {
             const category = card.dataset.categoria;
             const matchesCategory = currentCategory === 'all' || category === currentCategory;
             if (matchesCategory) {
-                card.style.display = 'block';
+                card.style.display = 'flex';
                 count++;
             } else {
                 card.style.display = 'none';
@@ -1249,8 +1339,8 @@ function buscarEnBaseDatos(query) {
                     console.log(`[${index + 1}] ID: ${articulo.id}, Nombre: ${articulo.nombre}`);
                     const card = document.querySelector(`.pos-product-card[data-articulo-id="${articulo.id}"]`);
                     if (card) {
-                        // Si el producto ya está cargado, mostrarlo
-                        card.style.display = 'block';
+                        // Si el producto ya está cargado, mostrarlo con flex
+                        card.style.display = 'flex';
                         console.log(`  ✓ Mostrando producto existente en DOM`);
                     } else {
                         // Si no está cargado, agregarlo dinámicamente

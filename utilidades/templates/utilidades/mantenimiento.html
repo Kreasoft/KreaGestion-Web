@@ -1,0 +1,502 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Mantenimiento del Sistema{% endblock %}
+
+{% block extra_css %}
+<style>
+    .maintenance-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        border: 1px solid #E8DCC8;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .maintenance-card .bg-icon {
+        position: absolute;
+        right: -10px;
+        bottom: -10px;
+        font-size: 6rem;
+        color: #F5F1E8;
+        opacity: 0.3;
+        z-index: 0;
+    }
+    
+    .maintenance-card:hover {
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        transform: translateY(-2px);
+        border-color: #D4A574;
+    }
+    
+    .maintenance-card > * {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .maintenance-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+    
+    .maintenance-icon i {
+        font-size: 1.5rem;
+        color: #8B7355;
+    }
+    
+    .maintenance-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+        color: #5A4A37;
+        margin-bottom: 0.5rem;
+    }
+    
+    .maintenance-description {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+        line-height: 1.4;
+    }
+    
+    .section-title {
+        font-size: 1.35rem;
+        font-weight: 600;
+        font-family: 'Poppins', sans-serif;
+        color: #5A4A37;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #F5F1E8;
+    }
+    
+    .section-title i {
+        color: #8B7355;
+        margin-right: 0.5rem;
+    }
+    
+    .btn-maintenance {
+        background: #8B7355 !important;
+        border-color: #8B7355 !important;
+        color: white !important;
+    }
+    
+    .btn-maintenance:hover {
+        background: #6F5B44 !important;
+        border-color: #6F5B44 !important;
+        color: white !important;
+    }
+    
+    .btn-danger-maintenance {
+        background: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: white !important;
+    }
+    
+    .btn-danger-maintenance:hover {
+        background: #c82333 !important;
+        border-color: #bd2130 !important;
+        color: white !important;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+    
+    .status-success {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-warning {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-danger {
+        background: #f8d7da;
+        color: #721c24;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-1" style="color: #2c3e50;">
+                <i class="fas fa-wrench me-2" style="color: #8B7355;"></i>Mantenimiento del Sistema
+            </h4>
+            <p class="text-muted mb-0">Herramientas para optimizar y mantener el sistema</p>
+        </div>
+    </div>
+
+    <!-- Base de Datos -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3 class="section-title">
+                <i class="fas fa-database"></i>Base de Datos
+            </h3>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="maintenance-card">
+                <i class="fas fa-sync bg-icon"></i>
+                <div class="maintenance-icon">
+                    <i class="fas fa-sync"></i>
+                </div>
+                <h4 class="maintenance-title">Optimizar Tablas</h4>
+                <p class="maintenance-description">Optimiza las tablas de la base de datos, reconstruye índices y actualiza estadísticas.</p>
+                <button onclick="optimizarTablas()" class="btn btn-maintenance btn-sm w-100">
+                    <i class="fas fa-cog me-1"></i>Optimizar
+                </button>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="maintenance-card">
+                <i class="fas fa-save bg-icon"></i>
+                <div class="maintenance-icon">
+                    <i class="fas fa-save"></i>
+                </div>
+                <h4 class="maintenance-title">Backup de Base de Datos</h4>
+                <p class="maintenance-description">Crea un respaldo completo de la base de datos en formato SQL.</p>
+                <button onclick="crearBackup()" class="btn btn-maintenance btn-sm w-100">
+                    <i class="fas fa-download me-1"></i>Crear Backup
+                </button>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="maintenance-card">
+                <i class="fas fa-check-circle bg-icon"></i>
+                <div class="maintenance-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h4 class="maintenance-title">Verificar Integridad</h4>
+                <p class="maintenance-description">Verifica la integridad de los datos y detecta inconsistencias.</p>
+                <button onclick="verificarIntegridad()" class="btn btn-maintenance btn-sm w-100">
+                    <i class="fas fa-search me-1"></i>Verificar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Limpieza -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3 class="section-title">
+                <i class="fas fa-broom"></i>Limpieza de Datos
+            </h3>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="maintenance-card">
+                <i class="fas fa-user-clock bg-icon"></i>
+                <div class="maintenance-icon">
+                    <i class="fas fa-user-clock"></i>
+                </div>
+                <h4 class="maintenance-title">Limpiar Sesiones</h4>
+                <p class="maintenance-description">Elimina sesiones de usuario expiradas y libera espacio.</p>
+                <button onclick="limpiarSesiones()" class="btn btn-maintenance btn-sm w-100">
+                    <i class="fas fa-trash me-1"></i>Limpiar
+                </button>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="maintenance-card">
+                <i class="fas fa-copy bg-icon"></i>
+                <div class="maintenance-icon">
+                    <i class="fas fa-copy"></i>
+                </div>
+                <h4 class="maintenance-title">Detectar Duplicados</h4>
+                <p class="maintenance-description">Encuentra clientes, proveedores y artículos duplicados.</p>
+                <button onclick="detectarDuplicados()" class="btn btn-maintenance btn-sm w-100">
+                    <i class="fas fa-search me-1"></i>Buscar
+                </button>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="maintenance-card">
+                <i class="fas fa-file bg-icon"></i>
+                <div class="maintenance-icon">
+                    <i class="fas fa-file"></i>
+                </div>
+                <h4 class="maintenance-title">Limpiar Archivos Temporales</h4>
+                <p class="maintenance-description">Elimina archivos temporales y uploads no utilizados.</p>
+                <button onclick="limpiarArchivos()" class="btn btn-maintenance btn-sm w-100">
+                    <i class="fas fa-trash me-1"></i>Limpiar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs y Auditoría -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3 class="section-title">
+                <i class="fas fa-file-alt"></i>Logs y Auditoría
+            </h3>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="maintenance-card">
+                <i class="fas fa-list bg-icon"></i>
+                <div class="maintenance-icon">
+                    <i class="fas fa-list"></i>
+                </div>
+                <h4 class="maintenance-title">Ver Logs del Sistema</h4>
+                <p class="maintenance-description">Consulta los registros de errores y actividad del sistema.</p>
+                <button onclick="verLogs()" class="btn btn-maintenance btn-sm w-100">
+                    <i class="fas fa-eye me-1"></i>Ver Logs
+                </button>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="maintenance-card">
+                <i class="fas fa-download bg-icon"></i>
+                <div class="maintenance-icon">
+                    <i class="fas fa-download"></i>
+                </div>
+                <h4 class="maintenance-title">Exportar Logs</h4>
+                <p class="maintenance-description">Descarga los logs del sistema para análisis externo.</p>
+                <button onclick="exportarLogs()" class="btn btn-maintenance btn-sm w-100">
+                    <i class="fas fa-file-download me-1"></i>Descargar
+                </button>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="maintenance-card">
+                <i class="fas fa-trash-alt bg-icon"></i>
+                <div class="maintenance-icon">
+                    <i class="fas fa-trash-alt"></i>
+                </div>
+                <h4 class="maintenance-title">Purgar Logs Antiguos</h4>
+                <p class="maintenance-description">Elimina registros de logs mayores a 90 días.</p>
+                <button onclick="purgarLogs()" class="btn btn-danger-maintenance btn-sm w-100">
+                    <i class="fas fa-trash me-1"></i>Purgar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resultados -->
+    <div class="row" id="resultados" style="display: none;">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5><i class="fas fa-info-circle me-2"></i>Resultado de la Operación</h5>
+                <div id="resultado-contenido"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function optimizarTablas() {
+    if (!confirm('¿Desea optimizar las tablas de la base de datos? Esta operación puede tardar varios minutos.')) return;
+    
+    Swal.fire({
+        title: 'Optimizando...',
+        text: 'Por favor espere',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    fetch('{% url "utilidades:optimizar_tablas" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        Swal.close();
+        if (data.success) {
+            Swal.fire('¡Éxito!', data.message, 'success');
+        } else {
+            Swal.fire('Error', data.message, 'error');
+        }
+    })
+    .catch(error => {
+        Swal.close();
+        Swal.fire('Error', 'Ocurrió un error al optimizar las tablas', 'error');
+    });
+}
+
+function crearBackup() {
+    if (!confirm('¿Desea crear un backup de la base de datos?')) return;
+    
+    Swal.fire({
+        title: 'Creando backup...',
+        text: 'Por favor espere',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    window.location.href = '{% url "utilidades:crear_backup" %}';
+    
+    setTimeout(() => {
+        Swal.close();
+        Swal.fire('¡Éxito!', 'El backup se está descargando', 'success');
+    }, 2000);
+}
+
+function verificarIntegridad() {
+    Swal.fire({
+        title: 'Verificando...',
+        text: 'Por favor espere',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    fetch('{% url "utilidades:verificar_integridad" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        Swal.close();
+        if (data.success) {
+            let html = '<ul class="text-start">';
+            for (let key in data.resultados) {
+                html += `<li><strong>${key}:</strong> ${data.resultados[key]}</li>`;
+            }
+            html += '</ul>';
+            Swal.fire({
+                title: 'Verificación Completa',
+                html: html,
+                icon: 'info',
+                width: '600px'
+            });
+        } else {
+            Swal.fire('Error', data.message, 'error');
+        }
+    });
+}
+
+function limpiarSesiones() {
+    if (!confirm('¿Desea eliminar todas las sesiones expiradas?')) return;
+    
+    fetch('{% url "utilidades:limpiar_sesiones" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire('¡Éxito!', data.message, 'success');
+        } else {
+            Swal.fire('Error', data.message, 'error');
+        }
+    });
+}
+
+function detectarDuplicados() {
+    Swal.fire({
+        title: 'Buscando duplicados...',
+        text: 'Por favor espere',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    fetch('{% url "utilidades:detectar_duplicados" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        Swal.close();
+        if (data.success) {
+            let html = '<div class="text-start">';
+            html += `<p><strong>Clientes duplicados:</strong> ${data.duplicados.clientes}</p>`;
+            html += `<p><strong>Proveedores duplicados:</strong> ${data.duplicados.proveedores}</p>`;
+            html += `<p><strong>Artículos duplicados:</strong> ${data.duplicados.articulos}</p>`;
+            html += '</div>';
+            Swal.fire({
+                title: 'Duplicados Encontrados',
+                html: html,
+                icon: data.duplicados.clientes + data.duplicados.proveedores + data.duplicados.articulos > 0 ? 'warning' : 'success'
+            });
+        } else {
+            Swal.fire('Error', data.message, 'error');
+        }
+    });
+}
+
+function limpiarArchivos() {
+    if (!confirm('¿Desea eliminar archivos temporales? Esta acción no se puede deshacer.')) return;
+    
+    fetch('{% url "utilidades:limpiar_archivos" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire('¡Éxito!', data.message, 'success');
+        } else {
+            Swal.fire('Error', data.message, 'error');
+        }
+    });
+}
+
+function verLogs() {
+    window.location.href = '{% url "utilidades:ver_logs" %}';
+}
+
+function exportarLogs() {
+    window.location.href = '{% url "utilidades:exportar_logs" %}';
+}
+
+function purgarLogs() {
+    if (!confirm('¿Desea eliminar los logs mayores a 90 días? Esta acción no se puede deshacer.')) return;
+    
+    fetch('{% url "utilidades:purgar_logs" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire('¡Éxito!', data.message, 'success');
+        } else {
+            Swal.fire('Error', data.message, 'error');
+        }
+    });
+}
+</script>
+{% endblock %}

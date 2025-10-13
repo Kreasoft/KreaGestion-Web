@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Compras por Período{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print { .no-print { display: none !important; } }
+    .tabla-informe thead { background: #17a2b8; color: white; }
+    .tabla-informe tbody tr:hover { background: #f8f9fa; }
+    .tabla-informe th, .tabla-informe td { padding: 0.5rem !important; font-size: 0.875rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3 no-print">
+        <div class="col-md-8">
+            <h5 class="mb-1" style="color: #2c3e50;"><i class="fas fa-shopping-basket me-2" style="color: #17a2b8;"></i>Compras por Período</h5>
+            <small class="text-muted">{{ fecha_desde|date:"d/m/Y" }} - {{ fecha_hasta|date:"d/m/Y" }}</small>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'informes:dashboard' %}" class="btn btn-sm btn-outline-secondary me-1"><i class="fas fa-arrow-left"></i></a>
+            <button onclick="window.print()" class="btn btn-sm btn-info"><i class="fas fa-print"></i></button>
+        </div>
+    </div>
+
+    <div class="row mb-3 no-print">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body p-3">
+                    <form method="get" class="row g-2 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label mb-1 small">Desde</label>
+                            <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label mb-1 small">Hasta</label>
+                            <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-sm w-100 btn-info"><i class="fas fa-search"></i></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0 tabla-informe">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Proveedor</th>
+                                    <th>Documento</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for compra in compras %}
+                                <tr>
+                                    <td>{{ compra.fecha_emision|date:"d/m/Y" }}</td>
+                                    <td>{{ compra.proveedor.nombre }}</td>
+                                    <td><small class="text-muted">{{ compra.tipo_documento|upper }} {{ compra.numero_documento }}</small></td>
+                                    <td class="text-end fw-bold">${{ compra.total_documento|floatformat:0|intcomma }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-3">
+                                        <small class="text-muted">No hay compras en el período</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
