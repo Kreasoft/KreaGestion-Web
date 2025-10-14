@@ -378,3 +378,5 @@ SESSION_COOKIE_SAMESITE = 'Strict'  # Máxima seguridad
 ¡La empresa activa ahora es persistente y no se pierde! 🎉
 
 
+
+

@@ -59,7 +59,8 @@
         .logo-container {
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
+            padding: 8px 0;
             transition: all 0.3s ease;
         }
         
@@ -69,13 +70,14 @@
         
         .logo-container img {
             transition: all 0.3s ease;
-            max-width: 100%;
-            height: auto;
+            max-width: 180px;
+            height: 45px;
+            object-fit: contain;
         }
         
         .sidebar.collapsed .logo-container img {
-            width: 50px !important;
-            height: 40px !important;
+            max-width: 45px !important;
+            height: 35px !important;
         }
         
         .sidebar.collapsed .logo-container {
@@ -178,6 +180,12 @@
         
         .submenu-items {
             padding: 0.25rem 0;
+        }
+        
+        .submenu-separator {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(139, 115, 85, 0.2), transparent);
+            margin: 0.5rem 1rem;
         }
         
         .submenu-link {
@@ -670,7 +678,7 @@
         <div class="sidebar-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="logo-container">
-                    <img src="{% static 'image/logo.png' %}" alt="GestionCloud" style="width: 150px; height: 60px; object-fit: contain;">
+                    <img src="{% static 'image/logo.png' %}?v=2" alt="GestionCloud" class="logo-img">
                 </div>
                 <button class="toggle-sidebar-mobile d-lg-none" id="toggleSidebarMobile">
                     <i class="fas fa-bars"></i>
@@ -697,34 +705,38 @@
                 </a>
                 <div class="collapse submenu" id="articulosSubmenu">
                     <div class="submenu-items">
+                        <!-- Gestión Principal -->
                         {% if perms.articulos.view_articulo or user.is_superuser %}
                         <a href="{% url 'articulos:articulo_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'articulo_list' %}active{% endif %}">
-                            <i class="fas fa-list me-2"></i>
+                            <i class="fas fa-list me-2" style="color: #8B7355;"></i>
                             <span>Lista de Artículos</span>
                         </a>
                         {% endif %}
+                        
+                        <!-- Configuración -->
+                        <div class="submenu-separator"></div>
                         {% if perms.articulos.view_categoriaarticulo or user.is_superuser %}
                         <a href="{% url 'articulos:categoria_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'categoria_list' %}active{% endif %}">
-                            <i class="fas fa-tags me-2"></i>
+                            <i class="fas fa-tags me-2" style="color: #A0826D;"></i>
                             <span>Categorías</span>
-                        </a>
-                        {% endif %}
-                        {% if perms.articulos.view_impuestoespecifico or user.is_superuser %}
-                        <a href="{% url 'articulos:impuesto_especifico_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'impuesto_especifico_list' %}active{% endif %}">
-                            <i class="fas fa-percentage me-2"></i>
-                            <span>Impuestos Específicos</span>
-                        </a>
-                        {% endif %}
-                        {% if perms.articulos.view_unidadmedida or user.is_superuser %}
-                        <a href="{% url 'articulos:unidad_medida_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'unidad_medida_list' %}active{% endif %}">
-                            <i class="fas fa-ruler me-2"></i>
-                            <span>Unidades de Medida</span>
                         </a>
                         {% endif %}
                         {% if perms.articulos.view_listaprecio or user.is_superuser %}
                         <a href="{% url 'articulos:lista_precio_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'lista_precio_list' or request.resolver_match.url_name == 'lista_precio_create' or request.resolver_match.url_name == 'lista_precio_detail' or request.resolver_match.url_name == 'lista_precio_update' %}active{% endif %}">
-                            <i class="fas fa-dollar-sign me-2"></i>
+                            <i class="fas fa-dollar-sign me-2" style="color: #D4A574;"></i>
                             <span>Listas de Precios</span>
+                        </a>
+                        {% endif %}
+                        {% if perms.articulos.view_unidadmedida or user.is_superuser %}
+                        <a href="{% url 'articulos:unidad_medida_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'unidad_medida_list' %}active{% endif %}">
+                            <i class="fas fa-ruler me-2" style="color: #B8956A;"></i>
+                            <span>Unidades de Medida</span>
+                        </a>
+                        {% endif %}
+                        {% if perms.articulos.view_impuestoespecifico or user.is_superuser %}
+                        <a href="{% url 'articulos:impuesto_especifico_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'impuesto_especifico_list' %}active{% endif %}">
+                            <i class="fas fa-percentage me-2" style="color: #C19461;"></i>
+                            <span>Impuestos Específicos</span>
                         </a>
                         {% endif %}
                     </div>
@@ -742,51 +754,58 @@
                 </a>
                 <div class="collapse submenu" id="ventasSubmenu">
                     <div class="submenu-items">
+                        <!-- Operaciones -->
                         {% if perms.ventas.add_venta or user.is_superuser %}
                         <a href="{% url 'ventas:pos_view' %}" class="nav-link submenu-link {% if 'pos' in request.path %}active{% endif %}">
-                            <i class="fas fa-shopping-cart me-2"></i>
+                            <i class="fas fa-shopping-cart me-2" style="color: #8B7355;"></i>
                             <span>Punto de Venta (POS)</span>
                         </a>
                         {% endif %}
                         {% if perms.ventas.view_cotizacion or user.is_superuser %}
                         <a href="{% url 'ventas:cotizacion_list' %}" class="nav-link submenu-link {% if 'cotizaciones' in request.path %}active{% endif %}">
-                            <i class="fas fa-file-invoice me-2"></i>
+                            <i class="fas fa-file-invoice me-2" style="color: #8B7355;"></i>
                             <span>Cotizaciones</span>
                         </a>
                         {% endif %}
+                        
+                        <!-- Consultas -->
+                        <div class="submenu-separator"></div>
                         {% if perms.ventas.view_venta or user.is_superuser %}
                         <a href="{% url 'ventas:ticket_list' %}" class="nav-link submenu-link {% if 'tickets' in request.path %}active{% endif %}">
-                            <i class="fas fa-receipt me-2"></i>
+                            <i class="fas fa-receipt me-2" style="color: #A0826D;"></i>
                             <span>Lista de Tickets</span>
                         </a>
                         {% endif %}
                         {% if perms.ventas.view_venta or user.is_superuser %}
                         <a href="{% url 'ventas:libro_ventas' %}" class="nav-link submenu-link {% if 'libro-ventas' in request.path %}active{% endif %}">
-                            <i class="fas fa-book me-2"></i>
+                            <i class="fas fa-book me-2" style="color: #A0826D;"></i>
                             <span>Libro de Ventas</span>
+                        </a>
+                        {% endif %}
+                        
+                        <!-- Configuración -->
+                        <div class="submenu-separator"></div>
+                        {% if perms.clientes.view_cliente or user.is_superuser %}
+                        <a href="{% url 'clientes:cliente_list' %}" class="nav-link submenu-link {% if 'clientes' in request.path %}active{% endif %}">
+                            <i class="fas fa-user-friends me-2" style="color: #D4A574;"></i>
+                            <span>Clientes</span>
                         </a>
                         {% endif %}
                         {% if perms.ventas.view_vendedor or user.is_superuser %}
                         <a href="{% url 'ventas:vendedor_list' %}" class="nav-link submenu-link {% if 'vendedor' in request.path %}active{% endif %}">
-                            <i class="fas fa-users me-2"></i>
+                            <i class="fas fa-users me-2" style="color: #D4A574;"></i>
                             <span>Vendedores</span>
                         </a>
                         {% endif %}
                         {% if perms.ventas.view_formapago or user.is_superuser %}
                         <a href="{% url 'ventas:formapago_list' %}" class="nav-link submenu-link {% if 'formas-pago' in request.path %}active{% endif %}">
-                            <i class="fas fa-credit-card me-2"></i>
+                            <i class="fas fa-credit-card me-2" style="color: #D4A574;"></i>
                             <span>Formas de Pago</span>
-                        </a>
-                        {% endif %}
-                        {% if perms.clientes.view_cliente or user.is_superuser %}
-                        <a href="{% url 'clientes:cliente_list' %}" class="nav-link submenu-link {% if 'clientes' in request.path %}active{% endif %}">
-                            <i class="fas fa-user-friends me-2"></i>
-                            <span>Clientes</span>
                         </a>
                         {% endif %}
                         {% if perms.ventas.view_estaciontrabajo or user.is_superuser %}
                         <a href="{% url 'ventas:estaciontrabajo_list' %}" class="nav-link submenu-link {% if 'estaciones-trabajo' in request.path %}active{% endif %}">
-                            <i class="fas fa-desktop me-2"></i>
+                            <i class="fas fa-desktop me-2" style="color: #D4A574;"></i>
                             <span>Estaciones de Trabajo</span>
                         </a>
                         {% endif %}
@@ -805,21 +824,25 @@
                 </a>
                 <div class="collapse submenu" id="comprasSubmenu">
                     <div class="submenu-items">
+                        <!-- Operaciones -->
                         {% if perms.documentos.view_documento or user.is_superuser %}
                         <a href="{% url 'documentos:documento_compra_list' %}" class="nav-link submenu-link {% if 'documentos' in request.resolver_match.namespace or request.resolver_match.url_name == 'documento_compra_list' or request.resolver_match.url_name == 'documento_compra_detail' or request.resolver_match.url_name == 'documento_compra_create' or request.resolver_match.url_name == 'documento_compra_update' or request.resolver_match.url_name == 'documento_compra_delete' %}active{% endif %}">
-                            <i class="fas fa-file-invoice me-2"></i>
+                            <i class="fas fa-file-invoice me-2" style="color: #8B7355;"></i>
                             <span>Documentos de Compra</span>
                         </a>
                         {% endif %}
                         {% if perms.compras.view_ordencompra or user.is_superuser %}
                         <a href="{% url 'compras:orden_compra_list' %}" class="nav-link submenu-link {% if 'compras' in request.resolver_match.namespace or request.resolver_match.url_name == 'orden_compra_list' or request.resolver_match.url_name == 'orden_compra_detail' or request.resolver_match.url_name == 'orden_compra_create' or request.resolver_match.url_name == 'orden_compra_update' or request.resolver_match.url_name == 'orden_compra_delete' %}active{% endif %}">
-                            <i class="fas fa-shopping-cart me-2"></i>
+                            <i class="fas fa-shopping-cart me-2" style="color: #8B7355;"></i>
                             <span>Órdenes de Compra</span>
                         </a>
                         {% endif %}
+                        
+                        <!-- Configuración -->
+                        <div class="submenu-separator"></div>
                         {% if perms.proveedores.view_proveedor or user.is_superuser %}
                         <a href="{% url 'proveedores:proveedor_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'proveedor_list' or request.resolver_match.url_name == 'proveedor_detail' or request.resolver_match.url_name == 'proveedor_create' or request.resolver_match.url_name == 'proveedor_update' or request.resolver_match.url_name == 'proveedor_delete' %}active{% endif %}">
-                            <i class="fas fa-truck me-2"></i>
+                            <i class="fas fa-truck me-2" style="color: #D4A574;"></i>
                             <span>Proveedores</span>
                         </a>
                         {% endif %}
@@ -838,33 +861,40 @@
                 </a>
                 <div class="collapse submenu" id="inventarioSubmenu">
                     <div class="submenu-items">
-                        {% if perms.inventario.view_movimientoinventario or user.is_superuser %}
-                        <a href="{% url 'inventario:inventario_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'inventario_list' %}active{% endif %}">
-                            <i class="fas fa-exchange-alt me-2"></i>
-                            <span>Movimientos</span>
-                        </a>
-                        {% endif %}
+                        <!-- Consultas -->
                         {% if perms.articulos.view_stockarticulo or user.is_superuser %}
                         <a href="{% url 'inventario:stock_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'stock_list' %}active{% endif %}">
-                            <i class="fas fa-boxes me-2"></i>
+                            <i class="fas fa-boxes me-2" style="color: #8B7355;"></i>
                             <span>Control de Stock</span>
                         </a>
                         {% endif %}
+                        {% if perms.inventario.view_movimientoinventario or user.is_superuser %}
+                        <a href="{% url 'inventario:inventario_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'inventario_list' %}active{% endif %}">
+                            <i class="fas fa-exchange-alt me-2" style="color: #8B7355;"></i>
+                            <span>Movimientos</span>
+                        </a>
+                        {% endif %}
+                        
+                        <!-- Operaciones -->
+                        <div class="submenu-separator"></div>
                         {% if perms.inventario.add_cargainicial or user.is_superuser %}
                         <a href="{% url 'inventario:carga_inicial' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'carga_inicial' %}active{% endif %}">
-                            <i class="fas fa-upload me-2"></i>
+                            <i class="fas fa-upload me-2" style="color: #A0826D;"></i>
                             <span>Carga Inicial</span>
                         </a>
                         {% endif %}
                         {% if perms.inventario.view_ajusteinventario or user.is_superuser %}
                         <a href="{% url 'inventario:ajustes_list' %}" class="nav-link submenu-link {% if 'ajustes' in request.path %}active{% endif %}">
-                            <i class="fas fa-adjust me-2"></i>
+                            <i class="fas fa-adjust me-2" style="color: #A0826D;"></i>
                             <span>Ajustes de Stock</span>
                         </a>
                         {% endif %}
+                        
+                        <!-- Configuración -->
+                        <div class="submenu-separator"></div>
                         {% if perms.bodegas.view_bodega or user.is_superuser %}
                         <a href="{% url 'bodegas:bodega_list' %}" class="nav-link submenu-link {% if 'bodegas' in request.path %}active{% endif %}">
-                            <i class="fas fa-warehouse me-2"></i>
+                            <i class="fas fa-warehouse me-2" style="color: #D4A574;"></i>
                             <span>Bodegas</span>
                         </a>
                         {% endif %}
@@ -883,21 +913,28 @@
                 </a>
                 <div class="collapse submenu" id="cajaSubmenu">
                     <div class="submenu-items">
+                        <!-- Operaciones -->
                         {% if perms.caja.add_ventaprocesada or user.is_superuser %}
                         <a href="{% url 'caja:procesar_venta_buscar' %}" class="nav-link submenu-link {% if 'procesar-venta' in request.path %}active{% endif %}">
                             <i class="fas fa-receipt me-2" style="color: #28a745;"></i>
                             <span>Procesar Venta</span>
                         </a>
                         {% endif %}
+                        
+                        <!-- Consultas -->
+                        <div class="submenu-separator"></div>
                         {% if perms.caja.view_aperturacaja or user.is_superuser %}
                         <a href="{% url 'caja:apertura_list' %}" class="nav-link submenu-link {% if 'apertura' in request.path %}active{% endif %}">
-                            <i class="fas fa-cash-register me-2" style="color: #28a745;"></i>
+                            <i class="fas fa-cash-register me-2" style="color: #20c997;"></i>
                             <span>Aperturas de Caja</span>
                         </a>
                         {% endif %}
+                        
+                        <!-- Configuración -->
+                        <div class="submenu-separator"></div>
                         {% if perms.caja.view_caja or user.is_superuser %}
                         <a href="{% url 'caja:caja_list' %}" class="nav-link submenu-link {% if 'cajas' in request.path %}active{% endif %}">
-                            <i class="fas fa-cash-register me-2" style="color: #28a745;"></i>
+                            <i class="fas fa-cog me-2" style="color: #17a2b8;"></i>
                             <span>Gestión de Cajas</span>
                         </a>
                         {% endif %}
@@ -907,7 +944,6 @@
             {% endif %}
             
             <!-- Submenú de Tesorería -->
-            {% if perms.tesoreria.view_cuentacorriente or user.is_superuser %}
             <div class="nav-item has-submenu">
                 <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#tesoreriaSubmenu" aria-expanded="false">
                     <i class="nav-icon fas fa-coins" style="color: #8B7355;"></i>
@@ -916,20 +952,17 @@
                 </a>
                 <div class="collapse submenu" id="tesoreriaSubmenu">
                     <div class="submenu-items">
-                        {% if perms.tesoreria.view_cuentacorriente or user.is_superuser %}
                         <a href="{% url 'tesoreria:cuenta_corriente_cliente_list' %}" class="nav-link submenu-link {% if 'cuenta_corriente_cliente' in request.path %}active{% endif %}">
                             <i class="fas fa-user-tie me-2" style="color: #8B7355;"></i>
                             <span>Cuenta Corriente Cliente</span>
                         </a>
-                        <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}" class="nav-link submenu-link {% if 'tesoreria' in request.resolver_match.namespace %}active{% endif %}">
+                        <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}" class="nav-link submenu-link {% if 'cuenta_corriente_proveedor' in request.path %}active{% endif %}">
                             <i class="fas fa-truck me-2" style="color: #8B7355;"></i>
                             <span>Cuenta Corriente Proveedor</span>
                         </a>
-                        {% endif %}
                     </div>
                 </div>
             </div>
-            {% endif %}
             
             <!-- Submenú de Informes -->
             <div class="nav-item has-submenu">
@@ -1015,13 +1048,26 @@
             
             <hr class="my-3" style="border-color: rgba(255,255,255,0.1);">
             
-            <!-- Datos de la Empresa -->
+            <!-- Empresa Titular -->
             {% if perms.empresas.view_empresa or user.is_superuser %}
-            <div class="nav-item">
-                <a href="{% url 'empresas:editar_empresa_activa' %}" class="nav-link {% if request.resolver_match.url_name == 'editar_empresa_activa' %}active{% endif %}">
+            <div class="nav-item has-submenu">
+                <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#empresaTitularSubmenu" aria-expanded="false">
                     <i class="nav-icon fas fa-building"></i>
-                    <span class="nav-text">Datos de la Empresa</span>
+                    <span class="nav-text">Empresa Titular</span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
                 </a>
+                <div class="collapse submenu" id="empresaTitularSubmenu">
+                    <div class="submenu-items">
+                        <a href="{% url 'empresas:editar_empresa_activa' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'editar_empresa_activa' %}active{% endif %}">
+                            <i class="fas fa-file-alt me-2"></i>
+                            <span>Datos de la Empresa</span>
+                        </a>
+                        <a href="{% url 'empresas:sucursal_list' %}" class="nav-link submenu-link {% if 'sucursal' in request.resolver_match.url_name %}active{% endif %}">
+                            <i class="fas fa-store me-2"></i>
+                            <span>Sucursales</span>
+                        </a>
+                    </div>
+                </div>
             </div>
             {% endif %}
             
@@ -1035,13 +1081,15 @@
             </div>
             {% endif %}
             
-            <!-- Paleta de Colores -->
+            <!-- Paleta de Colores - OCULTO -->
+            {% comment %}
             <div class="nav-item">
                 <a href="{% url 'paleta_colores' %}" class="nav-link {% if request.resolver_match.url_name == 'paleta_colores' %}active{% endif %}">
                     <i class="nav-icon fas fa-palette"></i>
                     <span class="nav-text">Paleta de Colores</span>
                 </a>
             </div>
+            {% endcomment %}
         </div>
     </nav>
     
@@ -1119,7 +1167,14 @@
                         <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Perfil</a></li>
                         <li><a class="dropdown-item" href="{% url 'empresas:empresa_configuracion' %}"><i class="fas fa-cog me-2"></i>Configuración</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión</a></li>
+                        <li>
+                            <form method="post" action="{% url 'logout' %}" style="margin: 0;">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item" style="background: none; border: none; width: 100%; text-align: left; cursor: pointer;">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                                </button>
+                            </form>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -1300,6 +1355,37 @@
                 if (tesoreriaSubmenu && tesoreriaToggle) {
                     tesoreriaSubmenu.classList.add('show');
                     tesoreriaToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+            
+            // Auto-expand empresa titular submenu
+            const empresaTitularUrls = [
+                '/empresas/editar-empresa-activa/',
+                '/empresas/sucursales/'
+            ];
+            
+            if (empresaTitularUrls.some(url => currentUrl.startsWith(url))) {
+                const empresaTitularSubmenu = document.getElementById('empresaTitularSubmenu');
+                const empresaTitularToggle = document.querySelector('[data-bs-target="#empresaTitularSubmenu"]');
+                
+                if (empresaTitularSubmenu && empresaTitularToggle) {
+                    empresaTitularSubmenu.classList.add('show');
+                    empresaTitularToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+            
+            // Auto-expand informes submenu
+            const informesUrls = [
+                '/informes/'
+            ];
+            
+            if (informesUrls.some(url => currentUrl.startsWith(url))) {
+                const informesSubmenu = document.getElementById('informesSubmenu');
+                const informesToggle = document.querySelector('[data-bs-target="#informesSubmenu"]');
+                
+                if (informesSubmenu && informesToggle) {
+                    informesSubmenu.classList.add('show');
+                    informesToggle.setAttribute('aria-expanded', 'true');
                 }
             }
             

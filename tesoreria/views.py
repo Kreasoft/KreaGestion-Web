@@ -148,31 +148,10 @@ def cuenta_corriente_proveedor_detail(request, proveedor_id):
 
 @login_required
 @requiere_empresa
-@permission_required('tesoreria.view_cuentacorriente', raise_exception=True)
 def cuenta_corriente_cliente_list(request):
     """Lista de cuentas corrientes de clientes"""
-    # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        empresa_id = request.session.get('empresa_activa')
-        if empresa_id:
-            try:
-                empresa = Empresa.objects.get(id=empresa_id)
-            except Empresa.DoesNotExist:
-                empresa = Empresa.objects.first()
-        else:
-            empresa = Empresa.objects.first()
-        
-        if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
-        
-        request.session['empresa_activa'] = empresa.id
-    else:
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+    # La empresa ya está configurada por el decorador @requiere_empresa
+    empresa = request.empresa
     
     # Obtener MOVIMIENTOS individuales de cuenta corriente (cada factura)
     from .models import DocumentoCliente, CuentaCorrienteCliente, MovimientoCuentaCorrienteCliente
@@ -186,10 +165,11 @@ def cuenta_corriente_cliente_list(request):
     # Mostrar movimientos DEBE (facturas a crédito) individuales
     from django.db.models import Sum, Q, Case, When, Value, CharField
     
+    # Obtener todos los movimientos de tipo 'debe' de la empresa
     movimientos_query = MovimientoCuentaCorrienteCliente.objects.filter(
         cuenta_corriente__empresa=empresa,
-        tipo_movimiento='debe'  # Solo facturas (deudas del cliente)
-    ).select_related('cuenta_corriente__cliente', 'venta').order_by('-fecha_movimiento')
+        tipo_movimiento='debe'
+    ).select_related('cuenta_corriente', 'cuenta_corriente__cliente', 'venta').order_by('-fecha_movimiento')
     
     # Anotar cada movimiento con el total pagado
     from decimal import Decimal

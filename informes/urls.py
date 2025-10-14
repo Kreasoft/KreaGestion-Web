@@ -26,6 +26,10 @@ urlpatterns = [
     # Informes de Compras
     path('compras/periodo/', views.informe_compras_periodo, name='compras_periodo'),
     
+    # Informes de Utilidad
+    path('utilidad/familias/', views.informe_utilidad_familias, name='utilidad_familias'),
+    path('utilidad/familias/detalle/<int:familia_id>/', views.informe_utilidad_familias_detalle, name='utilidad_familias_detalle'),
+    
     # Exportaciones
     path('exportar/ventas/excel/', views.exportar_ventas_excel, name='exportar_ventas_excel'),
     path('exportar/productos/excel/', views.exportar_productos_excel, name='exportar_productos_excel'),
@@ -39,4 +43,6 @@ urlpatterns = [
     path('exportar/stock-bajo/excel/', views.exportar_stock_bajo_excel, name='exportar_stock_bajo_excel'),
     path('exportar/cierres-caja/excel/', views.exportar_cierres_caja_excel, name='exportar_cierres_caja_excel'),
     path('exportar/compras/excel/', views.exportar_compras_periodo_excel, name='exportar_compras_periodo_excel'),
+    path('exportar/utilidad-familias/excel/', views.exportar_utilidad_familias_excel, name='exportar_utilidad_familias_excel'),
+    path('exportar/categorias/excel/', views.exportar_categorias_excel, name='exportar_categorias_excel'),
 ]

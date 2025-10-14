@@ -463,3 +463,5 @@ Solo usuarios con permiso de ver aperturas pueden imprimir.
 **Versión**: 1.0
 
 
+
+

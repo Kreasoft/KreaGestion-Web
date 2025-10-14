@@ -51,3 +51,5 @@ def format_moneda(value):
     return f"${formatted}"
 
 
+
+

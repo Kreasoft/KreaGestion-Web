@@ -296,3 +296,91 @@ class EstacionTrabajo(models.Model):
         self.correlativo_ticket += 1
         self.save()
         return self.correlativo_ticket
+
+
+class Devolucion(models.Model):
+    """Modelo para gestionar devoluciones de ventas"""
+    
+    MOTIVO_CHOICES = [
+        ('defectuoso', 'Producto Defectuoso'),
+        ('equivocado', 'Producto Equivocado'),
+        ('insatisfaccion', 'Insatisfacción del Cliente'),
+        ('garantia', 'Garantía'),
+        ('otro', 'Otro Motivo'),
+    ]
+    
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('aprobada', 'Aprobada'),
+        ('rechazada', 'Rechazada'),
+        ('procesada', 'Procesada'),
+    ]
+    
+    # Relaciones
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='devoluciones', verbose_name="Empresa")
+    venta = models.ForeignKey('Venta', on_delete=models.CASCADE, related_name='devoluciones', verbose_name="Venta Original")
+    cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, verbose_name="Cliente")
+    
+    # Información de la devolución
+    numero_devolucion = models.CharField(max_length=50, verbose_name="Número de Devolución")
+    fecha_devolucion = models.DateTimeField(default=timezone.now, verbose_name="Fecha de Devolución")
+    motivo = models.CharField(max_length=20, choices=MOTIVO_CHOICES, default='otro', verbose_name="Motivo")
+    descripcion_motivo = models.TextField(blank=True, null=True, verbose_name="Descripción del Motivo")
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente', verbose_name="Estado")
+    
+    # Montos
+    monto_total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Monto Total")
+    
+    # Usuario que procesa
+    usuario_creacion = models.ForeignKey(User, on_delete=models.PROTECT, related_name='devoluciones_creadas', verbose_name="Usuario Creación")
+    usuario_aprobacion = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='devoluciones_aprobadas', verbose_name="Usuario Aprobación")
+    fecha_aprobacion = models.DateTimeField(null=True, blank=True, verbose_name="Fecha Aprobación")
+    
+    # Observaciones
+    observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
+    
+    # Auditoría
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Devolución"
+        verbose_name_plural = "Devoluciones"
+        ordering = ['-fecha_devolucion']
+        unique_together = ['empresa', 'numero_devolucion']
+    
+    def __str__(self):
+        return f"Devolución {self.numero_devolucion} - Venta {self.venta.numero_ticket}"
+
+
+class DevolucionDetalle(models.Model):
+    """Modelo para el detalle de devoluciones"""
+    
+    # Relaciones
+    devolucion = models.ForeignKey(Devolucion, on_delete=models.CASCADE, related_name='detalles', verbose_name="Devolución")
+    articulo = models.ForeignKey(Articulo, on_delete=models.PROTECT, verbose_name="Artículo")
+    
+    # Cantidades
+    cantidad_devuelta = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], verbose_name="Cantidad Devuelta")
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio Unitario")
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Subtotal")
+    
+    # Información adicional
+    motivo_especifico = models.TextField(blank=True, null=True, verbose_name="Motivo Específico del Artículo")
+    
+    # Auditoría
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Detalle de Devolución"
+        verbose_name_plural = "Detalles de Devoluciones"
+        ordering = ['id']
+    
+    def __str__(self):
+        return f"{self.articulo.nombre} - Cant: {self.cantidad_devuelta}"
+    
+    def save(self, *args, **kwargs):
+        """Calcular subtotal antes de guardar"""
+        self.subtotal = self.cantidad_devuelta * self.precio_unitario
+        super().save(*args, **kwargs)

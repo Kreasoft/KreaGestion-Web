@@ -29,7 +29,9 @@ from .exportaciones import (
     exportar_pagos_recibidos_excel,
     exportar_stock_bajo_excel,
     exportar_cierres_caja_excel,
-    exportar_compras_periodo_excel
+    exportar_compras_periodo_excel,
+    exportar_utilidad_familias_excel,
+    exportar_categorias_excel
 )
 
 
@@ -867,6 +869,145 @@ def exportar_articulos_excel(request):
     response['Content-Disposition'] = 'attachment; filename=articulos.xlsx'
     wb.save(response)
     return response
+
+
+@login_required
+@requiere_empresa
+def informe_utilidad_familias(request):
+    """Informe de costos, ventas y utilidad por familia"""
+    from articulos.models import CategoriaArticulo
+    
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    familia_id = request.GET.get('familia')
+    
+    if not fecha_desde or not fecha_hasta:
+        fecha_hasta = datetime.now().date()
+        fecha_desde = fecha_hasta - timedelta(days=30)
+    else:
+        fecha_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+        fecha_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+    
+    # Query base de ventas por familia
+    ventas_query = VentaDetalle.objects.filter(
+        venta__empresa=request.empresa,
+        venta__fecha__range=[fecha_desde, fecha_hasta],
+        venta__estado='confirmada',
+        articulo__categoria__isnull=False
+    ).values(
+        'articulo__categoria__id',
+        'articulo__categoria__nombre'
+    ).annotate(
+        total_ventas=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField()),
+        total_costo=Sum(F('cantidad') * F('articulo__precio_costo'), output_field=DecimalField()),
+        cantidad_vendida=Sum('cantidad'),
+        num_ventas=Count('venta', distinct=True)
+    )
+    
+    # Filtrar por familia si se especifica
+    if familia_id:
+        ventas_query = ventas_query.filter(articulo__categoria__id=familia_id)
+    
+    ventas_query = ventas_query.order_by('-total_ventas')
+    
+    # Calcular utilidad para cada familia
+    resultados = []
+    total_ventas_general = 0
+    total_costo_general = 0
+    
+    for item in ventas_query:
+        ventas = float(item['total_ventas'] or 0)
+        costo = float(item['total_costo'] or 0)
+        utilidad = ventas - costo
+        margen = (utilidad / ventas * 100) if ventas > 0 else 0
+        
+        resultados.append({
+            'familia_id': item['articulo__categoria__id'],
+            'familia_nombre': item['articulo__categoria__nombre'],
+            'total_ventas': ventas,
+            'total_costo': costo,
+            'utilidad': utilidad,
+            'margen_porcentaje': margen,
+            'cantidad_vendida': float(item['cantidad_vendida']),
+            'num_ventas': item['num_ventas']
+        })
+        
+        total_ventas_general += ventas
+        total_costo_general += costo
+    
+    utilidad_general = total_ventas_general - total_costo_general
+    margen_general = (utilidad_general / total_ventas_general * 100) if total_ventas_general > 0 else 0
+    
+    # Obtener todas las familias para el filtro
+    familias = CategoriaArticulo.objects.filter(empresa=request.empresa).order_by('nombre')
+    
+    context = {
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'familia_id': familia_id,
+        'familias': familias,
+        'resultados': resultados,
+        'total_ventas_general': total_ventas_general,
+        'total_costo_general': total_costo_general,
+        'utilidad_general': utilidad_general,
+        'margen_general': margen_general
+    }
+    
+    return render(request, 'informes/utilidad_familias.html', context)
+
+
+@login_required
+@requiere_empresa
+def informe_utilidad_familias_detalle(request, familia_id):
+    """API para obtener detalle de artículos por familia"""
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    
+    if not fecha_desde or not fecha_hasta:
+        fecha_hasta = datetime.now().date()
+        fecha_desde = fecha_hasta - timedelta(days=30)
+    else:
+        fecha_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+        fecha_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+    
+    # Query de artículos de la familia
+    articulos_query = VentaDetalle.objects.filter(
+        venta__empresa=request.empresa,
+        venta__fecha__range=[fecha_desde, fecha_hasta],
+        venta__estado='confirmada',
+        articulo__categoria__id=familia_id
+    ).values(
+        'articulo__id',
+        'articulo__codigo',
+        'articulo__nombre'
+    ).annotate(
+        total_ventas=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField()),
+        total_costo=Sum(F('cantidad') * F('articulo__precio_costo'), output_field=DecimalField()),
+        cantidad_vendida=Sum('cantidad')
+    ).order_by('-total_ventas')
+    
+    # Preparar datos para JSON
+    articulos = []
+    for item in articulos_query:
+        ventas = float(item['total_ventas'] or 0)
+        costo = float(item['total_costo'] or 0)
+        utilidad = ventas - costo
+        margen = (utilidad / ventas * 100) if ventas > 0 else 0
+        
+        articulos.append({
+            'codigo': item['articulo__codigo'],
+            'nombre': item['articulo__nombre'],
+            'cantidad': float(item['cantidad_vendida']),
+            'ventas': ventas,
+            'costos': costo,
+            'utilidad': utilidad,
+            'margen': margen
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'articulos': articulos
+    })
 
 
 @login_required

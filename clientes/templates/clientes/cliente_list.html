@@ -202,6 +202,17 @@
                                                        style="border: none; background: none; padding: 2px 6px;">
                                                         <i class="fas fa-edit" style="color: #B8860B; font-size: 14px;"></i>
                                                     </a>
+                                                    <a href="#" 
+                                                       class="btn btn-sm btn-toggle-estado" 
+                                                       data-bs-toggle="tooltip" 
+                                                       title="{% if cliente.estado == 'activo' %}Desactivar{% else %}Activar{% endif %}"
+                                                       data-cliente-id="{{ cliente.pk }}"
+                                                       data-cliente-nombre="{{ cliente.nombre }}"
+                                                       data-estado-actual="{{ cliente.estado }}"
+                                                       style="border: none; background: none; padding: 2px 6px;">
+                                                        <i class="fas fa-{% if cliente.estado == 'activo' %}toggle-on{% else %}toggle-off{% endif %}" 
+                                                           style="color: {% if cliente.estado == 'activo' %}#28a745{% else %}#6c757d{% endif %}; font-size: 14px;"></i>
+                                                    </a>
                                                     <a href="{% url 'clientes:cliente_delete' cliente.pk %}" 
                                                        class="btn btn-sm" 
                                                        data-bs-toggle="tooltip" 
@@ -277,12 +288,52 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Manejar toggle de estado con SweetAlert
+    document.querySelectorAll('.btn-toggle-estado').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const clienteId = this.dataset.clienteId;
+            const clienteNombre = this.dataset.clienteNombre;
+            const estadoActual = this.dataset.estadoActual;
+            const accion = estadoActual === 'activo' ? 'desactivar' : 'activar';
+            const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
+            
+            Swal.fire({
+                title: `¿${accion.charAt(0).toUpperCase() + accion.slice(1)} Cliente?`,
+                html: `
+                    <div style="text-align: left; padding: 1rem;">
+                        <p><strong>Cliente:</strong> ${clienteNombre}</p>
+                        <p><strong>Estado actual:</strong> <span class="badge bg-${estadoActual === 'activo' ? 'success' : 'secondary'}">${estadoActual === 'activo' ? 'Activo' : 'Inactivo'}</span></p>
+                        <p><strong>Nuevo estado:</strong> <span class="badge bg-${nuevoEstado === 'activo' ? 'success' : 'secondary'}">${nuevoEstado === 'activo' ? 'Activo' : 'Inactivo'}</span></p>
+                    </div>
+                    <hr>
+                    <p style="color: #666; font-size: 0.9rem;">
+                        ${accion === 'desactivar' ? 'El cliente no aparecerá en las búsquedas activas.' : 'El cliente volverá a estar disponible en el sistema.'}
+                    </p>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: `Sí, ${accion}`,
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: estadoActual === 'activo' ? '#dc3545' : '#28a745',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = `/clientes/${clienteId}/toggle-estado/`;
+                }
+            });
+        });
     });
 });
 </script>

@@ -1536,12 +1536,15 @@ function clearCart() {
             </div>
             <div class="mb-3">
                 <label class="form-label">Buscar Cliente *</label>
-                <div class="input-group">
+                <div class="input-group mb-2">
                     <input type="text" id="busqueda-cliente" class="form-control" placeholder="RUT o nombre del cliente" required ${clienteYaSeleccionado ? 'value="' + clienteYaSeleccionado.rut + '"' : ''}>
                     <button type="button" class="btn btn-outline-secondary" onclick="buscarCliente()">
                         <i class="fas fa-search"></i>
                     </button>
                 </div>
+                <button type="button" id="btn-venta-boleta" class="btn btn-sm w-100 mb-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; display: none;">
+                    <i class="fas fa-receipt me-2"></i>Venta Boleta (RUT Genérico 66666666-6)
+                </button>
                 <div id="resultados-busqueda" class="mt-2" style="display: none;">
                     <div class="list-group" id="lista-clientes">
                         <!-- Resultados de búsqueda aparecerán aquí -->
@@ -1610,6 +1613,28 @@ function clearCart() {
                 document.getElementById('cliente-no-encontrado').style.display = 'none';
                 window.clienteSeleccionado = null;
             }
+        });
+        
+        // Mostrar/ocultar botón de venta boleta según tipo de documento
+        const tipoDocSelect = document.getElementById('tipo-documento');
+        const btnVentaBoleta = document.getElementById('btn-venta-boleta');
+        
+        function toggleBotonVentaBoleta() {
+            if (tipoDocSelect.value === 'boleta') {
+                btnVentaBoleta.style.display = 'block';
+            } else {
+                btnVentaBoleta.style.display = 'none';
+            }
+        }
+        
+        tipoDocSelect.addEventListener('change', toggleBotonVentaBoleta);
+        toggleBotonVentaBoleta(); // Verificar estado inicial
+        
+        // Agregar evento click al botón de venta boleta
+        btnVentaBoleta.addEventListener('click', function() {
+            const busquedaInput = document.getElementById('busqueda-cliente');
+            busquedaInput.value = '66666666-6';
+            buscarCliente();
         });
     }
     

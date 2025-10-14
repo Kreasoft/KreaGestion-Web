@@ -1,114 +1,159 @@
 {% extends "base.html" %}
 
+{% block title %}{{ titulo }}{% endblock %}
+
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_head %}
+<style>
+    /* Fondo terroso suave */
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-	<div class="d-flex justify-content-between align-items-center mb-4">
-		<h3 class="m-0">
-			{% if empresa %}
-				Sucursales de {{ empresa.nombre }}
-			{% else %}
-				Todas las Sucursales
-			{% endif %}
-		</h3>
-		<div>
-			{% if empresa %}
-				<a href="{% url 'empresas:sucursal_create' empresa.id %}" class="btn text-white me-2" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none;">Nueva Sucursal</a>
-			{% else %}
-				<a href="{% url 'empresas:sucursal_create' %}" class="btn text-white me-2" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); border: none;">Nueva Sucursal</a>
-			{% endif %}
-			<a href="{% url 'empresas:home' %}" class="btn btn-outline-dark">Volver</a>
-		</div>
-	</div>
-	
-	<div class="card">
-		<div class="card-body p-0">
-			<table class="table table-hover m-0">
-				<thead>
-					<tr>
-						<th>Nombre</th>
-						<th>Código</th>
-						<th>Empresa</th>
-						<th>Ciudad</th>
-						<th>Estado</th>
-						<th>Tipo</th>
-						<th>Acciones</th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for sucursal in sucursales %}
-					<tr>
-						<td>{{ sucursal.nombre }}</td>
-						<td>{{ sucursal.codigo }}</td>
-						<td>{{ sucursal.empresa.nombre }}</td>
-						<td>{{ sucursal.ciudad }}</td>
-						<td>
-							{% if sucursal.estado == 'activa' %}
-							<span class="badge bg-success">Activa</span>
-							{% elif sucursal.estado == 'inactiva' %}
-							<span class="badge bg-danger">Inactiva</span>
-							{% else %}
-							<span class="badge bg-warning">En Construcción</span>
-							{% endif %}
-						</td>
-						<td>
-							{% if sucursal.es_principal %}
-							<span class="badge bg-primary">Principal</span>
-							{% else %}
-							<span class="badge bg-secondary">Secundaria</span>
-							{% endif %}
-						</td>
-						<td>
-							<a href="{% url 'empresas:sucursal_detail' sucursal.id %}" class="btn btn-sm btn-dark">Ver</a>
-							<a href="{% url 'empresas:sucursal_update' sucursal.id %}" class="btn btn-sm text-white" style="background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%); border: none;">Editar</a>
-						</td>
-					</tr>
-					{% empty %}
-					<tr>
-						<td colspan="7" class="text-center py-4">
-							{% if empresa %}
-								No hay sucursales registradas para esta empresa.
-							{% else %}
-								No hay sucursales registradas.
-							{% endif %}
-						</td>
-					</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-		</div>
-	</div>
-	
-	{% if empresa %}
-	<div class="mt-4">
-		<div class="card">
-			<div class="card-header">
-				<h6 class="m-0">Información de la Empresa</h6>
-			</div>
-			<div class="card-body">
-				<div class="row">
-					<div class="col-md-6">
-						<p><strong>Nombre:</strong> {{ empresa.nombre }}</p>
-						<p><strong>RUT:</strong> {{ empresa.rut }}</p>
-						<p><strong>Ciudad:</strong> {{ empresa.ciudad }}</p>
-					</div>
-					<div class="col-md-6">
-						<p><strong>Total Sucursales:</strong> {{ sucursales.count }}</p>
-						<p><strong>Estado:</strong> 
-							{% if empresa.estado == 'activa' %}
-							<span class="badge bg-success">Activa</span>
-							{% elif empresa.estado == 'inactiva' %}
-							<span class="badge bg-danger">Inactiva</span>
-							{% else %}
-							<span class="badge bg-warning">Suspendida</span>
-							{% endif %}
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-	{% endif %}
+<div class="container-fluid" style="margin-top: 20px;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                
+                <!-- HEADER PRINCIPAL -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 15px 20px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-store fa-2x me-3" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.3rem; font-weight: 600; color: #6F5B44;">
+                                    Sucursales
+                                </h5>
+                                <small style="font-size: 0.85rem; color: #8B7355;">
+                                    Gestiona las sucursales de {{ empresa.nombre }}
+                                </small>
+                            </div>
+                        </div>
+                        <div>
+                            <a href="{% url 'empresas:sucursal_create' %}" class="btn btn-sm me-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 8px 16px;">
+                                <i class="fas fa-plus me-2"></i>Nueva Sucursal
+                            </a>
+                            <a href="{% url 'empresas:editar_empresa_activa' %}" class="btn btn-sm btn-outline-secondary" style="padding: 8px 16px;">
+                                <i class="fas fa-arrow-left me-2"></i>Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 20px; background: #FAFAF8;">
+                    
+                    <!-- LISTA DE SUCURSALES -->
+                    <div class="row">
+                        {% for sucursal in sucursales %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 shadow-sm" style="border: 2px solid {% if sucursal.es_principal %}#8B7355{% else %}#D4C4A8{% endif %}; border-radius: 12px; transition: all 0.3s ease;">
+                                <div class="card-header" style="background: {% if sucursal.es_principal %}linear-gradient(135deg, #8B7355 0%, #6F5B44 100%){% else %}linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%){% endif %}; border: none; padding: 12px 15px;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0" style="{% if sucursal.es_principal %}color: white;{% else %}color: #6F5B44;{% endif %} font-weight: 600;">
+                                            <i class="fas fa-store me-2"></i>{{ sucursal.nombre }}
+                                        </h6>
+                                        <div>
+                                            {% if sucursal.es_principal %}
+                                                <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">Principal</span>
+                                            {% endif %}
+                                            {% if sucursal.estado == 'activa' %}
+                                                <span class="badge bg-success" style="font-size: 0.7rem;">Activa</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary" style="font-size: 0.7rem;">Inactiva</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body" style="padding: 15px;">
+                                    <div class="row">
+                                        <div class="col-12 mb-2">
+                                            <small class="text-muted"><i class="fas fa-barcode me-2"></i><strong>Código:</strong></small>
+                                            <p class="mb-0">{{ sucursal.codigo }}</p>
+                                        </div>
+                                        <div class="col-12 mb-2">
+                                            <small class="text-muted"><i class="fas fa-map-marker-alt me-2"></i><strong>Dirección:</strong></small>
+                                            <p class="mb-0">{{ sucursal.direccion }}</p>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <small class="text-muted"><i class="fas fa-city me-2"></i><strong>Comuna:</strong></small>
+                                            <p class="mb-0">{{ sucursal.comuna }}</p>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <small class="text-muted"><i class="fas fa-map me-2"></i><strong>Ciudad:</strong></small>
+                                            <p class="mb-0">{{ sucursal.ciudad }}</p>
+                                        </div>
+                                        {% if sucursal.telefono %}
+                                        <div class="col-6 mb-2">
+                                            <small class="text-muted"><i class="fas fa-phone me-2"></i><strong>Teléfono:</strong></small>
+                                            <p class="mb-0">{{ sucursal.telefono }}</p>
+                                        </div>
+                                        {% endif %}
+                                        {% if sucursal.email %}
+                                        <div class="col-6 mb-2">
+                                            <small class="text-muted"><i class="fas fa-envelope me-2"></i><strong>Email:</strong></small>
+                                            <p class="mb-0">{{ sucursal.email }}</p>
+                                        </div>
+                                        {% endif %}
+                                        {% if sucursal.horario_apertura and sucursal.horario_cierre %}
+                                        <div class="col-12 mb-2">
+                                            <small class="text-muted"><i class="fas fa-clock me-2"></i><strong>Horario:</strong></small>
+                                            <p class="mb-0">{{ sucursal.horario_apertura }} - {{ sucursal.horario_cierre }}</p>
+                                        </div>
+                                        {% endif %}
+                                        {% if sucursal.gerente %}
+                                        <div class="col-12 mb-2">
+                                            <small class="text-muted"><i class="fas fa-user-tie me-2"></i><strong>Gerente:</strong></small>
+                                            <p class="mb-0">{{ sucursal.gerente }}</p>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="card-footer" style="background: #FAFAF8; border-top: 1px solid #E8DCC8; padding: 10px 15px;">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <a href="{% url 'empresas:sucursal_update' sucursal.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); border: none; color: white;">
+                                            <i class="fas fa-edit me-1"></i>Editar
+                                        </a>
+                                        {% if not sucursal.es_principal %}
+                                        <a href="{% url 'empresas:sucursal_delete' sucursal.pk %}" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash me-1"></i>Eliminar
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <div class="alert" style="background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%); border-left: 4px solid #FFA726; border-radius: 8px;">
+                                <div class="text-center py-4">
+                                    <i class="fas fa-store fa-3x mb-3" style="color: #D4A574;"></i>
+                                    <h5 style="color: #6F5B44;">No hay sucursales registradas</h5>
+                                    <p class="text-muted mb-3">Agrega tu primera sucursal para comenzar</p>
+                                    <a href="{% url 'empresas:sucursal_create' %}" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white;">
+                                        <i class="fas fa-plus me-2"></i>Agregar Primera Sucursal
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(139, 115, 85, 0.2) !important;
+    }
+</style>
+
 {% endblock %}

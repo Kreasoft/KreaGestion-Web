@@ -1,113 +1,169 @@
 {% extends "base.html" %}
 
+{% block title %}{{ titulo }}{% endblock %}
+
 {% block body_class %}hide-top-bar{% endblock %}
-{% load widget_tweaks %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-	<div class="row justify-content-center">
-		<div class="col-md-8">
-			<div class="card">
-				<div class="card-header">
-					<h4 class="m-0">
-						{% if sucursal %}
-							Editar Sucursal: {{ sucursal.nombre }}
-						{% else %}
-							Nueva Sucursal
-						{% endif %}
-						{% if empresa %}
-							- {{ empresa.nombre }}
-						{% endif %}
-					</h4>
-				</div>
-				<div class="card-body">
-					<form method="post">
-						{% csrf_token %}
-						
-						<div class="row">
-							<div class="col-md-6 mb-3">
-								<label class="form-label">Nombre de la Sucursal *</label>
-								<input type="text" name="nombre" class="form-control" value="{{ sucursal.nombre|default:'' }}" required>
-							</div>
-							<div class="col-md-6 mb-3">
-								<label class="form-label">Código de Sucursal *</label>
-								<input type="text" name="codigo" class="form-control" value="{{ sucursal.codigo|default:'' }}" required>
-							</div>
-						</div>
-						
-						<div class="mb-3">
-							<label class="form-label">Dirección *</label>
-							<textarea name="direccion" class="form-control" rows="2" required>{{ sucursal.direccion|default:'' }}</textarea>
-						</div>
-						
-						<div class="row">
-							<div class="col-md-4 mb-3">
-								<label class="form-label">Comuna *</label>
-								<input type="text" name="comuna" class="form-control" value="{{ sucursal.comuna|default:'' }}" required>
-							</div>
-							<div class="col-md-4 mb-3">
-								<label class="form-label">Ciudad *</label>
-								<input type="text" name="ciudad" class="form-control" value="{{ sucursal.ciudad|default:'' }}" required>
-							</div>
-							<div class="col-md-4 mb-3">
-								<label class="form-label">Región *</label>
-								<input type="text" name="region" class="form-control" value="{{ sucursal.region|default:'' }}" required>
-							</div>
-						</div>
-						
-						<div class="row">
-							<div class="col-md-6 mb-3">
-								<label class="form-label">Teléfono *</label>
-								<input type="tel" name="telefono" class="form-control" value="{{ sucursal.telefono|default:'' }}" required>
-							</div>
-							<div class="col-md-6 mb-3">
-								<label class="form-label">Email</label>
-								<input type="email" name="email" class="form-control" value="{{ sucursal.email|default:'' }}">
-							</div>
-						</div>
-						
-						<div class="row">
-							<div class="col-md-6 mb-3">
-								<label class="form-label">Hora de Apertura *</label>
-								<input type="time" name="horario_apertura" class="form-control" value="{{ sucursal.horario_apertura|time:'H:i'|default:'08:00' }}" required>
-							</div>
-							<div class="col-md-6 mb-3">
-								<label class="form-label">Hora de Cierre *</label>
-								<input type="time" name="horario_cierre" class="form-control" value="{{ sucursal.horario_cierre|time:'H:i'|default:'18:00' }}" required>
-							</div>
-						</div>
-						
-						<div class="row">
-							<div class="col-md-6 mb-3">
-								<label class="form-label">Estado *</label>
-								<select name="estado" class="form-select" required>
-									<option value="">Seleccione...</option>
-									<option value="activa" {% if sucursal.estado == 'activa' %}selected{% endif %}>Activa</option>
-									<option value="inactiva" {% if sucursal.estado == 'inactiva' %}selected{% endif %}>Inactiva</option>
-									<option value="en_construccion" {% if sucursal.estado == 'en_construccion' %}selected{% endif %}>En Construcción</option>
-								</select>
-							</div>
-							<div class="col-md-6 mb-3">
-								<div class="form-check mt-4">
-									<input type="checkbox" name="es_principal" class="form-check-input" id="es_principal" {% if sucursal.es_principal %}checked{% endif %}>
-									<label class="form-check-label" for="es_principal">
-										Es Sucursal Principal
-									</label>
-								</div>
-							</div>
-						</div>
-						
-						<div class="d-flex justify-content-between">
-							<a href="{% if sucursal %}{% url 'empresas:sucursal_detail' sucursal.id %}{% elif empresa %}{% url 'empresas:sucursal_list' empresa.id %}{% else %}{% url 'empresas:home' %}{% endif %}" class="btn btn-outline-dark">
-								Cancelar
-							<button type="submit" class="btn btn-dark">
-								{% if sucursal %}Actualizar{% else %}Crear{% endif %} Sucursal
-							</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-	</div>
+<div class="container-fluid" style="margin-top: 20px;">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 15px 20px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-store fa-2x me-3" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.3rem; font-weight: 600; color: #6F5B44;">
+                                    {{ titulo }}
+                                </h5>
+                                <small style="font-size: 0.85rem; color: #8B7355;">
+                                    {{ empresa.nombre }}
+                                </small>
+                            </div>
+                        </div>
+                        <a href="{% url 'empresas:sucursal_list' %}" class="btn btn-sm btn-outline-secondary" style="padding: 8px 16px;">
+                            <i class="fas fa-arrow-left me-2"></i>Volver
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body" style="padding: 25px 30px; background: #FAFAF8;">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-store me-2"></i>Nombre de la Sucursal *
+                                </label>
+                                {{ form.nombre }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-barcode me-2"></i>Código de Sucursal *
+                                </label>
+                                {{ form.codigo }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                <i class="fas fa-map-marker-alt me-2"></i>Dirección *
+                            </label>
+                            {{ form.direccion }}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-city me-2"></i>Comuna *
+                                </label>
+                                {{ form.comuna }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-map me-2"></i>Ciudad *
+                                </label>
+                                {{ form.ciudad }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-map-marked-alt me-2"></i>Región *
+                                </label>
+                                {{ form.region }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-phone me-2"></i>Teléfono
+                                </label>
+                                {{ form.telefono }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-envelope me-2"></i>Email
+                                </label>
+                                {{ form.email }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-clock me-2"></i>Hora de Apertura
+                                </label>
+                                {{ form.horario_apertura }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-clock me-2"></i>Hora de Cierre
+                                </label>
+                                {{ form.horario_cierre }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-toggle-on me-2"></i>Estado *
+                                </label>
+                                {{ form.estado }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-user-tie me-2"></i>Gerente
+                                </label>
+                                {{ form.gerente }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-phone-alt me-2"></i>Teléfono Gerente
+                                </label>
+                                {{ form.telefono_gerente }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <div class="card" style="background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%); border-left: 4px solid #FFA726; border-radius: 8px;">
+                                    <div class="card-body py-2">
+                                        <div class="form-check">
+                                            {{ form.es_principal }}
+                                            <label class="form-check-label" for="{{ form.es_principal.id_for_label }}" style="font-weight: 600; color: #6F5B44;">
+                                                <i class="fas fa-star me-2" style="color: #FFA726;"></i>Marcar como Sucursal Principal
+                                            </label>
+                                            <small class="d-block text-muted mt-1">
+                                                La sucursal principal será la predeterminada del sistema
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-3 mt-4">
+                            <a href="{% url 'empresas:sucursal_list' %}" class="btn btn-outline-secondary" style="padding: 10px 25px;">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 10px 25px;">
+                                <i class="fas fa-save me-2"></i>{{ accion }} Sucursal
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

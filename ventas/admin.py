@@ -1,6 +1,5 @@
 from django.contrib import admin
-from .models import Vendedor, FormaPago, EstacionTrabajo, Venta, VentaDetalle
-# Pedido, Devolucion temporalmente deshabilitados
+from .models import Vendedor, FormaPago, EstacionTrabajo, Venta, VentaDetalle, Devolucion, DevolucionDetalle
 
 
 @admin.register(Vendedor)
@@ -111,9 +110,35 @@ class VentaDetalleAdmin(admin.ModelAdmin):
 #     ordering = ['-fecha_venta']
 
 
-# @admin.register(Devolucion)
-# class DevolucionAdmin(admin.ModelAdmin):
-#     list_display = ['numero_devolucion', 'venta', 'cliente', 'fecha_devolucion', 'estado', 'total']
-#     list_filter = ['estado']
-#     search_fields = ['numero_devolucion', 'venta__numero_venta', 'cliente__nombre']
-#     ordering = ['-fecha_devolucion']
+@admin.register(Devolucion)
+class DevolucionAdmin(admin.ModelAdmin):
+    list_display = ['numero_devolucion', 'venta', 'cliente', 'fecha_devolucion', 'estado', 'monto_total', 'empresa']
+    list_filter = ['estado', 'motivo', 'empresa']
+    search_fields = ['numero_devolucion', 'venta__numero_ticket', 'cliente__nombre']
+    ordering = ['-fecha_devolucion']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('empresa', 'numero_devolucion', 'fecha_devolucion', 'venta', 'cliente')
+        }),
+        ('Motivo', {
+            'fields': ('motivo', 'descripcion_motivo')
+        }),
+        ('Estado y Montos', {
+            'fields': ('estado', 'monto_total')
+        }),
+        ('Usuarios', {
+            'fields': ('usuario_creacion', 'usuario_aprobacion', 'fecha_aprobacion')
+        }),
+        ('Observaciones', {
+            'fields': ('observaciones',)
+        }),
+    )
+
+
+@admin.register(DevolucionDetalle)
+class DevolucionDetalleAdmin(admin.ModelAdmin):
+    list_display = ['devolucion', 'articulo', 'cantidad_devuelta', 'precio_unitario', 'subtotal']
+    list_filter = ['devolucion__empresa']
+    search_fields = ['devolucion__numero_devolucion', 'articulo__nombre']
+    ordering = ['-fecha_creacion']

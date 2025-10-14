@@ -436,13 +436,144 @@ def editar_empresa_activa(request):
 				print(f"DEBUG - Errores del formulario: {form.errors}")
 				messages.error(request, 'Hubo errores en el formulario.')
 
+	# Obtener sucursales de la empresa
+	sucursales = empresa_activa.sucursales.all().order_by('-es_principal', 'nombre')
+	
 	context = {
 		'form': form,
 		'config_form': config_form,
 		'fe_form': fe_form,
 		'empresa': empresa_activa,
 		'configuracion': configuracion,
+		'sucursales': sucursales,
 		'titulo': f'Editar Empresa: {empresa_activa.nombre}',
 	}
 
 	return render(request, 'empresas/editar_empresa_activa.html', context)
+
+
+# ============================================
+# CRUD DE SUCURSALES
+# ============================================
+
+@login_required
+@requiere_empresa
+def sucursal_list(request):
+	"""Lista de sucursales de la empresa activa"""
+	empresa = request.empresa
+	sucursales = empresa.sucursales.all().order_by('-es_principal', 'nombre')
+	
+	context = {
+		'sucursales': sucursales,
+		'empresa': empresa,
+		'titulo': 'Sucursales',
+	}
+	return render(request, 'empresas/sucursal_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def sucursal_create(request):
+	"""Crear nueva sucursal"""
+	empresa = request.empresa
+	
+	if request.method == 'POST':
+		form = SucursalForm(request.POST)
+		if form.is_valid():
+			sucursal = form.save(commit=False)
+			sucursal.empresa = empresa
+			
+			# Si es la primera sucursal, marcarla como principal
+			if not empresa.sucursales.exists():
+				sucursal.es_principal = True
+			
+			# Si se marca como principal, desmarcar las demás
+			if sucursal.es_principal:
+				empresa.sucursales.filter(es_principal=True).update(es_principal=False)
+			
+			sucursal.save()
+			messages.success(request, f'Sucursal "{sucursal.nombre}" creada correctamente.')
+			return redirect('empresas:sucursal_list')
+	else:
+		form = SucursalForm()
+	
+	context = {
+		'form': form,
+		'empresa': empresa,
+		'titulo': 'Nueva Sucursal',
+		'accion': 'Crear',
+	}
+	return render(request, 'empresas/sucursal_form.html', context)
+
+
+@login_required
+@requiere_empresa
+def sucursal_update(request, pk):
+	"""Editar sucursal existente"""
+	empresa = request.empresa
+	sucursal = get_object_or_404(Sucursal, pk=pk, empresa=empresa)
+	
+	if request.method == 'POST':
+		form = SucursalForm(request.POST, instance=sucursal)
+		if form.is_valid():
+			sucursal = form.save(commit=False)
+			
+			# Si se marca como principal, desmarcar las demás
+			if sucursal.es_principal:
+				empresa.sucursales.exclude(pk=sucursal.pk).update(es_principal=False)
+			
+			sucursal.save()
+			messages.success(request, f'Sucursal "{sucursal.nombre}" actualizada correctamente.')
+			return redirect('empresas:sucursal_list')
+	else:
+		form = SucursalForm(instance=sucursal)
+	
+	context = {
+		'form': form,
+		'sucursal': sucursal,
+		'empresa': empresa,
+		'titulo': f'Editar Sucursal: {sucursal.nombre}',
+		'accion': 'Actualizar',
+	}
+	return render(request, 'empresas/sucursal_form.html', context)
+
+
+@login_required
+@requiere_empresa
+def sucursal_delete(request, pk):
+	"""Eliminar sucursal"""
+	empresa = request.empresa
+	sucursal = get_object_or_404(Sucursal, pk=pk, empresa=empresa)
+	
+	# No permitir eliminar la sucursal principal
+	if sucursal.es_principal:
+		messages.error(request, 'No se puede eliminar la sucursal principal.')
+		return redirect('empresas:sucursal_list')
+	
+	if request.method == 'POST':
+		nombre = sucursal.nombre
+		sucursal.delete()
+		messages.success(request, f'Sucursal "{nombre}" eliminada correctamente.')
+		return redirect('empresas:sucursal_list')
+	
+	context = {
+		'sucursal': sucursal,
+		'empresa': empresa,
+		'titulo': 'Eliminar Sucursal',
+	}
+	return render(request, 'empresas/sucursal_confirm_delete.html', context)
+
+
+@login_required
+@requiere_empresa
+def sucursal_detail(request, pk):
+	"""Ver detalle de sucursal"""
+	empresa = request.empresa
+	sucursal = get_object_or_404(Sucursal, pk=pk, empresa=empresa)
+	
+	context = {
+		'sucursal': sucursal,
+		'empresa': empresa,
+		'titulo': f'Sucursal: {sucursal.nombre}',
+	}
+	return render(request, 'empresas/sucursal_detail.html', context)

@@ -13,9 +13,9 @@ urlpatterns = [
 	path('empresas/<int:pk>/', views.empresa_detail, name='empresa_detail'),
 	path('empresas/<int:pk>/editar/', views.empresa_update, name='empresa_update'),
 	path('empresas/<int:pk>/eliminar/', views.empresa_delete, name='empresa_delete'),
-	# URLs para sucursales
-	path('empresas/<int:empresa_id>/sucursales/', views.sucursal_list, name='sucursal_list'),
-	path('empresas/<int:empresa_id>/sucursales/nueva/', views.sucursal_create, name='sucursal_create'),
+	# URLs para sucursales (empresa activa)
+	path('sucursales/', views.sucursal_list, name='sucursal_list'),
+	path('sucursales/nueva/', views.sucursal_create, name='sucursal_create'),
 	path('sucursales/<int:pk>/', views.sucursal_detail, name='sucursal_detail'),
 	path('sucursales/<int:pk>/editar/', views.sucursal_update, name='sucursal_update'),
 	path('sucursales/<int:pk>/eliminar/', views.sucursal_delete, name='sucursal_delete'),

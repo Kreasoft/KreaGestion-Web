@@ -137,14 +137,12 @@
                             <thead>
                                 <tr>
                                     <th style="width: 5%;">#</th>
-                                    <th style="width: 25%;">Artículo</th>
+                                    <th style="width: 48%;">Artículo</th>
                                     <th style="width: 12%;">Código</th>
-                                    <th style="width: 18%;">Bodega</th>
                                     <th style="width: 10%;" class="text-center">Stock</th>
-                                    <th style="width: 10%;" class="text-center">Mín</th>
-                                    <th style="width: 10%;" class="text-center">Máx</th>
-                                    <th style="width: 10%;" class="text-center">Estado</th>
-                                    <th style="width: 10%;" class="text-center">Acciones</th>
+                                    <th style="width: 8%;" class="text-center">Mín</th>
+                                    <th style="width: 8%;" class="text-center">Máx</th>
+                                    <th style="width: 9%;" class="text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -154,38 +152,31 @@
                                     <td style="font-size: 0.7rem;">
                                         <div class="d-flex align-items-center">
                                             <i class="fas fa-box text-muted me-2"></i>
-                                            <span class="text-truncate" style="max-width: 180px;" title="{{ stock.articulo.nombre }}">
-                                                {{ stock.articulo.nombre }}
-                                            </span>
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold" style="color: #6F5B44;">{{ stock.articulo.nombre }}</div>
+                                                {% if stock.articulo.categoria %}
+                                                <small class="text-muted" style="font-size: 0.65rem;">
+                                                    <i class="fas fa-tag me-1"></i>{{ stock.articulo.categoria.nombre }}
+                                                </small>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </td>
                                     <td style="font-size: 0.7rem;">
                                         <span class="badge bg-light text-dark" style="font-size: 0.65rem;">{{ stock.articulo.codigo }}</span>
                                     </td>
-                                    <td style="font-size: 0.7rem;">
-                                        <div class="d-flex align-items-center">
-                                            <i class="fas fa-warehouse text-muted me-2"></i>
-                                            <span class="text-truncate" style="max-width: 120px;" title="{{ stock.bodega.nombre }}">
-                                                {{ stock.bodega.nombre }}
-                                            </span>
-                                        </div>
-                                    </td>
                                     <td style="font-size: 0.7rem;" class="text-center">
                                         <span class="fw-bold {% if stock.cantidad <= 0 %}text-danger{% elif stock.cantidad <= stock.stock_minimo %}text-warning{% else %}text-success{% endif %}">
                                             {{ stock.cantidad|floatformat:0 }}
                                         </span>
+                                        {% if stock.cantidad <= 0 %}
+                                            <br><span class="badge bg-danger" style="font-size: 0.55rem;">Sin Stock</span>
+                                        {% elif stock.cantidad <= stock.stock_minimo %}
+                                            <br><span class="badge bg-warning" style="font-size: 0.55rem;">Bajo</span>
+                                        {% endif %}
                                     </td>
                                     <td style="font-size: 0.7rem;" class="text-center text-muted">{{ stock.stock_minimo|floatformat:0 }}</td>
                                     <td style="font-size: 0.7rem;" class="text-center text-muted">{{ stock.stock_maximo|floatformat:0 }}</td>
-                                    <td style="font-size: 0.7rem;" class="text-center">
-                                        {% if stock.cantidad <= 0 %}
-                                            <span class="badge bg-danger" style="font-size: 0.6rem;">Sin Stock</span>
-                                        {% elif stock.cantidad <= stock.stock_minimo %}
-                                            <span class="badge bg-warning" style="font-size: 0.6rem;">Bajo</span>
-                                        {% else %}
-                                            <span class="badge bg-success" style="font-size: 0.6rem;">Normal</span>
-                                        {% endif %}
-                                    </td>
                                     <td class="text-center">
                                         <button type="button" 
                                                 class="btn btn-sm btn-action btn-outline-warning" 
@@ -197,7 +188,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="9" class="text-center py-2">
+                                    <td colspan="7" class="text-center py-2">
                                         <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
                                         <p style="color: #8B7355; font-size: 0.8rem;">No hay registros de stock</p>
                                     </td>

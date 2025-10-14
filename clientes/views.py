@@ -63,9 +63,9 @@ def cliente_list(request):
     if search:
         clientes = clientes.filter(
             Q(nombre__icontains=search) |
-            Q(codigo__icontains=search) |
             Q(rut__icontains=search) |
-            Q(email__icontains=search)
+            Q(email__icontains=search) |
+            Q(telefono__icontains=search)
         )
     
     if estado:
@@ -257,16 +257,86 @@ def cliente_delete(request, pk):
     cliente = get_object_or_404(Cliente, pk=pk, empresa=empresa)
     
     if request.method == 'POST':
+        from django.db import connection, transaction
+        
         nombre = cliente.nombre
-        cliente.delete()
-        messages.success(request, f'Cliente "{nombre}" eliminado exitosamente.')
-        return redirect('clientes:cliente_list')
+        cliente_id = cliente.id
+        
+        try:
+            with transaction.atomic():
+                # Deshabilitar foreign keys
+                with connection.cursor() as cursor:
+                    cursor.execute('PRAGMA foreign_keys = OFF;')
+                
+                # Verificar ventas
+                from ventas.models import Venta
+                ventas_count = Venta.objects.filter(cliente_id=cliente_id).count()
+                
+                if ventas_count > 0:
+                    messages.error(request, f'No se puede eliminar el cliente "{nombre}" porque tiene {ventas_count} venta(s) asociada(s).')
+                    with connection.cursor() as cursor:
+                        cursor.execute('PRAGMA foreign_keys = ON;')
+                    return redirect('clientes:cliente_list')
+                
+                # Eliminar registros relacionados manualmente
+                with connection.cursor() as cursor:
+                    # Eliminar contactos
+                    cursor.execute('DELETE FROM clientes_contactocliente WHERE cliente_id = ?', [cliente_id])
+                    
+                    # Eliminar movimientos de cuenta corriente
+                    cursor.execute('DELETE FROM clientes_cuentacorrientecliente WHERE cliente_id = ?', [cliente_id])
+                    
+                    # Eliminar historial de precios
+                    cursor.execute('DELETE FROM clientes_historialprecioscliente WHERE cliente_id = ?', [cliente_id])
+                    
+                    # Eliminar el cliente
+                    cursor.execute('DELETE FROM clientes_cliente WHERE id = ?', [cliente_id])
+                
+                # Reactivar foreign keys
+                with connection.cursor() as cursor:
+                    cursor.execute('PRAGMA foreign_keys = ON;')
+            
+            messages.success(request, f'Cliente "{nombre}" eliminado exitosamente.')
+            return redirect('clientes:cliente_list')
+            
+        except Exception as e:
+            # Reactivar foreign keys
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute('PRAGMA foreign_keys = ON;')
+            except:
+                pass
+            
+            messages.error(request, f'Error al eliminar el cliente: {str(e)}')
+            return redirect('clientes:cliente_list')
     
     context = {
         'cliente': cliente,
     }
     
     return render(request, 'clientes/cliente_confirm_delete.html', context)
+
+
+@login_required
+@permission_required('clientes.change_cliente', raise_exception=True)
+def cliente_toggle_estado(request, pk):
+    """Activar/Desactivar cliente"""
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('clientes:cliente_list')
+    
+    cliente = get_object_or_404(Cliente, pk=pk, empresa=empresa)
+    
+    if cliente.estado == 'activo':
+        cliente.estado = 'inactivo'
+        messages.success(request, f'Cliente "{cliente.nombre}" desactivado exitosamente.')
+    else:
+        cliente.estado = 'activo'
+        messages.success(request, f'Cliente "{cliente.nombre}" activado exitosamente.')
+    
+    cliente.save()
+    return redirect('clientes:cliente_list')
 
 
 @login_required

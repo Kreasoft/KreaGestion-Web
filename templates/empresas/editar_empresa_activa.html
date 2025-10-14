@@ -188,6 +188,11 @@
                                 <i class="fas fa-file-invoice me-2"></i>Facturación Electrónica
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="sucursales-tab" data-bs-toggle="tab" data-bs-target="#sucursales" type="button" role="tab" aria-controls="sucursales" aria-selected="false">
+                                <i class="fas fa-store me-2"></i>Sucursales
+                            </button>
+                        </li>
                     </ul>
 
                     <!-- Contenido de las pestañas -->
@@ -196,10 +201,15 @@
                         <div class="tab-pane fade show active" id="datos" role="tabpanel" aria-labelledby="datos-tab">
                             <form method="post" enctype="multipart/form-data">
                                 {% csrf_token %}
+                                
+                                <!-- Campos ocultos requeridos -->
+                                <input type="hidden" name="giro" value="{{ empresa.giro|default:'' }}">
+                                <input type="hidden" name="regimen_tributario" value="{{ empresa.regimen_tributario|default:'general' }}">
+                                <input type="hidden" name="estado" value="{{ empresa.estado|default:'activa' }}">
                         
                         <!-- Primera fila: RUT, Razón Social, Nombre de Fantasía -->
                         <div class="row mb-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="{{ form.rut.id_for_label }}" class="form-label">
                                     <i class="fas fa-id-card me-2"></i>{{ form.rut.label }}
                                 </label>
@@ -217,7 +227,7 @@
                                     </div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-5">
                                 <label for="{{ form.razon_social.id_for_label }}" class="form-label">
                                     <i class="fas fa-building me-2"></i>{{ form.razon_social.label }}
                                 </label>
@@ -663,20 +673,67 @@
                                         </div>
                                         
                                         <div class="row">
+                                            <!-- Razón Social SII -->
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.razon_social_sii.id_for_label }}" class="form-label">
+                                                    <i class="fas fa-building me-2"></i>{{ fe_form.razon_social_sii.label }}
+                                                </label>
+                                                {{ fe_form.razon_social_sii }}
+                                                <small class="text-muted d-block mt-1">Dejar vacío para usar la razón social de "Datos de la Empresa"</small>
+                                            </div>
+                                            
+                                            <!-- Giro SII -->
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.giro_sii.id_for_label }}" class="form-label">
+                                                    <i class="fas fa-briefcase me-2"></i>{{ fe_form.giro_sii.label }}
+                                                </label>
+                                                {{ fe_form.giro_sii }}
+                                                <small class="text-muted d-block mt-1">Dejar vacío para usar el giro de "Datos de la Empresa"</small>
+                                            </div>
+                                            
+                                            <!-- Código Actividad Económica -->
                                             <div class="col-md-6 mb-3">
                                                 <label for="{{ fe_form.codigo_actividad_economica.id_for_label }}" class="form-label">
-                                                    <i class="fas fa-briefcase me-2"></i>{{ fe_form.codigo_actividad_economica.label }} <span class="text-danger">*</span>
+                                                    <i class="fas fa-hashtag me-2"></i>{{ fe_form.codigo_actividad_economica.label }} <span class="text-danger">*</span>
                                                 </label>
                                                 {{ fe_form.codigo_actividad_economica }}
                                                 <small class="text-muted d-block mt-1">Código de 6 dígitos según clasificación SII (Ej: 620200 para servicios informáticos)</small>
                                             </div>
 
+                                            <!-- Oficina SII -->
                                             <div class="col-md-6 mb-3">
                                                 <label for="{{ fe_form.oficina_sii.id_for_label }}" class="form-label">
                                                     <i class="fas fa-building me-2"></i>{{ fe_form.oficina_sii.label }}
                                                 </label>
                                                 {{ fe_form.oficina_sii }}
                                                 <small class="text-muted d-block mt-1">Oficina regional del SII donde está registrada la empresa</small>
+                                            </div>
+                                            
+                                            <!-- Dirección Casa Matriz -->
+                                            <div class="col-md-12 mb-3">
+                                                <label for="{{ fe_form.direccion_casa_matriz.id_for_label }}" class="form-label">
+                                                    <i class="fas fa-map-marker-alt me-2"></i>{{ fe_form.direccion_casa_matriz.label }}
+                                                </label>
+                                                {{ fe_form.direccion_casa_matriz }}
+                                                <small class="text-muted d-block mt-1">Dejar vacío para usar la dirección de "Datos de la Empresa"</small>
+                                            </div>
+                                            
+                                            <!-- Comuna Casa Matriz -->
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.comuna_casa_matriz.id_for_label }}" class="form-label">
+                                                    <i class="fas fa-map-marker-alt me-2"></i>{{ fe_form.comuna_casa_matriz.label }}
+                                                </label>
+                                                {{ fe_form.comuna_casa_matriz }}
+                                                <small class="text-muted d-block mt-1">Dejar vacío para usar la comuna de "Datos de la Empresa"</small>
+                                            </div>
+                                            
+                                            <!-- Ciudad Casa Matriz -->
+                                            <div class="col-md-6 mb-3">
+                                                <label for="{{ fe_form.ciudad_casa_matriz.id_for_label }}" class="form-label">
+                                                    <i class="fas fa-city me-2"></i>{{ fe_form.ciudad_casa_matriz.label }}
+                                                </label>
+                                                {{ fe_form.ciudad_casa_matriz }}
+                                                <small class="text-muted d-block mt-1">Dejar vacío para usar la ciudad de "Datos de la Empresa"</small>
                                             </div>
                                         </div>
                                         
@@ -924,8 +981,100 @@
                             </div>
                             {% endif %}
                         </div>
+                        
+                        <!-- Pestaña Sucursales -->
+                        <div class="tab-pane fade" id="sucursales" role="tabpanel" aria-labelledby="sucursales-tab">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-store me-2"></i>Sucursales de la Empresa
+                                </h5>
+                                <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaSucursal">
+                                    <i class="fas fa-plus me-2"></i>Nueva Sucursal
+                                </a>
+                            </div>
+                            
+                            {% if sucursales %}
+                            <div class="row">
+                                {% for sucursal in sucursales %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card h-100 {% if sucursal.es_principal %}border-primary{% endif %}">
+                                        <div class="card-header {% if sucursal.es_principal %}bg-primary text-white{% else %}bg-light{% endif %}">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0">
+                                                    <i class="fas fa-store me-2"></i>{{ sucursal.nombre }}
+                                                    {% if sucursal.es_principal %}
+                                                        <span class="badge bg-warning text-dark ms-2">Principal</span>
+                                                    {% endif %}
+                                                </h6>
+                                                <span class="badge {% if sucursal.estado == 'activa' %}bg-success{% else %}bg-secondary{% endif %}">
+                                                    {{ sucursal.get_estado_display }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="mb-2"><strong>Código:</strong> {{ sucursal.codigo }}</p>
+                                            <p class="mb-2"><strong>Dirección:</strong> {{ sucursal.direccion }}</p>
+                                            <p class="mb-2"><strong>Comuna:</strong> {{ sucursal.comuna }}</p>
+                                            <p class="mb-2"><strong>Ciudad:</strong> {{ sucursal.ciudad }}</p>
+                                            <p class="mb-2"><strong>Teléfono:</strong> {{ sucursal.telefono|default:"-" }}</p>
+                                            <p class="mb-2"><strong>Email:</strong> {{ sucursal.email|default:"-" }}</p>
+                                            {% if sucursal.horario_apertura and sucursal.horario_cierre %}
+                                            <p class="mb-2"><strong>Horario:</strong> {{ sucursal.horario_apertura }} - {{ sucursal.horario_cierre }}</p>
+                                            {% endif %}
+                                            {% if sucursal.gerente %}
+                                            <p class="mb-2"><strong>Gerente:</strong> {{ sucursal.gerente }}</p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="card-footer bg-light">
+                                            <div class="d-flex justify-content-end gap-2">
+                                                <a href="#" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-edit"></i> Editar
+                                                </a>
+                                                {% if not sucursal.es_principal %}
+                                                <a href="#" class="btn btn-sm btn-outline-danger">
+                                                    <i class="fas fa-trash"></i> Eliminar
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info text-center">
+                                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                                <h5>No hay sucursales registradas</h5>
+                                <p class="mb-3">Agregue sucursales para gestionar múltiples puntos de venta o ubicaciones de su empresa.</p>
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaSucursal">
+                                    <i class="fas fa-plus me-2"></i>Agregar Primera Sucursal
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva Sucursal -->
+<div class="modal fade" id="modalNuevaSucursal" tabindex="-1" aria-labelledby="modalNuevaSucursalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalNuevaSucursalLabel">
+                    <i class="fas fa-store me-2"></i>Nueva Sucursal
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">La funcionalidad de gestión de sucursales estará disponible próximamente.</p>
+                <p>Por favor, contacte al administrador del sistema para agregar o modificar sucursales.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>

@@ -1,0 +1,399 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Utilidad por Familias{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print { .no-print { display: none !important; } }
+    .tabla-informe thead { background: #8B7355; color: white; }
+    .tabla-informe tbody tr:hover { background: #f8f9fa; }
+    .tabla-informe th, .tabla-informe td { padding: 0.75rem !important; font-size: 0.875rem; }
+    .utilidad-positiva { color: #28a745; font-weight: bold; }
+    .utilidad-negativa { color: #dc3545; font-weight: bold; }
+    .stat-card {
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        border-left: 4px solid #8B7355;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    .stat-label { font-size: 0.875rem; color: #6F5B44; font-weight: 600; margin-bottom: 0.25rem; }
+    .stat-value { font-size: 1.5rem; color: #8B7355; font-weight: 700; }
+    
+    /* Estilos para filas expandibles */
+    .familia-row {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .familia-row:hover {
+        background-color: #F5F1E8 !important;
+    }
+    .familia-row.expanded {
+        background-color: #E8DCC8 !important;
+    }
+    .detalle-articulos {
+        display: none;
+        background-color: #FAFAF8;
+    }
+    .detalle-articulos.show {
+        display: table-row;
+    }
+    .detalle-articulos td {
+        padding: 0 !important;
+    }
+    .detalle-content {
+        padding: 0.5rem 1rem;
+        border-left: 2px solid #8B7355;
+        margin: 0.25rem 1rem 0.25rem 2rem;
+        background: #FDFCFA;
+    }
+    .detalle-table {
+        width: 100%;
+        font-size: 0.75rem;
+        margin: 0;
+    }
+    .detalle-table th {
+        background: #F5F1E8;
+        color: #6F5B44;
+        padding: 0.35rem 0.5rem;
+        font-weight: 600;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .detalle-table td {
+        padding: 0.3rem 0.5rem !important;
+        border-bottom: 1px solid #F0EDE5;
+        vertical-align: middle;
+    }
+    .detalle-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    .detalle-table tbody tr:hover {
+        background: #F9F7F3;
+    }
+    .detalle-table .badge {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.4rem;
+    }
+    .expand-icon {
+        transition: transform 0.3s;
+        display: inline-block;
+    }
+    .expand-icon.rotated {
+        transform: rotate(90deg);
+    }
+    .loading-spinner {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #8B7355;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3 no-print">
+        <div class="col-md-8">
+            <h5 class="mb-1" style="color: #2c3e50;">
+                <i class="fas fa-chart-line me-2" style="color: #8B7355;"></i>Utilidad por Familias
+            </h5>
+            <small class="text-muted">Análisis de costos, ventas y utilidad por categoría</small>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'informes:dashboard' %}" class="btn btn-sm btn-outline-secondary me-1">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <a href="{% url 'informes:exportar_utilidad_familias_excel' %}?fecha_desde={{ fecha_desde|date:'Y-m-d' }}&fecha_hasta={{ fecha_hasta|date:'Y-m-d' }}{% if familia_id %}&familia={{ familia_id }}{% endif %}" class="btn btn-sm btn-success me-1">
+                <i class="fas fa-file-excel"></i>
+            </a>
+            <button onclick="window.print()" class="btn btn-sm" style="background: #8B7355; color: white;">
+                <i class="fas fa-print"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-3 no-print">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body p-3">
+                    <form method="get" class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label mb-1 small fw-bold" style="color: #6F5B44;">Desde</label>
+                            <input type="date" name="fecha_desde" class="form-control form-control-sm" 
+                                   value="{{ fecha_desde|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label mb-1 small fw-bold" style="color: #6F5B44;">Hasta</label>
+                            <input type="date" name="fecha_hasta" class="form-control form-control-sm" 
+                                   value="{{ fecha_hasta|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label mb-1 small fw-bold" style="color: #6F5B44;">Familia</label>
+                            <select name="familia" class="form-select form-select-sm">
+                                <option value="">Todas las familias</option>
+                                {% for familia in familias %}
+                                <option value="{{ familia.id }}" {% if familia_id == familia.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ familia.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-sm w-100" style="background: #8B7355; color: white;">
+                                <i class="fas fa-search me-1"></i>Filtrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen General -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <p class="stat-label">Total Ventas</p>
+                <p class="stat-value">${{ total_ventas_general|floatformat:0|intcomma }}</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <p class="stat-label">Total Costos</p>
+                <p class="stat-value">${{ total_costo_general|floatformat:0|intcomma }}</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <p class="stat-label">Utilidad Total</p>
+                <p class="stat-value {% if utilidad_general >= 0 %}utilidad-positiva{% else %}utilidad-negativa{% endif %}">
+                    ${{ utilidad_general|floatformat:0|intcomma }}
+                </p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <p class="stat-label">Margen Promedio</p>
+                <p class="stat-value">{{ margen_general|floatformat:1 }}%</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Resultados -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0 tabla-informe">
+                            <thead>
+                                <tr>
+                                    <th>Familia</th>
+                                    <th class="text-end">Cant. Vendida</th>
+                                    <th class="text-end">N° Ventas</th>
+                                    <th class="text-end">Total Ventas</th>
+                                    <th class="text-end">Total Costos</th>
+                                    <th class="text-end">Utilidad</th>
+                                    <th class="text-center">Margen %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in resultados %}
+                                <tr class="familia-row" onclick="toggleDetalle({{ item.familia_id }})" data-familia-id="{{ item.familia_id }}">
+                                    <td>
+                                        <i class="fas fa-chevron-right expand-icon me-2" id="icon-{{ item.familia_id }}" style="color: #8B7355;"></i>
+                                        <i class="fas fa-folder me-2" style="color: #8B7355;"></i>
+                                        {{ item.familia_nombre }}
+                                    </td>
+                                    <td class="text-end">{{ item.cantidad_vendida|floatformat:0 }}</td>
+                                    <td class="text-end">{{ item.num_ventas }}</td>
+                                    <td class="text-end fw-bold">${{ item.total_ventas|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">${{ item.total_costo|floatformat:0|intcomma }}</td>
+                                    <td class="text-end {% if item.utilidad >= 0 %}utilidad-positiva{% else %}utilidad-negativa{% endif %}">
+                                        ${{ item.utilidad|floatformat:0|intcomma }}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge" style="background: {% if item.margen_porcentaje >= 30 %}#28a745{% elif item.margen_porcentaje >= 15 %}#ffc107{% else %}#dc3545{% endif %};">
+                                            {{ item.margen_porcentaje|floatformat:1 }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr class="detalle-articulos" id="detalle-{{ item.familia_id }}">
+                                    <td colspan="7">
+                                        <div class="detalle-content" id="content-{{ item.familia_id }}">
+                                            <div class="text-center py-3">
+                                                <div class="loading-spinner"></div>
+                                                <p class="text-muted mt-2">Cargando artículos...</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-3">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p class="text-muted mb-0">No hay ventas en el período seleccionado</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            {% if resultados %}
+                            <tfoot style="background: #F5F1E8; font-weight: bold;">
+                                <tr>
+                                    <td colspan="3" class="text-end">TOTALES:</td>
+                                    <td class="text-end">${{ total_ventas_general|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">${{ total_costo_general|floatformat:0|intcomma }}</td>
+                                    <td class="text-end {% if utilidad_general >= 0 %}utilidad-positiva{% else %}utilidad-negativa{% endif %}">
+                                        ${{ utilidad_general|floatformat:0|intcomma }}
+                                    </td>
+                                    <td class="text-center">{{ margen_general|floatformat:1 }}%</td>
+                                </tr>
+                            </tfoot>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información adicional -->
+    <div class="row mt-3 no-print">
+        <div class="col-12">
+            <div class="alert alert-info" style="background: #E8DCC8; border-color: #8B7355; color: #6F5B44;">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Nota:</strong> La utilidad se calcula como: Ventas - Costos. El margen es el porcentaje de utilidad sobre las ventas.
+                Los costos se toman del precio de costo registrado en cada artículo al momento de la venta.
+                <strong>Haz clic en una familia</strong> para ver el detalle por artículo.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const detallesCache = {};
+
+function toggleDetalle(familiaId) {
+    const detalleRow = document.getElementById(`detalle-${familiaId}`);
+    const icon = document.getElementById(`icon-${familiaId}`);
+    const familiaRow = document.querySelector(`tr[data-familia-id="${familiaId}"]`);
+    
+    // Toggle visibilidad
+    if (detalleRow.classList.contains('show')) {
+        detalleRow.classList.remove('show');
+        icon.classList.remove('rotated');
+        familiaRow.classList.remove('expanded');
+    } else {
+        detalleRow.classList.add('show');
+        icon.classList.add('rotated');
+        familiaRow.classList.add('expanded');
+        
+        // Cargar datos si no están en caché
+        if (!detallesCache[familiaId]) {
+            cargarDetalleArticulos(familiaId);
+        }
+    }
+}
+
+function cargarDetalleArticulos(familiaId) {
+    const contentDiv = document.getElementById(`content-${familiaId}`);
+    const fechaDesde = '{{ fecha_desde|date:"Y-m-d" }}';
+    const fechaHasta = '{{ fecha_hasta|date:"Y-m-d" }}';
+    
+    fetch(`/informes/utilidad/familias/detalle/${familiaId}/?fecha_desde=${fechaDesde}&fecha_hasta=${fechaHasta}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                detallesCache[familiaId] = data.articulos;
+                renderizarDetalleArticulos(familiaId, data.articulos);
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error al cargar artículos: ${data.message}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            contentDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-times-circle me-2"></i>
+                    Error de conexión al cargar los artículos
+                </div>
+            `;
+        });
+}
+
+function renderizarDetalleArticulos(familiaId, articulos) {
+    const contentDiv = document.getElementById(`content-${familiaId}`);
+    
+    if (articulos.length === 0) {
+        contentDiv.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="fas fa-box-open fa-2x mb-2"></i>
+                <p>No hay artículos vendidos en esta familia</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <table class="detalle-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">Código</th>
+                    <th style="width: 35%;">Artículo</th>
+                    <th class="text-end" style="width: 8%;">Cant.</th>
+                    <th class="text-end" style="width: 14%;">Ventas</th>
+                    <th class="text-end" style="width: 14%;">Costos</th>
+                    <th class="text-end" style="width: 14%;">Utilidad</th>
+                    <th class="text-center" style="width: 5%;">Margen</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    articulos.forEach(art => {
+        const utilidadClass = art.utilidad >= 0 ? 'utilidad-positiva' : 'utilidad-negativa';
+        const margenColor = art.margen >= 30 ? '#28a745' : (art.margen >= 15 ? '#ffc107' : '#dc3545');
+        
+        html += `
+            <tr>
+                <td>${art.codigo}</td>
+                <td>${art.nombre}</td>
+                <td class="text-end">${art.cantidad.toFixed(0)}</td>
+                <td class="text-end">$${art.ventas.toLocaleString('es-CL', {minimumFractionDigits: 0})}</td>
+                <td class="text-end">$${art.costos.toLocaleString('es-CL', {minimumFractionDigits: 0})}</td>
+                <td class="text-end ${utilidadClass}">$${art.utilidad.toLocaleString('es-CL', {minimumFractionDigits: 0})}</td>
+                <td class="text-center">
+                    <span class="badge" style="background: ${margenColor};">
+                        ${art.margen.toFixed(1)}%
+                    </span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    contentDiv.innerHTML = html;
+}
+</script>
+{% endblock %}

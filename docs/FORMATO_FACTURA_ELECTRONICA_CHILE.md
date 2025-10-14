@@ -417,3 +417,5 @@ El formato implementado cumple con todos los requisitos mínimos establecidos po
 **Basado en**: Resolución Exenta SII N° 80 (2014) y actualizaciones posteriores
 
 
+
+

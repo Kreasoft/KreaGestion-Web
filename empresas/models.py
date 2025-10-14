@@ -56,9 +56,14 @@ class Empresa(models.Model):
         return self.rut
     
     def save(self, *args, **kwargs):
-        """Formatea el RUT antes de guardar"""
+        """Formatea el RUT antes de guardar y crea sucursal principal si es nueva"""
         self.clean_rut()
+        es_nueva = self.pk is None
         super().save(*args, **kwargs)
+        
+        # Si es una empresa nueva, crear sucursal principal automáticamente
+        if es_nueva:
+            self._crear_sucursal_principal()
     giro = models.CharField(max_length=200, verbose_name="Giro Comercial")
     direccion = models.TextField(verbose_name="Dirección")
     comuna = models.CharField(max_length=100, verbose_name="Comuna")
@@ -225,6 +230,39 @@ class Empresa(models.Model):
     def get_email_dte(self):
         """Retorna el email para DTEs (usa intercambio si existe, sino el normal)"""
         return self.email_intercambio if self.email_intercambio else self.email
+    
+    def _crear_sucursal_principal(self):
+        """Crea automáticamente la sucursal principal y bodega principal"""
+        from inventario.models import Bodega
+        
+        # Crear sucursal principal
+        sucursal = Sucursal.objects.create(
+            empresa=self,
+            codigo='001',
+            nombre='Casa Matriz',
+            direccion=self.direccion,
+            comuna=self.comuna,
+            ciudad=self.ciudad,
+            region=self.region,
+            telefono=self.telefono,
+            email=self.email,
+            es_principal=True,
+            estado='activa'
+        )
+        
+        # Crear bodega principal para la sucursal
+        Bodega.objects.create(
+            empresa=self,
+            sucursal=sucursal,
+            nombre='Bodega Principal',
+            codigo='BOD-001',
+            descripcion='Bodega principal de la casa matriz',
+            direccion=self.direccion,
+            es_principal=True,
+            activo=True
+        )
+        
+        return sucursal
 
 
 class Sucursal(models.Model):
