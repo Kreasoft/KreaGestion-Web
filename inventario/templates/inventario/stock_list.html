@@ -181,7 +181,8 @@
                                         <button type="button" 
                                                 class="btn btn-sm btn-action btn-outline-warning" 
                                                 title="Editar Stock"
-                                                onclick="editarStock({{ stock.pk }})">
+                                                data-stock-id="{{ stock.pk }}"
+                                                onclick="editarStock(this.dataset.stockId)">
                                             <i class="fas fa-edit"></i>
                                         </button>
                                     </td>
@@ -369,11 +370,23 @@
 let currentStockId = null;
 
 function editarStock(stockId) {
-    console.log('=== INICIANDO EDICIÓN DE STOCK ===');
-    console.log('Stock ID:', stockId);
+    // Limpiar el ID de cualquier carácter extraño y convertir a entero
+    const cleanId = parseInt(String(stockId).replace(/\D/g, ''), 10);
     
-    currentStockId = stockId;
+    if (!cleanId || isNaN(cleanId)) {
+        console.error('ID de stock inválido:', stockId);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'ID de stock inválido'
+        });
+        return;
+    }
     
+    console.log('Editando stock ID:', cleanId);
+    currentStockId = cleanId;
+    
+    // Limpiar el contenido del modal y mostrar spinner
     document.getElementById('modalEditarStockBody').innerHTML = `
         <div class="text-center py-4">
             <div class="spinner-border text-primary" role="status">
@@ -386,7 +399,7 @@ function editarStock(stockId) {
     const modal = new bootstrap.Modal(document.getElementById('modalEditarStock'));
     modal.show();
     
-    const url = `/inventario/stock/${stockId}/editar-modal/`;
+    const url = `/inventario/stock/${cleanId}/editar-modal/`;
     console.log('Cargando formulario desde:', url);
     
     fetch(url, {
@@ -491,7 +504,9 @@ function attachFormHandler() {
                 if (data.errors) {
                     errorHtml += '<br><br><div class="text-start small">';
                     for (let field in data.errors) {
-                        errorHtml += `<strong>${field}:</strong> ${data.errors[field].join(', ')}<br>`;
+                        const fieldName = String(field).replace(/[<>"']/g, '');
+                        const fieldErrors = Array.isArray(data.errors[field]) ? data.errors[field].join(', ') : String(data.errors[field]);
+                        errorHtml += '<strong>' + fieldName + ':</strong> ' + fieldErrors + '<br>';
                     }
                     errorHtml += '</div>';
                 }

@@ -9,6 +9,46 @@ from articulos.models import Articulo
 # Los modelos de ajustes se manejan directamente en las vistas
 
 
+class TransferenciaInventario(models.Model):
+    """Modelo para agrupar transferencias de múltiples artículos"""
+    
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('confirmado', 'Confirmado'),
+        ('cancelado', 'Cancelado'),
+    ]
+    
+    empresa = models.ForeignKey('empresas.Empresa', on_delete=models.CASCADE, related_name='transferencias')
+    numero_folio = models.CharField(max_length=20, unique=True, verbose_name="Número de Folio")
+    bodega_origen = models.ForeignKey('bodegas.Bodega', on_delete=models.CASCADE, related_name='transferencias_origen')
+    bodega_destino = models.ForeignKey('bodegas.Bodega', on_delete=models.CASCADE, related_name='transferencias_destino')
+    
+    fecha_transferencia = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Transferencia")
+    observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='confirmado')
+    
+    # Guía de despacho asociada
+    guia_despacho = models.ForeignKey(
+        'facturacion_electronica.DocumentoTributarioElectronico',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='transferencias',
+        verbose_name="Guía de Despacho"
+    )
+    
+    creado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Transferencia de Inventario"
+        verbose_name_plural = "Transferencias de Inventario"
+        ordering = ['-fecha_transferencia']
+    
+    def __str__(self):
+        return f"{self.numero_folio} - {self.bodega_origen.nombre} → {self.bodega_destino.nombre}"
+
+
 class Inventario(models.Model):
     """Modelo para gestionar el inventario de productos"""
     
@@ -30,6 +70,16 @@ class Inventario(models.Model):
     bodega_destino = models.ForeignKey(Bodega, on_delete=models.CASCADE, related_name='inventarios_destino', null=True, blank=True)
     bodega_origen = models.ForeignKey(Bodega, on_delete=models.CASCADE, related_name='inventarios_origen', null=True, blank=True)
     articulo = models.ForeignKey(Articulo, on_delete=models.CASCADE, related_name='inventarios')
+    
+    # Relación con transferencia agrupada (para transferencias con múltiples artículos)
+    transferencia = models.ForeignKey(
+        TransferenciaInventario,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='detalles',
+        verbose_name="Transferencia"
+    )
     
     # Número de folio para ajustes
     numero_folio = models.CharField(max_length=20, blank=True, null=True, verbose_name="Número de Folio")

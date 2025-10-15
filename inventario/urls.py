@@ -4,6 +4,7 @@ from . import views_carga_inicial
 from . import views_stock_modal
 from . import views_stock_updated
 from . import views_ajustes_simple
+from . import views_transferencias
 
 app_name = 'inventario'
 
@@ -24,6 +25,15 @@ urlpatterns = [
     path('stock/<int:pk>/editar/', views.stock_update, name='stock_update'),
     path('stock/<int:pk>/editar-modal/', views_stock_modal.stock_update_modal, name='stock_update_modal'),
     path('stock/<int:pk>/eliminar/', views.stock_delete, name='stock_delete'),
+    
+    # Transferencias de Inventario
+    path('transferencias/', views_transferencias.transferencia_list, name='transferencia_list'),
+    path('transferencias/nueva/', views_transferencias.transferencia_create, name='transferencia_create'),
+    path('transferencias/<int:pk>/', views_transferencias.transferencia_detail, name='transferencia_detail'),
+    path('transferencias/<int:pk>/cancelar/', views_transferencias.transferencia_cancelar, name='transferencia_cancelar'),
+    path('transferencias/<int:pk>/generar-guia/', views_transferencias.transferencia_generar_guia, name='transferencia_generar_guia'),
+    path('transferencias/<int:pk>/imprimir-guia/', views_transferencias.transferencia_imprimir_guia, name='transferencia_imprimir_guia'),
+    path('api/stock-disponible/', views_transferencias.api_stock_disponible, name='api_stock_disponible'),
     
     # Carga Inicial de Inventario
     path('carga-inicial/', views_carga_inicial.carga_inicial_inventario, name='carga_inicial'),

@@ -1,0 +1,422 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block page_title %}{{ titulo }} - GestionCloud{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .articulo-item {
+        border: 1px solid #D4A574;
+        border-radius: 0.25rem;
+        padding: 0.5rem;
+        margin-bottom: 0.25rem;
+        background: linear-gradient(135deg, #F5F1E8 0%, #FFFFFF 100%);
+        font-size: 0.85rem;
+    }
+    .articulo-item:hover {
+        background: linear-gradient(135deg, #E8DCC8 0%, #F5F1E8 100%);
+        border-color: #8B7355;
+    }
+    .stock-info {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    .stock-disponible {
+        font-weight: 600;
+        color: #6B8E23;
+    }
+    .stock-insuficiente {
+        font-weight: 600;
+        color: #C19461;
+    }
+    .form-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #8B7355;
+        margin-bottom: 0.25rem;
+    }
+    .form-control-sm, .form-select-sm {
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-bottom: 3px solid #D4C4A8; padding: 15px 20px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exchange-alt me-3" style="font-size: 1.8rem; color: #F5F1E8;"></i>
+                            <div>
+                                <h5 class="mb-1" style="font-size: 1.3rem; font-weight: 600; color: white;">
+                                    {{ titulo }}
+                                </h5>
+                                <small style="font-size: 0.75rem; color: #F5F1E8;">
+                                    Complete los datos de la transferencia
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'inventario:transferencia_list' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: white; font-size: 0.75rem;">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background: #FAFAF8; padding: 15px;">
+
+                    <form method="post" id="transferenciaForm">
+                        {% csrf_token %}
+                        
+                        <div class="row g-2">
+                            <!-- Columna Izquierda: Datos de la Transferencia -->
+                            <div class="col-md-4">
+                                <div class="card" style="border: 1px solid #E8DCC8; border-radius: 8px; background: #FFFFFF;">
+                                    <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
+                                        <h6 class="mb-0" style="font-size: 0.9rem;"><i class="fas fa-info-circle me-2"></i>Datos de la Transferencia</h6>
+                                    </div>
+                                    <div class="card-body p-2">
+                        <!-- Fecha de Transferencia -->
+                        <div class="mb-2">
+                            <label class="form-label">Fecha de Transferencia</label>
+                            {{ form.fecha_transferencia }}
+                            {% if form.fecha_transferencia.errors %}
+                            <div class="text-danger small mt-1">{{ form.fecha_transferencia.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Bodega Origen -->
+                        <div class="mb-2">
+                            <label class="form-label">Bodega Origen <span class="text-danger">*</span></label>
+                            {{ form.bodega_origen }}
+                            {% if form.bodega_origen.errors %}
+                            <div class="text-danger small mt-1">{{ form.bodega_origen.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Bodega Destino -->
+                        <div class="mb-2">
+                            <label class="form-label">Bodega Destino <span class="text-danger">*</span></label>
+                            {{ form.bodega_destino }}
+                            {% if form.bodega_destino.errors %}
+                            <div class="text-danger small mt-1">{{ form.bodega_destino.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Observaciones -->
+                        <div class="mb-2">
+                            <label class="form-label">Observaciones</label>
+                            {{ form.observaciones }}
+                            {% if form.observaciones.errors %}
+                            <div class="text-danger small mt-1">{{ form.observaciones.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="alert alert-info py-2 px-2 mb-0" style="background: rgba(139, 115, 85, 0.1); border-color: #8B7355;">
+                            <i class="fas fa-info-circle me-1" style="color: #8B7355;"></i>
+                            <small style="font-size: 0.75rem;">El número de folio se generará automáticamente.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Artículos -->
+            <div class="col-md-8">
+                <div class="card border-0 shadow-sm mb-3" style="background: linear-gradient(135deg, #FFFFFF 0%, #F5F1E8 100%);">
+                    <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #6B8E23 0%, #8B9F4A 100%);">
+                        <h6 class="mb-0"><i class="fas fa-boxes me-2"></i>Artículos a Transferir</h6>
+                    </div>
+                    <div class="card-body p-3">
+                        <!-- Selector de Artículos -->
+                        <div class="row mb-2 g-2">
+                            <div class="col-md-7">
+                                <label class="form-label">Seleccionar Artículo</label>
+                                <select id="articuloSelect" class="form-select form-select-sm">
+                                    <option value="">-- Seleccione un artículo --</option>
+                                    {% for articulo in articulos %}
+                                    <option value="{{ articulo.id }}" 
+                                            data-nombre="{{ articulo.nombre }}"
+                                            data-codigo="{{ articulo.codigo }}"
+                                            data-precio="{{ articulo.precio_venta|default:0 }}">
+                                        {{ articulo.codigo }} - {{ articulo.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Cantidad</label>
+                                <input type="number" id="cantidadInput" class="form-control form-control-sm" step="0.01" min="0.01" placeholder="0.00">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="button" id="agregarArticuloBtn" class="btn btn-sm w-100" style="background: #6B8E23; color: white; border: none;">
+                                    <i class="fas fa-plus"></i> Agregar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="stockInfo" class="alert alert-warning d-none mb-2 py-2 px-2" style="font-size: 0.8rem;">
+                            <i class="fas fa-warehouse me-1"></i>
+                            <span id="stockInfoText"></span>
+                        </div>
+
+                        <!-- Lista de Artículos Agregados -->
+                        <div id="articulosLista" class="mb-2">
+                            <h6 class="fw-bold mb-2" style="color: #8B7355; font-size: 0.9rem;">Artículos Agregados:</h6>
+                            <div id="articulosContainer" style="max-height: 300px; overflow-y: auto;">
+                                <div class="text-center text-muted py-3">
+                                    <i class="fas fa-inbox fa-2x mb-2" style="color: #A0826D;"></i>
+                                    <p class="mb-0 small">No hay artículos agregados</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Resumen -->
+                        <div class="card" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: 1px solid #D4A574;">
+                            <div class="card-body py-2 px-2">
+                                <div class="row text-center mb-2">
+                                    <div class="col-md-6">
+                                        <p class="text-muted mb-0" style="font-size: 0.7rem;">Total Artículos</p>
+                                        <h6 class="mb-0 fw-bold" style="color: #8B7355;" id="totalArticulos">0</h6>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="text-muted mb-0" style="font-size: 0.7rem;">Total Unidades</p>
+                                        <h6 class="mb-0 fw-bold" style="color: #8B7355;" id="totalUnidades">0</h6>
+                                    </div>
+                                </div>
+                                <hr class="my-1" style="border-color: #D4C4A8;">
+                                <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                    <span style="color: #6F5B44;">Subtotal:</span>
+                                    <span class="fw-bold" style="color: #6F5B44;" id="subtotalValor">$0</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+                                    <span style="color: #6F5B44;">IVA (19%):</span>
+                                    <span class="fw-bold" style="color: #6F5B44;" id="ivaValor">$0</span>
+                                </div>
+                                <hr class="my-1" style="border-color: #D4C4A8;">
+                                <div class="text-center">
+                                    <p class="text-muted mb-0" style="font-size: 0.7rem;">TOTAL</p>
+                                    <h5 class="mb-0 fw-bold" style="color: #8B7355;" id="totalValor">$0</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de Acción -->
+                <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #FFFFFF 0%, #F5F1E8 100%);">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'inventario:transferencia_list' %}" class="btn btn-sm" style="background: #A0826D; color: white; border: none;">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #A0826D 100%); color: white; border: none;" id="guardarBtn">
+                                <i class="fas fa-save me-2"></i>Guardar Transferencia
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campo oculto para enviar los artículos -->
+        <input type="hidden" name="articulos_json" id="articulosJson">
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let articulos = {{ articulos_edit|safe }};
+    
+    const articuloSelect = document.getElementById('articuloSelect');
+    const cantidadInput = document.getElementById('cantidadInput');
+    const agregarBtn = document.getElementById('agregarArticuloBtn');
+    const articulosContainer = document.getElementById('articulosContainer');
+    const bodegaOrigenSelect = document.getElementById('{{ form.bodega_origen.id_for_label }}');
+    const stockInfo = document.getElementById('stockInfo');
+    const stockInfoText = document.getElementById('stockInfoText');
+    
+    // Verificar stock disponible cuando se selecciona un artículo
+    articuloSelect.addEventListener('change', function() {
+        const articuloId = this.value;
+        const bodegaId = bodegaOrigenSelect.value;
+        
+        if (articuloId && bodegaId) {
+            fetch(`{% url 'inventario:api_stock_disponible' %}?articulo_id=${articuloId}&bodega_id=${bodegaId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const stockDisponible = data.stock_disponible;
+                    stockInfo.classList.remove('d-none');
+                    
+                    if (stockDisponible > 0) {
+                        stockInfo.classList.remove('alert-danger');
+                        stockInfo.classList.add('alert-warning');
+                        stockInfoText.innerHTML = `Stock disponible: <strong class="stock-disponible">${stockDisponible}</strong> unidades`;
+                    } else {
+                        stockInfo.classList.remove('alert-warning');
+                        stockInfo.classList.add('alert-danger');
+                        stockInfoText.innerHTML = `<strong class="stock-insuficiente">Sin stock disponible</strong> en la bodega origen`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    stockInfo.classList.add('d-none');
+                });
+        } else {
+            stockInfo.classList.add('d-none');
+        }
+    });
+    
+    // Agregar artículo
+    agregarBtn.addEventListener('click', function() {
+        const articuloId = articuloSelect.value;
+        const cantidad = parseFloat(cantidadInput.value);
+        
+        if (!articuloId) {
+            alert('Debe seleccionar un artículo');
+            return;
+        }
+        
+        if (!cantidad || cantidad <= 0) {
+            alert('Debe ingresar una cantidad válida');
+            return;
+        }
+        
+        const option = articuloSelect.options[articuloSelect.selectedIndex];
+        const nombre = option.dataset.nombre;
+        const codigo = option.dataset.codigo;
+        const precio = parseFloat(option.dataset.precio || 0);
+        
+        // Verificar si el artículo ya está agregado
+        const existe = articulos.find(a => a.articulo_id === articuloId);
+        if (existe) {
+            alert('Este artículo ya está agregado');
+            return;
+        }
+        
+        articulos.push({
+            articulo_id: articuloId,
+            nombre: nombre,
+            codigo: codigo,
+            cantidad: cantidad,
+            precio_venta: precio
+        });
+        
+        renderArticulos();
+        
+        // Limpiar campos
+        articuloSelect.value = '';
+        cantidadInput.value = '';
+        stockInfo.classList.add('d-none');
+    });
+    
+    function renderArticulos() {
+        if (articulos.length === 0) {
+            articulosContainer.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-inbox fa-2x mb-2" style="color: #A0826D;"></i>
+                    <p class="mb-0 small">No hay artículos agregados</p>
+                </div>
+            `;
+        } else {
+            let html = '';
+            let totalUnidades = 0;
+            let subtotal = 0;
+            
+            articulos.forEach((art, index) => {
+                totalUnidades += art.cantidad;
+                const totalLinea = art.cantidad * art.precio_venta;
+                subtotal += totalLinea;
+                
+                html += `
+                    <div class="articulo-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="flex-grow-1">
+                                <strong style="color: #8B7355;">${art.codigo}</strong> - ${art.nombre}
+                                <div class="stock-info">
+                                    Cantidad: <strong style="color: #6B8E23;">${art.cantidad}</strong> | 
+                                    Precio: <strong style="color: #8B7355;">$${art.precio_venta.toLocaleString('es-CL')}</strong> | 
+                                    Total: <strong style="color: #6B8E23;">$${totalLinea.toLocaleString('es-CL')}</strong>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm" style="background: #C19461; color: white; border: none; padding: 0.25rem 0.5rem;" onclick="eliminarArticulo(${index})">
+                                <i class="fas fa-trash" style="font-size: 0.75rem;"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            articulosContainer.innerHTML = html;
+            
+            // Calcular IVA y total
+            const iva = subtotal * 0.19;
+            const totalConIva = subtotal + iva;
+            
+            document.getElementById('totalArticulos').textContent = articulos.length;
+            document.getElementById('totalUnidades').textContent = totalUnidades.toFixed(2);
+            document.getElementById('subtotalValor').textContent = '$' + subtotal.toLocaleString('es-CL');
+            document.getElementById('ivaValor').textContent = '$' + iva.toLocaleString('es-CL');
+            document.getElementById('totalValor').textContent = '$' + totalConIva.toLocaleString('es-CL');
+        }
+        
+        // Actualizar campo oculto
+        document.getElementById('articulosJson').value = JSON.stringify(articulos);
+    }
+    
+    window.eliminarArticulo = function(index) {
+        articulos.splice(index, 1);
+        renderArticulos();
+    };
+    
+    // Validar antes de enviar
+    document.getElementById('transferenciaForm').addEventListener('submit', function(e) {
+        if (articulos.length === 0) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Atención',
+                text: 'Debe agregar al menos un artículo a la transferencia',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Aceptar'
+            });
+            return false;
+        }
+    });
+    
+    // Renderizar artículos si es edición
+    if (articulos.length > 0) {
+        renderArticulos();
+    }
+});
+</script>
+
+{% if messages %}
+<script>
+    {% for message in messages %}
+        Swal.fire({
+            icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% else %}info{% endif %}',
+            title: '{% if message.tags == "success" %}¡Éxito!{% elif message.tags == "error" %}Error{% elif message.tags == "warning" %}Advertencia{% else %}Información{% endif %}',
+            text: '{{ message|escapejs }}',
+            confirmButtonColor: '#8B7355',
+            confirmButtonText: 'Aceptar'
+        });
+    {% endfor %}
+</script>
+{% endif %}
+{% endblock %}

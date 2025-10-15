@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block page_title %}{{ titulo }} - GestionCloud{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #C19461 0%, #A67C52 100%); border-bottom: 3px solid #D4C4A8; padding: 15px 20px;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle me-3" style="font-size: 1.8rem;"></i>
+                        <div>
+                            <h5 class="mb-1" style="font-size: 1.3rem; font-weight: 600;">
+                                Cancelar Transferencia
+                            </h5>
+                            <small style="font-size: 0.75rem;">
+                                Esta acción revertirá todos los movimientos de stock
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body" style="background: #FAFAF8; padding: 20px;">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Atención:</strong> Esta acción revertirá todos los movimientos de stock realizados por esta transferencia.
+                    </div>
+
+                    <h5 class="mb-3">Información de la Transferencia</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Número de Folio</label>
+                            <div class="fw-bold fs-5 text-primary">{{ transferencia.numero_folio }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Fecha</label>
+                            <div class="fw-bold">{{ transferencia.fecha_transferencia|date:"d/m/Y H:i" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Bodega Origen</label>
+                            <div class="fw-bold">
+                                <i class="fas fa-warehouse me-1"></i>
+                                {{ transferencia.bodega_origen.nombre }}
+                            </div>
+                            <small class="text-muted">Código: {{ transferencia.bodega_origen.codigo }}</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Bodega Destino</label>
+                            <div class="fw-bold">
+                                <i class="fas fa-warehouse me-1"></i>
+                                {{ transferencia.bodega_destino.nombre }}
+                            </div>
+                            <small class="text-muted">Código: {{ transferencia.bodega_destino.codigo }}</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="text-muted small">Artículos Transferidos</label>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Artículo</th>
+                                        <th class="text-center">Cantidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for detalle in transferencia.detalles.all %}
+                                    <tr>
+                                        <td>{{ detalle.articulo.codigo }} - {{ detalle.articulo.nombre }}</td>
+                                        <td class="text-center">{{ detalle.cantidad }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>¿Está seguro que desea cancelar esta transferencia?</strong>
+                        <p class="mb-0 mt-2">Esta acción:</p>
+                        <ul class="mb-0">
+                            <li>Devolverá el stock a la bodega origen</li>
+                            <li>Restará el stock de la bodega destino</li>
+                            <li>Marcará la transferencia como cancelada</li>
+                            <li>No se podrá revertir esta acción</li>
+                        </ul>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'inventario:transferencia_detail' transferencia.pk %}" class="btn btn-sm" style="background: #A0826D; color: white; border: none;">
+                                <i class="fas fa-arrow-left me-2"></i>No, Volver
+                            </a>
+                            <button type="submit" class="btn btn-sm" style="background: #C19461; color: white; border: none;">
+                                <i class="fas fa-times me-2"></i>Sí, Cancelar Transferencia
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+<script>
+    {% for message in messages %}
+        Swal.fire({
+            icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% else %}info{% endif %}',
+            title: '{% if message.tags == "success" %}¡Éxito!{% elif message.tags == "error" %}Error{% elif message.tags == "warning" %}Advertencia{% else %}Información{% endif %}',
+            text: '{{ message|escapejs }}',
+            confirmButtonColor: '#8B7355',
+            confirmButtonText: 'Aceptar'
+        });
+    {% endfor %}
+</script>
+{% endif %}
+{% endblock %}

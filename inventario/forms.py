@@ -1,6 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Inventario, Stock
+from .models import Inventario, Stock, TransferenciaInventario
 from bodegas.models import Bodega
 from articulos.models import Articulo
 from crispy_forms.helper import FormHelper
@@ -318,3 +318,51 @@ class InventarioFilterForm(forms.Form):
                 ),
             )
         )
+
+
+class TransferenciaInventarioForm(forms.ModelForm):
+    """Formulario para crear transferencias de inventario"""
+    
+    fecha_transferencia = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(attrs={
+            'class': 'form-control form-control-sm',
+            'type': 'datetime-local'
+        }),
+        label='Fecha de Transferencia'
+    )
+    
+    class Meta:
+        model = TransferenciaInventario
+        fields = ['bodega_origen', 'bodega_destino', 'observaciones']
+        widgets = {
+            'bodega_origen': forms.Select(attrs={'class': 'form-control form-control-sm', 'required': True}),
+            'bodega_destino': forms.Select(attrs={'class': 'form-control form-control-sm', 'required': True}),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'form-control form-control-sm', 
+                'rows': 2, 
+                'placeholder': 'Observaciones adicionales (opcional)'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        self.empresa = kwargs.pop('empresa', None)
+        super().__init__(*args, **kwargs)
+        
+        if self.empresa:
+            self.fields['bodega_origen'].queryset = Bodega.objects.filter(
+                empresa=self.empresa, activa=True
+            )
+            self.fields['bodega_destino'].queryset = Bodega.objects.filter(
+                empresa=self.empresa, activa=True
+            )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        bodega_origen = cleaned_data.get('bodega_origen')
+        bodega_destino = cleaned_data.get('bodega_destino')
+        
+        if bodega_origen and bodega_destino and bodega_origen == bodega_destino:
+            raise ValidationError('La bodega de origen y destino no pueden ser la misma.')
+        
+        return cleaned_data

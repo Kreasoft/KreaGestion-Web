@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía de Despacho Electrónica - {{ dte.folio }}</title>
+
+    {% load format_filters %}
+
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 8pt;
+            line-height: 1.1;
+            color: #000;
+            margin: 0;
+            padding: 8px;
+        }
+
+        .guia-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 8px;
+        }
+
+        /* Cabecera */
+        .header-section {
+            display: table;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .header-left {
+            display: table-cell;
+            width: 55%;
+            vertical-align: top;
+            padding-right: 8px;
+        }
+
+        .header-right {
+            display: table-cell;
+            width: 45%;
+            vertical-align: top;
+        }
+
+        .document-box {
+            border: 3px solid #c00;
+            border-radius: 8px;
+            padding: 8px 6px;
+            text-align: center;
+            background: #fff;
+        }
+
+        .document-rut {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+        }
+
+        .document-type {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+            line-height: 1.1;
+        }
+
+        .document-folio {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+        }
+
+        .document-sii {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #c00;
+        }
+
+        .company-logo {
+            max-width: 80px;
+            margin-bottom: 6px;
+        }
+
+        .company-info {
+            font-size: 7pt;
+            line-height: 1.2;
+            color: #333;
+        }
+
+        .company-name {
+            font-size: 9pt;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .fecha-emision {
+            text-align: right;
+            font-size: 7pt;
+            margin-bottom: 6px;
+        }
+
+        /* Sección del Receptor */
+        .receptor-section {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            margin-bottom: 8px;
+            background: #f9f9f9;
+        }
+
+        .receptor-grid {
+            display: table;
+            width: 100%;
+            font-size: 7pt;
+        }
+
+        .receptor-row {
+            display: table-row;
+        }
+
+        .receptor-cell {
+            display: table-cell;
+            padding: 1px 3px;
+            width: 25%;
+        }
+
+        .receptor-label {
+            font-weight: bold;
+            background: #e0e0e0;
+            padding: 1px 3px;
+            display: inline-block;
+            min-width: 45px;
+            border-radius: 2px;
+            font-size: 7pt;
+        }
+
+        /* Información de Traslado */
+        .traslado-section {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            margin-bottom: 8px;
+            background: #fff8e1;
+        }
+
+        .traslado-title {
+            font-weight: bold;
+            font-size: 8pt;
+            margin-bottom: 4px;
+            color: #6B8E23;
+        }
+
+        .traslado-info {
+            font-size: 7pt;
+            line-height: 1.3;
+        }
+
+        /* Tabla de Detalle */
+        .detalle-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 7pt;
+            border: 1px solid #ddd;
+        }
+
+        .detalle-table thead {
+            background: #d0d0d0;
+        }
+
+        .detalle-table th {
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            padding: 3px 2px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 6pt;
+        }
+
+        .detalle-table th:last-child {
+            border-right: none;
+        }
+
+        .detalle-table td {
+            border-right: 1px solid #eee;
+            padding: 2px 2px;
+            vertical-align: top;
+        }
+
+        .detalle-table td:last-child {
+            border-right: none;
+        }
+
+        /* Sección Inferior */
+        .footer-section {
+            display: table;
+            width: 100%;
+        }
+
+        .footer-left {
+            display: table-cell;
+            width: 45%;
+            vertical-align: top;
+            padding-right: 6px;
+        }
+
+        .footer-right {
+            display: table-cell;
+            width: 55%;
+            vertical-align: top;
+        }
+
+        .timbre-box {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        .timbre-info {
+            font-size: 5pt;
+            color: #666;
+            margin-top: 3px;
+            line-height: 1.2;
+        }
+
+        .totales-box {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #f9f9f9;
+            margin-bottom: 6px;
+        }
+
+        .totales-header {
+            background: #d0d0d0;
+            padding: 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 8pt;
+            border-bottom: 1px solid #ddd;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .totales-content {
+            padding: 4px 6px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 1px 0;
+            font-size: 7pt;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .total-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 8pt;
+            padding-top: 2px;
+        }
+
+        .total-label {
+            font-weight: bold;
+        }
+
+        .total-value {
+            text-align: right;
+        }
+
+        .observaciones-box {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            background: #f9f9f9;
+        }
+
+        .observaciones-title {
+            font-weight: bold;
+            font-size: 7pt;
+            margin-bottom: 3px;
+        }
+
+        .observaciones-text {
+            font-size: 6pt;
+            line-height: 1.3;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+
+        .print-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background: #6B8E23;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 1000;
+        }
+
+        .print-button:hover {
+            background: #8B9F4A;
+        }
+    </style>
+</head>
+<body>
+    <button onclick="window.print()" class="print-button no-print">
+        <i class="fas fa-print"></i> Imprimir
+    </button>
+
+    <div class="guia-container">
+        <!-- CABECERA -->
+        <div class="header-section">
+            <!-- Información de la Empresa -->
+            <div class="header-left">
+                {% if empresa.logo %}
+                <img src="{{ empresa.logo.url }}" alt="Logo" class="company-logo">
+                {% endif %}
+                <div class="company-name">{{ empresa.nombre|upper }}</div>
+                <div class="company-info">
+                    <strong>Giro:</strong> {{ empresa.giro|default:"" }}<br>
+                    <strong>Dirección:</strong> {{ empresa.direccion|default:"" }}<br>
+                    <strong>Comuna:</strong> {{ empresa.comuna|default:"" }}<br>
+                    <strong>Ciudad:</strong> {{ empresa.ciudad|default:"" }}<br>
+                    <strong>Teléfono:</strong> {{ empresa.telefono|default:"" }}<br>
+                    <strong>Email:</strong> {{ empresa.email|default:"" }}
+                </div>
+            </div>
+
+            <!-- Cuadro del Documento -->
+            <div class="header-right">
+                <div class="document-box">
+                    <div class="document-rut">R.U.T.: {{ empresa.rut }}</div>
+                    <div class="document-type">GUÍA DE DESPACHO<br>ELECTRÓNICA</div>
+                    <div class="document-folio">N° {{ dte.folio }}</div>
+                    <div class="document-sii">S.I.I. - {{ empresa.ciudad|default:"SANTIAGO" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FECHA DE EMISIÓN -->
+        <div class="fecha-emision">
+            <strong>Fecha Emisión:</strong> {{ dte.fecha_emision|date:"d/m/Y" }}
+        </div>
+
+        <!-- INFORMACIÓN DEL RECEPTOR -->
+        <div class="receptor-section">
+            <div class="receptor-grid">
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Señor(es):</span>
+                        {{ dte.razon_social_receptor }}
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">R.U.T.:</span>
+                        {{ dte.rut_receptor }}
+                    </div>
+                </div>
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Giro:</span>
+                        {{ dte.giro_receptor|default:"" }}
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Dirección:</span>
+                        {{ dte.direccion_receptor|default:"" }}
+                    </div>
+                </div>
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Comuna:</span>
+                        {{ dte.comuna_receptor|default:"" }}
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Ciudad:</span>
+                        {{ dte.ciudad_receptor|default:"" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INFORMACIÓN DE TRASLADO -->
+        <div class="traslado-section">
+            <div class="traslado-title">INFORMACIÓN DE TRASLADO</div>
+            <div class="traslado-info">
+                <strong>Tipo de Traslado:</strong> {{ dte.get_tipo_traslado_display }}<br>
+                <strong>Origen:</strong> {{ transferencia.bodega_origen.nombre }} ({{ transferencia.bodega_origen.codigo }})<br>
+                <strong>Destino:</strong> {{ transferencia.bodega_destino.nombre }} ({{ transferencia.bodega_destino.codigo }})<br>
+                <strong>Folio Interno:</strong> {{ transferencia.numero_folio }}
+            </div>
+        </div>
+
+        <!-- DETALLE DE PRODUCTOS -->
+        <table class="detalle-table">
+            <thead>
+                <tr>
+                    <th style="width: 8%;">CÓDIGO</th>
+                    <th style="width: 35%;">DESCRIPCIÓN</th>
+                    <th style="width: 10%;">UNIDAD</th>
+                    <th style="width: 10%;">CANTIDAD</th>
+                    <th style="width: 12%;">P. UNITARIO</th>
+                    <th style="width: 12%;">DESCUENTO</th>
+                    <th style="width: 13%;">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detalle in detalles %}
+                <tr>
+                    <td style="text-align: center;">{{ detalle.articulo.codigo }}</td>
+                    <td>{{ detalle.articulo.nombre }}</td>
+                    <td style="text-align: center;">{{ detalle.articulo.unidad_medida.nombre|default:"UND" }}</td>
+                    <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
+                    <td style="text-align: right;">${{ detalle.precio_unitario|floatformat:0 }}</td>
+                    <td style="text-align: right;">$0</td>
+                    <td style="text-align: right;">${{ detalle.total|floatformat:0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- SECCIÓN INFERIOR -->
+        <div class="footer-section">
+            <!-- TIMBRE Y OBSERVACIONES -->
+            <div class="footer-left">
+                <!-- TIMBRE ELECTRÓNICO -->
+                <div class="timbre-box">
+                    {% if dte.timbre_pdf417 %}
+                    <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico" style="max-width: 100%; height: auto;">
+                    {% else %}
+                    <div style="padding: 20px; background: #f0f0f0; border: 2px dashed #ccc;">
+                        <strong>TIMBRE ELECTRÓNICO</strong><br>
+                        <small>Pendiente de generación</small>
+                    </div>
+                    {% endif %}
+                    <div class="timbre-info">
+                        Timbre Electrónico SII<br>
+                        Res. Ex. SII N° 45 del 2003<br>
+                        Verifique documento: www.sii.cl
+                    </div>
+                </div>
+
+                <!-- OBSERVACIONES -->
+                {% if transferencia.observaciones %}
+                <div class="observaciones-box">
+                    <div class="observaciones-title">OBSERVACIONES:</div>
+                    <div class="observaciones-text">{{ transferencia.observaciones }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- TOTALES -->
+            <div class="footer-right">
+                <div class="totales-box">
+                    <div class="totales-header">TOTALES</div>
+                    <div class="totales-content">
+                        <div class="total-row">
+                            <span class="total-label">SUBTOTAL:</span>
+                            <span class="total-value">${{ subtotal|floatformat:0 }}</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">IVA (19%):</span>
+                            <span class="total-value">${{ iva|floatformat:0 }}</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">TOTAL:</span>
+                            <span class="total-value">${{ total|floatformat:0 }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INFORMACIÓN ADICIONAL -->
+                <div class="observaciones-box">
+                    <div class="observaciones-title">INFORMACIÓN DEL DOCUMENTO:</div>
+                    <div class="observaciones-text">
+                        <strong>Estado SII:</strong> {{ dte.get_estado_sii_display }}<br>
+                        <strong>Fecha Creación:</strong> {{ dte.fecha_creacion|date:"d/m/Y H:i" }}<br>
+                        <strong>Usuario:</strong> {{ dte.usuario_creacion.get_full_name|default:dte.usuario_creacion.username }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</body>
+</html>

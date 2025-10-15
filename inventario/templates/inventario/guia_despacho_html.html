@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía de Despacho Electrónica - {{ guia.folio }}</title>
+
+    {% load format_filters %}
+
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 8pt;
+            line-height: 1.1;
+            color: #000;
+            margin: 0;
+            padding: 8px;
+        }
+
+        .guia-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 8px;
+        }
+
+        /* Cabecera */
+        .header-section {
+            display: table;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .header-left {
+            display: table-cell;
+            width: 55%;
+            vertical-align: top;
+            padding-right: 8px;
+        }
+
+        .header-right {
+            display: table-cell;
+            width: 45%;
+            vertical-align: top;
+        }
+
+        .document-box {
+            border: 3px solid #c00;
+            border-radius: 8px;
+            padding: 8px 6px;
+            text-align: center;
+            background: #fff;
+        }
+
+        .document-rut {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+        }
+
+        .document-type {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+            line-height: 1.1;
+        }
+
+        .document-folio {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #c00;
+            margin-bottom: 4px;
+        }
+
+        .document-sii {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #c00;
+        }
+
+        .company-logo {
+            max-width: 80px;
+            margin-bottom: 6px;
+        }
+
+        .company-info {
+            font-size: 7pt;
+            line-height: 1.2;
+            color: #333;
+        }
+
+        .company-name {
+            font-size: 9pt;
+            font-weight: bold;
+            margin-bottom: 3px;
+            color: #000;
+        }
+
+        /* Receptor */
+        .receptor-section {
+            border: 1px solid #ccc;
+            padding: 6px;
+            margin-bottom: 8px;
+            background: #f9f9f9;
+        }
+
+        .receptor-title {
+            font-size: 8pt;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #000;
+        }
+
+        .receptor-info {
+            font-size: 7pt;
+            line-height: 1.3;
+        }
+
+        .receptor-row {
+            margin-bottom: 2px;
+        }
+
+        .receptor-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 80px;
+        }
+
+        /* Tabla de detalle */
+        .detalle-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 7pt;
+        }
+
+        .detalle-table thead {
+            background: #333;
+            color: white;
+        }
+
+        .detalle-table th {
+            padding: 4px 3px;
+            text-align: left;
+            font-weight: bold;
+            border: 1px solid #333;
+            font-size: 7pt;
+        }
+
+        .detalle-table td {
+            padding: 3px;
+            border: 1px solid #ddd;
+            font-size: 7pt;
+        }
+
+        .detalle-table tbody tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        /* Totales */
+        .totales-section {
+            float: right;
+            width: 250px;
+            margin-top: 8px;
+        }
+
+        .totales-table {
+            width: 100%;
+            font-size: 8pt;
+        }
+
+        .totales-table td {
+            padding: 3px 6px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .totales-label {
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .totales-value {
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .total-final {
+            background: #333;
+            color: white;
+            font-size: 9pt;
+        }
+
+        /* Pie de página */
+        .footer-section {
+            clear: both;
+            margin-top: 15px;
+            padding-top: 8px;
+            border-top: 2px solid #333;
+            font-size: 7pt;
+            text-align: center;
+        }
+
+        .timbre-section {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .observaciones {
+            margin-top: 10px;
+            padding: 6px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            font-size: 7pt;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="guia-container">
+        <!-- CABECERA -->
+        <div class="header-section">
+            <div class="header-left">
+                {% if empresa.logo %}
+                <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" class="company-logo">
+                {% endif %}
+                <div class="company-name">{{ empresa.nombre|upper }}</div>
+                <div class="company-info">
+                    <strong>Giro:</strong> {{ empresa.giro|default:"Comercial" }}<br>
+                    <strong>Dirección:</strong> {{ empresa.direccion|default:"-" }}<br>
+                    <strong>Comuna:</strong> {{ empresa.comuna|default:"-" }}<br>
+                    <strong>Teléfono:</strong> {{ empresa.telefono|default:"-" }}<br>
+                    <strong>Email:</strong> {{ empresa.email|default:"-" }}
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="document-box">
+                    <div class="document-rut">R.U.T.: {{ empresa.rut }}</div>
+                    <div class="document-type">
+                        GUÍA DE DESPACHO<br>
+                        ELECTRÓNICA
+                    </div>
+                    <div class="document-folio">N° {{ guia.folio }}</div>
+                    <div class="document-sii">S.I.I. - {{ empresa.ciudad|default:"SANTIAGO" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RECEPTOR -->
+        <div class="receptor-section">
+            <div class="receptor-title">SEÑOR(ES):</div>
+            <div class="receptor-info">
+                <div class="receptor-row">
+                    <span class="receptor-label">Razón Social:</span>
+                    <span>{{ guia.razon_social_receptor }}</span>
+                </div>
+                <div class="receptor-row">
+                    <span class="receptor-label">RUT:</span>
+                    <span>{{ guia.rut_receptor }}</span>
+                </div>
+                <div class="receptor-row">
+                    <span class="receptor-label">Giro:</span>
+                    <span>{{ guia.giro_receptor|default:"-" }}</span>
+                </div>
+                <div class="receptor-row">
+                    <span class="receptor-label">Dirección:</span>
+                    <span>{{ guia.direccion_receptor }}</span>
+                </div>
+                <div class="receptor-row">
+                    <span class="receptor-label">Comuna:</span>
+                    <span>{{ guia.comuna_receptor }} - {{ guia.ciudad_receptor }}</span>
+                </div>
+                <div class="receptor-row">
+                    <span class="receptor-label">Fecha Emisión:</span>
+                    <span>{{ guia.fecha_emision|date:"d-m-Y" }}</span>
+                </div>
+                <div class="receptor-row">
+                    <span class="receptor-label">Tipo Traslado:</span>
+                    <span>{{ guia.get_tipo_traslado_display }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- DETALLE -->
+        <table class="detalle-table">
+            <thead>
+                <tr>
+                    <th style="width: 8%;">Código</th>
+                    <th style="width: 42%;">Descripción</th>
+                    <th style="width: 10%;" class="text-center">Cantidad</th>
+                    <th style="width: 13%;" class="text-right">Precio Unit.</th>
+                    <th style="width: 13%;" class="text-right">Descuento</th>
+                    <th style="width: 14%;" class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if transferencia %}
+                    {% for detalle in transferencia.detalles.all %}
+                    <tr>
+                        <td>{{ detalle.articulo.codigo }}</td>
+                        <td>{{ detalle.articulo.nombre }}</td>
+                        <td class="text-center">{{ detalle.cantidad }}</td>
+                        <td class="text-right">${{ detalle.articulo.precio_venta|format_miles }}</td>
+                        <td class="text-right">$0</td>
+                        <td class="text-right">${{ detalle.articulo.precio_venta|multiply:detalle.cantidad|format_miles }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+
+        <!-- TOTALES -->
+        <div class="totales-section">
+            <table class="totales-table">
+                <tr>
+                    <td class="totales-label">NETO:</td>
+                    <td class="totales-value">${{ guia.monto_neto|format_miles }}</td>
+                </tr>
+                <tr>
+                    <td class="totales-label">IVA (19%):</td>
+                    <td class="totales-value">${{ guia.monto_iva|format_miles }}</td>
+                </tr>
+                <tr class="total-final">
+                    <td class="totales-label">TOTAL:</td>
+                    <td class="totales-value">${{ guia.monto_total|format_miles }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="clear: both;"></div>
+
+        <!-- OBSERVACIONES -->
+        {% if guia.glosa_sii %}
+        <div class="observaciones">
+            <strong>OBSERVACIONES:</strong><br>
+            {{ guia.glosa_sii }}
+        </div>
+        {% endif %}
+
+        <!-- PIE DE PÁGINA -->
+        <div class="footer-section">
+            <div><strong>DOCUMENTO TRIBUTARIO ELECTRÓNICO</strong></div>
+            <div>Timbre Electrónico SII</div>
+            <div>Verifique documento en www.sii.cl</div>
+            {% if transferencia %}
+            <div style="margin-top: 8px;">
+                <strong>Transferencia:</strong> {{ transferencia.numero_folio }} | 
+                <strong>Origen:</strong> {{ transferencia.bodega_origen.nombre }} → 
+                <strong>Destino:</strong> {{ transferencia.bodega_destino.nombre }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- TIMBRE (si existe) -->
+        {% if guia.timbre_pdf417 %}
+        <div class="timbre-section">
+            <img src="{{ guia.timbre_pdf417.url }}" alt="Timbre Electrónico" style="max-width: 200px;">
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Botón de impresión (no se imprime) -->
+    <div class="no-print" style="text-align: center; margin-top: 20px;">
+        <button onclick="window.print()" style="padding: 10px 20px; font-size: 14px; cursor: pointer;">
+            🖨️ Imprimir Guía
+        </button>
+        <button onclick="window.close()" style="padding: 10px 20px; font-size: 14px; cursor: pointer; margin-left: 10px;">
+            ❌ Cerrar
+        </button>
+    </div>
+</body>
+</html>

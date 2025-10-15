@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block page_title %}{{ titulo }} - GestionCloud{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-bottom: 3px solid #D4C4A8; padding: 15px 20px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exchange-alt me-3" style="font-size: 1.8rem; color: #F5F1E8;"></i>
+                            <div>
+                                <h5 class="mb-1" style="font-size: 1.3rem; font-weight: 600; color: white;">
+                                    Transferencias de Inventario
+                                </h5>
+                                <small style="font-size: 0.75rem; color: #F5F1E8;">
+                                    Gestión de transferencias entre bodegas
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'inventario:transferencia_create' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                                <i class="fas fa-plus me-1"></i> Nueva Transferencia
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background: #FAFAF8; padding: 15px;">
+
+                    <!-- Estadísticas -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-3">
+                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Total Transferencias</div>
+                                            <div style="font-size: 1.3rem; color: #8B7355; font-weight: 700;">{{ total_transferencias }}</div>
+                                        </div>
+                                        <i class="fas fa-exchange-alt" style="font-size: 1.5rem; color: rgba(139, 115, 85, 0.3);"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Pendientes</div>
+                                            <div style="font-size: 1.3rem; color: #D4A574; font-weight: 700;">{{ pendientes }}</div>
+                                        </div>
+                                        <i class="fas fa-clock" style="font-size: 1.5rem; color: rgba(212, 165, 116, 0.5);"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Confirmadas</div>
+                                            <div style="font-size: 1.3rem; color: #6B8E23; font-weight: 700;">{{ confirmadas }}</div>
+                                        </div>
+                                        <i class="fas fa-check-circle" style="font-size: 1.5rem; color: rgba(107, 142, 35, 0.5);"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Canceladas</div>
+                                            <div style="font-size: 1.3rem; color: #C19461; font-weight: 700;">{{ canceladas }}</div>
+                                        </div>
+                                        <i class="fas fa-times-circle" style="font-size: 1.5rem; color: rgba(193, 148, 97, 0.5);"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filtros -->
+                    <div class="card mb-3" style="border: 1px solid #E8DCC8; border-radius: 8px; background: #FFFFFF;">
+                        <div class="card-body p-2">
+                            <form method="get" class="row g-2">
+                                <div class="col-md-3">
+                                    <label class="form-label" style="color: #6F5B44; font-size: 0.7rem; font-weight: 600;">Buscar</label>
+                                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Folio u observaciones..." value="{{ request.GET.search }}" style="font-size: 0.8rem;">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="color: #6F5B44; font-size: 0.7rem; font-weight: 600;">Estado</label>
+                                    <select name="estado" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                        <option value="">Todos</option>
+                        <option value="pendiente" {% if request.GET.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                        <option value="confirmado" {% if request.GET.estado == 'confirmado' %}selected{% endif %}>Confirmado</option>
+                        <option value="cancelado" {% if request.GET.estado == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                    </select>
+                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" style="color: #6F5B44; font-size: 0.7rem; font-weight: 600;">Bodega Origen</label>
+                                    <select name="bodega_origen" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                        <option value="">Todas</option>
+                        {% for bodega in bodegas %}
+                        <option value="{{ bodega.id }}" {% if request.GET.bodega_origen == bodega.id|stringformat:"s" %}selected{% endif %}>
+                            {{ bodega.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" style="color: #6F5B44; font-size: 0.7rem; font-weight: 600;">Bodega Destino</label>
+                                    <select name="bodega_destino" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                        <option value="">Todas</option>
+                        {% for bodega in bodegas %}
+                        <option value="{{ bodega.id }}" {% if request.GET.bodega_destino == bodega.id|stringformat:"s" %}selected{% endif %}>
+                            {{ bodega.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-sm w-100" style="background: #8B7355; color: white; border: none; font-size: 0.8rem;">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Transferencias -->
+                    <div class="card" style="border: 1px solid #E8DCC8; border-radius: 8px; background: #FFFFFF;">
+                        <div class="card-body p-2">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle table-sm mb-0" style="font-size: 0.8rem;">
+                                    <thead style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
+                                        <tr>
+                                            <th class="py-2" style="font-size: 0.75rem;">Folio</th>
+                                            <th class="py-2" style="font-size: 0.75rem;">Fecha</th>
+                                            <th class="py-2" style="font-size: 0.75rem;">Origen</th>
+                                            <th class="py-2" style="font-size: 0.75rem;">Destino</th>
+                                            <th class="py-2" style="font-size: 0.75rem;">Items</th>
+                                            <th class="py-2" style="font-size: 0.75rem;">Estado</th>
+                                            <th class="py-2" style="font-size: 0.75rem;">Usuario</th>
+                                            <th class="text-center py-2" style="font-size: 0.75rem;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for transferencia in page_obj %}
+                                        <tr style="font-size: 0.8rem; border-bottom: 1px solid #E8DCC8;">
+                            <td class="py-2">
+                                <strong style="color: #8B7355;">{{ transferencia.numero_folio }}</strong>
+                            </td>
+                            <td class="py-2">
+                                <small>{{ transferencia.fecha_transferencia|date:"d/m/Y H:i" }}</small>
+                            </td>
+                            <td class="py-2">
+                                <div><strong style="font-size: 0.8rem;">{{ transferencia.bodega_origen.nombre }}</strong></div>
+                                <small class="text-muted" style="font-size: 0.7rem;">{{ transferencia.bodega_origen.codigo }}</small>
+                            </td>
+                            <td class="py-2">
+                                <div><strong style="font-size: 0.8rem;">{{ transferencia.bodega_destino.nombre }}</strong></div>
+                                <small class="text-muted" style="font-size: 0.7rem;">{{ transferencia.bodega_destino.codigo }}</small>
+                            </td>
+                            <td class="py-2">
+                                <span class="badge" style="background: #A0826D; font-size: 0.7rem;">{{ transferencia.detalles.count }}</span>
+                            </td>
+                            <td class="py-2">
+                                {% if transferencia.estado == 'pendiente' %}
+                                <span class="badge" style="background: #D4A574; font-size: 0.7rem;">Pendiente</span>
+                                {% elif transferencia.estado == 'confirmado' %}
+                                <span class="badge" style="background: #6B8E23; font-size: 0.7rem;">Confirmado</span>
+                                {% elif transferencia.estado == 'cancelado' %}
+                                <span class="badge" style="background: #C19461; font-size: 0.7rem;">Cancelado</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2">
+                                <small style="font-size: 0.75rem;">{{ transferencia.creado_por.get_full_name|default:transferencia.creado_por.username }}</small>
+                            </td>
+                            <td class="text-center py-2">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'inventario:transferencia_detail' transferencia.pk %}" 
+                                       class="btn btn-sm" 
+                                       style="background: #8B7355; color: white; border: none; padding: 0.25rem 0.5rem;"
+                                       title="Ver Detalle">
+                                        <i class="fas fa-eye" style="font-size: 0.75rem;"></i>
+                                    </a>
+                                    {% if transferencia.estado != 'cancelado' %}
+                                    <a href="{% url 'inventario:transferencia_create' %}?edit={{ transferencia.pk }}" 
+                                       class="btn btn-sm" 
+                                       style="background: #D4A574; color: white; border: none; padding: 0.25rem 0.5rem;"
+                                       title="Editar">
+                                        <i class="fas fa-edit" style="font-size: 0.75rem;"></i>
+                                    </a>
+                                    <a href="{% url 'inventario:transferencia_cancelar' transferencia.pk %}" 
+                                       class="btn btn-sm" 
+                                       style="background: #C19461; color: white; border: none; padding: 0.25rem 0.5rem;"
+                                       title="Cancelar">
+                                        <i class="fas fa-times" style="font-size: 0.75rem;"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="8" class="text-center py-5">
+                                                <i class="fas fa-inbox fa-3x" style="color: #D4C4A8;"></i>
+                                                <p class="text-muted mt-3">No hay transferencias registradas</p>
+                                                <a href="{% url 'inventario:transferencia_create' %}" class="btn btn-sm" style="background: #8B7355; color: white; border: none;">
+                                                    <i class="fas fa-plus me-2"></i>Crear Primera Transferencia
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Paginación -->
+                            {% if page_obj.has_other_pages %}
+                            <nav aria-label="Paginación" class="mt-3">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">Primera</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">Anterior</a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">Siguiente</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">Última</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+<script>
+    {% for message in messages %}
+        Swal.fire({
+            icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% else %}info{% endif %}',
+            title: '{% if message.tags == "success" %}¡Éxito!{% elif message.tags == "error" %}Error{% elif message.tags == "warning" %}Advertencia{% else %}Información{% endif %}',
+            text: '{{ message|escapejs }}',
+            confirmButtonColor: '#8B7355',
+            confirmButtonText: 'Aceptar'
+        });
+    {% endfor %}
+</script>
+{% endif %}
+{% endblock %}

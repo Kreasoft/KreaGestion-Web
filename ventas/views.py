@@ -718,6 +718,18 @@ def pos_view(request):
     from clientes.models import Cliente
     from caja.models import Caja
     from caja.forms import AperturaCajaForm
+    from django.contrib import messages
+    from django.shortcuts import render
+    
+    # VALIDACIÓN CRÍTICA: Verificar que haya sucursal activa
+    if not hasattr(request, 'sucursal_activa') or not request.sucursal_activa:
+        # Renderizar página con SweetAlert
+        context = {
+            'mostrar_alerta_sucursal': True,
+            'mensaje_error': 'No puede operar en el POS sin una sucursal asignada',
+            'mensaje_detalle': 'Contacte al administrador para que le asigne una sucursal en su perfil de usuario.'
+        }
+        return render(request, 'ventas/pos_sin_sucursal.html', context)
     
     # Verificar si hay caja abierta
     apertura_activa = None
@@ -1133,8 +1145,16 @@ def pos_procesar_preventa(request):
             print(f"  Impuesto Específico: {impuesto_especifico}")
             print(f"  Total: {total}")
 
+            # VALIDACIÓN CRÍTICA: Verificar sucursal activa
+            if not hasattr(request, 'sucursal_activa') or not request.sucursal_activa:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'No puede procesar ventas sin una sucursal asignada. Contacte al administrador.'
+                }, status=400)
+            
             preventa = Venta.objects.create(
                 empresa=request.empresa,
+                sucursal=request.sucursal_activa,  # ← ASIGNAR SUCURSAL AUTOMÁTICAMENTE
                 numero_venta=proximo_numero,
                 cliente=cliente,
                 vendedor=vendedor,
@@ -2186,9 +2206,12 @@ def pos_tickets_hoy(request):
 @permission_required('ventas.view_venta', raise_exception=True)
 def libro_ventas(request):
     """
-    Libro de Ventas - Listado completo de documentos emitidos
+    Libro de Ventas - Listado completo de documentos emitidos (Ventas + DTEs)
     con filtros avanzados por tipo, fecha, cliente, vendedor y forma de pago
     """
+    from facturacion_electronica.models import DocumentoTributarioElectronico
+    from itertools import chain
+    from operator import attrgetter
     
     # Fecha por defecto: mes actual
     hoy = timezone.now().date()
@@ -2204,62 +2227,130 @@ def libro_ventas(request):
     estado = request.GET.get('estado', '')
     search = request.GET.get('search', '')
     
-    # Consulta base: solo ventas confirmadas
+    # Consulta base: ventas confirmadas
     ventas = Venta.objects.filter(
         empresa=request.empresa,
         estado='confirmada'
     ).select_related('cliente', 'vendedor', 'forma_pago', 'estacion_trabajo')
     
-    # Aplicar filtros
+    # Consulta DTEs (Documentos Tributarios Electrónicos)
+    dtes = DocumentoTributarioElectronico.objects.filter(
+        empresa=request.empresa
+    ).select_related('caf_utilizado', 'usuario_creacion')
+    
+    # Aplicar filtros de fecha
     try:
         fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
         fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
         ventas = ventas.filter(fecha__gte=fecha_desde_obj, fecha__lte=fecha_hasta_obj)
+        dtes = dtes.filter(fecha_emision__gte=fecha_desde_obj, fecha_emision__lte=fecha_hasta_obj)
     except ValueError:
         pass
     
+    # Filtrar por tipo de documento
     if tipo_documento:
-        ventas = ventas.filter(tipo_documento=tipo_documento)
+        if tipo_documento in ['33', '34', '39', '41', '52', '56', '61']:
+            # Es un DTE
+            dtes = dtes.filter(tipo_dte=tipo_documento)
+            ventas = ventas.none()
+        else:
+            # Es una venta del POS
+            ventas = ventas.filter(tipo_documento=tipo_documento)
+            dtes = dtes.none()
     
-    if cliente_id:
-        ventas = ventas.filter(cliente_id=cliente_id)
+    # Filtros adicionales solo para ventas (no aplicar si ventas está vacío)
+    if ventas.exists():
+        if cliente_id:
+            ventas = ventas.filter(cliente_id=cliente_id)
+        
+        if vendedor_id:
+            ventas = ventas.filter(vendedor_id=vendedor_id)
+        
+        if forma_pago_id:
+            ventas = ventas.filter(forma_pago_id=forma_pago_id)
+        
+        if estado:
+            ventas = ventas.filter(estado=estado)
     
-    if vendedor_id:
-        ventas = ventas.filter(vendedor_id=vendedor_id)
-    
-    if forma_pago_id:
-        ventas = ventas.filter(forma_pago_id=forma_pago_id)
-    
-    if estado:
-        ventas = ventas.filter(estado=estado)
-    
+    # Búsqueda en ambos tipos
     if search:
-        ventas = ventas.filter(
-            Q(numero_venta__icontains=search) |
-            Q(cliente__nombre__icontains=search) |
-            Q(cliente__rut__icontains=search) |
-            Q(observaciones__icontains=search)
-        )
+        if ventas.exists():
+            ventas = ventas.filter(
+                Q(numero_venta__icontains=search) |
+                Q(cliente__nombre__icontains=search) |
+                Q(cliente__rut__icontains=search) |
+                Q(observaciones__icontains=search)
+            )
+        if dtes.exists():
+            dtes = dtes.filter(
+                Q(folio__icontains=search) |
+                Q(razon_social_receptor__icontains=search) |
+                Q(rut_receptor__icontains=search) |
+                Q(glosa_sii__icontains=search)
+            )
     
-    # Ordenar por fecha descendente
-    ventas = ventas.order_by('-fecha', '-fecha_creacion')
+    # Combinar ventas y DTEs
+    ventas_list = list(ventas)
+    dtes_list = list(dtes)
     
-    # Estadísticas del período
-    estadisticas = ventas.aggregate(
-        total_documentos=Count('id'),
-        total_neto=Sum('neto'),
-        total_iva=Sum('iva'),
-        total_general=Sum('total')
+    for venta in ventas_list:
+        venta.fecha_documento = venta.fecha
+        venta.es_dte = False
+    
+    for dte in dtes_list:
+        dte.fecha_documento = dte.fecha_emision
+        dte.es_dte = True
+    
+    documentos = sorted(
+        chain(ventas_list, dtes_list),
+        key=attrgetter('fecha_documento'),
+        reverse=True
     )
     
-    # Estadísticas por tipo de documento
-    stats_por_tipo = ventas.values('tipo_documento').annotate(
+    # Estadísticas del período (solo si hay datos)
+    if ventas.exists():
+        stats_ventas = ventas.aggregate(
+            total_neto=Sum('neto'),
+            total_iva=Sum('iva'),
+            total_general=Sum('total')
+        )
+    else:
+        stats_ventas = {'total_neto': 0, 'total_iva': 0, 'total_general': 0}
+    
+    if dtes.exists():
+        stats_dtes = dtes.aggregate(
+            total_neto=Sum('monto_neto'),
+            total_iva=Sum('monto_iva'),
+            total_general=Sum('monto_total')
+        )
+    else:
+        stats_dtes = {'total_neto': 0, 'total_iva': 0, 'total_general': 0}
+    
+    estadisticas = {
+        'total_documentos': len(documentos),
+        'total_neto': (stats_ventas['total_neto'] or 0) + (stats_dtes['total_neto'] or 0),
+        'total_iva': (stats_ventas['total_iva'] or 0) + (stats_dtes['total_iva'] or 0),
+        'total_general': (stats_ventas['total_general'] or 0) + (stats_dtes['total_general'] or 0),
+    }
+    
+    # Estadísticas por tipo
+    stats_ventas_tipo = ventas.values('tipo_documento').annotate(
         cantidad=Count('id'),
         total=Sum('total')
-    ).order_by('tipo_documento')
+    )
+    
+    stats_dtes_tipo = dtes.values('tipo_dte').annotate(
+        cantidad=Count('id'),
+        total=Sum('monto_total')
+    )
+    
+    stats_por_tipo = list(stats_ventas_tipo) + [
+        {'tipo_documento': s['tipo_dte'], 'cantidad': s['cantidad'], 'total': s['total']}
+        for s in stats_dtes_tipo
+    ]
     
     # Paginación
-    paginator = Paginator(ventas, 50)
+    paginator = Paginator(documentos, 50)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -2267,6 +2358,21 @@ def libro_ventas(request):
     clientes = request.empresa.cliente_set.filter(estado='activo').order_by('nombre')
     vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
     formas_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    
+    # Tipos de documento: Solo DTEs con códigos SII + tipos POS sin equivalente DTE
+    tipos_documento_dict = {
+        # DTEs (Documentos Tributarios Electrónicos)
+        '33': 'Factura Electrónica (33)',
+        '34': 'Factura Exenta Electrónica (34)',
+        '39': 'Boleta Electrónica (39)',
+        '41': 'Boleta Exenta Electrónica (41)',
+        '52': 'Guía de Despacho Electrónica (52)',
+        '56': 'Nota de Débito Electrónica (56)',
+        '61': 'Nota de Crédito Electrónica (61)',
+        # Tipos POS sin equivalente DTE
+        'cotizacion': 'Cotización',
+        'vale': 'Vale',
+    }
     
     context = {
         'page_obj': page_obj,
@@ -2283,7 +2389,7 @@ def libro_ventas(request):
         'clientes': clientes,
         'vendedores': vendedores,
         'formas_pago': formas_pago,
-        'tipos_documento': dict(TIPO_DOCUMENTO_CHOICES),
+        'tipos_documento': tipos_documento_dict,
     }
     
     return render(request, 'ventas/libro_ventas.html', context)

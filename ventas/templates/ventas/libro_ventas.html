@@ -333,40 +333,87 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for venta in page_obj %}
+                                {% for documento in page_obj %}
                                 <tr style="border-bottom: 1px solid #F5F1E8;">
                                     <td class="text-center" style="color: #8B7355; font-weight: 600; font-size: 0.7rem;">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
-                                    <td style="font-size: 0.7rem;">{{ venta.fecha|date:"d/m/Y" }}</td>
-                                    <td><strong style="color: #6F5B44; font-size: 0.7rem;">{{ venta.numero_venta }}</strong></td>
-                                    <td>
-                                        {% if venta.tipo_documento == 'factura' %}
-                                        <span class="badge badge-tipo bg-success">F</span>
-                                        {% elif venta.tipo_documento == 'boleta' %}
-                                        <span class="badge badge-tipo bg-primary">B</span>
-                                        {% elif venta.tipo_documento == 'guia' %}
-                                        <span class="badge badge-tipo bg-info">G</span>
-                                        {% elif venta.tipo_documento == 'cotizacion' %}
-                                        <span class="badge badge-tipo bg-warning text-dark">C</span>
-                                        {% elif venta.tipo_documento == 'vale' %}
-                                        <span class="badge badge-tipo bg-secondary">V</span>
-                                        {% endif %}
-                                    </td>
-                                    <td style="font-size: 0.7rem;">{{ venta.cliente.nombre|default:"Sin cliente"|truncatechars:30 }}</td>
-                                    <td style="font-size: 0.65rem; color: #A67C52;">{{ venta.cliente.rut|default:"-" }}</td>
-                                    <td style="font-size: 0.7rem;">{{ venta.vendedor.nombre|default:"-"|truncatechars:20 }}</td>
-                                    <td style="font-size: 0.7rem;">{{ venta.forma_pago.nombre|default:"-"|truncatechars:18 }}</td>
-                                    <td class="text-end" style="font-size: 0.7rem; color: #6F5B44;">${{ venta.neto|format_miles }}</td>
-                                    <td class="text-end" style="font-size: 0.7rem; color: #A67C52;">${{ venta.iva|format_miles }}</td>
-                                    <td class="text-end"><strong style="color: #8B7355; font-size: 0.75rem;">${{ venta.total|format_miles }}</strong></td>
-                                    <td class="text-center">
-                                        <a href="{% url 'ventas:venta_html' venta.pk %}"
-                                           class="btn btn-sm btn-action btn-outline-primary"
-                                           target="_blank"
-                                           title="Ver documento"
-                                           style="padding: 2px 6px; font-size: 0.7rem;">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                    </td>
+                                    
+                                    {% if documento.es_dte %}
+                                        {# Es un DTE (Guía de Despacho, Factura Electrónica, etc.) #}
+                                        <td style="font-size: 0.7rem;">{{ documento.fecha_emision|date:"d/m/Y" }}</td>
+                                        <td><strong style="color: #6F5B44; font-size: 0.7rem;">{{ documento.folio }}</strong></td>
+                                        <td>
+                                            {% if documento.tipo_dte == '33' %}
+                                            <span class="badge badge-tipo bg-success" title="Factura Electrónica">FE</span>
+                                            {% elif documento.tipo_dte == '34' %}
+                                            <span class="badge badge-tipo bg-success" title="Factura Exenta">FEX</span>
+                                            {% elif documento.tipo_dte == '39' %}
+                                            <span class="badge badge-tipo bg-primary" title="Boleta Electrónica">BE</span>
+                                            {% elif documento.tipo_dte == '52' %}
+                                            <span class="badge badge-tipo bg-info" title="Guía de Despacho">GD</span>
+                                            {% elif documento.tipo_dte == '56' %}
+                                            <span class="badge badge-tipo bg-danger" title="Nota de Débito">ND</span>
+                                            {% elif documento.tipo_dte == '61' %}
+                                            <span class="badge badge-tipo bg-warning text-dark" title="Nota de Crédito">NC</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="font-size: 0.7rem;">{{ documento.razon_social_receptor|truncatechars:30 }}</td>
+                                        <td style="font-size: 0.65rem; color: #A67C52;">{{ documento.rut_receptor }}</td>
+                                        <td style="font-size: 0.7rem;">{{ documento.usuario_creacion.get_full_name|default:documento.usuario_creacion.username|truncatechars:20 }}</td>
+                                        <td style="font-size: 0.7rem;">-</td>
+                                        <td class="text-end" style="font-size: 0.7rem; color: #6F5B44;">${{ documento.monto_neto|format_miles }}</td>
+                                        <td class="text-end" style="font-size: 0.7rem; color: #A67C52;">${{ documento.monto_iva|format_miles }}</td>
+                                        <td class="text-end"><strong style="color: #8B7355; font-size: 0.75rem;">${{ documento.monto_total|format_miles }}</strong></td>
+                                        <td class="text-center">
+                                            {% if documento.tipo_dte == '52' %}
+                                            <a href="{% url 'inventario:transferencia_imprimir_guia' documento.transferencias.first.pk %}"
+                                               class="btn btn-sm btn-action btn-outline-primary"
+                                               target="_blank"
+                                               title="Ver guía"
+                                               style="padding: 2px 6px; font-size: 0.7rem;">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
+                                            {% else %}
+                                            <button class="btn btn-sm btn-action btn-outline-secondary"
+                                                    disabled
+                                                    style="padding: 2px 6px; font-size: 0.7rem;">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% endif %}
+                                        </td>
+                                    {% else %}
+                                        {# Es una venta del POS #}
+                                        <td style="font-size: 0.7rem;">{{ documento.fecha|date:"d/m/Y" }}</td>
+                                        <td><strong style="color: #6F5B44; font-size: 0.7rem;">{{ documento.numero_venta }}</strong></td>
+                                        <td>
+                                            {% if documento.tipo_documento == 'factura' %}
+                                            <span class="badge badge-tipo bg-success">F</span>
+                                            {% elif documento.tipo_documento == 'boleta' %}
+                                            <span class="badge badge-tipo bg-primary">B</span>
+                                            {% elif documento.tipo_documento == 'guia' %}
+                                            <span class="badge badge-tipo bg-info">G</span>
+                                            {% elif documento.tipo_documento == 'cotizacion' %}
+                                            <span class="badge badge-tipo bg-warning text-dark">C</span>
+                                            {% elif documento.tipo_documento == 'vale' %}
+                                            <span class="badge badge-tipo bg-secondary">V</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="font-size: 0.7rem;">{{ documento.cliente.nombre|default:"Sin cliente"|truncatechars:30 }}</td>
+                                        <td style="font-size: 0.65rem; color: #A67C52;">{{ documento.cliente.rut|default:"-" }}</td>
+                                        <td style="font-size: 0.7rem;">{{ documento.vendedor.nombre|default:"-"|truncatechars:20 }}</td>
+                                        <td style="font-size: 0.7rem;">{{ documento.forma_pago.nombre|default:"-"|truncatechars:18 }}</td>
+                                        <td class="text-end" style="font-size: 0.7rem; color: #6F5B44;">${{ documento.neto|format_miles }}</td>
+                                        <td class="text-end" style="font-size: 0.7rem; color: #A67C52;">${{ documento.iva|format_miles }}</td>
+                                        <td class="text-end"><strong style="color: #8B7355; font-size: 0.75rem;">${{ documento.total|format_miles }}</strong></td>
+                                        <td class="text-center">
+                                            <a href="{% url 'ventas:venta_html' documento.pk %}"
+                                               class="btn btn-sm btn-action btn-outline-primary"
+                                               target="_blank"
+                                               title="Ver documento"
+                                               style="padding: 2px 6px; font-size: 0.7rem;">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    {% endif %}
                                 </tr>
                                 {% empty %}
                                 <tr>

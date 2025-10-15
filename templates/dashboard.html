@@ -1,10 +1,245 @@
 {% extends "base.html" %}
 {% load static %}
+{% load format_filters %}
 
 {% block body_class %}show-top-bar{% endblock %}
 {% block title %}Dashboard - GestionCloud{% endblock %}
 
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Selector de Sucursal - Estilo Profesional Terroso v2.0 */
+/* CTRL+F5 para ver cambios si hay cache */
+.sucursal-selector-form {
+    margin: 0;
+}
+
+.sucursal-selector-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    min-width: 300px;
+    box-shadow: 0 4px 15px rgba(111, 91, 68, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.sucursal-selector-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+    pointer-events: none;
+}
+
+.sucursal-selector-wrapper:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(111, 91, 68, 0.4);
+}
+
+.sucursal-selector-icon {
+    color: #F5F1E8;
+    font-size: 1.2rem;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    z-index: 1;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+.sucursal-selector {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 4px 8px;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    z-index: 1;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    font-family: 'Poppins', sans-serif;
+}
+
+.sucursal-selector:focus {
+    outline: none;
+}
+
+.sucursal-selector option {
+    background: #FFFFFF;
+    color: #6F5B44;
+    padding: 12px 16px;
+    font-weight: 500;
+    font-family: 'Poppins', sans-serif;
+}
+
+.sucursal-selector option:hover {
+    background: #F5F1E8;
+}
+
+.sucursal-selector-arrow {
+    color: #F5F1E8;
+    font-size: 0.9rem;
+    margin-left: 10px;
+    pointer-events: none;
+    transition: transform 0.3s ease;
+    z-index: 1;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+}
+
+.sucursal-selector-wrapper:hover .sucursal-selector-arrow {
+    transform: translateY(3px);
+}
+
+/* Animación de cambio */
+@keyframes sucursalChange {
+    0% { 
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(111, 91, 68, 0.3);
+    }
+    50% { 
+        transform: scale(1.05);
+        box-shadow: 0 8px 30px rgba(111, 91, 68, 0.5);
+    }
+    100% { 
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(111, 91, 68, 0.3);
+    }
+}
+
+.sucursal-selector-wrapper.changing {
+    animation: sucursalChange 0.4s ease;
+}
+
+/* Efecto de brillo al pasar el mouse */
+.sucursal-selector-wrapper::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+    );
+    transform: rotate(45deg);
+    transition: all 0.6s ease;
+    opacity: 0;
+}
+
+.sucursal-selector-wrapper:hover::after {
+    opacity: 1;
+    left: 100%;
+}
+</style>
+{% endblock %}
+
 {% block content %}
+<style>
+/* Selector de Sucursal - Estilo Profesional Terroso - INLINE */
+.sucursal-selector-form {
+    margin: 0 !important;
+}
+
+.sucursal-selector-wrapper {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 10px 16px !important;
+    min-width: 300px !important;
+    box-shadow: 0 4px 15px rgba(111, 91, 68, 0.3) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    overflow: hidden !important;
+}
+
+.sucursal-selector-wrapper::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%) !important;
+    pointer-events: none !important;
+}
+
+.sucursal-selector-wrapper:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 8px 25px rgba(111, 91, 68, 0.4) !important;
+}
+
+.sucursal-selector-icon {
+    color: #F5F1E8 !important;
+    font-size: 1.2rem !important;
+    margin-right: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    z-index: 1 !important;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)) !important;
+}
+
+.sucursal-selector {
+    flex: 1 !important;
+    border: none !important;
+    background: transparent !important;
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    padding: 4px 8px !important;
+    cursor: pointer !important;
+    outline: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    z-index: 1 !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
+    font-family: 'Poppins', sans-serif !important;
+}
+
+.sucursal-selector:focus {
+    outline: none !important;
+}
+
+.sucursal-selector option {
+    background: #FFFFFF !important;
+    color: #6F5B44 !important;
+    padding: 12px 16px !important;
+    font-weight: 500 !important;
+    font-family: 'Poppins', sans-serif !important;
+}
+
+.sucursal-selector-arrow {
+    color: #F5F1E8 !important;
+    font-size: 0.9rem !important;
+    margin-left: 10px !important;
+    pointer-events: none !important;
+    transition: transform 0.3s ease !important;
+    z-index: 1 !important;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2)) !important;
+}
+
+.sucursal-selector-wrapper:hover .sucursal-selector-arrow {
+    transform: translateY(3px) !important;
+}
+</style>
+
 <div class="container-fluid">
     <!-- Header del Dashboard -->
     <div class="row mb-4">
@@ -14,11 +249,36 @@
                     <h1 class="h3 mb-0 text-gray-800">
                         <i class="fas fa-tachometer-alt" style="color: #1E40AF;"></i>
                         Dashboard Principal
+                        {% if sucursal_seleccionada %}
+                        <span class="badge bg-primary ms-2" style="font-size: 0.6rem;">{{ sucursal_seleccionada.nombre }}</span>
+                        {% endif %}
                     </h1>
                     <p class="text-muted">Bienvenido al sistema de gestión empresarial</p>
                 </div>
-                <div class="text-end">
-                    <small class="text-muted">Última actualización: {{ "now"|date:"d/m/Y H:i" }}</small>
+                <div class="text-end d-flex align-items-center justify-content-end gap-3">
+                    {% if puede_filtrar_sucursal %}
+                    <form method="get" class="sucursal-selector-form">
+                        <div class="sucursal-selector-wrapper">
+                            <div class="sucursal-selector-icon">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <select name="sucursal" class="sucursal-selector" onchange="this.form.submit()">
+                                <option value="todas" {% if not sucursal_seleccionada %}selected{% endif %}>
+                                    📊 Todas las Sucursales
+                                </option>
+                                {% for sucursal in sucursales %}
+                                <option value="{{ sucursal.id }}" {% if sucursal_seleccionada and sucursal_seleccionada.id == sucursal.id %}selected{% endif %}>
+                                    🏢 {{ sucursal.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="sucursal-selector-arrow">
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                        </div>
+                    </form>
+                    {% endif %}
+                    <small class="text-muted">{{ "now"|date:"d/m/Y H:i" }}</small>
                 </div>
             </div>
         </div>
@@ -33,7 +293,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Total Artículos</h6>
-                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ total_articulos }}</h3>
+                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ total_articulos|format_miles }}</h3>
                             <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">En catálogo</small>
                         </div>
                         <div class="align-self-center">
@@ -51,7 +311,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Ventas del Mes</h6>
-                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">${{ ventas_mes|floatformat:0 }}</h3>
+                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">${{ ventas_mes|format_miles }}</h3>
                             <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">+12% vs mes anterior</small>
                         </div>
                         <div class="align-self-center">
@@ -69,8 +329,8 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Clientes Activos</h6>
-                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ total_clientes }}</h3>
-                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">+{{ clientes_nuevos_mes }} nuevos este mes</small>
+                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ total_clientes|format_miles }}</h3>
+                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">+{{ clientes_nuevos_mes|format_miles }} nuevos este mes</small>
                         </div>
                         <div class="align-self-center">
                             <i class="fas fa-users fa-2x" style="color: rgba(255, 255, 255, 0.6);"></i>
@@ -87,7 +347,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Stock Bajo</h6>
-                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ stock_bajo }}</h3>
+                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">{{ stock_bajo|format_miles }}</h3>
                             <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">Requieren reposición</small>
                         </div>
                         <div class="align-self-center">
@@ -193,13 +453,13 @@
                             </a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="#" class="btn btn-outline-info btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center">
+                            <a href="{% url 'clientes:cliente_list' %}" class="btn btn-outline-info btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center">
                                 <i class="fas fa-users fa-2x mb-2"></i>
                                 <span>Clientes</span>
                             </a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="#" class="btn btn-outline-warning btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center">
+                            <a href="{% url 'informes:dashboard' %}" class="btn btn-outline-warning btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center">
                                 <i class="fas fa-chart-bar fa-2x mb-2"></i>
                                 <span>Reportes</span>
                             </a>
@@ -276,14 +536,15 @@ const ventasChart = new Chart(ctx1, {
     }
 });
 
-// Gráfico de categorías (Dona)
+// Gráfico de categorías (Dona) - DATOS REALES
 const ctx2 = document.getElementById('categoriasChart').getContext('2d');
+// TODO: Implementar datos reales de categorías desde el backend
 const categoriasChart = new Chart(ctx2, {
     type: 'doughnut',
     data: {
-        labels: ['Electrónica', 'Ropa', 'Alimentos', 'Hogar', 'Otros'],
+        labels: ['Sin datos'],
         datasets: [{
-            data: [30, 25, 20, 15, 10],
+            data: [1],
             backgroundColor: [
                 paletaTerrosa.primary,
                 paletaTerrosa.secondary,
@@ -312,15 +573,19 @@ const categoriasChart = new Chart(ctx2, {
     }
 });
 
-// Gráfico de productos más vendidos (Barra horizontal)
+// Gráfico de productos más vendidos (Barra horizontal) - DATOS REALES
+const topProductos = {{ top_productos|safe }};
+const productosLabels = topProductos.length > 0 ? topProductos.map(p => `${p.codigo} - ${p.nombre}`) : ['Sin datos'];
+const productosData = topProductos.length > 0 ? topProductos.map(p => p.cantidad) : [0];
+
 const ctx3 = document.getElementById('productosChart').getContext('2d');
 const productosChart = new Chart(ctx3, {
     type: 'bar',
     data: {
-        labels: ['Producto A', 'Producto B', 'Producto C', 'Producto D', 'Producto E'],
+        labels: productosLabels,
         datasets: [{
             label: 'Unidades Vendidas',
-            data: [150, 120, 95, 80, 65],
+            data: productosData,
             backgroundColor: [
                 paletaTerrosa.primary,
                 paletaTerrosa.secondary,

@@ -97,6 +97,15 @@ class Venta(models.Model):
     ]
     
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    sucursal = models.ForeignKey(
+        'empresas.Sucursal',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Sucursal",
+        related_name='ventas',
+        help_text="Sucursal donde se realizó la venta"
+    )
     numero_venta = models.CharField(max_length=20, verbose_name="Número de Venta")
     fecha = models.DateField(default=timezone.now, verbose_name="Fecha")
     cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Cliente")

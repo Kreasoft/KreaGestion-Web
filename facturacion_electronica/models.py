@@ -255,6 +255,18 @@ class DocumentoTributarioElectronico(models.Model):
         ('anulado', 'Anulado'),
     ]
     
+    # Tipos de traslado para Guías de Despacho (SII)
+    TIPO_TRASLADO_CHOICES = [
+        ('1', 'Venta'),
+        ('2', 'Venta por efectuar (anticipada)'),
+        ('3', 'Consignación'),
+        ('4', 'Devolución'),
+        ('5', 'Traslado interno'),
+        ('6', 'Transformación de productos'),
+        ('7', 'Entrega gratuita'),
+        ('8', 'Otros'),
+    ]
+    
     # RELACIONES
     empresa = models.ForeignKey(
         Empresa,
@@ -338,6 +350,16 @@ class DocumentoTributarioElectronico(models.Model):
     glosa_sii = models.TextField(
         blank=True,
         verbose_name="Respuesta del SII"
+    )
+    
+    # TIPO DE TRASLADO (Solo para Guías de Despacho - Tipo 52)
+    tipo_traslado = models.CharField(
+        max_length=2,
+        choices=TIPO_TRASLADO_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name="Tipo de Traslado",
+        help_text="Motivo de emisión de la guía (solo para tipo 52)"
     )
     
     # PDF

@@ -1,0 +1,538 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Q, Sum
+from django.db import transaction
+from django.utils import timezone
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.core.files.base import ContentFile
+from decimal import Decimal
+from .models import TransferenciaInventario, Inventario, Stock
+from .forms import TransferenciaInventarioForm
+from usuarios.decorators import requiere_empresa
+from bodegas.models import Bodega
+from articulos.models import Articulo
+from facturacion_electronica.models import ArchivoCAF, DocumentoTributarioElectronico
+from facturacion_electronica.services import DTEService
+import json
+
+
+@login_required
+@requiere_empresa
+def transferencia_list(request):
+    """Lista todas las transferencias de inventario"""
+    transferencias = TransferenciaInventario.objects.filter(
+        empresa=request.empresa
+    ).select_related(
+        'bodega_origen', 'bodega_destino', 'creado_por'
+    ).prefetch_related('detalles').order_by('-fecha_transferencia')
+    
+    # Filtros
+    estado = request.GET.get('estado')
+    if estado:
+        transferencias = transferencias.filter(estado=estado)
+    
+    bodega_origen_id = request.GET.get('bodega_origen')
+    if bodega_origen_id:
+        transferencias = transferencias.filter(bodega_origen_id=bodega_origen_id)
+    
+    bodega_destino_id = request.GET.get('bodega_destino')
+    if bodega_destino_id:
+        transferencias = transferencias.filter(bodega_destino_id=bodega_destino_id)
+    
+    search = request.GET.get('search')
+    if search:
+        transferencias = transferencias.filter(
+            Q(numero_folio__icontains=search) |
+            Q(observaciones__icontains=search)
+        )
+    
+    # Paginación
+    paginator = Paginator(transferencias, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Estadísticas
+    total_transferencias = transferencias.count()
+    pendientes = transferencias.filter(estado='pendiente').count()
+    confirmadas = transferencias.filter(estado='confirmado').count()
+    canceladas = transferencias.filter(estado='cancelado').count()
+    
+    # Obtener bodegas para filtros
+    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
+    
+    context = {
+        'page_obj': page_obj,
+        'bodegas': bodegas,
+        'total_transferencias': total_transferencias,
+        'pendientes': pendientes,
+        'confirmadas': confirmadas,
+        'canceladas': canceladas,
+        'titulo': 'Transferencias de Inventario'
+    }
+    
+    return render(request, 'inventario/transferencia_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def transferencia_create(request):
+    """Crear o editar transferencia de inventario"""
+    # Verificar si es edición
+    edit_id = request.GET.get('edit')
+    transferencia_edit = None
+    if edit_id:
+        transferencia_edit = get_object_or_404(
+            TransferenciaInventario,
+            pk=edit_id,
+            empresa=request.empresa,
+            estado='confirmado'  # Solo se pueden editar transferencias confirmadas
+        )
+    
+    if request.method == 'POST':
+        form = TransferenciaInventarioForm(request.POST, empresa=request.empresa)
+        
+        # Obtener los artículos del formulario
+        articulos_data = request.POST.get('articulos_json', '[]')
+        
+        try:
+            articulos = json.loads(articulos_data)
+            
+            if not articulos:
+                messages.error(request, 'Debe agregar al menos un artículo a la transferencia.')
+                return render(request, 'inventario/transferencia_form.html', {
+                    'form': form,
+                    'titulo': 'Nueva Transferencia de Inventario'
+                })
+            
+            if form.is_valid():
+                with transaction.atomic():
+                    # Crear la transferencia
+                    transferencia = form.save(commit=False)
+                    transferencia.empresa = request.empresa
+                    transferencia.creado_por = request.user
+                    
+                    # Generar número de folio automático
+                    ultimo_folio = TransferenciaInventario.objects.filter(
+                        empresa=request.empresa
+                    ).order_by('-id').first()
+                    
+                    if ultimo_folio and ultimo_folio.numero_folio:
+                        try:
+                            ultimo_numero = int(ultimo_folio.numero_folio.split('-')[-1])
+                            nuevo_numero = ultimo_numero + 1
+                        except:
+                            nuevo_numero = 1
+                    else:
+                        nuevo_numero = 1
+                    
+                    transferencia.numero_folio = f"TRANS-{nuevo_numero:06d}"
+                    
+                    # Si se proporcionó fecha personalizada, usarla
+                    fecha_transferencia = form.cleaned_data.get('fecha_transferencia')
+                    if fecha_transferencia:
+                        transferencia.fecha_transferencia = fecha_transferencia
+                    
+                    transferencia.save()
+                    
+                    # Crear los detalles de la transferencia
+                    for item in articulos:
+                        articulo = Articulo.objects.get(id=item['articulo_id'])
+                        cantidad = Decimal(str(item['cantidad']))
+                        
+                        # Verificar stock disponible en bodega origen
+                        try:
+                            stock_origen = Stock.objects.get(
+                                empresa=request.empresa,
+                                bodega=transferencia.bodega_origen,
+                                articulo=articulo
+                            )
+                            
+                            if stock_origen.cantidad < cantidad:
+                                raise ValueError(
+                                    f'Stock insuficiente para {articulo.nombre}. '
+                                    f'Disponible: {stock_origen.cantidad}, Solicitado: {cantidad}'
+                                )
+                        except Stock.DoesNotExist:
+                            raise ValueError(
+                                f'No hay stock disponible de {articulo.nombre} en la bodega origen.'
+                            )
+                        
+                        # Usar precio de venta del artículo para valorizar
+                        try:
+                            precio_venta = Decimal(str(articulo.precio_venta)) if articulo.precio_venta else Decimal('0')
+                        except (ValueError, TypeError):
+                            precio_venta = Decimal('0')
+                        
+                        # Crear movimiento de inventario
+                        Inventario.objects.create(
+                            empresa=request.empresa,
+                            transferencia=transferencia,
+                            bodega_origen=transferencia.bodega_origen,
+                            bodega_destino=transferencia.bodega_destino,
+                            articulo=articulo,
+                            tipo_movimiento='transferencia',
+                            cantidad=cantidad,
+                            precio_unitario=precio_venta,
+                            estado='confirmado',
+                            creado_por=request.user,
+                            descripcion=f'Transferencia {transferencia.numero_folio}'
+                        )
+                        
+                        # Actualizar stock en bodega origen (restar)
+                        stock_origen.cantidad -= cantidad
+                        stock_origen.save()
+                        
+                        # Actualizar stock en bodega destino (sumar)
+                        stock_destino, created = Stock.objects.get_or_create(
+                            empresa=request.empresa,
+                            bodega=transferencia.bodega_destino,
+                            articulo=articulo,
+                            defaults={
+                                'cantidad': 0,
+                                'precio_promedio': stock_origen.precio_promedio
+                            }
+                        )
+                        
+                        if not created:
+                            # Calcular nuevo precio promedio
+                            if stock_destino.cantidad > 0:
+                                total_actual = stock_destino.cantidad * stock_destino.precio_promedio
+                                total_nuevo = cantidad * stock_origen.precio_promedio
+                                stock_destino.precio_promedio = (
+                                    (total_actual + total_nuevo) / (stock_destino.cantidad + cantidad)
+                                )
+                        
+                        stock_destino.cantidad += cantidad
+                        stock_destino.save()
+                    
+                    messages.success(
+                        request, 
+                        f'Transferencia {transferencia.numero_folio} creada exitosamente.'
+                    )
+                    return redirect('inventario:transferencia_detail', pk=transferencia.pk)
+                    
+        except ValueError as e:
+            messages.error(request, str(e))
+        except json.JSONDecodeError:
+            messages.error(request, 'Error al procesar los artículos.')
+        except Exception as e:
+            messages.error(request, f'Error al crear la transferencia: {str(e)}')
+    else:
+        if transferencia_edit:
+            # Cargar datos de la transferencia a editar
+            form = TransferenciaInventarioForm(
+                instance=transferencia_edit,
+                empresa=request.empresa
+            )
+        else:
+            form = TransferenciaInventarioForm(empresa=request.empresa)
+    
+    # Obtener artículos y bodegas para el formulario
+    articulos = Articulo.objects.filter(empresa=request.empresa, activo=True)
+    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
+    
+    # Preparar datos de artículos si es edición
+    articulos_edit = []
+    if transferencia_edit:
+        for detalle in transferencia_edit.detalles.all():
+            articulos_edit.append({
+                'articulo_id': detalle.articulo.id,
+                'codigo': detalle.articulo.codigo,
+                'nombre': detalle.articulo.nombre,
+                'cantidad': float(detalle.cantidad),
+                'precio_venta': float(detalle.precio_unitario)
+            })
+    
+    context = {
+        'form': form,
+        'articulos': articulos,
+        'bodegas': bodegas,
+        'transferencia_edit': transferencia_edit,
+        'articulos_edit': json.dumps(articulos_edit) if articulos_edit else '[]',
+        'titulo': f'Editar Transferencia {transferencia_edit.numero_folio}' if transferencia_edit else 'Nueva Transferencia de Inventario'
+    }
+    
+    return render(request, 'inventario/transferencia_form.html', context)
+
+
+@login_required
+@requiere_empresa
+def transferencia_detail(request, pk):
+    """Ver detalle de una transferencia"""
+    transferencia = get_object_or_404(
+        TransferenciaInventario, 
+        pk=pk, 
+        empresa=request.empresa
+    )
+    
+    # Obtener los detalles de la transferencia
+    detalles = transferencia.detalles.all().select_related('articulo')
+    
+    # Calcular totales
+    total_articulos = detalles.count()
+    total_cantidad = sum(detalle.cantidad for detalle in detalles)
+    subtotal = sum(detalle.total for detalle in detalles)
+    
+    # Calcular IVA (19%)
+    iva = subtotal * Decimal('0.19')
+    total_con_iva = subtotal + iva
+    
+    context = {
+        'transferencia': transferencia,
+        'detalles': detalles,
+        'total_articulos': total_articulos,
+        'total_cantidad': total_cantidad,
+        'subtotal': subtotal,
+        'iva': iva,
+        'total_con_iva': total_con_iva,
+        'titulo': f'Transferencia {transferencia.numero_folio}'
+    }
+    
+    return render(request, 'inventario/transferencia_detail.html', context)
+
+
+@login_required
+@requiere_empresa
+def transferencia_cancelar(request, pk):
+    """Cancelar una transferencia y revertir los movimientos"""
+    transferencia = get_object_or_404(
+        TransferenciaInventario, 
+        pk=pk, 
+        empresa=request.empresa
+    )
+    
+    if transferencia.estado == 'cancelado':
+        messages.warning(request, 'Esta transferencia ya está cancelada.')
+        return redirect('inventario:transferencia_detail', pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Revertir los movimientos de stock
+                for detalle in transferencia.detalles.all():
+                    # Devolver stock a bodega origen
+                    stock_origen = Stock.objects.get(
+                        empresa=request.empresa,
+                        bodega=transferencia.bodega_origen,
+                        articulo=detalle.articulo
+                    )
+                    stock_origen.cantidad += detalle.cantidad
+                    stock_origen.save()
+                    
+                    # Quitar stock de bodega destino
+                    stock_destino = Stock.objects.get(
+                        empresa=request.empresa,
+                        bodega=transferencia.bodega_destino,
+                        articulo=detalle.articulo
+                    )
+                    stock_destino.cantidad -= detalle.cantidad
+                    stock_destino.save()
+                    
+                    # Actualizar estado del movimiento
+                    detalle.estado = 'cancelado'
+                    detalle.save()
+                
+                # Actualizar estado de la transferencia
+                transferencia.estado = 'cancelado'
+                transferencia.save()
+                
+                messages.success(
+                    request, 
+                    f'Transferencia {transferencia.numero_folio} cancelada exitosamente.'
+                )
+                return redirect('inventario:transferencia_detail', pk=pk)
+                
+        except Exception as e:
+            messages.error(request, f'Error al cancelar la transferencia: {str(e)}')
+            return redirect('inventario:transferencia_detail', pk=pk)
+    
+    context = {
+        'transferencia': transferencia,
+        'titulo': f'Cancelar Transferencia {transferencia.numero_folio}'
+    }
+    
+    return render(request, 'inventario/transferencia_confirm_cancel.html', context)
+
+
+@login_required
+@requiere_empresa
+def api_stock_disponible(request):
+    """API para obtener el stock disponible de un artículo en una bodega"""
+    articulo_id = request.GET.get('articulo_id')
+    bodega_id = request.GET.get('bodega_id')
+    
+    if not articulo_id or not bodega_id:
+        return JsonResponse({'error': 'Parámetros faltantes'}, status=400)
+    
+    try:
+        stock = Stock.objects.get(
+            empresa=request.empresa,
+            bodega_id=bodega_id,
+            articulo_id=articulo_id
+        )
+        
+        return JsonResponse({
+            'stock_disponible': float(stock.cantidad),
+            'precio_promedio': float(stock.precio_promedio)
+        })
+    except Stock.DoesNotExist:
+        return JsonResponse({
+            'stock_disponible': 0,
+            'precio_promedio': 0
+        })
+
+
+@login_required
+@requiere_empresa
+def transferencia_imprimir_guia(request, pk):
+    """Imprimir guía de despacho electrónica"""
+    transferencia = get_object_or_404(
+        TransferenciaInventario,
+        pk=pk,
+        empresa=request.empresa
+    )
+    
+    if not transferencia.guia_despacho:
+        messages.error(request, 'Esta transferencia no tiene guía de despacho asociada')
+        return redirect('inventario:transferencia_detail', pk=pk)
+    
+    dte = transferencia.guia_despacho
+    
+    # Obtener detalles de la transferencia
+    detalles = transferencia.detalles.all().select_related('articulo', 'articulo__unidad_medida')
+    
+    # Calcular totales
+    subtotal = sum(detalle.total for detalle in detalles)
+    iva = subtotal * Decimal('0.19')
+    total = subtotal + iva
+    
+    context = {
+        'dte': dte,
+        'transferencia': transferencia,
+        'detalles': detalles,
+        'subtotal': subtotal,
+        'iva': iva,
+        'total': total,
+        'empresa': request.empresa,
+    }
+    
+    return render(request, 'inventario/guia_despacho_electronica_html.html', context)
+
+
+@login_required
+@requiere_empresa
+@require_POST
+def transferencia_generar_guia(request, pk):
+    """Generar guía de despacho electrónica para una transferencia"""
+    try:
+        transferencia = get_object_or_404(
+            TransferenciaInventario,
+            pk=pk,
+            empresa=request.empresa,
+            estado='confirmado'
+        )
+        
+        # Verificar si ya tiene guía
+        if transferencia.guia_despacho:
+            return JsonResponse({
+                'success': False,
+                'error': 'Esta transferencia ya tiene una guía de despacho asociada'
+            })
+        
+        # Buscar CAF disponible para Guía de Despacho (tipo 52)
+        caf = ArchivoCAF.objects.filter(
+            empresa=request.empresa,
+            tipo_documento='52',
+            estado='activo'
+        ).first()
+        
+        if not caf:
+            return JsonResponse({
+                'success': False,
+                'error': 'No hay CAF disponible para Guías de Despacho. Por favor, cargue un CAF tipo 52.'
+            })
+        
+        # Verificar que el CAF esté vigente
+        if not caf.esta_vigente():
+            return JsonResponse({
+                'success': False,
+                'error': 'El CAF de Guías de Despacho ha vencido'
+            })
+        
+        with transaction.atomic():
+            # Obtener siguiente folio
+            folio = caf.obtener_siguiente_folio()
+            
+            # Calcular totales
+            detalles = transferencia.detalles.all()
+            subtotal = sum(detalle.total for detalle in detalles)
+            iva = subtotal * Decimal('0.19')
+            total = subtotal + iva
+            
+            # Crear DTE
+            dte = DocumentoTributarioElectronico.objects.create(
+                empresa=request.empresa,
+                caf_utilizado=caf,
+                tipo_dte='52',
+                folio=folio,
+                fecha_emision=timezone.now().date(),
+                tipo_traslado='5',  # Traslado interno
+                # Receptor (usar datos de la empresa para traslado interno)
+                rut_receptor=request.empresa.rut,
+                razon_social_receptor=request.empresa.nombre,
+                giro_receptor=request.empresa.giro or '',
+                direccion_receptor=request.empresa.direccion or '',
+                comuna_receptor=request.empresa.comuna or '',
+                ciudad_receptor=request.empresa.ciudad or '',
+                # Montos
+                monto_neto=subtotal.quantize(Decimal('1')),
+                monto_exento=Decimal('0'),
+                monto_iva=iva.quantize(Decimal('1')),
+                monto_total=total.quantize(Decimal('1')),
+                # Estado
+                estado_sii='generado',
+                usuario_creacion=request.user
+            )
+            
+            # Generar timbre electrónico (TED)
+            try:
+                timbre_electronico = DTEService.generar_timbre_electronico(dte)
+                dte.timbre_electronico = timbre_electronico
+                
+                # Generar imagen PDF417
+                pdf417_imagen = DTEService.generar_pdf417_imagen(dte)
+                if pdf417_imagen:
+                    dte.timbre_pdf417.save(
+                        f'guia_pdf417_{dte.folio}.png',
+                        ContentFile(pdf417_imagen),
+                        save=False
+                    )
+                
+                dte.save()
+            except Exception as e:
+                print(f"Error generando timbre: {e}")
+                # Continuar sin timbre, se puede generar después
+            
+            # Asociar guía a la transferencia
+            transferencia.guia_despacho = dte
+            transferencia.save()
+            
+            return JsonResponse({
+                'success': True,
+                'folio': folio,
+                'message': f'Guía de Despacho N° {folio} generada exitosamente'
+            })
+            
+    except ValueError as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error al generar la guía: {str(e)}'
+        })

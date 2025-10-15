@@ -2,26 +2,38 @@ from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, Field, HTML, Div
 from .models import Bodega
+from empresas.models import Sucursal
 from django.core.exceptions import ValidationError
 
 class BodegaForm(forms.ModelForm):
     class Meta:
         model = Bodega
-        fields = ['codigo', 'nombre', 'activa']
+        fields = ['codigo', 'nombre', 'sucursal', 'activa']
         widgets = {
             'codigo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Código único'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre de la bodega'}),
+            'sucursal': forms.Select(attrs={'class': 'form-select'}),
             'activa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
+        
+        # Filtrar sucursales por empresa
+        if self.request and self.request.empresa:
+            self.fields['sucursal'].queryset = Sucursal.objects.filter(
+                empresa=self.request.empresa,
+                estado='activa'
+            ).order_by('nombre')
+            self.fields['sucursal'].empty_label = "Sin sucursal asignada"
+        
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.layout = Layout(
             'codigo',
             'nombre',
+            'sucursal',
             'activa',
             HTML('<hr>'),
             Div(

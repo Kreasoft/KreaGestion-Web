@@ -73,6 +73,7 @@ MIDDLEWARE = [
 	# 'simple_history.middleware.HistoryRequestMiddleware',  # Comentado temporalmente
 	'usuarios.middleware.EmpresaMiddleware',
 	'usuarios.middleware.AccesoEmpresaMiddleware',
+	'empresas.middleware.SucursalMiddleware',  # Middleware de sucursal
 ]
 
 ROOT_URLCONF = 'gestioncloud.urls'
