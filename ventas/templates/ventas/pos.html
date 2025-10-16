@@ -815,12 +815,30 @@ window.articulos = articulos;
 
 // ===== FUNCIONES GLOBALES (FUERA DE DOMContentLoaded) =====
 
+// Obtener precio especial del cliente si existe
+async function obtenerPrecioArticulo(articuloId, precioLista) {
+    // Si hay cliente seleccionado, buscar precio especial
+    if (window.clienteSeleccionado && window.clienteSeleccionado.id) {
+        try {
+            const response = await fetch(`/ventas/api/precio-cliente/${window.clienteSeleccionado.id}/${articuloId}/`);
+            const data = await response.json();
+            if (data.success && data.precio_especial) {
+                console.log(`Precio especial encontrado para cliente ${window.clienteSeleccionado.id}: $${data.precio_especial}`);
+                return parseFloat(data.precio_especial);
+            }
+        } catch (error) {
+            console.log('No se encontró precio especial, usando precio de lista');
+        }
+    }
+    return parseFloat(precioLista);
+}
+
 // Agregar al carrito - DEBE ESTAR EN SCOPE GLOBAL
-function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva = false, impuestoEspecifico = 0, precioNeto = null) {
+async function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva = false, impuestoEspecifico = 0, precioNeto = null) {
     console.log('*** FUNCIÓN addToCart LLAMADA ***', { articuloId: articuloId, nombre: nombre, precio: precio, stock: stock, categoriaExentaIva: categoriaExentaIva, impuestoEspecifico: impuestoEspecifico, precioNeto: precioNeto });
     
-    // Asegurar que precio sea un número
-    precio = parseFloat(precio);
+    // Obtener precio correcto (especial o lista)
+    precio = await obtenerPrecioArticulo(articuloId, precio);
     
     const existingItem = cart.find(item => item.articuloId === articuloId);
     
@@ -1113,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupBarcodeSystem();
     
     // Click en productos (usando event delegation)
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', async function(e) {
         console.log('*** CLICK DETECTADO ***', e.target);
         
         if (e.target.closest('.pos-product-card')) {
@@ -1142,7 +1160,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const precioNeto = parseFloat(card.dataset.precioNeto || precio);
             
             console.log('*** AGREGANDO AL CARRITO ***', { articuloId: articuloId, nombre: nombre, precio: precio, stock: stock, categoriaExentaIva: categoriaExentaIva, impuestoEspecifico: impuestoEspecifico, precioNeto: precioNeto });
-            addToCart(articuloId, nombre, precio, stock, categoriaExentaIva, impuestoEspecifico, precioNeto);
+            await addToCart(articuloId, nombre, precio, stock, categoriaExentaIva, impuestoEspecifico, precioNeto);
         } else {
             console.log('*** NO ES UN PRODUCTO ***');
         }
@@ -1507,7 +1525,13 @@ function clearCart() {
     
     // Mostrar selector de tipo de documento para preventa
     function showDocumentTypeSelector() {
-        const tiposPermitidos = window.currentEstacion.tipos_documentos;
+        let tiposPermitidos = window.currentEstacion.tipos_documentos;
+        
+        // Si está en modo "con_cliente", filtrar boletas y vales
+        const modoPOS = '{{ modo_pos }}';
+        if (modoPOS === 'con_cliente') {
+            tiposPermitidos = tiposPermitidos.filter(tipo => tipo !== 'boleta' && tipo !== 'vale');
+        }
         
         if (tiposPermitidos.length === 0) {
             Swal.fire({
@@ -1534,6 +1558,7 @@ function clearCart() {
         // Verificar si ya hay un cliente seleccionado
         const clienteYaSeleccionado = window.clienteSeleccionado;
         console.log('Cliente ya seleccionado:', clienteYaSeleccionado);
+        console.log('RUT del cliente:', clienteYaSeleccionado ? clienteYaSeleccionado.rut : 'No hay cliente');
         
         const html = `
             <div class="mb-3">
@@ -1544,37 +1569,102 @@ function clearCart() {
                 </select>
                 <small class="text-muted">Este documento se emitirá posteriormente en el módulo de caja</small>
             </div>
-            <div class="mb-3">
-                <label class="form-label">Buscar Cliente *</label>
-                <div class="input-group mb-2">
-                    <input type="text" id="busqueda-cliente" class="form-control" placeholder="RUT o nombre del cliente" required ${clienteYaSeleccionado ? 'value="' + clienteYaSeleccionado.rut + '"' : ''}>
-                    <button type="button" class="btn btn-outline-secondary" onclick="buscarCliente()">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-                <button type="button" id="btn-venta-boleta" class="btn btn-sm w-100 mb-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; display: none;">
-                    <i class="fas fa-receipt me-2"></i>Venta Boleta (RUT Genérico 66666666-6)
+            
+            <!-- Tipo de Despacho (solo para Guías) -->
+            <div class="mb-3" id="tipo-despacho-container" style="display: none;">
+                <label class="form-label">Motivo de Traslado *</label>
+                <select id="tipo-despacho" class="form-control">
+                    <option value="">Seleccionar motivo...</option>
+                    <option value="1">1 - Venta</option>
+                    <option value="2">2 - Venta por efectuar (anticipada)</option>
+                    <option value="3">3 - Consignación</option>
+                    <option value="4">4 - Devolución</option>
+                    <option value="5">5 - Traslado interno</option>
+                    <option value="6">6 - Transformación de productos</option>
+                    <option value="7">7 - Entrega gratuita</option>
+                    <option value="8">8 - Otros</option>
+                </select>
+                <small class="text-muted">Según SII - Motivo de traslado de la guía de despacho</small>
+            </div>
+            
+            <!-- Referencias (solo para Facturas y Guías) -->
+            <div class="mb-3" id="referencias-container" style="display: none;">
+                <label class="form-label">Referencias del Documento</label>
+                <button type="button" class="btn btn-primary btn-sm w-100 mb-2" id="btn-agregar-referencias">
+                    <i class="fas fa-plus me-2"></i>Agregar Referencia
                 </button>
-                <div id="resultados-busqueda" class="mt-2" style="display: none;">
-                    <div class="list-group" id="lista-clientes">
-                        <!-- Resultados de búsqueda aparecerán aquí -->
-                    </div>
+                
+                <!-- Lista de referencias -->
+                <div id="referencias-lista" class="mt-2">
+                    <table class="table table-sm table-bordered" id="tabla-referencias" style="display: none; font-size: 0.85rem;">
+                        <thead style="background: #f8f9fa;">
+                            <tr>
+                                <th style="width: 25%;">Tipo</th>
+                                <th style="width: 20%;">Folio</th>
+                                <th style="width: 20%;">Fecha</th>
+                                <th style="width: 25%;">Comentario</th>
+                                <th style="width: 10%; text-align: center;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-referencias">
+                        </tbody>
+                    </table>
                 </div>
-                <div id="cliente-info" class="mt-2" style="display: ${clienteYaSeleccionado ? 'block' : 'none'};">
-                    <div class="alert alert-success">
-                        <i class="fas fa-check-circle me-2"></i>
-                        <strong id="cliente-nombre">${clienteYaSeleccionado ? clienteYaSeleccionado.nombre : '-'}</strong><br>
-                        <small id="cliente-direccion">${clienteYaSeleccionado ? (clienteYaSeleccionado.direccion || 'Sin dirección') : '-'}</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Cliente *</label>
+                
+                ${clienteYaSeleccionado && '{{ modo_pos }}' === 'con_cliente' ? `
+                    <!-- Cliente ya seleccionado en modo con_cliente - NO EDITABLE -->
+                    <div class="alert alert-info mb-0" style="background: #E8F4F8; border: 1px solid #B8E0F0;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-user-check me-2" style="color: #0c5460;"></i>
+                                <strong style="color: #0c5460;">${clienteYaSeleccionado.nombre}</strong><br>
+                                <small style="color: #0c5460;">RUT: ${clienteYaSeleccionado.rut || clienteYaSeleccionado.rut_formatted || 'Sin RUT'}</small>
+                            </div>
+                        </div>
+                        <small class="d-block mt-2" style="color: #0c5460;">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Cliente seleccionado para esta venta.
+                        </small>
                     </div>
-                </div>
-                <div id="cliente-no-encontrado" class="mt-2" style="display: none;">
-                    <div class="alert alert-warning">
-                        <strong>Cliente no encontrado</strong><br>
-                        <button type="button" class="btn btn-sm btn-primary" id="btn-crear-cliente">
-                            <i class="fas fa-plus me-1"></i>Crear Cliente
+                    <input type="hidden" id="busqueda-cliente" value="${clienteYaSeleccionado.rut || clienteYaSeleccionado.rut_formatted || ''}">
+                ` : `
+                    <!-- Modo normal - Búsqueda habilitada -->
+                    <div class="input-group mb-2">
+                        <input type="text" id="busqueda-cliente" class="form-control" placeholder="RUT o nombre del cliente" required ${clienteYaSeleccionado ? 'value="' + clienteYaSeleccionado.rut + '"' : ''}>
+                        <button type="button" class="btn btn-outline-secondary" onclick="buscarCliente()">
+                            <i class="fas fa-search"></i>
                         </button>
                     </div>
-                </div>
+                    {% if modo_pos != 'con_cliente' %}
+                    <button type="button" id="btn-venta-boleta" class="btn btn-sm w-100 mb-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; display: none;">
+                        <i class="fas fa-receipt me-2"></i>Venta Boleta (RUT Genérico 66666666-6)
+                    </button>
+                    {% endif %}
+                    <div id="resultados-busqueda" class="mt-2" style="display: none;">
+                        <div class="list-group" id="lista-clientes">
+                            <!-- Resultados de búsqueda aparecerán aquí -->
+                        </div>
+                    </div>
+                    <div id="cliente-info" class="mt-2" style="display: ${clienteYaSeleccionado ? 'block' : 'none'};">
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong id="cliente-nombre">${clienteYaSeleccionado ? clienteYaSeleccionado.nombre : '-'}</strong><br>
+                            <small id="cliente-direccion">${clienteYaSeleccionado ? (clienteYaSeleccionado.direccion || 'Sin dirección') : '-'}</small>
+                        </div>
+                    </div>
+                    <div id="cliente-no-encontrado" class="mt-2" style="display: none;">
+                        <div class="alert alert-warning">
+                            <strong>Cliente no encontrado</strong><br>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn-crear-cliente">
+                                <i class="fas fa-plus me-1"></i>Crear Cliente
+                            </button>
+                        </div>
+                    </div>
+                `}
             </div>
         `;
         
@@ -1589,6 +1679,7 @@ function clearCart() {
             preConfirm: () => {
                 const tipoDocumento = document.getElementById('tipo-documento').value;
                 const rutCliente = document.getElementById('busqueda-cliente').value;
+                const tipoDespacho = document.getElementById('tipo-despacho').value;
                 
                 if (!tipoDocumento || !rutCliente) {
                     Swal.showValidationMessage('Debe seleccionar tipo de documento y buscar cliente');
@@ -1600,10 +1691,18 @@ function clearCart() {
                     return false;
                 }
                 
+                // Validar tipo de despacho si es guía
+                if (tipoDocumento === 'guia' && !tipoDespacho) {
+                    Swal.showValidationMessage('Debe seleccionar el motivo de traslado para guías de despacho');
+                    return false;
+                }
+                
                 return {
                     tipo_documento: tipoDocumento,
                     rut_cliente: rutCliente,
-                    cliente_id: window.clienteSeleccionado.id
+                    cliente_id: window.clienteSeleccionado.id,
+                    tipo_despacho: tipoDespacho || null,
+                    referencias: window.referencias || []
                 };
             }
         }).then((result) => {
@@ -1628,23 +1727,52 @@ function clearCart() {
         // Mostrar/ocultar botón de venta boleta según tipo de documento
         const tipoDocSelect = document.getElementById('tipo-documento');
         const btnVentaBoleta = document.getElementById('btn-venta-boleta');
+        const tipoDespachoContainer = document.getElementById('tipo-despacho-container');
+        const referenciasContainer = document.getElementById('referencias-container');
         
-        function toggleBotonVentaBoleta() {
-            if (tipoDocSelect.value === 'boleta') {
-                btnVentaBoleta.style.display = 'block';
+        // Array para almacenar referencias
+        window.referencias = [];
+        
+        function toggleCamposSegunTipoDoc() {
+            const tipoDoc = tipoDocSelect.value;
+            
+            // Mostrar/ocultar botón boleta
+            if (btnVentaBoleta) {
+                btnVentaBoleta.style.display = (tipoDoc === 'boleta') ? 'block' : 'none';
+            }
+            
+            // Mostrar/ocultar tipo de despacho (solo para guías)
+            if (tipoDoc === 'guia') {
+                tipoDespachoContainer.style.display = 'block';
+                document.getElementById('tipo-despacho').required = true;
             } else {
-                btnVentaBoleta.style.display = 'none';
+                tipoDespachoContainer.style.display = 'none';
+                document.getElementById('tipo-despacho').required = false;
+            }
+            
+            // Mostrar/ocultar referencias (para facturas y guías)
+            if (tipoDoc === 'factura' || tipoDoc === 'guia') {
+                referenciasContainer.style.display = 'block';
+            } else {
+                referenciasContainer.style.display = 'none';
             }
         }
         
-        tipoDocSelect.addEventListener('change', toggleBotonVentaBoleta);
-        toggleBotonVentaBoleta(); // Verificar estado inicial
+        tipoDocSelect.addEventListener('change', toggleCamposSegunTipoDoc);
+        toggleCamposSegunTipoDoc(); // Verificar estado inicial
         
         // Agregar evento click al botón de venta boleta
-        btnVentaBoleta.addEventListener('click', function() {
-            const busquedaInput = document.getElementById('busqueda-cliente');
-            busquedaInput.value = '66666666-6';
-            buscarCliente();
+        if (btnVentaBoleta) {
+            btnVentaBoleta.addEventListener('click', function() {
+                const busquedaInput = document.getElementById('busqueda-cliente');
+                busquedaInput.value = '66666666-6';
+                buscarCliente();
+            });
+        }
+        
+        // Botón agregar referencias
+        document.getElementById('btn-agregar-referencias').addEventListener('click', function() {
+            mostrarModalReferencias();
         });
     }
     
@@ -1711,11 +1839,12 @@ function clearCart() {
                     // Mostrar lista de clientes encontrados
                     let html = '';
                     data.clientes.forEach(cliente => {
+                        const rutDisplay = cliente.rut || cliente.rut_formatted || 'Sin RUT';
                         html += `
-                            <div class="list-group-item list-group-item-action" onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre}', '${cliente.rut}', '${cliente.direccion || ''}')">
+                            <div class="list-group-item list-group-item-action" onclick="seleccionarCliente('${cliente.id}', '${cliente.nombre.replace(/'/g, "\\'")}', '${rutDisplay.replace(/'/g, "\\'")}', '${(cliente.direccion || '').replace(/'/g, "\\'")}')">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1">${cliente.nombre}</h6>
-                                    <small>${cliente.rut}</small>
+                                    <small>${rutDisplay}</small>
                                 </div>
                                 <p class="mb-1">${cliente.direccion || 'Sin dirección'}</p>
                             </div>
@@ -2611,7 +2740,7 @@ function setupBarcodeSystemLate() {
 }
 
 // Procesar el código de barras escaneado
-function processBarcode(codigo) {
+async function processBarcode(codigo) {
     console.log('*** PROCESANDO CÓDIGO: ' + codigo + ' ***');
     console.log('*** isScanning actual: ' + isScanning + ' ***');
     
@@ -2636,7 +2765,7 @@ function processBarcode(codigo) {
     // Buscar artículo por código de barras
     fetch(`/articulos/buscar-por-codigo-barras/?codigo=${encodeURIComponent(codigo)}`)
         .then(response => response.json())
-        .then(data => {
+        .then(async data => {
             console.log('*** RESPUESTA BÚSQUEDA: ', data, ' ***');
             
             if (data.success && data.articulo) {
@@ -2663,7 +2792,7 @@ function processBarcode(codigo) {
                     impuestoEspecifico: impuestoEspecifico
                 });
                 
-                addToCart(
+                await addToCart(
                     data.articulo.id,
                     data.articulo.nombre,
                     precio,
@@ -2773,7 +2902,7 @@ function toggleBarcodeMode() {
 }
 
 // Función global para agregar producto al carrito desde cualquier lugar
-function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1) {
+async function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1) {
     console.log('*** AGREGANDO AL CARRITO DESDE CUALQUIER LUGAR ***');
     
     // Buscar el producto en la lista de productos para obtener información de categoría
@@ -2792,7 +2921,7 @@ function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1) {
     }
     
     // Usar la función addToCart con toda la información
-    addToCart(articuloId, nombre, precio, 1000, categoriaExentaIva, impuestoEspecifico, precioNeto);
+    await addToCart(articuloId, nombre, precio, 1000, categoriaExentaIva, impuestoEspecifico, precioNeto);
     
     // Actualizar visualización
     if (typeof updateCartDisplay === 'function') {
@@ -2963,6 +3092,12 @@ function removeFromCart(index) {
 
 // Función global para seleccionar cliente
 function seleccionarCliente(id, nombre, rut, direccion) {
+    console.log('=== SELECCIONANDO CLIENTE ===');
+    console.log('ID:', id, 'Tipo:', typeof id);
+    console.log('Nombre:', nombre);
+    console.log('RUT:', rut, 'Tipo:', typeof rut);
+    console.log('Dirección:', direccion);
+    
     // Ocultar resultados de búsqueda
     document.getElementById('resultados-busqueda').style.display = 'none';
     
@@ -2976,8 +3111,11 @@ function seleccionarCliente(id, nombre, rut, direccion) {
         id: id,
         nombre: nombre,
         rut: rut,
+        rut_formatted: rut, // Agregar también como rut_formatted
         direccion: direccion
     };
+    
+    console.log('Cliente guardado en window.clienteSeleccionado:', window.clienteSeleccionado);
     
     // Actualizar el campo de búsqueda con el RUT
     document.getElementById('busqueda-cliente').value = rut;
@@ -3188,6 +3326,140 @@ function mostrarHistorialTickets() {
 }
 </script>
 
+<!-- Modal de Selección de Cliente (Modo Con Cliente) -->
+{% if modo_pos == 'con_cliente' %}
+<div class="modal fade" id="modalSeleccionCliente" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius: 15px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
+                <div>
+                    <h5 class="modal-title text-white mb-1" style="font-weight: 600;">
+                        <i class="fas fa-user-check me-2"></i>Seleccionar Cliente
+                    </h5>
+                    <small class="text-white-50">Seleccione el cliente para iniciar la venta</small>
+                </div>
+            </div>
+            <div class="modal-body" style="padding: 25px;">
+                <!-- Buscador de Cliente -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold" style="color: #6F5B44;">Buscar Cliente</label>
+                    <div class="input-group">
+                        <span class="input-group-text" style="background: #F5F1E8; border-color: #E8DCC8;">
+                            <i class="fas fa-search" style="color: #8B7355;"></i>
+                        </span>
+                        <input type="text" id="buscarClienteInicio" class="form-control" placeholder="Buscar por RUT o Nombre..." style="border-color: #E8DCC8;">
+                    </div>
+                </div>
+                
+                <!-- Lista de Clientes (estilo tabla compacta) -->
+                <div id="listaClientesInicio" style="max-height: 400px; overflow-y: auto; border: 1px solid #E8DCC8; border-radius: 8px;">
+                    <table class="table table-hover mb-0" style="font-size: 0.85rem;">
+                        <thead style="background: #F5F1E8; position: sticky; top: 0; z-index: 1;">
+                            <tr>
+                                <th style="padding: 8px 12px; font-weight: 600; color: #6F5B44; border-bottom: 2px solid #E8DCC8;">RUT</th>
+                                <th style="padding: 8px 12px; font-weight: 600; color: #6F5B44; border-bottom: 2px solid #E8DCC8;">Cliente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cliente in clientes %}
+                            <tr class="cliente-item" data-cliente-id="{{ cliente.id }}" data-cliente-nombre="{{ cliente.nombre }}" data-cliente-rut="{{ cliente.rut|default:''" style="cursor: pointer; transition: background 0.2s;">
+                                <td style="padding: 10px 12px; color: #8B7355; font-weight: 500;">{{ cliente.rut|default:"Sin RUT" }}</td>
+                                <td style="padding: 10px 12px; color: #6F5B44; font-weight: 600;">{{ cliente.nombre }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <style>
+                .cliente-item:hover {
+                    background: #F5F1E8 !important;
+                }
+                </style>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Script para modal de selección de cliente
+document.addEventListener('DOMContentLoaded', function() {
+    const modoPOS = '{{ modo_pos }}';
+    
+    if (modoPOS === 'con_cliente') {
+        // Mostrar modal automáticamente
+        const modalCliente = new bootstrap.Modal(document.getElementById('modalSeleccionCliente'));
+        modalCliente.show();
+        
+        // Buscador de clientes
+        document.getElementById('buscarClienteInicio').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const items = document.querySelectorAll('.cliente-item');
+            
+            items.forEach(item => {
+                const nombre = item.dataset.clienteNombre.toLowerCase();
+                const rut = item.dataset.clienteRut.toLowerCase();
+                
+                if (nombre.includes(query) || rut.includes(query)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+        
+        // Seleccionar cliente
+        document.querySelectorAll('.cliente-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const clienteId = this.dataset.clienteId;
+                const clienteNombre = this.dataset.clienteNombre;
+                
+                // Guardar cliente en sesión/variable global
+                window.clienteSeleccionado = {
+                    id: clienteId,
+                    nombre: clienteNombre
+                };
+                
+                // Mostrar cliente en header del POS
+                const headerInfo = document.querySelector('.pos-header');
+                if (headerInfo) {
+                    const clienteInfo = document.createElement('div');
+                    clienteInfo.id = 'clienteActivo';
+                    clienteInfo.innerHTML = `
+                        <div style="background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; display: inline-block;">
+                            <i class="fas fa-user me-2"></i>
+                            <strong>${clienteNombre}</strong>
+                            <button onclick="cambiarCliente()" class="btn btn-sm btn-light ms-2" style="padding: 2px 8px; font-size: 0.75rem;">
+                                <i class="fas fa-exchange-alt"></i> Cambiar
+                            </button>
+                        </div>
+                    `;
+                    headerInfo.appendChild(clienteInfo);
+                }
+                
+                // Cerrar modal
+                modalCliente.hide();
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Cliente Seleccionado',
+                    text: `Venta para: ${clienteNombre}`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            });
+        });
+    }
+});
+
+// Función para cambiar cliente
+function cambiarCliente() {
+    const modalCliente = new bootstrap.Modal(document.getElementById('modalSeleccionCliente'));
+    modalCliente.show();
+}
+</script>
+{% endif %}
+
 <!-- Modal de Apertura de Caja -->
 {% if mostrar_modal_apertura %}
 <div class="modal fade" id="modalAperturaCaja" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
@@ -3288,6 +3560,130 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
+<script>
+// Función para mostrar modal de referencias
+function mostrarModalReferencias() {
+    Swal.fire({
+        title: 'Agregar Referencia',
+        html: `
+            <div class="mb-3">
+                <label class="form-label">Tipo de Referencia *</label>
+                <select id="tipo-referencia" class="form-control" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="801">Orden de Compra (801)</option>
+                    <option value="802">Nota de Pedido (802)</option>
+                    <option value="803">Contrato (803)</option>
+                    <option value="52">Guía de Despacho (52)</option>
+                    <option value="HES">Hoja de Entrada de Servicios (HES)</option>
+                    <option value="HEM">Hoja de Entrada de Materiales (HEM)</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Folio/Número *</label>
+                <input type="text" id="folio-referencia" class="form-control" placeholder="Ej: OC-12345" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Fecha *</label>
+                <input type="date" id="fecha-referencia" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Razón (Opcional)</label>
+                <textarea id="razon-referencia" class="form-control" rows="2" placeholder="Descripción o motivo de la referencia"></textarea>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Agregar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const tipo = document.getElementById('tipo-referencia').value;
+            const folio = document.getElementById('folio-referencia').value;
+            const fecha = document.getElementById('fecha-referencia').value;
+            const razon = document.getElementById('razon-referencia').value;
+            
+            if (!tipo || !folio || !fecha) {
+                Swal.showValidationMessage('Debe completar todos los campos obligatorios');
+                return false;
+            }
+            
+            return { tipo, folio, fecha, razon };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Agregar referencia al array
+            const selectElement = document.createElement('select');
+            selectElement.innerHTML = `
+                <option value="801">Orden de Compra (801)</option>
+                <option value="802">Nota de Pedido (802)</option>
+                <option value="803">Contrato (803)</option>
+                <option value="52">Guía de Despacho (52)</option>
+                <option value="HES">Hoja de Entrada de Servicios (HES)</option>
+                <option value="HEM">Hoja de Entrada de Materiales (HEM)</option>
+            `;
+            selectElement.value = result.value.tipo;
+            const tipoTexto = selectElement.selectedOptions[0].text;
+            
+            window.referencias.push({
+                tipo: result.value.tipo,
+                tipo_texto: tipoTexto,
+                folio: result.value.folio,
+                fecha: result.value.fecha,
+                razon: result.value.razon
+            });
+            
+            // Actualizar lista visual
+            actualizarListaReferencias();
+            
+            // Mostrar mensaje de éxito breve
+            Swal.fire({
+                icon: 'success',
+                title: 'Referencia agregada',
+                timer: 1000,
+                showConfirmButton: false
+            });
+        }
+    });
+}
+
+// Actualizar lista visual de referencias
+function actualizarListaReferencias() {
+    const tabla = document.getElementById('tabla-referencias');
+    const tbody = document.getElementById('tbody-referencias');
+    
+    if (!tbody) return;
+    
+    if (window.referencias.length === 0) {
+        tabla.style.display = 'none';
+        tbody.innerHTML = '';
+        return;
+    }
+    
+    tabla.style.display = 'table';
+    tbody.innerHTML = '';
+    
+    window.referencias.forEach((ref, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding: 4px 6px; font-size: 0.8rem;">${ref.tipo_texto}</td>
+            <td style="padding: 4px 6px; font-size: 0.8rem;">${ref.folio}</td>
+            <td style="padding: 4px 6px; font-size: 0.8rem;">${ref.fecha}</td>
+            <td style="padding: 4px 6px; font-size: 0.8rem;">${ref.razon || '-'}</td>
+            <td style="padding: 4px 6px; text-align: center;">
+                <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 0.7rem;" onclick="eliminarReferencia(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// Eliminar referencia
+function eliminarReferencia(index) {
+    window.referencias.splice(index, 1);
+    actualizarListaReferencias();
+}
+</script>
 
 </body>
 </html>

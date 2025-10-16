@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% load static %}
+{% load format_filters %}
+
+{% block title %}Precios Especiales Clientes - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 15px 20px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user-tag fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-weight: 600;">
+                                    Precios Especiales por Cliente
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.9rem;">Gestiona precios personalizados para tus clientes</small>
+                            </div>
+                        </div>
+                        <button class="btn" style="background: white; color: #8B7355; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" data-bs-toggle="modal" data-bs-target="#modalCrearPrecio">
+                            <i class="fas fa-plus me-2"></i> Nuevo Precio Especial
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 15px;">
+                    <!-- Tabla de precios -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm" style="font-size: 0.75rem; margin-bottom: 0;">
+                            <thead style="background: #F5F1E8;">
+                                <tr>
+                                    <th style="padding: 4px 6px; font-weight: 600; color: #6F5B44; font-size: 0.7rem;">Cliente / Artículo</th>
+                                    <th style="padding: 4px 6px; font-weight: 600; color: #6F5B44; text-align: right; font-size: 0.7rem;">Precio</th>
+                                    <th style="padding: 4px 6px; font-weight: 600; color: #6F5B44; text-align: center; font-size: 0.7rem; width: 60px;">Estado</th>
+                                    <th style="padding: 4px 6px; font-weight: 600; color: #6F5B44; text-align: center; font-size: 0.7rem; width: 70px;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for precio in precios %}
+                                <tr style="border-bottom: 1px solid #E8DCC8;">
+                                    <td style="padding: 4px 6px;">
+                                        <div style="font-weight: 600; color: #6F5B44; font-size: 0.75rem; line-height: 1.2;">{{ precio.cliente.nombre|truncatewords:2 }}</div>
+                                        <div style="font-size: 0.7rem; color: #999; line-height: 1.2;">{{ precio.articulo.nombre|truncatewords:3 }}</div>
+                                    </td>
+                                    <td style="padding: 4px 6px; text-align: right; font-weight: 700; color: #28a745; font-size: 0.8rem;">${{ precio.precio_especial|format_miles }}</td>
+                                    <td style="padding: 4px 6px; text-align: center;">
+                                        {% if precio.activo and precio.esta_vigente %}
+                                            <i class="fas fa-check-circle" style="color: #28a745; font-size: 0.9rem;" title="Activo"></i>
+                                        {% elif precio.activo %}
+                                            <i class="fas fa-clock" style="color: #ffc107; font-size: 0.9rem;" title="Pendiente"></i>
+                                        {% else %}
+                                            <i class="fas fa-times-circle" style="color: #dc3545; font-size: 0.9rem;" title="Inactivo"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 4px 6px; text-align: center;">
+                                        <button class="btn btn-sm btn-editar-precio" data-id="{{ precio.id }}" style="background: #8B7355; color: white; padding: 1px 4px; font-size: 0.7rem; margin-right: 2px;" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-eliminar-precio" data-id="{{ precio.id }}" style="background: #dc3545; color: white; padding: 1px 4px; font-size: 0.7rem;" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" style="padding: 30px; text-align: center; color: #6c757d;">
+                                        <i class="fas fa-inbox fa-3x mb-3" style="color: #E8DCC8;"></i>
+                                        <p class="mb-0">No hay precios especiales configurados</p>
+                                        <small>Crea tu primer precio especial para comenzar</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear/Editar Precio -->
+<div class="modal fade" id="modalCrearPrecio" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border: none; border-radius: 15px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
+                <h5 class="modal-title text-white" id="tituloModal">
+                    <i class="fas fa-user-tag me-2"></i><span id="textoTitulo">Nuevo Precio Especial</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="contenidoFormulario" style="padding: 25px;">
+                <!-- Se carga dinámicamente -->
+            </div>
+            <div class="modal-footer" style="border: none; padding: 15px 25px;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn" id="btnGuardar" style="background: #8B7355; color: white;">
+                    <i class="fas fa-save me-2"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// Abrir modal para crear
+document.getElementById('modalCrearPrecio').addEventListener('show.bs.modal', function(e) {
+    if (!e.relatedTarget || !e.relatedTarget.classList.contains('btn-editar-precio')) {
+        document.getElementById('textoTitulo').textContent = 'Nuevo Precio Especial';
+        cargarFormulario('{% url "ventas:precio_cliente_create" %}');
+    }
+});
+
+// Editar precio
+document.querySelectorAll('.btn-editar-precio').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        document.getElementById('textoTitulo').textContent = 'Editar Precio Especial';
+        cargarFormulario(`/ventas/precios-clientes/${id}/editar/`);
+        new bootstrap.Modal(document.getElementById('modalCrearPrecio')).show();
+    });
+});
+
+// Eliminar precio
+document.querySelectorAll('.btn-eliminar-precio').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        Swal.fire({
+            title: '¿Eliminar precio especial?',
+            text: 'Esta acción no se puede deshacer',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`/ventas/precios-clientes/${id}/eliminar/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire('Eliminado', data.message, 'success').then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', data.error, 'error');
+                    }
+                });
+            }
+        });
+    });
+});
+
+// Cargar formulario
+function cargarFormulario(url) {
+    fetch(url)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('contenidoFormulario').innerHTML = html;
+            
+            // Ejecutar el script de precios después de cargar el formulario
+            setTimeout(function() {
+                inicializarPreciosArticulos();
+            }, 100);
+        });
+}
+
+// Función para inicializar el selector de precios
+function inicializarPreciosArticulos() {
+    const dataElement = document.getElementById('articulos-precios-data');
+    console.log('Data element:', dataElement);
+    
+    if (!dataElement) {
+        console.error('No se encontró el elemento de datos de precios');
+        return;
+    }
+    
+    console.log('Data content:', dataElement.textContent);
+    const articulosPrecios = JSON.parse(dataElement.textContent);
+    console.log('Artículos precios:', articulosPrecios);
+    
+    const articuloSelect = document.querySelector('select[name="articulo"]');
+    console.log('Select artículo:', articuloSelect);
+    
+    if (articuloSelect) {
+        const mostrarPrecio = function() {
+            const articuloId = articuloSelect.value;
+            console.log('ID seleccionado:', articuloId);
+            console.log('Precio para este ID:', articulosPrecios[articuloId]);
+            
+            if (articuloId && articulosPrecios[articuloId]) {
+                const precio = articulosPrecios[articuloId];
+                const precioFormateado = '$' + new Intl.NumberFormat('es-CL').format(precio);
+                console.log('Mostrando precio:', precioFormateado);
+                document.getElementById('precioListaValor').textContent = precioFormateado;
+            } else {
+                console.log('No hay precio o no hay ID');
+                document.getElementById('precioListaValor').textContent = 'Seleccione un artículo';
+            }
+        };
+        
+        articuloSelect.addEventListener('change', mostrarPrecio);
+        
+        // Si ya hay un artículo seleccionado (modo edición), mostrar su precio
+        if (articuloSelect.value) {
+            console.log('Hay artículo preseleccionado, mostrando precio...');
+            mostrarPrecio();
+        }
+    } else {
+        console.error('No se encontró el select de artículo');
+    }
+}
+
+// Guardar
+document.getElementById('btnGuardar').addEventListener('click', function() {
+    const form = document.querySelector('#contenidoFormulario form');
+    if (form) {
+        const formData = new FormData(form);
+        const url = form.action || window.location.href;
+        
+        // Guardar el cliente seleccionado antes de enviar
+        const clienteSeleccionado = formData.get('cliente');
+        
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mostrar mensaje de éxito
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Guardado',
+                    text: data.message,
+                    timer: 1000,
+                    showConfirmButton: false
+                });
+                
+                // Limpiar solo los campos de artículo y precio, MANTENER el cliente
+                const selectArticulo = document.querySelector('select[name="articulo"]');
+                const inputPrecio = document.querySelector('input[name="precio_especial"]');
+                const inputDescuento = document.querySelector('input[name="descuento_porcentaje"]');
+                
+                if (selectArticulo) {
+                    selectArticulo.value = '';
+                    selectArticulo.dispatchEvent(new Event('change')); // Actualizar precio de lista
+                }
+                if (inputPrecio) inputPrecio.value = '';
+                if (inputDescuento) inputDescuento.value = '';
+                
+                // Enfocar en el select de artículo para continuar
+                setTimeout(() => {
+                    if (selectArticulo) selectArticulo.focus();
+                }, 1100);
+            } else {
+                Swal.fire('Error', 'Revise los campos del formulario', 'error');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

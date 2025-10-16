@@ -116,6 +116,19 @@ class Venta(models.Model):
 
     # Tipo de documento planeado para cuando se procese (útil para tickets)
     tipo_documento_planeado = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, null=True, blank=True, verbose_name="Tipo de Documento Planeado")
+    
+    # Tipo de despacho (solo para guías) - Motivo de Traslado según SII
+    TIPO_DESPACHO_CHOICES = [
+        ('1', 'Venta'),
+        ('2', 'Venta por efectuar (anticipada)'),
+        ('3', 'Consignación'),
+        ('4', 'Devolución'),
+        ('5', 'Traslado interno'),
+        ('6', 'Transformación de productos'),
+        ('7', 'Entrega gratuita'),
+        ('8', 'Otros'),
+    ]
+    tipo_despacho = models.CharField(max_length=2, choices=TIPO_DESPACHO_CHOICES, null=True, blank=True, verbose_name="Tipo de Despacho")
 
     # Totales
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Subtotal")
@@ -255,6 +268,18 @@ class EstacionTrabajo(models.Model):
     max_items_cotizacion = models.PositiveIntegerField(default=50, verbose_name="Máx. Items Cotización")
     max_items_vale = models.PositiveIntegerField(default=30, verbose_name="Máx. Items Vale")
     
+    # Modo de operación del POS
+    modo_pos = models.CharField(
+        max_length=20,
+        choices=[
+            ('normal', 'Normal - Cliente al final'),
+            ('con_cliente', 'Con Cliente - Cliente al inicio')
+        ],
+        default='normal',
+        verbose_name="Modo de Operación POS",
+        help_text="Normal: Cliente opcional al final. Con Cliente: Selección obligatoria al inicio para aplicar precios especiales."
+    )
+    
     activo = models.BooleanField(default=True, verbose_name="Activo")
     
     # Auditoría
@@ -393,3 +418,120 @@ class DevolucionDetalle(models.Model):
         """Calcular subtotal antes de guardar"""
         self.subtotal = self.cantidad_devuelta * self.precio_unitario
         super().save(*args, **kwargs)
+
+
+class PrecioClienteArticulo(models.Model):
+    """Modelo para gestionar precios especiales por cliente y artículo"""
+    
+    # Relaciones
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='precios_especiales', verbose_name="Cliente")
+    articulo = models.ForeignKey(Articulo, on_delete=models.CASCADE, related_name='precios_clientes', verbose_name="Artículo")
+    
+    # Precio especial
+    precio_especial = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name="Precio Especial",
+        help_text="Precio personalizado para este cliente. Si no existe, se usa el precio general del artículo."
+    )
+    
+    # Descuento adicional (opcional)
+    descuento_porcentaje = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('100.00'))],
+        blank=True,
+        null=True,
+        verbose_name="Descuento Adicional (%)",
+        help_text="Descuento adicional sobre el precio especial (opcional)"
+    )
+    
+    # Control
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    fecha_inicio = models.DateField(blank=True, null=True, verbose_name="Fecha Inicio Vigencia")
+    fecha_fin = models.DateField(blank=True, null=True, verbose_name="Fecha Fin Vigencia")
+    
+    # Auditoría
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='precios_creados', verbose_name="Creado Por")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Precio Especial Cliente"
+        verbose_name_plural = "Precios Especiales Clientes"
+        ordering = ['cliente__nombre', 'articulo__nombre']
+        unique_together = ['empresa', 'cliente', 'articulo']
+        indexes = [
+            models.Index(fields=['cliente', 'articulo', 'activo']),
+            models.Index(fields=['empresa', 'activo']),
+        ]
+    
+    def __str__(self):
+        return f"{self.cliente.nombre} - {self.articulo.nombre}: ${self.precio_especial}"
+    
+    def get_precio_final(self):
+        """Calcula el precio final aplicando descuento si existe"""
+        if self.descuento_porcentaje and self.descuento_porcentaje > 0:
+            descuento = self.precio_especial * (self.descuento_porcentaje / Decimal('100'))
+            return self.precio_especial - descuento
+        return self.precio_especial
+    
+    def esta_vigente(self):
+        """Verifica si el precio especial está vigente según las fechas"""
+        if not self.activo:
+            return False
+        
+        hoy = timezone.now().date()
+        
+        if self.fecha_inicio and hoy < self.fecha_inicio:
+            return False
+        
+        if self.fecha_fin and hoy > self.fecha_fin:
+            return False
+        
+        return True
+
+
+class VentaReferencia(models.Model):
+    """Modelo para referencias de documentos (Orden de Compra, HES, etc.)"""
+    
+    TIPO_REFERENCIA_CHOICES = [
+        ('52', 'Guía de Despacho'),
+        ('801', 'Orden de Compra'),
+        ('802', 'Nota de Pedido'),
+        ('803', 'Contrato'),
+        ('804', 'Resolución'),
+        ('805', 'Proceso ChileCompra'),
+        ('806', 'Ficha ChileCompra'),
+        ('807', 'DUS'),
+        ('808', 'B/L (Conocimiento de embarque)'),
+        ('809', 'AWB (Air Will Bill)'),
+        ('810', 'MIC/DTA'),
+        ('811', 'Carta de Porte'),
+        ('812', 'Resolución del SNA donde califica Servicios de Exportación'),
+        ('813', 'Pasaporte'),
+        ('814', 'Certificado de Depósito Bolsa Prod. Chile'),
+        ('815', 'Vale de Prenda Bolsa Prod. Chile'),
+        ('HES', 'Hoja de Entrada de Servicios'),
+        ('HEM', 'Hoja de Entrada de Materiales'),
+    ]
+    
+    venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name='referencias', verbose_name="Venta")
+    tipo_referencia = models.CharField(max_length=10, choices=TIPO_REFERENCIA_CHOICES, verbose_name="Tipo de Referencia")
+    folio_referencia = models.CharField(max_length=50, verbose_name="Folio/Número de Referencia")
+    fecha_referencia = models.DateField(verbose_name="Fecha de Referencia")
+    razon_referencia = models.TextField(blank=True, verbose_name="Razón de la Referencia")
+    
+    # Auditoría
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Referencia de Venta"
+        verbose_name_plural = "Referencias de Ventas"
+        ordering = ['-fecha_creacion']
+    
+    def __str__(self):
+        return f"{self.get_tipo_referencia_display()} - {self.folio_referencia}"

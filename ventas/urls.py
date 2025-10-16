@@ -73,4 +73,14 @@ urlpatterns = [
     
     # Libro de Ventas
     path('libro-ventas/', views.libro_ventas, name='libro_ventas'),
+    
+    # Precios Especiales Clientes
+    path('precios-clientes/', views.precio_cliente_list, name='precio_cliente_list'),
+    path('precios-clientes/crear/', views.precio_cliente_create, name='precio_cliente_create'),
+    path('precios-clientes/<int:pk>/editar/', views.precio_cliente_edit, name='precio_cliente_edit'),
+    path('precios-clientes/<int:pk>/eliminar/', views.precio_cliente_delete, name='precio_cliente_delete'),
+    
+    # API Artículos
+    path('articulos/api/articulo/<int:pk>/precio/', views.articulo_precio_api, name='articulo_precio_api'),
+    path('api/precio-cliente/<int:cliente_id>/<int:articulo_id>/', views.precio_cliente_articulo_api, name='precio_cliente_articulo_api'),
 ]

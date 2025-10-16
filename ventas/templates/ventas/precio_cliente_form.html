@@ -1,0 +1,85 @@
+<form method="post" action="{% if precio %}{% url 'ventas:precio_cliente_edit' precio.id %}{% else %}{% url 'ventas:precio_cliente_create' %}{% endif %}">
+    {% csrf_token %}
+    
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">{{ form.cliente.label }} *</label>
+            {{ form.cliente }}
+            {% if form.cliente.errors %}
+                <div class="text-danger small">{{ form.cliente.errors.0 }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">{{ form.articulo.label }} *</label>
+            {{ form.articulo }}
+            {% if form.articulo.errors %}
+                <div class="text-danger small">{{ form.articulo.errors.0 }}</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">{{ form.precio_especial.label }} *</label>
+            <div class="input-group">
+                <span class="input-group-text">$</span>
+                {{ form.precio_especial }}
+            </div>
+            <div id="precioListaInfo" class="alert alert-info mt-2" style="padding: 10px; font-size: 0.9rem; border-left: 4px solid #0c5460;">
+                <i class="fas fa-info-circle me-1"></i>
+                <strong>Precio de Lista:</strong> <span id="precioListaValor" style="font-weight: 700; font-size: 1.1rem; color: #0c5460;">Seleccione un artículo</span>
+            </div>
+            <small class="text-muted">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                <strong>Importante:</strong> Ingrese el precio <strong>CON IMPUESTOS INCLUIDOS</strong> (precio final de venta)
+            </small>
+            {% if form.precio_especial.errors %}
+                <div class="text-danger small">{{ form.precio_especial.errors.0 }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">{{ form.descuento_porcentaje.label }}</label>
+            <div class="input-group">
+                {{ form.descuento_porcentaje }}
+                <span class="input-group-text">%</span>
+            </div>
+            <small class="text-muted">Descuento adicional sobre el precio especial (opcional)</small>
+            {% if form.descuento_porcentaje.errors %}
+                <div class="text-danger small">{{ form.descuento_porcentaje.errors.0 }}</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">{{ form.fecha_inicio.label }}</label>
+            {{ form.fecha_inicio }}
+            <small class="text-muted">Fecha desde la cual aplica el precio</small>
+            {% if form.fecha_inicio.errors %}
+                <div class="text-danger small">{{ form.fecha_inicio.errors.0 }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">{{ form.fecha_fin.label }}</label>
+            {{ form.fecha_fin }}
+            <small class="text-muted">Fecha hasta la cual aplica el precio</small>
+            {% if form.fecha_fin.errors %}
+                <div class="text-danger small">{{ form.fecha_fin.errors.0 }}</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="mb-3">
+        <div class="form-check form-switch">
+            {{ form.activo }}
+            <label class="form-check-label" for="{{ form.activo.id_for_label }}">
+                {{ form.activo.label }}
+            </label>
+        </div>
+    </div>
+</form>
+
+{{ articulos_precios|json_script:"articulos-precios-data" }}

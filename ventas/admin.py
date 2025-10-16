@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Vendedor, FormaPago, EstacionTrabajo, Venta, VentaDetalle, Devolucion, DevolucionDetalle
+from .models import Vendedor, FormaPago, EstacionTrabajo, Venta, VentaDetalle, Devolucion, DevolucionDetalle, PrecioClienteArticulo, VentaReferencia
 
 
 @admin.register(Vendedor)
@@ -44,14 +44,17 @@ class FormaPagoAdmin(admin.ModelAdmin):
 
 @admin.register(EstacionTrabajo)
 class EstacionTrabajoAdmin(admin.ModelAdmin):
-    list_display = ['numero', 'nombre', 'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale', 'activo', 'empresa']
-    list_filter = ['puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale', 'activo', 'empresa']
+    list_display = ['numero', 'nombre', 'modo_pos', 'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale', 'activo', 'empresa']
+    list_filter = ['modo_pos', 'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale', 'activo', 'empresa']
     search_fields = ['numero', 'nombre']
     ordering = ['numero', 'nombre']
     
     fieldsets = (
         ('Información Básica', {
             'fields': ('empresa', 'numero', 'nombre', 'descripcion')
+        }),
+        ('Configuración POS', {
+            'fields': ('modo_pos',)
         }),
         ('Tipos de Documentos Permitidos', {
             'fields': ('puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale')
@@ -142,3 +145,51 @@ class DevolucionDetalleAdmin(admin.ModelAdmin):
     list_filter = ['devolucion__empresa']
     search_fields = ['devolucion__numero_devolucion', 'articulo__nombre']
     ordering = ['-fecha_creacion']
+
+
+@admin.register(PrecioClienteArticulo)
+class PrecioClienteArticuloAdmin(admin.ModelAdmin):
+    list_display = ['cliente', 'articulo', 'precio_especial', 'descuento_porcentaje', 'activo', 'fecha_inicio', 'fecha_fin', 'empresa']
+    list_filter = ['activo', 'empresa', 'fecha_inicio', 'fecha_fin']
+    search_fields = ['cliente__nombre', 'cliente__rut', 'articulo__nombre', 'articulo__codigo']
+    ordering = ['cliente__nombre', 'articulo__nombre']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('empresa', 'cliente', 'articulo')
+        }),
+        ('Precio y Descuento', {
+            'fields': ('precio_especial', 'descuento_porcentaje')
+        }),
+        ('Vigencia', {
+            'fields': ('activo', 'fecha_inicio', 'fecha_fin')
+        }),
+        ('Auditoría', {
+            'fields': ('creado_por',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ('creado_por', 'fecha_creacion', 'fecha_modificacion')
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # Si es nuevo
+            obj.creado_por = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(VentaReferencia)
+class VentaReferenciaAdmin(admin.ModelAdmin):
+    list_display = ['venta', 'tipo_referencia', 'folio_referencia', 'fecha_referencia']
+    list_filter = ['tipo_referencia', 'fecha_referencia']
+    search_fields = ['venta__numero_venta', 'folio_referencia']
+    ordering = ['-fecha_creacion']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('venta', 'tipo_referencia', 'folio_referencia', 'fecha_referencia')
+        }),
+        ('Detalles', {
+            'fields': ('razon_referencia',)
+        }),
+    )

@@ -5,12 +5,16 @@ from . import views_stock_modal
 from . import views_stock_updated
 from . import views_ajustes_simple
 from . import views_transferencias
+from . import views_kardex
 
 app_name = 'inventario'
 
 urlpatterns = [
     # Dashboard
     path('', views.dashboard_inventario, name='dashboard'),
+    
+    # Kardex de Artículo
+    path('kardex/', views_kardex.kardex_articulo, name='kardex_articulo'),
     
     # Movimientos de Inventario
     path('movimientos/', views.inventario_list, name='inventario_list'),

@@ -533,6 +533,14 @@ def pos_agregar_articulo(request):
                     'error': f'Stock insuficiente. Disponible: {stock_disponible}, Solicitado: {cantidad_total}'
                 })
         
+        # Obtener precio considerando cliente (si existe)
+        from .utils_precios import obtener_precio_articulo
+        precio_unitario = obtener_precio_articulo(
+            articulo=articulo,
+            cliente=venta.cliente if venta.cliente else None,
+            empresa=request.empresa
+        )
+        
         # Verificar si el artículo ya está en la venta
         detalle_existente = VentaDetalle.objects.filter(venta=venta, articulo=articulo).first()
         
@@ -541,12 +549,12 @@ def pos_agregar_articulo(request):
             detalle_existente.cantidad += cantidad
             detalle_existente.save()
         else:
-            # Crear nuevo detalle
+            # Crear nuevo detalle con precio especial si aplica
             VentaDetalle.objects.create(
                 venta=venta,
                 articulo=articulo,
                 cantidad=cantidad,
-                precio_unitario=articulo.precio_venta
+                precio_unitario=precio_unitario
             )
         
         return JsonResponse({'success': True})
@@ -769,7 +777,7 @@ def pos_view(request):
         precio_final = round(precio_neto + iva + impuesto_especifico)
         articulo.precio_final_calculado = precio_final
         articulos.append(articulo)
-    clientes = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')[:50]  # Limitar para performance
+    clientes = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')  # Todos los clientes activos
     vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
     formas_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
     estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True).order_by('numero')
@@ -785,6 +793,18 @@ def pos_view(request):
     else:
         proximo_numero = "000001"
     
+    # Detectar modo POS de la estación activa
+    modo_pos = 'normal'  # Default
+    estacion_activa = None
+    estacion_id = request.session.get('pos_estacion_id')
+    
+    if estacion_id:
+        try:
+            estacion_activa = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa)
+            modo_pos = estacion_activa.modo_pos
+        except EstacionTrabajo.DoesNotExist:
+            pass
+    
     context = {
         'articulos': articulos,
         'clientes': clientes,
@@ -795,6 +815,8 @@ def pos_view(request):
         'apertura_activa': apertura_activa,
         'mostrar_modal_apertura': mostrar_modal_apertura,
         'form_apertura': form_apertura,
+        'modo_pos': modo_pos,  # Nuevo
+        'estacion_activa': estacion_activa,  # Nuevo
     }
     
     return render(request, 'ventas/pos.html', context)
@@ -1161,6 +1183,7 @@ def pos_procesar_preventa(request):
                 estacion_trabajo=estacion,
                 tipo_documento=data['tipo_documento'],
                 tipo_documento_planeado=data.get('tipo_documento_planeado', data['tipo_documento']),  # ← GUARDAR TIPO PLANEADO
+                tipo_despacho=data.get('tipo_despacho'),  # ← GUARDAR TIPO DE DESPACHO
                 subtotal=subtotal,
                 descuento=descuento,
                 neto=neto,
@@ -1200,6 +1223,26 @@ def pos_procesar_preventa(request):
                     print(f"ERROR al crear VentaDetalle: {e}")
                     print(f"Tipo de error: {type(e)}")
                     raise e
+            
+            # Crear referencias si existen
+            if data.get('referencias'):
+                print(f"DEBUG - Creando {len(data['referencias'])} referencias...")
+                from .models import VentaReferencia
+                from datetime import datetime
+                
+                for ref in data['referencias']:
+                    try:
+                        VentaReferencia.objects.create(
+                            venta=preventa,
+                            tipo_referencia=ref['tipo'],
+                            folio_referencia=ref['folio'],
+                            fecha_referencia=datetime.strptime(ref['fecha'], '%Y-%m-%d').date(),
+                            razon_referencia=ref.get('razon', '')
+                        )
+                        print(f"DEBUG - Referencia creada: {ref['tipo']} - {ref['folio']}")
+                    except Exception as e:
+                        print(f"ERROR al crear referencia: {e}")
+                        # No detenemos el proceso si falla una referencia
             
             # Si el documento es factura, boleta o guía, generar también un ticket facturable (vale)
             ticket_vale_id = None
@@ -1407,6 +1450,26 @@ def estaciontrabajo_edit(request, pk):
             <div class="mb-3">
                 <label class="form-label" style="font-weight: 600;">Descripción</label>
                 <textarea name="descripcion" class="form-control" rows="3">{estacion.descripcion}</textarea>
+            </div>
+
+            <!-- Modo de Operación POS -->
+            <div class="mb-4">
+                <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
+                    <i class="fas fa-cog me-2"></i>Configuración del POS
+                </h6>
+                <div class="mb-3">
+                    <label class="form-label" style="font-weight: 600;">Modo de Operación POS *</label>
+                    <select name="modo_pos" class="form-select" required>
+                        <option value="normal" {'selected' if estacion.modo_pos == 'normal' else ''}>Normal - Cliente al final</option>
+                        <option value="con_cliente" {'selected' if estacion.modo_pos == 'con_cliente' else ''}>Con Cliente - Cliente al inicio</option>
+                    </select>
+                    <small class="text-muted d-block mt-1">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Normal:</strong> Cliente opcional al final de la venta (modo tradicional).<br>
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Con Cliente:</strong> Selección obligatoria de cliente al inicio para aplicar precios especiales y descuentos personalizados.
+                    </small>
+                </div>
             </div>
 
             <div class="mb-3">
@@ -2393,3 +2456,176 @@ def libro_ventas(request):
     }
     
     return render(request, 'ventas/libro_ventas.html', context)
+
+
+# ============================================
+# CRUD PRECIOS ESPECIALES CLIENTES
+# ============================================
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.view_precioclientearticulo', raise_exception=True)
+def precio_cliente_list(request):
+    """Lista de precios especiales por cliente"""
+    from .models import PrecioClienteArticulo
+    from clientes.models import Cliente
+    from articulos.models import Articulo
+    
+    precios = PrecioClienteArticulo.objects.filter(empresa=request.empresa).select_related('cliente', 'articulo').order_by('-fecha_creacion')
+    
+    context = {
+        'precios': precios,
+    }
+    
+    return render(request, 'ventas/precio_cliente_list.html', context)
+
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.add_precioclientearticulo', raise_exception=True)
+def precio_cliente_create(request):
+    """Crear precio especial"""
+    from .models import PrecioClienteArticulo
+    from .forms import PrecioClienteArticuloForm
+    from clientes.models import Cliente
+    from articulos.models import Articulo
+    from django.http import JsonResponse
+    
+    if request.method == 'POST':
+        form = PrecioClienteArticuloForm(request.POST)
+        if form.is_valid():
+            precio = form.save(commit=False)
+            precio.empresa = request.empresa
+            precio.creado_por = request.user
+            precio.save()
+            return JsonResponse({'success': True, 'message': 'Precio especial creado exitosamente'})
+        else:
+            return JsonResponse({'success': False, 'errors': form.errors})
+    
+    # GET: Retornar formulario
+    form = PrecioClienteArticuloForm()
+    form.fields['cliente'].queryset = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')
+    
+    # Preparar artículos con sus precios para JavaScript (sin decimales)
+    articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    articulos_precios = {str(a.id): int(round(float(a.precio_venta))) for a in articulos}
+    
+    form.fields['articulo'].queryset = articulos
+    
+    return render(request, 'ventas/precio_cliente_form.html', {
+        'form': form,
+        'articulos_precios': articulos_precios
+    })
+
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.change_precioclientearticulo', raise_exception=True)
+def precio_cliente_edit(request, pk):
+    """Editar precio especial"""
+    from .models import PrecioClienteArticulo
+    from .forms import PrecioClienteArticuloForm
+    from clientes.models import Cliente
+    from articulos.models import Articulo
+    from django.http import JsonResponse
+    
+    try:
+        precio = PrecioClienteArticulo.objects.get(pk=pk, empresa=request.empresa)
+        
+        if request.method == 'POST':
+            form = PrecioClienteArticuloForm(request.POST, instance=precio)
+            if form.is_valid():
+                form.save()
+                return JsonResponse({'success': True, 'message': 'Precio especial actualizado exitosamente'})
+            else:
+                return JsonResponse({'success': False, 'errors': form.errors})
+        
+        # GET: Retornar formulario
+        form = PrecioClienteArticuloForm(instance=precio)
+        form.fields['cliente'].queryset = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')
+        
+        # Preparar artículos con sus precios para JavaScript (sin decimales)
+        articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+        articulos_precios = {str(a.id): int(round(float(a.precio_venta))) for a in articulos}
+        
+        form.fields['articulo'].queryset = articulos
+        
+        return render(request, 'ventas/precio_cliente_form.html', {
+            'form': form, 
+            'precio': precio,
+            'articulos_precios': articulos_precios
+        })
+    
+    except PrecioClienteArticulo.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Precio especial no encontrado'})
+
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.delete_precioclientearticulo', raise_exception=True)
+def precio_cliente_delete(request, pk):
+    """Eliminar precio especial"""
+    from .models import PrecioClienteArticulo
+    from django.http import JsonResponse
+    
+    try:
+        precio = PrecioClienteArticulo.objects.get(pk=pk, empresa=request.empresa)
+        precio.delete()
+        return JsonResponse({'success': True, 'message': 'Precio especial eliminado exitosamente'})
+    except PrecioClienteArticulo.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Precio especial no encontrado'})
+
+
+@login_required
+@requiere_empresa
+def precio_cliente_articulo_api(request, cliente_id, articulo_id):
+    """API para obtener precio especial de un artículo para un cliente"""
+    from .models import PrecioClienteArticulo
+    from django.http import JsonResponse
+    from datetime import date
+    
+    try:
+        # Buscar precio especial activo y vigente
+        precio_especial = PrecioClienteArticulo.objects.filter(
+            empresa=request.empresa,
+            cliente_id=cliente_id,
+            articulo_id=articulo_id,
+            activo=True,
+            fecha_inicio__lte=date.today(),
+            fecha_fin__gte=date.today()
+        ).first()
+        
+        if precio_especial:
+            return JsonResponse({
+                'success': True,
+                'precio_especial': float(precio_especial.precio_especial)
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': 'No hay precio especial para este cliente'
+            })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+
+@login_required
+@requiere_empresa
+def articulo_precio_api(request, pk):
+    """API para obtener el precio de un artículo"""
+    from articulos.models import Articulo
+    from django.http import JsonResponse
+    
+    try:
+        articulo = Articulo.objects.get(pk=pk, empresa=request.empresa)
+        return JsonResponse({
+            'success': True,
+            'precio_venta': float(articulo.precio_venta),
+            'nombre': articulo.nombre,
+            'codigo': articulo.codigo
+        })
+    except Articulo.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Artículo no encontrado'})

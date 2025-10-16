@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+{% load static %}
+{% load format_filters %}
+
+{% block title %}Kardex de Artículo - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* Fondo terroso suave */
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+    
+    /* Select2 personalizado */
+    .select2-container--default .select2-selection--single {
+        border: 1px solid #E0E0E0 !important;
+        border-radius: 8px !important;
+        height: 32px !important;
+        padding: 2px 8px !important;
+        background-color: #FAFAFA !important;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 28px !important;
+        font-size: 0.75rem !important;
+        color: #6F5B44 !important;
+        padding-left: 4px !important;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 30px !important;
+    }
+    
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #8B7355 !important;
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.15) !important;
+    }
+    
+    .select2-dropdown {
+        border: 1px solid #E0E0E0 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+    
+    .select2-search--dropdown .select2-search__field {
+        border: 1px solid #E0E0E0 !important;
+        border-radius: 6px !important;
+        padding: 6px 12px !important;
+        font-size: 0.75rem !important;
+    }
+    
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #8B7355 !important;
+        outline: none !important;
+    }
+    
+    .select2-results__option {
+        font-size: 0.75rem !important;
+        padding: 8px 12px !important;
+        border-bottom: 1px solid #F5F5F5 !important;
+    }
+    
+    .select2-results__option--highlighted {
+        background-color: #F5F1E8 !important;
+        color: #6F5B44 !important;
+    }
+    
+    .select2-results__option--selected {
+        background-color: #8B7355 !important;
+        color: white !important;
+    }
+    
+    /* Tabla compacta terrosa */
+    .kardex-table {
+        font-size: 0.75rem;
+        background: white;
+    }
+    
+    .kardex-table thead {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .kardex-table thead th {
+        padding: 8px 6px;
+        font-weight: 600;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: none;
+    }
+    
+    .kardex-table tbody td {
+        padding: 6px;
+        border-bottom: 1px solid #F5F1E8;
+        vertical-align: middle;
+    }
+    
+    .kardex-table tbody tr:hover {
+        background: #FFF9F0;
+    }
+    
+    /* Colores por tipo de movimiento */
+    .tipo-entrada {
+        background: linear-gradient(90deg, #D4EDDA 0%, transparent 100%);
+        border-left: 3px solid #28A745;
+    }
+    
+    .tipo-salida {
+        background: linear-gradient(90deg, #F8D7DA 0%, transparent 100%);
+        border-left: 3px solid #DC3545;
+    }
+    
+    .tipo-ajuste {
+        background: linear-gradient(90deg, #FFF3CD 0%, transparent 100%);
+        border-left: 3px solid #FFC107;
+    }
+    
+    .tipo-transferencia {
+        background: linear-gradient(90deg, #D1ECF1 0%, transparent 100%);
+        border-left: 3px solid #17A2B8;
+    }
+    
+    /* Badges compactos */
+    .badge-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    
+    /* Números */
+    .num-entrada {
+        color: #28A745;
+        font-weight: 700;
+    }
+    
+    .num-salida {
+        color: #DC3545;
+        font-weight: 700;
+    }
+    
+    .num-saldo {
+        color: #6F5B44;
+        font-weight: 700;
+        background: #F5F1E8;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    
+    /* Filtros compactos */
+    .filter-section {
+        background: white;
+        border: 2px solid #E8DCC8;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(111, 91, 68, 0.1);
+    }
+    
+    .form-select-sm, .form-control-sm {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-color: #D4C4A8;
+    }
+    
+    .form-select-sm:focus, .form-control-sm:focus {
+        border-color: #8B7355;
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+    }
+    
+    /* Header compacto */
+    .card-header-terroso {
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        border-bottom: 2px solid #D4C4A8;
+        padding: 10px 15px;
+    }
+    
+    /* Botones terrosos */
+    .btn-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        font-size: 0.75rem;
+        padding: 6px 12px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-terroso:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(111, 91, 68, 0.3);
+        color: white;
+    }
+    
+    /* Resumen compacto */
+    .resumen-box {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        padding: 12px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(111, 91, 68, 0.3);
+    }
+    
+    .resumen-box h4 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    
+    .resumen-box small {
+        font-size: 0.7rem;
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                
+                <!-- HEADER -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-bottom: 3px solid #D4C4A8; padding: 15px 20px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-clipboard-list me-3" style="font-size: 1.8rem; color: #F5F1E8;"></i>
+                            <div>
+                                <h5 class="mb-1" style="font-size: 1.3rem; font-weight: 600; color: white;">
+                                    Kardex de Artículo
+                                    {% if tiene_sucursal %}
+                                    <span class="badge" style="background: rgba(245, 241, 232, 0.2); font-size: 0.75rem; margin-left: 10px;">{{ sucursal_nombre }}</span>
+                                    {% endif %}
+                                </h5>
+                                <small style="font-size: 0.85rem; color: #F5F1E8; font-weight: 500;">
+                                    Cartola de movimientos - Entradas, Salidas, Transferencias y Ajustes
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            {% if articulo %}
+                            <button onclick="window.print()" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: white; font-size: 0.75rem;">
+                                <i class="fas fa-print me-1"></i>Imprimir
+                            </button>
+                            <button onclick="exportarExcel()" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: white; font-size: 0.75rem;">
+                                <i class="fas fa-file-excel me-1"></i>Exportar
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'inventario:inventario_list' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                                <i class="fas fa-arrow-left me-1"></i>Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="background: #FAFAF8; padding: 15px;">
+                    
+                    <!-- FILTROS -->
+                    <div class="filter-section">
+                        <form method="get">
+                            <div class="row g-2">
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-size: 0.7rem; font-weight: 600; color: #6F5B44; margin-bottom: 4px;">
+                                        <i class="fas fa-box me-1"></i>Artículo
+                                    </label>
+                                    <select name="articulo" id="select-articulo" class="form-select form-select-sm" required style="width: 100%;">
+                                        <option value=""></option>
+                                        {% for art in articulos %}
+                                        <option value="{{ art.id }}" 
+                                                data-codigo="{{ art.codigo }}" 
+                                                data-nombre="{{ art.nombre }}"
+                                                data-barras="{{ art.codigo_barras|default:'' }}"
+                                                {% if articulo and articulo.id == art.id %}selected{% endif %}>
+                                            {{ art.nombre }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-size: 0.7rem; font-weight: 600; color: #6F5B44; margin-bottom: 4px;">
+                                        <i class="fas fa-warehouse me-1"></i>Bodega
+                                    </label>
+                                    <select name="bodega" class="form-select form-select-sm">
+                                        <option value="">Todas las bodegas</option>
+                                        {% for bod in bodegas %}
+                                        <option value="{{ bod.id }}" {% if bodega and bodega.id == bod.id %}selected{% endif %}>
+                                            {{ bod.nombre }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-size: 0.7rem; font-weight: 600; color: #6F5B44; margin-bottom: 4px;">
+                                        <i class="fas fa-calendar me-1"></i>Desde
+                                    </label>
+                                    <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-size: 0.7rem; font-weight: 600; color: #6F5B44; margin-bottom: 4px;">
+                                        <i class="fas fa-calendar me-1"></i>Hasta
+                                    </label>
+                                    <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end gap-2">
+                                    <button type="submit" class="btn flex-grow-1" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; font-weight: 600; font-size: 0.75rem; padding: 6px 12px; border-radius: 6px;">
+                                        <i class="fas fa-search me-1"></i>Consultar
+                                    </button>
+                                    <a href="{% url 'inventario:kardex_articulo' %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    {% if articulo %}
+                    <!-- RESUMEN -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body p-2">
+                                    <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">ARTÍCULO</div>
+                                    <div style="font-size: 1.1rem; color: #8B7355; font-weight: 700;">{{ articulo.codigo }}</div>
+                                    <div style="font-size: 0.75rem; color: #6F5B44;">{{ articulo.nombre|truncatewords:5 }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body p-2">
+                                    <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">BODEGA</div>
+                                    <div style="font-size: 1.1rem; color: #8B7355; font-weight: 700;">{{ bodega.nombre|default:"Todas" }}</div>
+                                    <div style="font-size: 0.7rem; color: #8B7355;">{{ fecha_desde }} - {{ fecha_hasta }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card h-100" style="border: 2px solid #8B7355; border-radius: 8px; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
+                                <div class="card-body p-2 text-center">
+                                    <div style="font-size: 0.7rem; color: #F5F1E8; font-weight: 600;">SALDO ACTUAL</div>
+                                    <div style="font-size: 1.8rem; color: white; font-weight: 700;">{{ saldo_actual|format_miles }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% if stock_actual %}
+                        <div class="col-md-3">
+                            <div class="card h-100" style="border: 1px solid #28A745; border-radius: 8px; background: linear-gradient(135deg, #D4EDDA 0%, #C3E6CB 100%);">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: #155724; font-weight: 600;">STOCK EN SISTEMA</div>
+                                            <div style="font-size: 1.3rem; color: #28A745; font-weight: 700;">{{ stock_actual.cantidad|format_miles }}</div>
+                                            <div style="font-size: 0.65rem; color: #155724;">{{ stock_actual.bodega.nombre }}</div>
+                                        </div>
+                                        <i class="fas fa-check-circle" style="font-size: 2rem; color: rgba(40, 167, 69, 0.3);"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- TABLA DE MOVIMIENTOS -->
+                    <div class="table-responsive" style="max-height: 600px; overflow-y: auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-sm kardex-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 8%;">Fecha</th>
+                                    <th style="width: 10%;">Tipo</th>
+                                    <th style="width: 10%;">Documento</th>
+                                    <th style="width: 20%;">Detalle</th>
+                                    <th style="width: 12%;">Origen</th>
+                                    <th style="width: 12%;">Destino</th>
+                                    <th style="width: 8%;" class="text-end">Entrada</th>
+                                    <th style="width: 8%;" class="text-end">Salida</th>
+                                    <th style="width: 8%;" class="text-end">Saldo</th>
+                                    <th style="width: 4%;">Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mov in movimientos %}
+                                <tr class="tipo-{{ mov.tipo_codigo }}">
+                                    <td style="font-size: 0.7rem;">{{ mov.fecha|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <span class="badge" style="font-size: 0.65rem; 
+                                            {% if mov.tipo_codigo == 'entrada' %}background: #28A745;
+                                            {% elif mov.tipo_codigo == 'salida' %}background: #DC3545;
+                                            {% elif mov.tipo_codigo == 'ajuste' %}background: #FFC107; color: #000;
+                                            {% elif mov.tipo_codigo == 'transferencia' %}background: #17A2B8;
+                                            {% endif %}">
+                                            {{ mov.tipo }}
+                                        </span>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">{{ mov.documento }}</td>
+                                    <td style="font-size: 0.7rem;">{{ mov.detalle|truncatewords:5 }}</td>
+                                    <td style="font-size: 0.7rem;">{{ mov.bodega_origen }}</td>
+                                    <td style="font-size: 0.7rem;">{{ mov.bodega_destino }}</td>
+                                    <td class="text-end">
+                                        {% if mov.entrada > 0 %}
+                                        <span class="num-entrada">+{{ mov.entrada|format_miles }}</span>
+                                        {% else %}
+                                        <span style="color: #ccc;">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if mov.salida > 0 %}
+                                        <span class="num-salida">-{{ mov.salida|format_miles }}</span>
+                                        {% else %}
+                                        <span style="color: #ccc;">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="num-saldo">{{ mov.saldo|format_miles }}</span>
+                                    </td>
+                                    <td style="font-size: 0.65rem;">{{ mov.usuario }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center py-4">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.8rem; margin: 0;">No hay movimientos en el período seleccionado</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% else %}
+                    <!-- MENSAJE INICIAL -->
+                    <div class="text-center py-5">
+                        <i class="fas fa-search fa-3x mb-3" style="color: #D4A574;"></i>
+                        <h5 style="color: #6F5B44;">Seleccione un artículo para ver su Kardex</h5>
+                        <p style="color: #8B7355; font-size: 0.9rem;">El Kardex muestra todos los movimientos de entrada, salida, transferencias y ajustes</p>
+                    </div>
+                    {% endif %}
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+// Inicializar Select2 para búsqueda avanzada
+$(document).ready(function() {
+    $('#select-articulo').select2({
+        placeholder: 'Buscar por código, nombre o código de barras...',
+        allowClear: true,
+        language: {
+            noResults: function() {
+                return "No se encontraron resultados";
+            },
+            searching: function() {
+                return "Buscando...";
+            }
+        },
+        matcher: function(params, data) {
+            // Si no hay término de búsqueda, mostrar todo
+            if ($.trim(params.term) === '') {
+                return data;
+            }
+            
+            // No mostrar la opción vacía en resultados
+            if (!data.id) {
+                return null;
+            }
+            
+            // Obtener datos del option
+            var codigo = $(data.element).data('codigo') || '';
+            var nombre = $(data.element).data('nombre') || '';
+            var barras = $(data.element).data('barras') || '';
+            
+            // Buscar en código, nombre y código de barras
+            var searchTerm = params.term.toLowerCase();
+            if (codigo.toString().toLowerCase().indexOf(searchTerm) > -1 ||
+                nombre.toLowerCase().indexOf(searchTerm) > -1 ||
+                barras.toString().toLowerCase().indexOf(searchTerm) > -1) {
+                return data;
+            }
+            
+            return null;
+        }
+    });
+});
+
+function exportarExcel() {
+    {% if articulo %}
+    // Crear tabla para exportar
+    let tabla = '<table border="1">';
+    tabla += '<tr><th colspan="10" style="background: #8B7355; color: white; padding: 10px;">KARDEX DE ARTÍCULO</th></tr>';
+    tabla += '<tr><th colspan="10">Artículo: {{ articulo.codigo }} - {{ articulo.nombre }}</th></tr>';
+    tabla += '<tr><th colspan="10">Bodega: {{ bodega.nombre|default:"Todas las bodegas" }}</th></tr>';
+    tabla += '<tr><th colspan="10">Período: {{ fecha_desde }} al {{ fecha_hasta }}</th></tr>';
+    tabla += '<tr><th colspan="10">Saldo Actual: {{ saldo_actual|format_miles }}</th></tr>';
+    tabla += '<tr><th>Fecha</th><th>Tipo</th><th>Documento</th><th>Detalle</th><th>Origen</th><th>Destino</th><th>Entrada</th><th>Salida</th><th>Saldo</th><th>Usuario</th></tr>';
+    
+    {% for mov in movimientos %}
+    tabla += '<tr>';
+    tabla += '<td>{{ mov.fecha|date:"d/m/Y H:i" }}</td>';
+    tabla += '<td>{{ mov.tipo }}</td>';
+    tabla += '<td>{{ mov.documento }}</td>';
+    tabla += '<td>{{ mov.detalle }}</td>';
+    tabla += '<td>{{ mov.bodega_origen }}</td>';
+    tabla += '<td>{{ mov.bodega_destino }}</td>';
+    tabla += '<td>{% if mov.entrada > 0 %}{{ mov.entrada|format_miles }}{% else %}-{% endif %}</td>';
+    tabla += '<td>{% if mov.salida > 0 %}{{ mov.salida|format_miles }}{% else %}-{% endif %}</td>';
+    tabla += '<td>{{ mov.saldo|format_miles }}</td>';
+    tabla += '<td>{{ mov.usuario }}</td>';
+    tabla += '</tr>';
+    {% endfor %}
+    
+    tabla += '</table>';
+    
+    // Crear blob y descargar
+    const blob = new Blob([tabla], { type: 'application/vnd.ms-excel' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'kardex_{{ articulo.codigo }}_{{ fecha_desde }}_{{ fecha_hasta }}.xls';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    {% else %}
+    alert('Seleccione un artículo primero');
+    {% endif %}
+}
+
+// Estilos de impresión
+const style = document.createElement('style');
+style.textContent = `
+    @media print {
+        .filter-section, .btn, .nav-sidebar, .top-bar { display: none !important; }
+        .card { border: 1px solid #000 !important; box-shadow: none !important; }
+        .kardex-table { font-size: 10px !important; }
+        body { background: white !important; }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

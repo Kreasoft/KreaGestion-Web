@@ -1,82 +1,120 @@
-<div class="modal-header" style="background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%); border: none;">
-    <h5 class="modal-title text-white">
-        <i class="fas fa-edit me-2"></i>{{ titulo }}
-    </h5>
-    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-edit fa-2x text-white me-3"></i>
+        <div>
+            <h5 class="mb-0 text-white">Editar Ajuste de Stock</h5>
+            <small class="text-white-50">Modifique los datos del ajuste</small>
+        </div>
+    </div>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
 </div>
 
-<div class="modal-body" style="padding: 20px;">
-    <form id="editAjusteForm" method="POST">
+<div class="modal-body">
+    <form method="post" id="ajusteForm">
         {% csrf_token %}
+        <input type="hidden" name="detalles_data" id="detalles_data">
         
-        <!-- Información del Ajuste -->
-        <div class="row mb-4">
-            <div class="col-md-4">
+        <!-- Datos del Ajuste -->
+        <div class="row">
+            <div class="col-md-6">
                 <div class="mb-3">
-                    <label class="form-label fw-bold text-dark">Fecha del Ajuste</label>
-                    <input type="date" class="form-control" value="{{ ajuste.fecha_movimiento|date:'Y-m-d' }}" readonly>
+                    <label class="form-label">Tipo de Ajuste <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <div class="input-group-text" style="background-color: #f8f9fa;">
+                            <i class="fas fa-exchange-alt" style="color: #6c757d;"></i>
+                        </div>
+                        <select name="tipo_ajuste" id="tipo_ajuste" class="form-select" required style="border-left: none;">
+                            <option value="ENTRADA" {% if ajuste.cantidad > 0 %}selected{% endif %}>Entrada</option>
+                            <option value="SALIDA" {% if ajuste.cantidad < 0 %}selected{% endif %}>Salida</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <div class="mb-3">
-                    <label class="form-label fw-bold text-dark">Bodega</label>
-                    <div class="form-control-plaintext">{{ ajuste.bodega_destino.nombre }}</div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <label class="form-label fw-bold text-dark">Usuario</label>
-                    <div class="form-control-plaintext">{{ ajuste.creado_por.username }}</div>
+                    <label class="form-label">Fecha del Ajuste <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <div class="input-group-text" style="background-color: #f8f9fa;">
+                            <i class="fas fa-calendar" style="color: #6c757d;"></i>
+                        </div>
+                        <input type="date" name="fecha_ajuste" class="form-control" required value="{{ ajuste.fecha_movimiento|date:'Y-m-d' }}" style="border-left: none;">
+                    </div>
                 </div>
             </div>
         </div>
         
-        <!-- Artículos del Ajuste -->
-        <div class="mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-list me-2 text-primary"></i>
-                    <span class="fw-bold text-dark">Artículos del Ajuste</span>
-                    <span class="badge bg-primary ms-2" id="contadorArticulosEdit">1</span>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Bodega <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <div class="input-group-text" style="background-color: #f8f9fa;">
+                            <i class="fas fa-warehouse" style="color: #6c757d;"></i>
+                        </div>
+                        <select name="bodega" id="bodega" class="form-select" required style="border-left: none;">
+                            {% for bodega in bodegas %}
+                                <option value="{{ bodega.id }}" {% if bodega.id == ajuste.bodega_destino.id %}selected{% endif %}>{{ bodega.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarArticuloEdit()">
-                    <i class="fas fa-plus me-1"></i>Agregar Artículo
-                </button>
             </div>
-            
-            <div id="articulosContainerEdit">
-                <!-- Artículo actual -->
-                <div class="articulo-item border rounded p-3 mb-2 bg-light" id="articulo-0">
-                    <div class="row align-items-end">
-                        <div class="col-md-5">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Descripción <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <div class="input-group-text" style="background-color: #f8f9fa;">
+                            <i class="fas fa-comment" style="color: #6c757d;"></i>
+                        </div>
+                        <input type="text" name="descripcion" class="form-control" required value="{{ ajuste.descripcion }}" style="border-left: none;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- UNA SOLA TARJETA para todos los artículos -->
+        <div class="card mt-3" style="border: 1px solid #E8DCC8;">
+            <div class="card-header" style="background: #F5F1E8; padding: 10px;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span style="font-weight: 600; color: #6F5B44; font-size: 0.85rem;">
+                        <i class="fas fa-list me-2"></i>Artículos del Ajuste
+                        <span class="badge ms-2" id="contadorArticulos" style="background: #8B7355; font-size: 0.65rem;">1</span>
+                    </span>
+                    <button type="button" class="btn btn-sm btn-agregar" style="background: #8B7355; color: white; font-size: 0.7rem; padding: 4px 10px;">
+                        <i class="fas fa-plus me-1"></i>Agregar
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" style="padding: 10px;">
+                <!-- Header de columnas -->
+                <div class="row mb-1" style="font-size: 0.7rem; font-weight: 600; color: #6F5B44;">
+                    <div class="col-5">Artículo</div>
+                    <div class="col-3">Cantidad</div>
+                    <div class="col-3">Comentario</div>
+                    <div class="col-1"></div>
+                </div>
+                
+                <div id="detallesContainer">
+                    <!-- Item existente -->
+                    <div class="row mb-2 align-items-center detalle-item" id="detalle-1">
+                        <div class="col-5">
+                            <select class="form-select form-select-sm articulo-select" name="detalles-1-articulo" required style="font-size: 0.75rem;">
+                                <option value="{{ ajuste.articulo.id }}" selected>{{ ajuste.articulo.codigo }} - {{ ajuste.articulo.nombre }}</option>
+                            </select>
+                        </div>
+                        <div class="col-3">
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text">
-                                    <i class="fas fa-box"></i>
-                                </span>
-                                <select class="form-control" name="articulos-0-articulo" required>
-                                    <option value="{{ ajuste.articulo.id }}" selected>
-                                        {{ ajuste.articulo.codigo }} - {{ ajuste.articulo.nombre }}
-                                    </option>
-                                </select>
+                                <span class="input-group-text" style="font-weight: bold; {% if ajuste.cantidad > 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %} font-size: 0.75rem;">{% if ajuste.cantidad > 0 %}+{% else %}-{% endif %}</span>
+                                <input type="number" class="form-control" name="detalles-1-cantidad" 
+                                       value="{% if ajuste.cantidad > 0 %}{{ ajuste.cantidad|floatformat:0 }}{% else %}{{ ajuste.cantidad|floatformat:0|slice:'1:' }}{% endif %}"
+                                       step="0.01" min="0.01" required style="font-size: 0.75rem;">
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text">
-                                    <i class="fas fa-calculator"></i>
-                                </span>
-                                <input type="number" class="form-control" name="cantidad" 
-                                       value="{{ ajuste.cantidad|floatformat:0 }}" 
-                                       step="0.01" min="0.01" required>
-                            </div>
+                        <div class="col-3">
+                            <input type="text" class="form-control form-control-sm" name="detalles-1-comentario" placeholder="Opcional" style="font-size: 0.75rem;">
                         </div>
-                        <div class="col-md-3">
-                            <input type="text" class="form-control form-control-sm" name="articulos-0-comentario" 
-                                   placeholder="Comentario opcional">
-                        </div>
-                        <div class="col-md-1">
-                            <button type="button" class="btn btn-outline-danger btn-sm w-100" 
-                                    onclick="eliminarArticuloEdit(0)" title="Eliminar">
+                        <div class="col-1">
+                            <button type="button" class="btn btn-danger btn-sm w-100 btn-eliminar" data-id="1" style="padding: 4px; font-size: 0.7rem;">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -84,150 +122,139 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Descripción -->
-        <div class="mb-3">
-            <label class="form-label fw-bold text-dark">Descripción del Ajuste</label>
-            <textarea class="form-control" name="descripcion" rows="3" required>{{ ajuste.descripcion }}</textarea>
-        </div>
     </form>
 </div>
 
-<div class="modal-footer" style="border: none; padding: 15px 20px;">
+<div class="modal-footer">
     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-        <i class="fas fa-times me-1"></i>Cancelar
+        <i class="fas fa-times me-2"></i>Cancelar
     </button>
-    <button type="button" class="btn btn-warning" onclick="guardarEdicion({{ ajuste.id }})">
-        <i class="fas fa-save me-1"></i>Guardar Cambios
+    <button type="button" class="btn btn-guardar" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
+        <i class="fas fa-save me-2"></i>Guardar Cambios
     </button>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-let articuloCount = 0;
-
-function agregarArticuloEdit() {
-    articuloCount++;
-    const container = document.getElementById('articulosContainerEdit');
+(function() {
+    let detalleCount = 1;
+    let articulos = [];
     
-    const articuloHtml = `
-        <div class="articulo-item border rounded p-3 mb-2 bg-light" id="articulo-${articuloCount}">
-            <div class="row align-items-end">
-                <div class="col-md-5">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text">
-                            <i class="fas fa-box"></i>
-                        </span>
-                        <select class="form-control" name="articulos-${articuloCount}-articulo" required>
-                            <option value="">Seleccionar artículo...</option>
+    // Cargar artículos
+    setTimeout(function() {
+        const bodegaId = document.getElementById('bodega').value;
+        if (bodegaId) {
+            fetch('/inventario/api/articulos-ajuste/?bodega_id=' + bodegaId)
+                .then(r => r.json())
+                .then(data => {
+                    articulos = data.articulos || [];
+                    console.log('Artículos cargados:', articulos.length);
+                    actualizarSelects();
+                });
+        }
+    }, 200);
+    
+    function actualizarSelects() {
+        document.querySelectorAll('.articulo-select').forEach(select => {
+            const valorActual = select.value;
+            const primeraOpcion = select.querySelector('option');
+            select.innerHTML = '';
+            if (primeraOpcion) select.appendChild(primeraOpcion);
+            
+            articulos.forEach(art => {
+                const opt = document.createElement('option');
+                opt.value = art.id;
+                opt.textContent = art.codigo + ' - ' + art.nombre;
+                select.appendChild(opt);
+            });
+            
+            if (valorActual) select.value = valorActual;
+        });
+    }
+    
+    // Event delegation
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-agregar')) {
+            detalleCount++;
+            const html = `
+                <div class="row mb-2 align-items-center detalle-item" id="detalle-${detalleCount}">
+                    <div class="col-5">
+                        <select class="form-select form-select-sm articulo-select" name="detalles-${detalleCount}-articulo" required style="font-size: 0.75rem;">
+                            <option value="">Seleccionar...</option>
                         </select>
                     </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text">
-                            <i class="fas fa-calculator"></i>
-                        </span>
-                        <input type="number" class="form-control" name="articulos-${articuloCount}-cantidad" 
-                               step="0.01" min="0.01" required>
+                    <div class="col-3">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text" style="font-weight: bold; color: #28a745; font-size: 0.75rem;">+</span>
+                            <input type="number" class="form-control" name="detalles-${detalleCount}-cantidad" step="0.01" min="0.01" required style="font-size: 0.75rem;">
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <input type="text" class="form-control form-control-sm" name="detalles-${detalleCount}-comentario" placeholder="Opcional" style="font-size: 0.75rem;">
+                    </div>
+                    <div class="col-1">
+                        <button type="button" class="btn btn-danger btn-sm w-100 btn-eliminar" data-id="${detalleCount}" style="padding: 4px; font-size: 0.7rem;">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <input type="text" class="form-control form-control-sm" name="articulos-${articuloCount}-comentario" 
-                           placeholder="Comentario opcional">
-                </div>
-                <div class="col-md-1">
-                    <button type="button" class="btn btn-outline-danger btn-sm w-100" 
-                            onclick="eliminarArticuloEdit(${articuloCount})" title="Eliminar">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    container.insertAdjacentHTML('beforeend', articuloHtml);
-    actualizarContadorArticulosEdit();
-}
-
-function eliminarArticuloEdit(id) {
-    const articulo = document.getElementById(`articulo-${id}`);
-    if (articulo) {
-        articulo.remove();
-        actualizarContadorArticulosEdit();
-    }
-}
-
-function actualizarContadorArticulosEdit() {
-    const articulos = document.querySelectorAll('.articulo-item');
-    const contador = document.getElementById('contadorArticulosEdit');
-    if (contador) {
-        contador.textContent = articulos.length;
-    }
-}
-
-function guardarEdicion(ajusteId) {
-    const form = document.getElementById('editAjusteForm');
-    const formData = new FormData(form);
-    
-    // Debug: mostrar datos que se van a enviar
-    console.log('DEBUG - Datos del formulario:');
-    for (let [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
-    }
-    
-    // Mostrar loading
-    Swal.fire({
-        title: 'Guardando...',
-        text: 'Actualizando ajuste',
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        didOpen: () => {
-            Swal.showLoading();
+            `;
+            document.getElementById('detallesContainer').insertAdjacentHTML('beforeend', html);
+            actualizarSelects();
+            document.getElementById('contadorArticulos').textContent = document.querySelectorAll('.detalle-item').length;
+        }
+        
+        if (e.target.closest('.btn-eliminar')) {
+            const id = e.target.closest('.btn-eliminar').dataset.id;
+            document.getElementById('detalle-' + id).remove();
+            document.getElementById('contadorArticulos').textContent = document.querySelectorAll('.detalle-item').length;
+        }
+        
+        if (e.target.closest('.btn-guardar')) {
+            const detalles = [];
+            document.querySelectorAll('.detalle-item').forEach(item => {
+                const art = item.querySelector('.articulo-select').value;
+                const cant = item.querySelector('input[name*="cantidad"]').value;
+                const com = item.querySelector('input[name*="comentario"]').value;
+                if (art && cant) {
+                    detalles.push({ articulo_id: art, cantidad: parseFloat(cant), comentario: com });
+                }
+            });
+            
+            if (detalles.length === 0) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Debe agregar al menos un artículo' });
+                return;
+            }
+            
+            document.getElementById('detalles_data').value = JSON.stringify(detalles);
+            
+            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } });
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: new FormData(document.getElementById('ajusteForm'))
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({ icon: 'success', title: '¡Éxito!', text: data.message }).then(() => {
+                        bootstrap.Modal.getInstance(document.querySelector('.modal')).hide();
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+                }
+            });
         }
     });
     
-    fetch(`/inventario/ajustes/${ajusteId}/editar/`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            Swal.fire({
-                icon: 'success',
-                title: '¡Éxito!',
-                text: data.message,
-                confirmButtonText: 'Continuar'
-            }).then(() => {
-                // Cerrar modal y recargar página
-                bootstrap.Modal.getInstance(document.querySelector('.modal')).hide();
-                window.location.reload();
+    document.getElementById('bodega').addEventListener('change', function() {
+        fetch('/inventario/api/articulos-ajuste/?bodega_id=' + this.value)
+            .then(r => r.json())
+            .then(data => {
+                articulos = data.articulos || [];
+                actualizarSelects();
             });
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: data.message,
-                confirmButtonText: 'Entendido'
-            });
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Error de conexión. Intente nuevamente.',
-            confirmButtonText: 'Entendido'
-        });
     });
-}
+})();
 </script>
