@@ -22,6 +22,9 @@
                             </div>
                         </div>
                         <div class="btn-group">
+                            <a href="{% url 'articulos:homologacion_list' articulo.pk %}" class="btn btn-outline-light" title="Homologación de Códigos">
+                                <i class="fas fa-code-branch"></i> Homologación
+                            </a>
                             <a href="{% url 'articulos:articulo_update' articulo.pk %}" class="btn btn-outline-light">
                                 <i class="fas fa-edit"></i> Editar
                             </a>
@@ -31,122 +34,174 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="row">
+                <div class="card-body" style="background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%); padding: 0.75rem;">
+                    <!-- Información Básica y Precios -->
+                    <div class="row g-2">
+                        <!-- Información Básica -->
                         <div class="col-md-6">
-                            <h5>Información Básica</h5>
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td><strong>Código:</strong></td>
-                                    <td>{{ articulo.codigo }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Nombre:</strong></td>
-                                    <td>{{ articulo.nombre }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Categoría:</strong></td>
-                                    <td><span class="badge bg-info">{{ articulo.categoria.nombre }}</span></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Unidad:</strong></td>
-                                    <td>{{ articulo.unidad_medida.nombre }} ({{ articulo.unidad_medida.simbolo }})</td>
-                                </tr>
-                                {% if articulo.descripcion %}
-                                <tr>
-                                    <td><strong>Descripción:</strong></td>
-                                    <td>{{ articulo.descripcion }}</td>
-                                </tr>
-                                {% endif %}
-                            </table>
+                            <div class="card h-100" style="border: none; border-radius: 8px; box-shadow: 0 1px 4px rgba(139, 115, 85, 0.1);">
+                                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-radius: 8px 8px 0 0; padding: 8px 12px;">
+                                    <h6 class="mb-0" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">
+                                        <i class="fas fa-info-circle me-1"></i>Información Básica
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 12px;">
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Código</small>
+                                        <strong style="color: #6F5B44; font-size: 0.95rem;">{{ articulo.codigo }}</strong>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Nombre</small>
+                                        <strong style="color: #6F5B44; font-size: 0.9rem;">{{ articulo.nombre }}</strong>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Categoría</small>
+                                        <span class="badge" style="background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%); font-size: 0.75rem;">
+                                            <i class="fas fa-tag me-1"></i>{{ articulo.categoria.nombre }}
+                                        </span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Unidad</small>
+                                        <span style="color: #6F5B44; font-size: 0.85rem;">{{ articulo.unidad_medida.nombre }} ({{ articulo.unidad_medida.simbolo }})</span>
+                                    </div>
+                                    {% if articulo.descripcion %}
+                                    <div>
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Descripción</small>
+                                        <p style="color: #6F5B44; margin: 0; font-size: 0.85rem;">{{ articulo.descripcion }}</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- Precios -->
                         <div class="col-md-6">
-                            <h5>Precios</h5>
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td><strong>Precio Costo:</strong></td>
-                                    <td class="text-success fw-bold" id="precio-costo">${{ articulo.precio_costo|format_price }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Precio Venta:</strong></td>
-                                    <td class="text-primary fw-bold" id="precio-venta">${{ articulo.precio_venta|format_price }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Precio Final:</strong></td>
-                                    <td class="text-danger fw-bold fs-5" id="precio-final">${{ articulo.precio_final|format_price }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Margen:</strong></td>
-                                    <td><span class="badge bg-warning" id="margen-porcentaje">{{ articulo.margen_porcentaje }}%</span></td>
-                                </tr>
-                            </table>
+                            <div class="card h-100" style="border: none; border-radius: 8px; box-shadow: 0 1px 4px rgba(139, 115, 85, 0.1);">
+                                <div class="card-header" style="background: linear-gradient(135deg, #D4A574 0%, #C19461 100%); border: none; border-radius: 8px 8px 0 0; padding: 8px 12px;">
+                                    <h6 class="mb-0 text-white" style="font-weight: 600; font-size: 0.85rem;">
+                                        <i class="fas fa-dollar-sign me-1"></i>Precios
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 12px;">
+                                    <div class="mb-2 p-2" style="background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%); border-radius: 6px;">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Precio Costo</small>
+                                        <strong style="color: #8B7355; font-size: 1rem;">${{ articulo.precio_costo|format_price }}</strong>
+                                    </div>
+                                    <div class="mb-2 p-2" style="background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%); border-radius: 6px;">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Precio Venta</small>
+                                        <strong style="color: #8B7355; font-size: 1rem;">${{ articulo.precio_venta|format_price }}</strong>
+                                    </div>
+                                    <div class="mb-2 p-2" style="background: linear-gradient(135deg, #D4A574 0%, #C19461 100%); border-radius: 6px;">
+                                        <small class="text-white d-block" style="font-size: 0.7rem;">Precio Final</small>
+                                        <strong class="text-white" style="font-size: 1.1rem;">${{ articulo.precio_final|format_price }}</strong>
+                                    </div>
+                                    <div class="text-center">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Margen</small>
+                                        <span class="badge" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); font-size: 0.85rem; padding: 4px 12px;">
+                                            {{ articulo.margen_porcentaje }}%
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="row mt-4">
+
+                    <!-- Control de Stock y Estado -->
+                    <div class="row g-2 mt-1">
+                        <!-- Control de Stock -->
                         <div class="col-md-6">
-                            <h5>Control de Stock</h5>
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td><strong>Control de Stock:</strong></td>
-                                    <td>
+                            <div class="card" style="border: none; border-radius: 8px; box-shadow: 0 1px 4px rgba(139, 115, 85, 0.1);">
+                                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-radius: 8px 8px 0 0; padding: 8px 12px;">
+                                    <h6 class="mb-0" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">
+                                        <i class="fas fa-boxes me-1"></i>Control de Stock
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 12px;">
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Control de Stock</small>
                                         {% if articulo.control_stock %}
-                                            <span class="badge bg-success">Sí</span>
+                                            <span class="badge bg-success" style="font-size: 0.75rem;">
+                                                <i class="fas fa-check-circle me-1"></i>Activado
+                                            </span>
                                         {% else %}
-                                            <span class="badge bg-secondary">No</span>
+                                            <span class="badge bg-secondary" style="font-size: 0.75rem;">
+                                                <i class="fas fa-times-circle me-1"></i>Desactivado
+                                            </span>
                                         {% endif %}
-                                    </td>
-                                </tr>
-                                {% if articulo.control_stock %}
-                                <tr>
-                                    <td><strong>Stock Mínimo:</strong></td>
-                                    <td>{{ articulo.stock_minimo }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Stock Máximo:</strong></td>
-                                    <td>{{ articulo.stock_maximo }}</td>
-                                </tr>
-                                {% endif %}
-                            </table>
+                                    </div>
+                                    {% if articulo.control_stock %}
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted d-block" style="font-size: 0.7rem;">Stock Mínimo</small>
+                                            <strong style="color: #6F5B44; font-size: 0.95rem;">{{ articulo.stock_minimo }}</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block" style="font-size: 0.7rem;">Stock Máximo</small>
+                                            <strong style="color: #6F5B44; font-size: 0.95rem;">{{ articulo.stock_maximo }}</strong>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- Estado -->
                         <div class="col-md-6">
-                            <h5>Estado</h5>
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td><strong>Estado:</strong></td>
-                                    <td>
+                            <div class="card" style="border: none; border-radius: 8px; box-shadow: 0 1px 4px rgba(139, 115, 85, 0.1);">
+                                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-radius: 8px 8px 0 0; padding: 8px 12px;">
+                                    <h6 class="mb-0" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">
+                                        <i class="fas fa-info me-1"></i>Estado y Fechas
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 12px;">
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Estado</small>
                                         {% if articulo.activo %}
-                                            <span class="badge bg-success">Activo</span>
+                                            <span class="badge bg-success" style="font-size: 0.75rem;">
+                                                <i class="fas fa-check-circle me-1"></i>Activo
+                                            </span>
                                         {% else %}
-                                            <span class="badge bg-danger">Inactivo</span>
+                                            <span class="badge bg-danger" style="font-size: 0.75rem;">
+                                                <i class="fas fa-times-circle me-1"></i>Inactivo
+                                            </span>
                                         {% endif %}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Creado:</strong></td>
-                                    <td>{{ articulo.fecha_creacion|date:"d/m/Y H:i" }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Actualizado:</strong></td>
-                                    <td>{{ articulo.fecha_actualizacion|date:"d/m/Y H:i" }}</td>
-                                </tr>
-                            </table>
+                                    </div>
+                                    <div class="mb-1">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">
+                                            <i class="fas fa-calendar-plus me-1"></i>Creado
+                                        </small>
+                                        <span style="color: #6F5B44; font-size: 0.8rem;">{{ articulo.fecha_creacion|date:"d/m/Y H:i" }}</span>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">
+                                            <i class="fas fa-calendar-check me-1"></i>Actualizado
+                                        </small>
+                                        <span style="color: #6F5B44; font-size: 0.8rem;">{{ articulo.fecha_actualizacion|date:"d/m/Y H:i" }}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="row mt-4">
+
+                    <!-- Stock por Bodega -->
+                    <div class="row mt-2">
                         <div class="col-12">
-                            <h5>Stock por Sucursal</h5>
+                            <div class="card" style="border: none; border-radius: 8px; box-shadow: 0 1px 4px rgba(139, 115, 85, 0.1);">
+                                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; border-radius: 8px 8px 0 0; padding: 8px 12px;">
+                                    <h6 class="mb-0 text-white" style="font-weight: 600; font-size: 0.85rem;">
+                                        <i class="fas fa-warehouse me-1"></i>Stock por Bodega
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 12px;">
                             {% if stocks %}
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover">
-                                    <thead class="table-dark">
+                                <table class="table table-striped table-hover" style="margin-bottom: 0;">
+                                    <thead style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
                                         <tr>
-                                            <th><i class="fas fa-building me-2"></i>Sucursal</th>
-                                            <th class="text-center"><i class="fas fa-check-circle me-2"></i>Disponible</th>
-                                            <th class="text-center"><i class="fas fa-clock me-2"></i>Reservada</th>
-                                            <th class="text-center"><i class="fas fa-boxes me-2"></i>Total</th>
-                                            <th class="text-center"><i class="fas fa-chart-pie me-2"></i>Estado</th>
+                                            <th style="color: #6F5B44; font-weight: 600; font-size: 0.8rem; padding: 10px;"><i class="fas fa-warehouse me-2"></i>Bodega</th>
+                                            <th class="text-center" style="color: #6F5B44; font-weight: 600; font-size: 0.8rem; padding: 10px;"><i class="fas fa-boxes me-2"></i>Cantidad</th>
+                                            <th class="text-center" style="color: #6F5B44; font-weight: 600; font-size: 0.8rem; padding: 10px;"><i class="fas fa-clock me-2"></i>Última Actualización</th>
+                                            <th class="text-center" style="color: #6F5B44; font-weight: 600; font-size: 0.8rem; padding: 10px;"><i class="fas fa-chart-pie me-2"></i>Estado</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -154,27 +209,20 @@
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <i class="fas fa-store me-2 text-muted"></i>
-                                                    <strong>{{ stock.sucursal.nombre }}</strong>
+                                                    <i class="fas fa-warehouse me-2 text-muted"></i>
+                                                    <strong>{{ stock.bodega.nombre }}</strong>
                                                 </div>
                                             </td>
                                             <td class="text-center">
-                                                <span class="badge bg-success fs-6">{{ stock.cantidad_disponible }}</span>
+                                                <span class="badge bg-primary fs-6">{{ stock.cantidad|floatformat:0 }}</span>
+                                            </td>
+                                            <td class="text-center text-muted" style="font-size: 0.85rem;">
+                                                {{ stock.fecha_actualizacion|date:"d/m/Y H:i" }}
                                             </td>
                                             <td class="text-center">
-                                                <span class="badge bg-warning fs-6">{{ stock.cantidad_reservada }}</span>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge bg-primary fs-6">{{ stock.cantidad_total }}</span>
-                                            </td>
-                                            <td class="text-center">
-                                                {% if stock.cantidad_disponible > 0 %}
+                                                {% if stock.cantidad > 0 %}
                                                     <span class="badge bg-success">
                                                         <i class="fas fa-check me-1"></i>Disponible
-                                                    </span>
-                                                {% elif stock.cantidad_total > 0 %}
-                                                    <span class="badge bg-warning">
-                                                        <i class="fas fa-exclamation-triangle me-1"></i>Reservado
                                                     </span>
                                                 {% else %}
                                                     <span class="badge bg-danger">
@@ -188,11 +236,13 @@
                                 </table>
                             </div>
                             {% else %}
-                            <div class="alert alert-info">
+                            <div class="alert alert-info" style="border-radius: 8px;">
                                 <i class="fas fa-info-circle me-2"></i>
                                 No hay información de stock disponible para este artículo.
                             </div>
                             {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

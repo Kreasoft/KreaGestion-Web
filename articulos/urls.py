@@ -49,4 +49,10 @@ urlpatterns = [
     
     # API
     path('api/listas-precios/', views.api_listas_precios, name='api_listas_precios'),
+    
+    # Homologación de Códigos
+    path('<int:articulo_id>/homologacion/', views.homologacion_list, name='homologacion_list'),
+    path('<int:articulo_id>/homologacion/crear/', views.homologacion_create, name='homologacion_create'),
+    path('homologacion/<int:pk>/editar/', views.homologacion_update, name='homologacion_update'),
+    path('homologacion/<int:pk>/eliminar/', views.homologacion_delete, name='homologacion_delete'),
 ]

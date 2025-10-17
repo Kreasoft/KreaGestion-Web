@@ -378,3 +378,63 @@ class StockArticulo(models.Model):
     def cantidad_total(self):
         """Cantidad total (disponible + reservada)"""
         return self.cantidad_disponible + self.cantidad_reservada
+
+
+class HomologacionCodigo(models.Model):
+    """Códigos alternativos de artículos según proveedor"""
+    
+    articulo = models.ForeignKey(
+        'Articulo',
+        on_delete=models.CASCADE,
+        related_name='homologaciones',
+        verbose_name="Artículo"
+    )
+    proveedor = models.ForeignKey(
+        'proveedores.Proveedor',
+        on_delete=models.CASCADE,
+        verbose_name="Proveedor"
+    )
+    codigo_proveedor = models.CharField(
+        max_length=100,
+        verbose_name="Código del Proveedor"
+    )
+    descripcion_proveedor = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Descripción del Proveedor"
+    )
+    precio_compra = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name="Precio de Compra",
+        help_text="Último precio de compra a este proveedor"
+    )
+    es_principal = models.BooleanField(
+        default=False,
+        verbose_name="Proveedor Principal"
+    )
+    activo = models.BooleanField(
+        default=True,
+        verbose_name="Activo"
+    )
+    observaciones = models.TextField(
+        blank=True,
+        verbose_name="Observaciones"
+    )
+    fecha_creacion = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Creación"
+    )
+    fecha_modificacion = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Fecha de Modificación"
+    )
+    
+    class Meta:
+        verbose_name = "Homologación de Código"
+        verbose_name_plural = "Homologaciones de Códigos"
+        unique_together = ['articulo', 'proveedor', 'codigo_proveedor']
+        ordering = ['-es_principal', 'proveedor__nombre']
+    
+    def __str__(self):
+        return f"{self.articulo.codigo} → {self.proveedor.nombre}: {self.codigo_proveedor}"

@@ -36,10 +36,10 @@ class ItemOrdenPedidoForm(forms.ModelForm):
         fields = ['articulo', 'cantidad', 'precio_unitario', 'descuento_porcentaje', 'impuesto_porcentaje', 'observaciones']
         widgets = {
             'articulo': forms.Select(attrs={'class': 'form-select form-select-sm'}),
-            'cantidad': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0'}),
-            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '0'}),
-            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0', 'max': '100', 'value': '0'}),
-            'impuesto_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0', 'value': '19'}),
+            'cantidad': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'min': '1'}),
+            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'step': '1'}),
+            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'min': '0', 'max': '100'}),
+            'impuesto_porcentaje': forms.HiddenInput(),
             'observaciones': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Observaciones'}),
         }
 

@@ -19,9 +19,9 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.pdfgen import canvas
 from datetime import datetime
 import os
-from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo
+from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo
 from inventario.models import Stock
-from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm, ListaPrecioForm, PrecioArticuloForm
+from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm, ListaPrecioForm, PrecioArticuloForm, HomologacionCodigoForm
 from empresas.decorators import requiere_empresa
 
 
@@ -104,8 +104,8 @@ def articulo_detail(request, pk):
     else:
         articulo = get_object_or_404(Articulo, pk=pk, empresa=request.empresa)
     
-    # Stocks por sucursal
-    stocks = StockArticulo.objects.filter(articulo=articulo)
+    # Stocks por bodega (usar el modelo correcto de inventario)
+    stocks = Stock.objects.filter(articulo=articulo).select_related('bodega')
     
     context = {
         'articulo': articulo,
@@ -1283,3 +1283,101 @@ def api_listas_precios(request):
             'success': False,
             'message': str(e)
         }, status=500)
+
+
+# ==================== HOMOLOGACIÓN DE CÓDIGOS ====================
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.view_articulo', raise_exception=True)
+def homologacion_list(request, articulo_id):
+    """Lista de homologaciones de un artículo"""
+    articulo = get_object_or_404(Articulo, pk=articulo_id, empresa=request.empresa)
+    homologaciones = HomologacionCodigo.objects.filter(articulo=articulo).select_related('proveedor')
+    
+    return render(request, 'articulos/homologacion_list.html', {
+        'articulo': articulo,
+        'homologaciones': homologaciones
+    })
+
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.add_articulo', raise_exception=True)
+def homologacion_create(request, articulo_id):
+    """Crear homologación de código"""
+    articulo = get_object_or_404(Articulo, pk=articulo_id, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = HomologacionCodigoForm(request.POST, empresa=request.empresa)
+        if form.is_valid():
+            homologacion = form.save(commit=False)
+            homologacion.articulo = articulo
+            homologacion.save()
+            
+            # Si es AJAX, devolver JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            
+            messages.success(request, 'Homologación creada exitosamente.')
+            return redirect('articulos:homologacion_list', articulo_id=articulo.id)
+    else:
+        form = HomologacionCodigoForm(empresa=request.empresa)
+    
+    # Si es AJAX, devolver solo el formulario
+    template = 'articulos/homologacion_form_ajax.html' if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else 'articulos/homologacion_form.html'
+    
+    return render(request, template, {
+        'form': form,
+        'articulo': articulo,
+        'action': 'Crear'
+    })
+
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.change_articulo', raise_exception=True)
+def homologacion_update(request, pk):
+    """Editar homologación de código"""
+    homologacion = get_object_or_404(HomologacionCodigo, pk=pk, articulo__empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = HomologacionCodigoForm(request.POST, instance=homologacion, empresa=request.empresa)
+        if form.is_valid():
+            form.save()
+            
+            # Si es AJAX, devolver JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            
+            messages.success(request, 'Homologación actualizada exitosamente.')
+            return redirect('articulos:homologacion_list', articulo_id=homologacion.articulo.id)
+    else:
+        form = HomologacionCodigoForm(instance=homologacion, empresa=request.empresa)
+    
+    # Si es AJAX, devolver solo el formulario
+    template = 'articulos/homologacion_form_ajax.html' if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else 'articulos/homologacion_form.html'
+    
+    return render(request, template, {
+        'form': form,
+        'articulo': homologacion.articulo,
+        'action': 'Editar'
+    })
+
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.delete_articulo', raise_exception=True)
+def homologacion_delete(request, pk):
+    """Eliminar homologación de código"""
+    homologacion = get_object_or_404(HomologacionCodigo, pk=pk, articulo__empresa=request.empresa)
+    articulo_id = homologacion.articulo.id
+    
+    if request.method == 'POST':
+        homologacion.delete()
+        messages.success(request, 'Homologación eliminada exitosamente.')
+        return redirect('articulos:homologacion_list', articulo_id=articulo_id)
+    
+    return render(request, 'articulos/homologacion_confirm_delete.html', {
+        'homologacion': homologacion
+    })

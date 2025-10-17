@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}{{ action }} Homologación - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-terroso:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 12px 16px;">
+                    <h5 class="mb-0 text-white" style="font-size: 1.1rem; font-weight: 600;">
+                        <i class="fas fa-code-branch me-2"></i>{{ action }} Homologación
+                    </h5>
+                    <small class="text-white-50" style="font-size: 0.8rem;">
+                        {{ articulo.codigo }} - {{ articulo.nombre }}
+                    </small>
+                </div>
+
+                <!-- Body -->
+                <div class="card-body" style="padding: 1.5rem;">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- Proveedor -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-truck me-1"></i>Proveedor *
+                                </label>
+                                {{ form.proveedor }}
+                                {% if form.proveedor.errors %}
+                                    <div class="text-danger small mt-1">{{ form.proveedor.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Código Proveedor -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-barcode me-1"></i>Código del Proveedor *
+                                </label>
+                                {{ form.codigo_proveedor }}
+                                {% if form.codigo_proveedor.errors %}
+                                    <div class="text-danger small mt-1">{{ form.codigo_proveedor.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Descripción Proveedor -->
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-file-alt me-1"></i>Descripción del Proveedor
+                                </label>
+                                {{ form.descripcion_proveedor }}
+                                {% if form.descripcion_proveedor.errors %}
+                                    <div class="text-danger small mt-1">{{ form.descripcion_proveedor.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Precio Compra -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-dollar-sign me-1"></i>Precio de Compra
+                                </label>
+                                {{ form.precio_compra }}
+                                {% if form.precio_compra.errors %}
+                                    <div class="text-danger small mt-1">{{ form.precio_compra.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Es Principal -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-star me-1"></i>Proveedor Principal
+                                </label>
+                                <div class="form-check">
+                                    {{ form.es_principal }}
+                                    <label class="form-check-label" for="{{ form.es_principal.id_for_label }}">
+                                        Marcar como proveedor principal
+                                    </label>
+                                </div>
+                                {% if form.es_principal.errors %}
+                                    <div class="text-danger small mt-1">{{ form.es_principal.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Activo -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-toggle-on me-1"></i>Estado
+                                </label>
+                                <div class="form-check">
+                                    {{ form.activo }}
+                                    <label class="form-check-label" for="{{ form.activo.id_for_label }}">
+                                        Activo
+                                    </label>
+                                </div>
+                                {% if form.activo.errors %}
+                                    <div class="text-danger small mt-1">{{ form.activo.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Observaciones -->
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
+                                    <i class="fas fa-comment me-1"></i>Observaciones
+                                </label>
+                                {{ form.observaciones }}
+                                {% if form.observaciones.errors %}
+                                    <div class="text-danger small mt-1">{{ form.observaciones.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <a href="{% url 'articulos:homologacion_list' articulo.id %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-terroso">
+                                <i class="fas fa-save me-1"></i> Guardar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

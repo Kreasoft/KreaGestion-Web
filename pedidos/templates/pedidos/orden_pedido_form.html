@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
+{% load currency_filters %}
+{% load l10n %}
 
 {% block title %}
     {% if pedido %}
@@ -15,6 +17,20 @@
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
+    /* Botones estilo terroso */
+    .btn-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-terroso:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+    
     .form-container {
         background: white;
         border-radius: 10px;
@@ -279,7 +295,7 @@
                             <small class="text-muted" style="font-size: 0.7rem; font-weight: 400;">
                                 (Busca productos por código o nombre en el selector)
                             </small>
-                            <button type="button" class="btn btn-success btn-sm float-end" id="addItemBtn" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;">
+                            <button type="button" class="btn btn-sm float-end" id="addItemBtn" style="padding: 0.3rem 0.8rem; font-size: 0.75rem; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none;">
                                 <i class="fas fa-plus me-1"></i>Agregar Item
                             </button>
                         </h5>
@@ -328,6 +344,7 @@
                                         <div class="col-md-1">
                                             {{ item_form.descuento_porcentaje }}
                                         </div>
+                                        {{ item_form.impuesto_porcentaje }}
                                         <div class="col-md-2">
                                             <input type="text" class="form-control form-control-sm item-total" readonly placeholder="0" style="font-weight: 600; background-color: #f8f9fc; font-size: 0.75rem; padding: 0.25rem 0.5rem; height: 32px;">
                                         </div>
@@ -389,7 +406,7 @@
                                 <a href="{% url 'pedidos:orden_pedido_list' %}" class="btn btn-secondary">
                                     <i class="fas fa-times me-1"></i> Cancelar
                                 </a>
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; padding: 0.5rem 1.5rem;">
                                     <i class="fas fa-save me-1"></i> Guardar Pedido
                                 </button>
                             </div>
@@ -603,16 +620,16 @@ $(document).ready(function() {
         */
     }
     
-    // Calcular totales
+    // Calcular totales - EXACTAMENTE como compras
     function calculateTotals() {
         let subtotal = 0;
         let descuentos = 0;
         let iva = 0;
         
         $('.item-form-compact:visible').each(function() {
-            const cantidad = parseFloat($(this).find('input[name*="cantidad"]').val()) || 0;
-            const precio = parseFloat($(this).find('input[name*="precio_unitario"]').val()) || 0;
-            const descuento = parseFloat($(this).find('input[name*="descuento_porcentaje"]').val()) || 0;
+            const cantidad = parseInt($(this).find('input[name*="cantidad"]').val()) || 0;
+            const precio = parseInt($(this).find('input[name*="precio_unitario"]').val()) || 0;
+            const descuento = parseInt($(this).find('input[name*="descuento_porcentaje"]').val()) || 0;
             
             const itemSubtotal = cantidad * precio;
             const itemDescuento = itemSubtotal * (descuento / 100);
@@ -668,8 +685,22 @@ $(document).ready(function() {
             }
             if ($(this).is('select')) {
                 $(this).val('');
-            } else if ($(this).attr('type') !== 'hidden') {
-                $(this).val('');
+            } else if ($(this).attr('type') === 'hidden') {
+                // Mantener valores por defecto de campos ocultos
+                if (name && name.includes('impuesto_porcentaje')) {
+                    $(this).val('19');
+                }
+            } else {
+                // Resetear valores de inputs visibles
+                if (name && name.includes('cantidad')) {
+                    $(this).val('1.00');
+                } else if (name && name.includes('descuento_porcentaje')) {
+                    $(this).val('0.00');
+                } else if (name && name.includes('precio_unitario')) {
+                    $(this).val('0');
+                } else {
+                    $(this).val('');
+                }
             }
         });
         newForm.attr('data-form-index', formIdx);

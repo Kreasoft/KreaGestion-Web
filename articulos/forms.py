@@ -1,7 +1,8 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from decimal import Decimal
-from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo
+from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo
+from proveedores.models import Proveedor
 
 
 class ArticuloForm(forms.ModelForm):
@@ -317,3 +318,58 @@ class PrecioArticuloForm(forms.ModelForm):
         if empresa:
             self.fields['articulo'].queryset = Articulo.objects.filter(empresa=empresa, activo=True)
             self.fields['lista_precio'].queryset = ListaPrecio.objects.filter(empresa=empresa, activa=True)
+
+
+class HomologacionCodigoForm(forms.ModelForm):
+    """Formulario para homologación de códigos por proveedor"""
+    
+    class Meta:
+        model = HomologacionCodigo
+        fields = [
+            'proveedor', 'codigo_proveedor', 'descripcion_proveedor',
+            'precio_compra', 'es_principal', 'activo', 'observaciones'
+        ]
+        widgets = {
+            'proveedor': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'codigo_proveedor': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Código del proveedor'
+            }),
+            'descripcion_proveedor': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Descripción según proveedor (opcional)'
+            }),
+            'precio_compra': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-end',
+                'min': '0',
+                'step': '1'
+            }),
+            'es_principal': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'form-control form-control-sm',
+                'rows': 2,
+                'placeholder': 'Observaciones adicionales (opcional)'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        empresa = kwargs.pop('empresa', None)
+        super().__init__(*args, **kwargs)
+        
+        if empresa:
+            self.fields['proveedor'].queryset = Proveedor.objects.filter(empresa=empresa, estado='activo')
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        es_principal = cleaned_data.get('es_principal')
+        articulo = self.instance.articulo if self.instance.pk else None
+        
+        # Si se marca como principal, desmarcar otros
+        if es_principal and articulo:
+            HomologacionCodigo.objects.filter(
+                articulo=articulo,
+                es_principal=True
+            ).exclude(pk=self.instance.pk).update(es_principal=False)
+        
+        return cleaned_data

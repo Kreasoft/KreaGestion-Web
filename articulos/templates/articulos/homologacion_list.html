@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+{% load static %}
+{% load currency_filters %}
+{% load humanize %}
+
+{% block title %}Homologación de Códigos - {{ articulo.nombre }} - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-terroso:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+    
+    /* Tabla elegante */
+    .table-homologacion {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .table-homologacion thead th {
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        color: #6F5B44;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 12px 15px;
+        border: none;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .table-homologacion tbody tr {
+        background: white;
+        transition: all 0.3s ease;
+        border-bottom: 1px solid #F5F1E8;
+    }
+    
+    .table-homologacion tbody tr:hover {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 50%);
+        transform: scale(1.01);
+        box-shadow: 0 2px 8px rgba(139, 115, 85, 0.1);
+    }
+    
+    .table-homologacion tbody td {
+        padding: 15px;
+        vertical-align: middle;
+        font-size: 0.85rem;
+    }
+    
+    .codigo-badge {
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        color: #6F5B44;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        font-size: 0.85rem;
+        display: inline-block;
+    }
+    
+    .badge-principal {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .precio-cell {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #8B7355;
+    }
+    
+    .btn-action {
+        transition: all 0.2s ease;
+    }
+    
+    .btn-action:hover {
+        transform: translateY(-2px);
+    }
+    
+    .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        color: #D4C4A8;
+    }
+    
+    .empty-state p {
+        color: #8B7355;
+        font-size: 1rem;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 12px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0 text-white" style="font-size: 1.1rem; font-weight: 600;">
+                                <i class="fas fa-code-branch me-2"></i>Homologación de Códigos
+                            </h5>
+                            <small class="text-white-50" style="font-size: 0.8rem;">
+                                {{ articulo.codigo }} - {{ articulo.nombre }}
+                            </small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#modalHomologacion" data-articulo-id="{{ articulo.pk|stringformat:'d' }}" id="btnAgregarHomologacion">
+                                <i class="fas fa-plus me-1"></i> Agregar Homologación
+                            </button>
+                            <a href="{% url 'articulos:articulo_detail' articulo.id %}" class="btn btn-sm btn-light">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Body -->
+                <div class="card-body" style="padding: 1.5rem;">
+                    {% if homologaciones %}
+                    <div class="table-responsive">
+                        <table class="table table-homologacion">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-truck me-2"></i>Proveedor</th>
+                                    <th><i class="fas fa-barcode me-2"></i>Código Proveedor</th>
+                                    <th><i class="fas fa-file-alt me-2"></i>Descripción</th>
+                                    <th><i class="fas fa-dollar-sign me-2"></i>Precio Compra</th>
+                                    <th class="text-center"><i class="fas fa-star me-2"></i>Principal</th>
+                                    <th class="text-center"><i class="fas fa-toggle-on me-2"></i>Estado</th>
+                                    <th class="text-center"><i class="fas fa-cog me-2"></i>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for homologacion in homologaciones %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2" style="width: 40px; height: 40px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-truck" style="color: #8B7355;"></i>
+                                            </div>
+                                            <div>
+                                                <strong style="color: #6F5B44;">{{ homologacion.proveedor.nombre }}</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="codigo-badge">
+                                            {{ homologacion.codigo_proveedor }}
+                                        </span>
+                                    </td>
+                                    <td style="color: #6F5B44;">
+                                        {{ homologacion.descripcion_proveedor|default:"-" }}
+                                    </td>
+                                    <td class="precio-cell">
+                                        ${{ homologacion.precio_compra|intcomma }}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if homologacion.es_principal %}
+                                            <span class="badge-principal">
+                                                <i class="fas fa-star"></i> Principal
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted" style="font-size: 0.85rem;">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if homologacion.activo %}
+                                            <span class="badge bg-success" style="font-size: 0.75rem;">
+                                                <i class="fas fa-check-circle me-1"></i>Activo
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary" style="font-size: 0.75rem;">
+                                                <i class="fas fa-times-circle me-1"></i>Inactivo
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary btn-action btn-editar-homologacion" 
+                                                    title="Editar"
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#modalHomologacion"
+                                                    data-homologacion-id="{{ homologacion.id }}">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger btn-action btn-eliminar-homologacion" 
+                                                    title="Eliminar"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalEliminar"
+                                                    data-homologacion-id="{{ homologacion.id }}"
+                                                    data-proveedor="{{ homologacion.proveedor.nombre }}"
+                                                    data-codigo="{{ homologacion.codigo_proveedor }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-code-branch fa-4x mb-3"></i>
+                        <p>No hay homologaciones registradas para este artículo.</p>
+                        <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 30px;">
+                            Comienza agregando códigos de proveedores para facilitar tus pedidos.
+                        </p>
+                        <button type="button" class="btn btn-terroso btn-lg" data-bs-toggle="modal" data-bs-target="#modalHomologacion" data-articulo-id="{{ articulo.pk|stringformat:'d' }}" id="btnAgregarPrimera">
+                            <i class="fas fa-plus me-2"></i> Agregar Primera Homologación
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear/Editar Homologación -->
+<div class="modal fade" id="modalHomologacion" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
+                <h5 class="modal-title text-white" id="modalHomologacionTitle">
+                    <i class="fas fa-code-branch me-2"></i><span id="modalAction">Crear</span> Homologación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalHomologacionBody">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Eliminar -->
+<div class="modal fade" id="modalEliminar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);">
+                <h5 class="modal-title text-white">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-trash-alt fa-3x text-danger mb-3"></i>
+                    <h6>¿Está seguro que desea eliminar esta homologación?</h6>
+                </div>
+                <div class="alert alert-warning">
+                    <strong>Proveedor:</strong> <span id="eliminarProveedor"></span><br>
+                    <strong>Código:</strong> <span id="eliminarCodigo"></span>
+                </div>
+                <p class="text-muted small">
+                    <i class="fas fa-info-circle me-1"></i>Esta acción no se puede deshacer.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Cancelar
+                </button>
+                <form id="formEliminar" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i> Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+console.log('=== SCRIPT HOMOLOGACION CARGADO ===');
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== DOMContentLoaded EJECUTADO ===');
+    
+    // Botones agregar homologación
+    const btnAgregar = document.getElementById('btnAgregarHomologacion');
+    const btnAgregarPrimera = document.getElementById('btnAgregarPrimera');
+    
+    console.log('btnAgregar:', btnAgregar);
+    console.log('btnAgregarPrimera:', btnAgregarPrimera);
+    
+    if (btnAgregar) {
+        btnAgregar.addEventListener('click', function() {
+            const articuloId = this.dataset.articuloId.trim();
+            console.log('Click en btnAgregar, articuloId:', articuloId);
+            document.getElementById('modalAction').textContent = 'Crear';
+            cargarFormulario(`/articulos/${articuloId}/homologacion/crear/`);
+        });
+    } else {
+        console.error('btnAgregar no encontrado');
+    }
+    
+    if (btnAgregarPrimera) {
+        btnAgregarPrimera.addEventListener('click', function() {
+            const articuloId = this.dataset.articuloId.trim();
+            console.log('Click en btnAgregarPrimera, articuloId:', articuloId);
+            document.getElementById('modalAction').textContent = 'Crear';
+            cargarFormulario(`/articulos/${articuloId}/homologacion/crear/`);
+        });
+    }
+    
+    // Botones editar
+    document.querySelectorAll('.btn-editar-homologacion').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const homologacionId = this.dataset.homologacionId;
+            document.getElementById('modalAction').textContent = 'Editar';
+            cargarFormulario(`/articulos/homologacion/${homologacionId}/editar/`);
+        });
+    });
+    
+    // Botones eliminar
+    document.querySelectorAll('.btn-eliminar-homologacion').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const homologacionId = this.dataset.homologacionId;
+            const proveedor = this.dataset.proveedor;
+            const codigo = this.dataset.codigo;
+            confirmarEliminar(homologacionId, proveedor, codigo);
+        });
+    });
+    
+    function confirmarEliminar(homologacionId, proveedor, codigo) {
+        document.getElementById('eliminarProveedor').textContent = proveedor;
+        document.getElementById('eliminarCodigo').textContent = codigo;
+        document.getElementById('formEliminar').action = `/articulos/homologacion/${homologacionId}/eliminar/`;
+    }
+
+function cargarFormulario(url) {
+    console.log('Cargando formulario desde:', url);
+    const modalBody = document.getElementById('modalHomologacionBody');
+    
+    if (!modalBody) {
+        console.error('No se encontró modalHomologacionBody');
+        return;
+    }
+    
+    modalBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2">Cargando formulario...</p></div>';
+    
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            console.log('HTML recibido, longitud:', html.length);
+            console.log('Primeros 300 caracteres:', html.substring(0, 300));
+            
+            // Verificar si es el template completo o solo el formulario
+            const esTemplateCompleto = html.includes('<!DOCTYPE html>') || html.includes('<html');
+            console.log('Es template completo?', esTemplateCompleto);
+            
+            if (esTemplateCompleto) {
+                // Es una página completa, extraer solo el formulario
+                console.log('Extrayendo formulario de página completa...');
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const form = doc.querySelector('form');
+                
+                if (form) {
+                    console.log('Formulario encontrado y extraído');
+                    modalBody.innerHTML = form.outerHTML;
+                } else {
+                    console.error('No se encontró formulario en el HTML');
+                    modalBody.innerHTML = '<div class="alert alert-danger">No se encontró el formulario en la respuesta</div>';
+                }
+            } else {
+                // Es solo el formulario, insertarlo directamente
+                console.log('Insertando formulario directamente');
+                modalBody.innerHTML = html;
+            }
+            
+            // Interceptar submit del formulario
+            const formElement = modalBody.querySelector('form');
+            if (formElement) {
+                formElement.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    guardarHomologacion(this);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            modalBody.innerHTML = '<div class="alert alert-danger">Error al cargar el formulario: ' + error.message + '</div>';
+        });
+}
+
+function guardarHomologacion(form) {
+    const formData = new FormData(form);
+    const url = form.action;
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        }
+        return response.text();
+    })
+    .then(data => {
+        if (typeof data === 'object' && data.success) {
+            // Éxito, recargar página
+            location.reload();
+        } else {
+            // Es HTML con errores, mostrar el formulario con errores
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data, 'text/html');
+            const form = doc.querySelector('form');
+            
+            if (form) {
+                document.getElementById('modalHomologacionBody').innerHTML = form.outerHTML;
+                
+                // Re-interceptar submit
+                const formElement = document.getElementById('modalHomologacionBody').querySelector('form');
+                formElement.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    guardarHomologacion(this);
+                });
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al guardar la homologación');
+    });
+}
+
+}); // Fin DOMContentLoaded
+</script>
+{% endblock %}
