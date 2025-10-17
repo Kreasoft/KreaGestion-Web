@@ -1,5 +1,9 @@
 from django.contrib import admin
-from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo
+from .models import (
+    Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, 
+    ImpuestoEspecifico, ListaPrecio, PrecioArticulo,
+    RecetaProduccion, InsumoReceta, OrdenProduccion
+)
 
 
 @admin.register(ImpuestoEspecifico)
@@ -98,3 +102,100 @@ class PrecioArticuloAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('articulo', 'lista_precio')
+
+
+# ==================== ADMIN DE PRODUCCIÓN ====================
+
+class InsumoRecetaInline(admin.TabularInline):
+    model = InsumoReceta
+    extra = 1
+    fields = ['articulo', 'cantidad', 'orden', 'notas']
+    autocomplete_fields = ['articulo']
+
+
+@admin.register(RecetaProduccion)
+class RecetaProduccionAdmin(admin.ModelAdmin):
+    list_display = ['codigo', 'nombre', 'producto_final', 'cantidad_producir', 'unidad_medida', 'tipo_industria', 'activo']
+    list_filter = ['activo', 'producto_final__tipo_produccion', 'empresa']
+    search_fields = ['codigo', 'nombre', 'producto_final__nombre']
+    list_editable = ['activo']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion', 'costo_total_insumos', 'costo_unitario']
+    inlines = [InsumoRecetaInline]
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('empresa', 'codigo', 'nombre', 'descripcion', 'producto_final')
+        }),
+        ('Cantidades y Tiempos', {
+            'fields': ('cantidad_producir', 'merma_estimada', 'tiempo_estimado')
+        }),
+        ('Configuración Específica', {
+            'fields': ('temperatura_proceso',),
+            'classes': ('collapse',)
+        }),
+        ('Costos', {
+            'fields': ('costo_total_insumos', 'costo_unitario'),
+            'classes': ('collapse',)
+        }),
+        ('Estado', {
+            'fields': ('activo', 'fecha_creacion', 'fecha_actualizacion')
+        }),
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('empresa', 'producto_final')
+
+
+@admin.register(InsumoReceta)
+class InsumoRecetaAdmin(admin.ModelAdmin):
+    list_display = ['receta', 'articulo', 'cantidad', 'costo_unitario', 'costo_total', 'orden']
+    list_filter = ['receta__producto_final__tipo_produccion']
+    search_fields = ['receta__nombre', 'articulo__nombre', 'articulo__codigo']
+    ordering = ['receta', 'orden']
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('receta', 'articulo')
+
+
+@admin.register(OrdenProduccion)
+class OrdenProduccionAdmin(admin.ModelAdmin):
+    list_display = [
+        'numero_orden', 'receta', 'cantidad_planificada', 'cantidad_producida', 
+        'porcentaje_completado', 'estado', 'fecha_planificada', 'responsable'
+    ]
+    list_filter = ['estado', 'sucursal', 'fecha_planificada', 'receta__producto_final__tipo_produccion']
+    search_fields = ['numero_orden', 'receta__nombre', 'responsable', 'lote_produccion']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion', 'porcentaje_completado', 'costo_total']
+    date_hierarchy = 'fecha_planificada'
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('empresa', 'sucursal', 'numero_orden', 'receta', 'responsable')
+        }),
+        ('Planificación', {
+            'fields': ('cantidad_planificada', 'fecha_planificada', 'estado')
+        }),
+        ('Producción Real', {
+            'fields': ('cantidad_producida', 'merma_real', 'fecha_inicio', 'fecha_fin', 'porcentaje_completado')
+        }),
+        ('Trazabilidad (Cárnico)', {
+            'fields': ('lote_produccion', 'fecha_vencimiento', 'temperatura_proceso'),
+            'classes': ('collapse',)
+        }),
+        ('Costos y Observaciones', {
+            'fields': ('costo_total', 'observaciones')
+        }),
+        ('Auditoría', {
+            'fields': ('fecha_creacion', 'fecha_actualizacion'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def porcentaje_completado(self, obj):
+        """Muestra el porcentaje completado con formato"""
+        porcentaje = obj.porcentaje_completado
+        return f"{porcentaje:.1f}%"
+    porcentaje_completado.short_description = '% Completado'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('empresa', 'sucursal', 'receta', 'receta__producto_final')
