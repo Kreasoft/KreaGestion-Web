@@ -40,7 +40,7 @@
     
     /* Header del POS */
     .pos-header {
-            background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+            background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
         color: white;
             padding: 12px 20px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -702,9 +702,6 @@
                         <div class="pos-search flex-grow-1">
                             <input type="text" id="pos-search" class="form-control" placeholder="Buscar productos...">
                         </div>
-                        <button type="button" class="btn btn-sm" id="btnToggleCategorias" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; padding: 6px 12px;" title="Mostrar/Ocultar Categorías">
-                            <i class="fas fa-folder me-1"></i>Categorías <i class="fas fa-chevron-down ms-1" id="iconoCategorias"></i>
-                        </button>
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-outline-secondary btn-sm active" id="btnVistaGrid" title="Vista en Cuadrícula">
                                 <i class="fas fa-th"></i>
@@ -714,7 +711,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="pos-category-filter" id="categoriasContainer" style="display: none; margin-bottom: 10px;">
+                    <div class="pos-category-filter">
                         <button class="category-btn active" data-category="all">Todas</button>
                         <!-- Las categorías se cargarán dinámicamente -->
                     </div>
@@ -817,14 +814,14 @@
                                                     <button type="button" class="btn btn-sm flex-fill" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; font-size: 0.65rem; padding: 3px 6px; border: none;" 
                                                             data-kit-id="{{ kit.id }}"
                                                             data-kit-nombre="{{ kit.nombre }}"
-                                                            data-kit-precio="{{ kit.precio_kit|unlocalize }}"
+                                                            data-kit-precio="{{ kit.precio_kit }}"
                                                             data-kit-stock="{{ kit.stock_disponible }}"
-                                                            onclick="agregarKitCompleto(this.dataset.kitId, this.dataset.kitNombre, this.dataset.kitPrecio, this.dataset.kitStock)">
+                                                            onclick="agregarKitCompleto(this.dataset.kitId, this.dataset.kitNombre, parseInt(this.dataset.kitPrecio), parseInt(this.dataset.kitStock))">
                                                         <i class="fas fa-cart-plus"></i> Kit
                                                     </button>
                                                     <button type="button" class="btn btn-sm flex-fill" style="background: linear-gradient(135deg, #D4A574 0%, #C19461 100%); color: white; font-size: 0.65rem; padding: 3px 6px; border: none;" 
                                                             data-kit-id="{{ kit.id }}"
-                                                            onclick="desglosarKitEnCarrito(this.dataset.kitId)">
+                                                            onclick="desglosarKit(parseInt(this.dataset.kitId))">
                                                         <i class="fas fa-list"></i> Items
                                                     </button>
                                                 </div>
@@ -948,8 +945,8 @@ async function obtenerPrecioArticulo(articuloId, precioLista) {
 }
 
 // Agregar al carrito - DEBE ESTAR EN SCOPE GLOBAL
-async function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva = false, impuestoEspecifico = 0, precioNeto = null, fromKit = false) {
-    console.log('*** FUNCIÓN addToCart LLAMADA ***', { articuloId: articuloId, nombre: nombre, precio: precio, stock: stock, categoriaExentaIva: categoriaExentaIva, impuestoEspecifico: impuestoEspecifico, precioNeto: precioNeto, fromKit: fromKit });
+async function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva = false, impuestoEspecifico = 0, precioNeto = null) {
+    console.log('*** FUNCIÓN addToCart LLAMADA ***', { articuloId: articuloId, nombre: nombre, precio: precio, stock: stock, categoriaExentaIva: categoriaExentaIva, impuestoEspecifico: impuestoEspecifico, precioNeto: precioNeto });
     
     // Obtener precio correcto (especial o lista)
     precio = await obtenerPrecioArticulo(articuloId, precio);
@@ -1008,8 +1005,7 @@ async function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva =
             impuestoEspecifico: impuestoEspecifico,
             cantidad: 1,
             descuento: 0,
-            total: parseFloat(precio),
-            fromKit: fromKit // Marcar si viene del kit
+            total: parseFloat(precio)
         });
     }
     
@@ -1030,22 +1026,13 @@ function updateCartDisplay() {
     cart.forEach((item, index) => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'pos-cart-item';
-        
-        // Si el item viene del kit, bloquear cantidad
-        const isFromKit = item.fromKit === true;
-        const qtyButtons = isFromKit ? 
-            `<button class="btn btn-sm btn-outline-secondary" disabled style="opacity: 0.3; cursor: not-allowed;">-</button>
-             <span>${item.cantidad} <i class="fas fa-lock" style="font-size: 0.7rem; color: #C8A882;" title="Cantidad bloqueada (del kit)"></i></span>
-             <button class="btn btn-sm btn-outline-secondary" disabled style="opacity: 0.3; cursor: not-allowed;">+</button>` :
-            `<button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, -1)">-</button>
-             <span>${item.cantidad}</span>
-             <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>`;
-        
         itemDiv.innerHTML = `
-            <div class="cart-item-name">${item.nombre}${isFromKit ? ' <span style="font-size: 0.7rem; color: #C8A882;">🎁</span>' : ''}</div>
+            <div class="cart-item-name">${item.nombre}</div>
             <div class="cart-item-price">$${formatChileanNumber(item.precio)}</div>
             <div class="cart-item-qty">
-                ${qtyButtons}
+                <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, -1)">-</button>
+                <span>${item.cantidad}</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>
             </div>
             <div class="cart-item-discount">${item.descuento}%</div>
             <div class="cart-item-total">$${formatChileanNumber(item.total)}</div>
@@ -1057,9 +1044,6 @@ function updateCartDisplay() {
         `;
         cartContainer.appendChild(itemDiv);
     });
-    
-    // Actualizar totales después de mostrar items
-    updateTotals();
 }
 
 // Actualizar cantidad - DEBE ESTAR EN SCOPE GLOBAL
@@ -1206,13 +1190,9 @@ function toggleVista(vista) {
 
 // Agregar kit completo al carrito
 function agregarKitCompleto(kitId, kitNombre, kitPrecio, kitStock) {
-    // Convertir a número (ya viene sin formato desde el template)
-    const precioLimpio = parseInt(kitPrecio);
-    const stockLimpio = parseInt(kitStock);
+    console.log('*** AGREGANDO KIT COMPLETO ***', kitId, kitNombre, kitPrecio);
     
-    console.log('*** AGREGANDO KIT COMPLETO ***', kitId, kitNombre, precioLimpio, stockLimpio);
-    
-    if (stockLimpio <= 0) {
+    if (kitStock <= 0) {
         Swal.fire({
             icon: 'warning',
             title: 'Sin Stock',
@@ -1223,10 +1203,10 @@ function agregarKitCompleto(kitId, kitNombre, kitPrecio, kitStock) {
     }
     
     // Buscar si el kit ya está en el carrito
-    const itemExistente = cart.find(item => item.tipo === 'kit' && item.kitId == kitId);
+    const itemExistente = cart.find(item => item.tipo === 'kit' && item.kitId === kitId);
     
     if (itemExistente) {
-        if (itemExistente.cantidad >= stockLimpio) {
+        if (itemExistente.cantidad >= kitStock) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Stock Insuficiente',
@@ -1237,32 +1217,24 @@ function agregarKitCompleto(kitId, kitNombre, kitPrecio, kitStock) {
         }
         itemExistente.cantidad++;
         itemExistente.subtotal = itemExistente.cantidad * itemExistente.precio;
-        itemExistente.total = itemExistente.subtotal;
     } else {
-        // Calcular neto e IVA del kit (precio incluye IVA)
-        const precioNeto = Math.round(precioLimpio / 1.19);
-        const iva = precioLimpio - precioNeto;
-        
         // Agregar nuevo kit al carrito
         cart.push({
             tipo: 'kit',
             kitId: kitId,
             id: `kit-${kitId}`,
             nombre: `🎁 ${kitNombre}`,
-            precio: precioLimpio,
-            precio_neto: precioNeto,
-            iva: iva,
+            precio: kitPrecio,
             cantidad: 1,
-            subtotal: precioLimpio,
-            total: precioLimpio,
+            subtotal: kitPrecio,
             descuento: 0,
-            stock: stockLimpio,
+            stock: kitStock,
             categoriaExentaIva: false,
             impuestoEspecifico: 0
         });
     }
     
-    updateCartDisplay();
+    updateCart();
     
     // Feedback visual
     Swal.fire({
@@ -1274,115 +1246,42 @@ function agregarKitCompleto(kitId, kitNombre, kitPrecio, kitStock) {
     });
 }
 
-// Desglosar kit en items individuales y agregarlos al carrito
-async function desglosarKitEnCarrito(kitId) {
-    console.log('*** DESGLOSANDO KIT EN CARRITO ***', kitId);
+// Desglosar kit en items individuales
+async function desglosarKit(kitId) {
+    console.log('*** DESGLOSANDO KIT ***', kitId);
     
     try {
-        // Obtener datos del kit desde el servidor
-        const response = await fetch(`/articulos/kits/${kitId}/items-json/`);
-        
-        if (!response.ok) {
-            throw new Error('No se pudo obtener los items del kit');
+        // Buscar la card del kit en el DOM
+        const kitCard = document.querySelector(`[data-kit-id="${kitId}"]`).closest('.card');
+        if (!kitCard) {
+            throw new Error('No se encontró el kit');
         }
         
-        const data = await response.json();
+        // Obtener nombre del kit
+        const kitNombre = kitCard.querySelector('[style*="font-weight: 600"]').textContent.trim();
         
-        if (!data.success || !data.items || data.items.length === 0) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Kit Vacío',
-                text: 'Este kit no tiene artículos configurados',
-                confirmButtonColor: '#8B7355'
-            });
-            return;
-        }
-        
-        // Mostrar confirmación con lista de items
-        let itemsHtml = '<div style="text-align: left; max-height: 300px; overflow-y: auto;">';
-        data.items.forEach(item => {
-            itemsHtml += `<p style="margin: 5px 0;"><strong>${item.articulo_nombre}</strong> x${item.cantidad}</p>`;
-        });
-        itemsHtml += '</div>';
-        
+        // Mostrar mensaje informativo
         const result = await Swal.fire({
-            icon: 'question',
+            icon: 'info',
             title: 'Desglosar Kit',
             html: `
-                <p>¿Deseas agregar estos artículos individualmente al carrito?</p>
-                ${itemsHtml}
+                <p>Esta función agregará cada artículo del kit <strong>${kitNombre}</strong> individualmente al carrito.</p>
+                <p class="text-muted" style="font-size: 0.9rem;">Nota: Esta función estará completamente disponible próximamente.</p>
+                <p class="text-muted" style="font-size: 0.9rem;">Por ahora, usa el botón <strong>"Kit"</strong> para agregar el kit completo.</p>
             `,
             showCancelButton: true,
-            confirmButtonText: 'Sí, agregar items',
+            confirmButtonText: 'Entendido',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#8B7355',
             cancelButtonColor: '#6c757d'
         });
-        
-        if (result.isConfirmed) {
-            // Calcular precio total normal de todos los items
-            const precioTotalNormal = data.items.reduce((sum, item) => 
-                sum + (item.precio_unitario * item.cantidad), 0
-            );
-            
-            // Calcular factor de descuento proporcional
-            const factorDescuento = data.kit_precio / precioTotalNormal;
-            
-            console.log('*** CÁLCULO PROPORCIONAL ***');
-            console.log('Precio kit:', data.kit_precio);
-            console.log('Precio total normal:', precioTotalNormal);
-            console.log('Factor descuento:', factorDescuento);
-            
-            // Agregar cada item al carrito con precio proporcional
-            let itemsAgregados = 0;
-            for (const item of data.items) {
-                // Buscar el artículo en el POS
-                const articulo = window.articulos.find(a => a.id == item.articulo_id);
-                if (articulo && articulo.stock > 0) {
-                    // Calcular precio proporcional
-                    const precioProporcionado = Math.round(item.precio_unitario * factorDescuento);
-                    
-                    console.log(`Item: ${item.articulo_nombre}`);
-                    console.log(`  Precio normal: ${item.precio_unitario}`);
-                    console.log(`  Precio proporcional: ${precioProporcionado}`);
-                    console.log(`  Cantidad: ${item.cantidad}`);
-                    
-                    // Agregar con precio proporcional y cantidad correcta
-                    // Marcar como item del kit para bloquear cantidad
-                    for (let i = 0; i < item.cantidad; i++) {
-                        await addToCartFromAnywhere(item.articulo_id, item.articulo_nombre, precioProporcionado, 1, true);
-                    }
-                    itemsAgregados++;
-                }
-            }
-            
-            if (itemsAgregados > 0) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Items Agregados',
-                    html: `
-                        <p>${itemsAgregados} artículo(s) agregado(s) al carrito</p>
-                        <p class="text-muted" style="font-size: 0.9rem;">Precios ajustados proporcionalmente al kit</p>
-                    `,
-                    timer: 2500,
-                    showConfirmButton: false
-                });
-            } else {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Sin Stock',
-                    text: 'Los artículos del kit no tienen stock disponible',
-                    confirmButtonColor: '#8B7355'
-                });
-            }
-        }
         
     } catch (error) {
         console.error('Error al desglosar kit:', error);
         Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'No se pudo desglosar el kit. Intenta con "Kit Completo".',
+            text: 'No se pudo procesar el kit',
             confirmButtonColor: '#8B7355'
         });
     }
@@ -1411,22 +1310,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('btnVistaLista').addEventListener('click', function() {
         toggleVista('lista');
-    });
-    
-    // Event listener para toggle de categorías
-    document.getElementById('btnToggleCategorias').addEventListener('click', function() {
-        const container = document.getElementById('categoriasContainer');
-        const icono = document.getElementById('iconoCategorias');
-        
-        if (container.style.display === 'none') {
-            container.style.display = 'block';
-            icono.classList.remove('fa-chevron-down');
-            icono.classList.add('fa-chevron-up');
-        } else {
-            container.style.display = 'none';
-            icono.classList.remove('fa-chevron-up');
-            icono.classList.add('fa-chevron-down');
-        }
     });
     
     // Restaurar vista guardada
@@ -2516,7 +2399,7 @@ function clearCart() {
                 const clienteHeader = document.getElementById('clienteEnHeader');
                 if (clienteHeader) {
                     clienteHeader.innerHTML = `
-                        <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
                             <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
                             <strong style="color: white; font-size: 0.95rem;">${data.cliente.nombre}</strong>
                             <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
@@ -2598,7 +2481,7 @@ function clearCart() {
                 const clienteHeader = document.getElementById('clienteEnHeader');
                 if (clienteHeader) {
                     clienteHeader.innerHTML = `
-                        <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
                             <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
                             <strong style="color: white; font-size: 0.95rem;">${data.cliente.nombre}</strong>
                             <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
@@ -3361,11 +3244,8 @@ function toggleBarcodeMode() {
 }
 
 // Función global para agregar producto al carrito desde cualquier lugar
-async function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1, fromKit = false) {
+async function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1) {
     console.log('*** AGREGANDO AL CARRITO DESDE CUALQUIER LUGAR ***');
-    if (fromKit) {
-        console.log('*** ITEM MARCADO COMO DEL KIT (cantidad bloqueada) ***');
-    }
     
     // Buscar el producto en la lista de productos para obtener información de categoría
     const productos = window.articulos || [];
@@ -3379,14 +3259,11 @@ async function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1, f
         categoriaExentaIva = producto.categoria && producto.categoria.exenta_iva;
         impuestoEspecifico = producto.categoria && producto.categoria.impuesto_especifico ? 
                             parseFloat(producto.categoria.impuesto_especifico.get_porcentaje_decimal) : 0;
-        
-        // Calcular precio neto desde el precio proporcionado (que incluye IVA)
-        // Si el precio fue ajustado proporcionalmente, calcular el neto correcto
-        precioNeto = Math.round(precio / 1.19);
+        precioNeto = parseFloat(producto.precio_venta || precio);
     }
     
     // Usar la función addToCart con toda la información
-    await addToCart(articuloId, nombre, precio, 1000, categoriaExentaIva, impuestoEspecifico, precioNeto, fromKit);
+    await addToCart(articuloId, nombre, precio, 1000, categoriaExentaIva, impuestoEspecifico, precioNeto);
     
     // Actualizar visualización
     if (typeof updateCartDisplay === 'function') {
@@ -3592,7 +3469,7 @@ function seleccionarCliente(id, nombre, rut, direccion) {
     const clienteHeader = document.getElementById('clienteEnHeader');
     if (clienteHeader) {
         clienteHeader.innerHTML = `
-            <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
                 <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
                 <strong style="color: white; font-size: 0.95rem;">${nombre}</strong>
                 <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
@@ -3928,7 +3805,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const clienteHeader = document.getElementById('clienteEnHeader');
                 if (clienteHeader) {
                     clienteHeader.innerHTML = `
-                        <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
                             <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
                             <strong style="color: white; font-size: 0.95rem;">${clienteNombre}</strong>
                             <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">

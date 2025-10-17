@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from decimal import Decimal
-from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo
+from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo, KitOferta, KitOfertaItem
 from proveedores.models import Proveedor
 
 
@@ -373,3 +373,114 @@ class HomologacionCodigoForm(forms.ModelForm):
             ).exclude(pk=self.instance.pk).update(es_principal=False)
         
         return cleaned_data
+
+
+class KitOfertaForm(forms.ModelForm):
+    """Formulario para crear y editar kits de ofertas"""
+    
+    class Meta:
+        model = KitOferta
+        fields = [
+            'codigo', 'nombre', 'descripcion', 'imagen', 'precio_kit',
+            'descuento_porcentaje', 'fecha_inicio', 'fecha_fin',
+            'stock_disponible', 'activo', 'destacado', 'observaciones'
+        ]
+        widgets = {
+            'codigo': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Código del kit'
+            }),
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Nombre del kit'
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'class': 'form-control form-control-sm',
+                'rows': 3,
+                'placeholder': 'Descripción del kit'
+            }),
+            'imagen': forms.FileInput(attrs={
+                'class': 'form-control form-control-sm'
+            }),
+            'precio_kit': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-end',
+                'min': '0',
+                'step': '1'
+            }),
+            'descuento_porcentaje': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-end',
+                'min': '0',
+                'max': '100',
+                'step': '0.01'
+            }),
+            'fecha_inicio': forms.DateInput(attrs={
+                'class': 'form-control form-control-sm',
+                'type': 'date'
+            }),
+            'fecha_fin': forms.DateInput(attrs={
+                'class': 'form-control form-control-sm',
+                'type': 'date'
+            }),
+            'stock_disponible': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-center',
+                'min': '0'
+            }),
+            'activo': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'destacado': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'form-control form-control-sm',
+                'rows': 2,
+                'placeholder': 'Observaciones adicionales'
+            }),
+        }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        fecha_inicio = cleaned_data.get('fecha_inicio')
+        fecha_fin = cleaned_data.get('fecha_fin')
+        
+        if fecha_inicio and fecha_fin and fecha_inicio > fecha_fin:
+            raise ValidationError('La fecha de inicio no puede ser posterior a la fecha de fin')
+        
+        return cleaned_data
+
+
+class KitOfertaItemForm(forms.ModelForm):
+    """Formulario para items de kit de oferta"""
+    
+    class Meta:
+        model = KitOfertaItem
+        fields = ['articulo', 'cantidad', 'orden', 'observaciones']
+        widgets = {
+            'articulo': forms.Select(attrs={
+                'class': 'form-select form-select-sm'
+            }),
+            'cantidad': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-center',
+                'min': '1',
+                'value': '1'
+            }),
+            'orden': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-center',
+                'min': '0',
+                'value': '0'
+            }),
+            'observaciones': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Observaciones (opcional)'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        empresa = kwargs.pop('empresa', None)
+        super().__init__(*args, **kwargs)
+        
+        if empresa:
+            self.fields['articulo'].queryset = Articulo.objects.filter(
+                empresa=empresa,
+                activo=True
+            ).order_by('nombre')

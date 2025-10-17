@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from usuarios.decorators import requiere_empresa
 from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TIPO_DOCUMENTO_CHOICES
 from .forms import VendedorForm, FormaPagoForm, EstacionTrabajoForm
-from articulos.models import Articulo
+from articulos.models import Articulo, KitOferta
 import io
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -805,6 +805,15 @@ def pos_view(request):
         except EstacionTrabajo.DoesNotExist:
             pass
     
+    # Cargar kits de ofertas disponibles
+    kits = KitOferta.objects.filter(
+        empresa=request.empresa,
+        activo=True
+    ).prefetch_related('items__articulo').order_by('-destacado', 'nombre')
+    
+    # Filtrar solo kits vigentes y con stock
+    kits_disponibles = [kit for kit in kits if kit.esta_disponible]
+    
     context = {
         'articulos': articulos,
         'clientes': clientes,
@@ -817,6 +826,7 @@ def pos_view(request):
         'form_apertura': form_apertura,
         'modo_pos': modo_pos,  # Nuevo
         'estacion_activa': estacion_activa,  # Nuevo
+        'kits': kits_disponibles,  # Kits de ofertas
     }
     
     return render(request, 'ventas/pos.html', context)

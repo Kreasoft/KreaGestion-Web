@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ kit.nombre }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        padding-top: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 12px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0 text-white" style="font-size: 1.1rem; font-weight: 600;">
+                                <i class="fas fa-gift me-2"></i>{{ kit.nombre }}
+                            </h5>
+                            <small class="text-white-50" style="font-size: 0.8rem;">
+                                {{ kit.codigo }}
+                            </small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'articulos:kit_oferta_update' kit.pk %}" class="btn btn-sm btn-light">
+                                <i class="fas fa-edit me-1"></i> Editar
+                            </a>
+                            <a href="{% url 'articulos:kit_oferta_list' %}" class="btn btn-sm btn-outline-light">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body" style="background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%); padding: 0.75rem;">
+                    <div class="row g-2">
+                        <!-- Información del Kit -->
+                        <div class="col-md-4">
+                            <div class="card h-100" style="border: none; border-radius: 8px; box-shadow: 0 1px 4px rgba(139, 115, 85, 0.1);">
+                                {% if kit.imagen %}
+                                <img src="{{ kit.imagen.url }}" class="card-img-top" style="height: 250px; object-fit: cover; border-radius: 8px 8px 0 0;" alt="{{ kit.nombre }}">
+                                {% else %}
+                                <div style="height: 250px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-gift fa-5x" style="color: #D4C4A8;"></i>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="card-body" style="padding: 12px;">
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Precio del Kit</small>
+                                        <h4 class="mb-0" style="color: #8B7355; font-weight: 700;">${{ kit.precio_kit|intcomma }}</h4>
+                                    </div>
+                                    
+                                    {% if items %}
+                                    <div class="p-2 mb-2" style="background: linear-gradient(135deg, #D4A574 0%, #C19461 100%); border-radius: 6px;">
+                                        <div class="text-white">
+                                            <small class="d-block" style="font-size: 0.7rem;">Precio Individual Total</small>
+                                            <strong style="font-size: 1.1rem;">${{ kit.precio_total_items|intcomma }}</strong>
+                                        </div>
+                                        <div class="text-white mt-1">
+                                            <small class="d-block" style="font-size: 0.7rem;">Tu Ahorro</small>
+                                            <strong style="font-size: 1.2rem;">${{ kit.ahorro|intcomma }} ({{ kit.ahorro_porcentaje|floatformat:0 }}%)</strong>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="d-flex gap-2 mb-2">
+                                        {% if kit.activo %}
+                                        <span class="badge bg-success flex-fill text-center">
+                                            <i class="fas fa-check-circle me-1"></i>Activo
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary flex-fill text-center">
+                                            <i class="fas fa-times-circle me-1"></i>Inactivo
+                                        </span>
+                                        {% endif %}
+                                        
+                                        {% if kit.destacado %}
+                                        <span class="badge flex-fill text-center" style="background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);">
+                                            <i class="fas fa-star me-1"></i>Destacado
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Stock Disponible</small>
+                                        <strong style="color: #6F5B44; font-size: 1.1rem;">{{ kit.stock_disponible }} unidades</strong>
+                                    </div>
+                                    
+                                    {% if kit.fecha_inicio or kit.fecha_fin %}
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Vigencia</small>
+                                        <small style="color: #6F5B44;">
+                                            {% if kit.fecha_inicio %}Desde {{ kit.fecha_inicio|date:"d/m/Y" }}{% endif %}
+                                            {% if kit.fecha_fin %}<br>Hasta {{ kit.fecha_fin|date:"d/m/Y" }}{% endif %}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if kit.descripcion %}
+                                    <div>
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Descripción</small>
+                                        <p style="color: #6F5B44; font-size: 0.85rem; margin: 0;">{{ kit.descripcion }}</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Artículos del Kit -->
+                        <div class="col-md-8">
+                            <div class="card" style="border: none; border-radius: 8px; box-shadow: 0 1px 4px rgba(139, 115, 85, 0.1);">
+                                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-radius: 8px 8px 0 0; padding: 8px 12px;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">
+                                            <i class="fas fa-box me-1"></i>Artículos Incluidos ({{ items.count }})
+                                        </h6>
+                                        <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;" data-bs-toggle="modal" data-bs-target="#modalAgregarItem">
+                                            <i class="fas fa-plus me-1"></i> Agregar Artículo
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-body" style="padding: 12px;">
+                                    {% if items %}
+                                    <div class="table-responsive">
+                                        <table class="table table-hover table-sm" style="margin-bottom: 0;">
+                                            <thead style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                                <tr>
+                                                    <th style="color: #6F5B44; font-weight: 600; font-size: 0.7rem; padding: 6px 8px;">Artículo</th>
+                                                    <th class="text-center" style="color: #6F5B44; font-weight: 600; font-size: 0.7rem; padding: 6px 8px;">Cant.</th>
+                                                    <th class="text-end" style="color: #6F5B44; font-weight: 600; font-size: 0.7rem; padding: 6px 8px;">P. Unit.</th>
+                                                    <th class="text-end" style="color: #6F5B44; font-weight: 600; font-size: 0.7rem; padding: 6px 8px;">Subtotal</th>
+                                                    <th class="text-center" style="color: #6F5B44; font-weight: 600; font-size: 0.7rem; padding: 6px 8px; width: 80px;">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for item in items %}
+                                                <tr>
+                                                    <td style="padding: 6px 8px;">
+                                                        <div>
+                                                            <strong style="color: #6F5B44; font-size: 0.8rem;">{{ item.articulo.nombre }}</strong>
+                                                            <br>
+                                                            <small class="text-muted" style="font-size: 0.7rem;">{{ item.articulo.codigo }}</small>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center" style="padding: 6px 8px;">
+                                                        <span class="badge" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); color: #6F5B44; font-size: 0.75rem; padding: 3px 8px;">
+                                                            {{ item.cantidad }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end" style="padding: 6px 8px; color: #6F5B44; font-weight: 600; font-size: 0.8rem;">
+                                                        ${{ item.articulo.precio_final|intcomma }}
+                                                    </td>
+                                                    <td class="text-end" style="padding: 6px 8px; color: #8B7355; font-weight: 700; font-size: 0.85rem;">
+                                                        ${{ item.subtotal|intcomma }}
+                                                    </td>
+                                                    <td class="text-center" style="padding: 6px 8px;">
+                                                        <div class="btn-group btn-group-sm">
+                                                            <button type="button" class="btn btn-sm" style="padding: 2px 6px; font-size: 0.75rem; background: linear-gradient(135deg, #D4A574 0%, #C19461 100%); color: white; border: none;" title="Editar" data-bs-toggle="modal" data-bs-target="#modalEditarItem" onclick="editarItem({{ item.pk }})">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                            <form method="post" action="{% url 'articulos:kit_item_delete' item.pk %}" style="display: inline;">
+                                                                {% csrf_token %}
+                                                                <button type="submit" class="btn btn-sm" style="padding: 2px 6px; font-size: 0.75rem; background: linear-gradient(135deg, #A67C52 0%, #8B6F47 100%); color: white; border: none;" title="Eliminar" onclick="return confirm('¿Eliminar este artículo del kit?')">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                            <tfoot style="background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%);">
+                                                <tr>
+                                                    <td colspan="3" class="text-end" style="padding: 8px; font-weight: 600; color: #6F5B44; font-size: 0.8rem;">
+                                                        Total Individual:
+                                                    </td>
+                                                    <td class="text-end" style="padding: 8px; font-weight: 700; color: #8B7355; font-size: 0.95rem;">
+                                                        ${{ kit.precio_total_items|intcomma }}
+                                                    </td>
+                                                    <td></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-4">
+                                        <i class="fas fa-box-open fa-3x mb-2" style="color: #D4C4A8;"></i>
+                                        <p class="text-muted" style="font-size: 0.9rem;">No hay artículos en este kit.</p>
+                                        <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;" data-bs-toggle="modal" data-bs-target="#modalAgregarItem">
+                                            <i class="fas fa-plus me-1"></i> Agregar Primer Artículo
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Agregar Item -->
+<div class="modal fade" id="modalAgregarItem" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
+                <h6 class="modal-title text-white">
+                    <i class="fas fa-plus me-2"></i>Agregar Artículo al Kit
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalAgregarItemBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Item -->
+<div class="modal fade" id="modalEditarItem" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);">
+                <h6 class="modal-title text-white">
+                    <i class="fas fa-edit me-2"></i>Editar Artículo del Kit
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalEditarItemBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modalAgregar = document.getElementById('modalAgregarItem');
+    
+    modalAgregar.addEventListener('show.bs.modal', function() {
+        cargarFormularioItem('{% url "articulos:kit_item_create" kit.pk %}', 'modalAgregarItemBody');
+    });
+});
+
+function cargarFormularioItem(url, targetId) {
+    const modalBody = document.getElementById(targetId);
+    modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+    
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        modalBody.innerHTML = html;
+        
+        const form = modalBody.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                guardarItem(this);
+            });
+        }
+    })
+    .catch(error => {
+        modalBody.innerHTML = '<div class="alert alert-danger">Error al cargar el formulario</div>';
+    });
+}
+
+function editarItem(itemId) {
+    const url = `/articulos/kits/items/${itemId}/editar/`;
+    cargarFormularioItem(url, 'modalEditarItemBody');
+}
+
+function guardarItem(form) {
+    const formData = new FormData(form);
+    const targetId = form.closest('.modal-body').id;
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        }
+        return response.text();
+    })
+    .then(data => {
+        if (typeof data === 'object' && data.success) {
+            location.reload();
+        } else {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data, 'text/html');
+            const form = doc.querySelector('form');
+            
+            if (form) {
+                document.getElementById(targetId).innerHTML = form.outerHTML;
+                
+                const formElement = document.getElementById(targetId).querySelector('form');
+                formElement.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    guardarItem(this);
+                });
+            }
+        }
+    })
+    .catch(error => {
+        alert('Error al guardar el artículo');
+    });
+}
+</script>
+{% endblock %}

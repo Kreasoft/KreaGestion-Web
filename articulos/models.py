@@ -438,3 +438,176 @@ class HomologacionCodigo(models.Model):
     
     def __str__(self):
         return f"{self.articulo.codigo} → {self.proveedor.nombre}: {self.codigo_proveedor}"
+
+
+class KitOferta(models.Model):
+    """Kits de ofertas - combos de artículos con precio especial"""
+    
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        verbose_name="Empresa"
+    )
+    codigo = models.CharField(
+        max_length=50,
+        verbose_name="Código del Kit"
+    )
+    nombre = models.CharField(
+        max_length=200,
+        verbose_name="Nombre del Kit"
+    )
+    descripcion = models.TextField(
+        blank=True,
+        verbose_name="Descripción"
+    )
+    imagen = models.ImageField(
+        upload_to='kits/',
+        blank=True,
+        null=True,
+        verbose_name="Imagen del Kit"
+    )
+    precio_kit = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name="Precio del Kit",
+        help_text="Precio especial del kit completo"
+    )
+    descuento_porcentaje = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name="Descuento %",
+        help_text="Porcentaje de descuento aplicado"
+    )
+    fecha_inicio = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Inicio",
+        help_text="Fecha desde la cual el kit está disponible"
+    )
+    fecha_fin = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Fin",
+        help_text="Fecha hasta la cual el kit está disponible"
+    )
+    activo = models.BooleanField(
+        default=True,
+        verbose_name="Activo"
+    )
+    destacado = models.BooleanField(
+        default=False,
+        verbose_name="Destacado",
+        help_text="Mostrar el kit en posición destacada"
+    )
+    stock_disponible = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name="Stock Disponible",
+        help_text="Cantidad de kits disponibles"
+    )
+    observaciones = models.TextField(
+        blank=True,
+        verbose_name="Observaciones"
+    )
+    fecha_creacion = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Creación"
+    )
+    fecha_modificacion = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Fecha de Modificación"
+    )
+    
+    class Meta:
+        verbose_name = "Kit de Oferta"
+        verbose_name_plural = "Kits de Ofertas"
+        unique_together = ['empresa', 'codigo']
+        ordering = ['-destacado', '-fecha_creacion']
+    
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+    
+    @property
+    def precio_total_items(self):
+        """Calcula el precio total de los items individuales"""
+        total = Decimal('0.00')
+        for item in self.items.all():
+            # Convertir precio_final string a Decimal
+            precio_final = Decimal(item.articulo.precio_final.replace(',', '')) if item.articulo.precio_final else Decimal('0.00')
+            total += precio_final * item.cantidad
+        return int(total)
+    
+    @property
+    def ahorro(self):
+        """Calcula el ahorro del kit vs precio individual"""
+        return self.precio_total_items - self.precio_kit
+    
+    @property
+    def ahorro_porcentaje(self):
+        """Calcula el porcentaje de ahorro"""
+        if self.precio_total_items > 0:
+            return ((self.precio_total_items - self.precio_kit) / self.precio_total_items) * 100
+        return 0
+    
+    @property
+    def esta_vigente(self):
+        """Verifica si el kit está dentro del período de vigencia"""
+        hoy = timezone.now().date()
+        if self.fecha_inicio and hoy < self.fecha_inicio:
+            return False
+        if self.fecha_fin and hoy > self.fecha_fin:
+            return False
+        return True
+    
+    @property
+    def esta_disponible(self):
+        """Verifica si el kit está disponible para venta"""
+        return self.activo and self.esta_vigente and self.stock_disponible > 0
+
+
+class KitOfertaItem(models.Model):
+    """Items que componen un kit de oferta"""
+    
+    kit = models.ForeignKey(
+        KitOferta,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name="Kit de Oferta"
+    )
+    articulo = models.ForeignKey(
+        Articulo,
+        on_delete=models.CASCADE,
+        verbose_name="Artículo"
+    )
+    cantidad = models.IntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        verbose_name="Cantidad"
+    )
+    orden = models.IntegerField(
+        default=0,
+        verbose_name="Orden",
+        help_text="Orden de visualización del item"
+    )
+    observaciones = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Observaciones"
+    )
+    
+    class Meta:
+        verbose_name = "Item de Kit"
+        verbose_name_plural = "Items de Kit"
+        ordering = ['orden', 'id']
+        unique_together = ['kit', 'articulo']
+    
+    def __str__(self):
+        return f"{self.kit.codigo} - {self.articulo.codigo} x{self.cantidad}"
+    
+    @property
+    def subtotal(self):
+        """Calcula el subtotal del item"""
+        precio_final = Decimal(self.articulo.precio_final.replace(',', '')) if self.articulo.precio_final else Decimal('0.00')
+        return int(precio_final * self.cantidad)

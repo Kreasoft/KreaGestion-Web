@@ -55,4 +55,17 @@ urlpatterns = [
     path('<int:articulo_id>/homologacion/crear/', views.homologacion_create, name='homologacion_create'),
     path('homologacion/<int:pk>/editar/', views.homologacion_update, name='homologacion_update'),
     path('homologacion/<int:pk>/eliminar/', views.homologacion_delete, name='homologacion_delete'),
+    
+    # Kits de Ofertas
+    path('kits/', views.kit_oferta_list, name='kit_oferta_list'),
+    path('kits/crear/', views.kit_oferta_create, name='kit_oferta_create'),
+    path('kits/<int:pk>/', views.kit_oferta_detail, name='kit_oferta_detail'),
+    path('kits/<int:pk>/editar/', views.kit_oferta_update, name='kit_oferta_update'),
+    path('kits/<int:pk>/eliminar/', views.kit_oferta_delete, name='kit_oferta_delete'),
+    path('kits/<int:pk>/items-json/', views.kit_oferta_items_json, name='kit_oferta_items_json'),
+    
+    # Items de Kits
+    path('kits/<int:kit_id>/items/crear/', views.kit_item_create, name='kit_item_create'),
+    path('kits/items/<int:pk>/editar/', views.kit_item_update, name='kit_item_update'),
+    path('kits/items/<int:pk>/eliminar/', views.kit_item_delete, name='kit_item_delete'),
 ]

@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Kits de Ofertas{% endblock %}
+
+{% block extra_css %}
+<style>
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        padding-top: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 12px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0 text-white" style="font-size: 1.1rem; font-weight: 600;">
+                                <i class="fas fa-gift me-2"></i>Kits de Ofertas
+                            </h5>
+                            <small class="text-white-50" style="font-size: 0.8rem;">
+                                Gestión de combos y ofertas especiales
+                            </small>
+                        </div>
+                        <div>
+                            <a href="{% url 'articulos:kit_oferta_create' %}" class="btn btn-sm btn-light">
+                                <i class="fas fa-plus me-1"></i> Crear Kit
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="card-body" style="padding: 1rem; background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%);">
+                    <form method="get" class="row g-2">
+                        <div class="col-md-4">
+                            <input type="text" name="search" class="form-control form-control-sm" placeholder="Buscar por código, nombre..." value="{{ search }}">
+                        </div>
+                        <div class="col-md-2">
+                            <select name="activo" class="form-select form-select-sm">
+                                <option value="">Todos los estados</option>
+                                <option value="true" {% if activo == 'true' %}selected{% endif %}>Activos</option>
+                                <option value="false" {% if activo == 'false' %}selected{% endif %}>Inactivos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="destacado" class="form-select form-select-sm">
+                                <option value="">Todos</option>
+                                <option value="true" {% if destacado == 'true' %}selected{% endif %}>Destacados</option>
+                                <option value="false" {% if destacado == 'false' %}selected{% endif %}>No destacados</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
+                                <i class="fas fa-search me-1"></i> Buscar
+                            </button>
+                            <a href="{% url 'articulos:kit_oferta_list' %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i> Limpiar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Lista de Kits -->
+                <div class="card-body" style="padding: 1rem;">
+                    {% if kits %}
+                    <div class="row g-3">
+                        {% for kit in kits %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100" style="border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.1); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 4px 12px rgba(139, 115, 85, 0.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(139, 115, 85, 0.1)'">
+                                {% if kit.imagen %}
+                                <img src="{{ kit.imagen.url }}" class="card-img-top" style="height: 200px; object-fit: cover; border-radius: 12px 12px 0 0;" alt="{{ kit.nombre }}">
+                                {% else %}
+                                <div style="height: 200px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-radius: 12px 12px 0 0; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-gift fa-4x" style="color: #D4C4A8;"></i>
+                                </div>
+                                {% endif %}
+                                
+                                {% if kit.destacado %}
+                                <div style="position: absolute; top: 10px; right: 10px;">
+                                    <span class="badge" style="background: linear-gradient(135deg, #D4A574 0%, #C19461 100%); font-size: 0.75rem;">
+                                        <i class="fas fa-star me-1"></i>Destacado
+                                    </span>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="card-body" style="padding: 1rem;">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-0" style="color: #6F5B44; font-weight: 600;">{{ kit.nombre }}</h6>
+                                        {% if kit.activo %}
+                                        <span class="badge bg-success" style="font-size: 0.7rem;">Activo</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary" style="font-size: 0.7rem;">Inactivo</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <p class="text-muted mb-2" style="font-size: 0.75rem;">
+                                        <i class="fas fa-barcode me-1"></i>{{ kit.codigo }}
+                                    </p>
+                                    
+                                    {% if kit.descripcion %}
+                                    <p class="text-muted mb-2" style="font-size: 0.8rem; height: 40px; overflow: hidden;">
+                                        {{ kit.descripcion|truncatewords:10 }}
+                                    </p>
+                                    {% endif %}
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Precio del Kit</small>
+                                        <h5 class="mb-0" style="color: #8B7355; font-weight: 700;">${{ kit.precio_kit|intcomma }}</h5>
+                                    </div>
+                                    
+                                    {% if kit.items.count > 0 %}
+                                    <div class="mb-2 p-2" style="background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%); border-radius: 6px;">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <small class="text-muted d-block" style="font-size: 0.7rem;">Precio Individual</small>
+                                                <small style="color: #6F5B44; font-weight: 600;">${{ kit.precio_total_items|intcomma }}</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <small class="text-success d-block" style="font-size: 0.7rem;">Ahorras</small>
+                                                <small class="text-success" style="font-weight: 600;">${{ kit.ahorro|intcomma }} ({{ kit.ahorro_porcentaje|floatformat:0 }}%)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <small class="text-muted" style="font-size: 0.75rem;">
+                                            <i class="fas fa-box me-1"></i>{{ kit.items.count }} artículo{{ kit.items.count|pluralize }}
+                                        </small>
+                                        <small class="text-muted" style="font-size: 0.75rem;">
+                                            <i class="fas fa-cubes me-1"></i>Stock: {{ kit.stock_disponible }}
+                                        </small>
+                                    </div>
+                                    
+                                    {% if kit.fecha_inicio or kit.fecha_fin %}
+                                    <div class="mb-2">
+                                        <small class="text-muted" style="font-size: 0.7rem;">
+                                            <i class="fas fa-calendar me-1"></i>
+                                            {% if kit.fecha_inicio %}Desde {{ kit.fecha_inicio|date:"d/m/Y" }}{% endif %}
+                                            {% if kit.fecha_fin %} hasta {{ kit.fecha_fin|date:"d/m/Y" }}{% endif %}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="d-grid gap-2">
+                                        <a href="{% url 'articulos:kit_oferta_detail' kit.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
+                                            <i class="fas fa-eye me-1"></i> Ver Detalle
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Paginación -->
+                    {% if kits.has_other_pages %}
+                    <nav class="mt-4">
+                        <ul class="pagination pagination-sm justify-content-center">
+                            {% if kits.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ kits.previous_page_number }}&search={{ search }}&activo={{ activo }}&destacado={{ destacado }}">Anterior</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in kits.paginator.page_range %}
+                            <li class="page-item {% if kits.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}&search={{ search }}&activo={{ activo }}&destacado={{ destacado }}">{{ num }}</a>
+                            </li>
+                            {% endfor %}
+                            
+                            {% if kits.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ kits.next_page_number }}&search={{ search }}&activo={{ activo }}&destacado={{ destacado }}">Siguiente</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-gift fa-4x mb-3" style="color: #D4C4A8;"></i>
+                        <p class="text-muted">No hay kits de ofertas registrados.</p>
+                        <a href="{% url 'articulos:kit_oferta_create' %}" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
+                            <i class="fas fa-plus me-1"></i> Crear Primer Kit
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -19,9 +19,9 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.pdfgen import canvas
 from datetime import datetime
 import os
-from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo
+from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo, KitOferta, KitOfertaItem
 from inventario.models import Stock
-from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm, ListaPrecioForm, PrecioArticuloForm, HomologacionCodigoForm
+from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm, ListaPrecioForm, PrecioArticuloForm, HomologacionCodigoForm, KitOfertaForm, KitOfertaItemForm
 from empresas.decorators import requiere_empresa
 
 
@@ -1381,3 +1381,245 @@ def homologacion_delete(request, pk):
     return render(request, 'articulos/homologacion_confirm_delete.html', {
         'homologacion': homologacion
     })
+
+
+# ==================== KITS DE OFERTAS ====================
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.view_articulo', raise_exception=True)
+def kit_oferta_list(request):
+    """Lista de kits de ofertas"""
+    kits = KitOferta.objects.filter(empresa=request.empresa).prefetch_related('items__articulo')
+    
+    # Filtros
+    search = request.GET.get('search', '')
+    activo = request.GET.get('activo', '')
+    destacado = request.GET.get('destacado', '')
+    
+    if search:
+        kits = kits.filter(
+            Q(codigo__icontains=search) |
+            Q(nombre__icontains=search) |
+            Q(descripcion__icontains=search)
+        )
+    
+    if activo:
+        kits = kits.filter(activo=(activo == 'true'))
+    
+    if destacado:
+        kits = kits.filter(destacado=(destacado == 'true'))
+    
+    # Paginación
+    paginator = Paginator(kits, 20)
+    page = request.GET.get('page')
+    kits = paginator.get_page(page)
+    
+    return render(request, 'articulos/kit_oferta_list.html', {
+        'kits': kits,
+        'search': search,
+        'activo': activo,
+        'destacado': destacado
+    })
+
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.view_articulo', raise_exception=True)
+def kit_oferta_detail(request, pk):
+    """Detalle de un kit de oferta"""
+    kit = get_object_or_404(KitOferta, pk=pk, empresa=request.empresa)
+    items = kit.items.select_related('articulo').all()
+    
+    return render(request, 'articulos/kit_oferta_detail.html', {
+        'kit': kit,
+        'items': items
+    })
+
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.add_articulo', raise_exception=True)
+def kit_oferta_create(request):
+    """Crear kit de oferta"""
+    if request.method == 'POST':
+        form = KitOfertaForm(request.POST, request.FILES)
+        if form.is_valid():
+            kit = form.save(commit=False)
+            kit.empresa = request.empresa
+            kit.save()
+            messages.success(request, 'Kit de oferta creado exitosamente.')
+            return redirect('articulos:kit_oferta_detail', pk=kit.pk)
+    else:
+        form = KitOfertaForm()
+    
+    return render(request, 'articulos/kit_oferta_form.html', {
+        'form': form,
+        'action': 'Crear'
+    })
+
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.change_articulo', raise_exception=True)
+def kit_oferta_update(request, pk):
+    """Editar kit de oferta"""
+    kit = get_object_or_404(KitOferta, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = KitOfertaForm(request.POST, request.FILES, instance=kit)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Kit de oferta actualizado exitosamente.')
+            return redirect('articulos:kit_oferta_detail', pk=kit.pk)
+    else:
+        form = KitOfertaForm(instance=kit)
+    
+    return render(request, 'articulos/kit_oferta_form.html', {
+        'form': form,
+        'kit': kit,
+        'action': 'Editar'
+    })
+
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.delete_articulo', raise_exception=True)
+def kit_oferta_delete(request, pk):
+    """Eliminar kit de oferta"""
+    kit = get_object_or_404(KitOferta, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        kit.delete()
+        messages.success(request, 'Kit de oferta eliminado exitosamente.')
+        return redirect('articulos:kit_oferta_list')
+    
+    return render(request, 'articulos/kit_oferta_confirm_delete.html', {
+        'kit': kit
+    })
+
+
+# Gestión de items del kit
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.add_articulo', raise_exception=True)
+def kit_item_create(request, kit_id):
+    """Agregar item a un kit"""
+    kit = get_object_or_404(KitOferta, pk=kit_id, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = KitOfertaItemForm(request.POST, empresa=request.empresa)
+        if form.is_valid():
+            item = form.save(commit=False)
+            item.kit = kit
+            item.save()
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            
+            messages.success(request, 'Artículo agregado al kit exitosamente.')
+            return redirect('articulos:kit_oferta_detail', pk=kit.pk)
+    else:
+        form = KitOfertaItemForm(empresa=request.empresa)
+    
+    template = 'articulos/kit_item_form_ajax.html' if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else 'articulos/kit_item_form.html'
+    
+    return render(request, template, {
+        'form': form,
+        'kit': kit,
+        'action': 'Agregar'
+    })
+
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.change_articulo', raise_exception=True)
+def kit_item_update(request, pk):
+    """Editar item de un kit"""
+    item = get_object_or_404(KitOfertaItem, pk=pk, kit__empresa=request.empresa)
+    
+    if request.method == 'POST':
+        form = KitOfertaItemForm(request.POST, instance=item, empresa=request.empresa)
+        if form.is_valid():
+            form.save()
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            
+            messages.success(request, 'Item actualizado exitosamente.')
+            return redirect('articulos:kit_oferta_detail', pk=item.kit.pk)
+    else:
+        form = KitOfertaItemForm(instance=item, empresa=request.empresa)
+    
+    template = 'articulos/kit_item_form_ajax.html' if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else 'articulos/kit_item_form.html'
+    
+    return render(request, template, {
+        'form': form,
+        'kit': item.kit,
+        'action': 'Editar'
+    })
+
+
+@requiere_empresa
+@login_required
+@permission_required('articulos.delete_articulo', raise_exception=True)
+def kit_item_delete(request, pk):
+    """Eliminar item de un kit"""
+    item = get_object_or_404(KitOfertaItem, pk=pk, kit__empresa=request.empresa)
+    kit_id = item.kit.pk
+    
+    if request.method == 'POST':
+        item.delete()
+        messages.success(request, 'Item eliminado del kit exitosamente.')
+        return redirect('articulos:kit_oferta_detail', pk=kit_id)
+    
+    return render(request, 'articulos/kit_item_confirm_delete.html', {
+        'item': item
+    })
+
+
+@requiere_empresa
+@login_required
+def kit_oferta_items_json(request, pk):
+    """Obtener items de un kit en formato JSON para el POS"""
+    try:
+        kit = get_object_or_404(KitOferta, pk=pk, empresa=request.empresa)
+        items = kit.items.select_related('articulo').all()
+        
+        items_data = []
+        for item in items:
+            # Obtener precio del artículo (sin formato, solo número)
+            try:
+                # precio_final_calculado es un Decimal, convertir a float y luego a int
+                precio = int(float(item.articulo.precio_final_calculado))
+            except (ValueError, AttributeError, TypeError):
+                # Si falla, intentar con precio_venta
+                try:
+                    precio = int(float(item.articulo.precio_venta))
+                except:
+                    precio = 0
+            
+            items_data.append({
+                'articulo_id': item.articulo.id,
+                'articulo_nombre': item.articulo.nombre,
+                'articulo_codigo': item.articulo.codigo,
+                'cantidad': item.cantidad,
+                'precio_unitario': precio,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'kit_id': kit.id,
+            'kit_nombre': kit.nombre,
+            'kit_precio': int(kit.precio_kit),
+            'items': items_data
+        })
+    except Exception as e:
+        import traceback
+        print(f"Error en kit_oferta_items_json: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
