@@ -15,7 +15,9 @@ from .forms import (
 )
 from empresas.models import Empresa
 from articulos.models import Articulo
+from proveedores.models import Proveedor
 from usuarios.decorators import requiere_empresa
+import json
 
 
 def obtener_empresa_usuario(request):
@@ -455,3 +457,82 @@ def get_articulo_info(request):
 #     }
 #     
 #     return render(request, 'compras/recepcion_detail.html', context)
+
+
+@login_required
+def proveedor_create_ajax(request):
+    """Vista AJAX para crear un nuevo proveedor desde el formulario de documento de compra"""
+    if request.method == 'POST':
+        try:
+            # Obtener la empresa del usuario
+            empresa, error = obtener_empresa_usuario(request)
+            if error:
+                return JsonResponse({
+                    'success': False,
+                    'message': error
+                }, status=400)
+            
+            # Parsear datos JSON
+            data = json.loads(request.body)
+            
+            # Validar campos obligatorios
+            rut = data.get('rut', '').strip()
+            razon_social = data.get('razon_social', '').strip()
+            
+            if not rut or not razon_social:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'RUT y Razón Social son obligatorios'
+                }, status=400)
+            
+            # Verificar si el proveedor ya existe
+            if Proveedor.objects.filter(empresa=empresa, rut=rut).exists():
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Ya existe un proveedor con el RUT {rut} en esta empresa'
+                }, status=400)
+            
+            # Crear el proveedor
+            proveedor = Proveedor.objects.create(
+                empresa=empresa,
+                nombre=data.get('nombre_fantasia', razon_social),
+                razon_social=razon_social,
+                rut=rut,
+                giro=data.get('giro', 'Sin especificar'),
+                direccion=data.get('direccion', 'Sin especificar'),
+                comuna=data.get('comuna', 'Sin especificar'),
+                ciudad=data.get('ciudad', 'Sin especificar'),
+                region=data.get('region', 'Sin especificar'),
+                telefono=data.get('telefono', ''),
+                email=data.get('email', ''),
+                tipo_proveedor='productos',
+                estado='activo',
+                creado_por=request.user
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Proveedor creado exitosamente',
+                'proveedor': {
+                    'id': proveedor.id,
+                    'rut': proveedor.rut,
+                    'razon_social': proveedor.razon_social,
+                    'nombre': proveedor.nombre
+                }
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False,
+                'message': 'Error al procesar los datos JSON'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al crear el proveedor: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Método no permitido'
+    }, status=405)

@@ -2506,9 +2506,9 @@ def precio_cliente_create(request):
     form = PrecioClienteArticuloForm()
     form.fields['cliente'].queryset = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')
     
-    # Preparar artículos con sus precios para JavaScript (sin decimales)
+    # Preparar artículos con sus precios FINALES (con IVA e impuestos) para JavaScript
     articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
-    articulos_precios = {str(a.id): int(round(float(a.precio_venta))) for a in articulos}
+    articulos_precios = {str(a.id): int(round(float(a.precio_final))) for a in articulos}
     
     form.fields['articulo'].queryset = articulos
     
@@ -2544,9 +2544,9 @@ def precio_cliente_edit(request, pk):
         form = PrecioClienteArticuloForm(instance=precio)
         form.fields['cliente'].queryset = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')
         
-        # Preparar artículos con sus precios para JavaScript (sin decimales)
+        # Preparar artículos con sus precios FINALES (con IVA e impuestos) para JavaScript
         articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
-        articulos_precios = {str(a.id): int(round(float(a.precio_venta))) for a in articulos}
+        articulos_precios = {str(a.id): int(round(float(a.precio_final))) for a in articulos}
         
         form.fields['articulo'].queryset = articulos
         

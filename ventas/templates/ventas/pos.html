@@ -820,14 +820,22 @@ async function obtenerPrecioArticulo(articuloId, precioLista) {
     // Si hay cliente seleccionado, buscar precio especial
     if (window.clienteSeleccionado && window.clienteSeleccionado.id) {
         try {
-            const response = await fetch(`/ventas/api/precio-cliente/${window.clienteSeleccionado.id}/${articuloId}/`);
+            // Limpiar el ID del cliente (remover espacios y caracteres no numéricos excepto guiones)
+            const clienteIdLimpio = String(window.clienteSeleccionado.id).trim().replace(/\s+/g, '');
+            
+            console.log(`Buscando precio especial para cliente ID: ${clienteIdLimpio}, artículo: ${articuloId}`);
+            
+            const response = await fetch(`/ventas/api/precio-cliente/${clienteIdLimpio}/${articuloId}/`);
             const data = await response.json();
             if (data.success && data.precio_especial) {
-                console.log(`Precio especial encontrado para cliente ${window.clienteSeleccionado.id}: $${data.precio_especial}`);
+                console.log(`✓ Precio especial encontrado: $${data.precio_especial} (Lista: $${precioLista})`);
                 return parseFloat(data.precio_especial);
+            } else {
+                console.log(`✗ Sin precio especial, usando precio de lista: $${precioLista}`);
             }
         } catch (error) {
-            console.log('No se encontró precio especial, usando precio de lista');
+            console.log('Error al buscar precio especial:', error);
+            console.log('Usando precio de lista');
         }
     }
     return parseFloat(precioLista);
@@ -1557,22 +1565,28 @@ function clearCart() {
         
         // Verificar si ya hay un cliente seleccionado
         const clienteYaSeleccionado = window.clienteSeleccionado;
-        console.log('Cliente ya seleccionado:', clienteYaSeleccionado);
-        console.log('RUT del cliente:', clienteYaSeleccionado ? clienteYaSeleccionado.rut : 'No hay cliente');
+        console.log('=== MODAL PROCESAR VENTA ===');
+        console.log('Cliente completo:', clienteYaSeleccionado);
+        console.log('Cliente.id:', clienteYaSeleccionado ? clienteYaSeleccionado.id : 'No hay cliente');
+        console.log('Cliente.nombre:', clienteYaSeleccionado ? clienteYaSeleccionado.nombre : 'No hay cliente');
+        console.log('Cliente.rut:', clienteYaSeleccionado ? clienteYaSeleccionado.rut : 'No hay cliente');
+        console.log('Cliente.rut_formatted:', clienteYaSeleccionado ? clienteYaSeleccionado.rut_formatted : 'No hay cliente');
+        console.log('Cliente.direccion:', clienteYaSeleccionado ? clienteYaSeleccionado.direccion : 'No hay cliente');
+        console.log('===========================');
         
         const html = `
             <div class="mb-3">
-                <label class="form-label">Tipo de Documento a Emitir *</label>
+                <label class="form-label" style="font-weight: 700; color: #495057; text-align: left; display: block;">Tipo de Documento a Emitir *</label>
                 <select id="tipo-documento" class="form-control" required>
                     <option value="">Seleccionar tipo...</option>
                     ${opciones}
                 </select>
-                <small class="text-muted">Este documento se emitirá posteriormente en el módulo de caja</small>
+                <small style="color: #adb5bd; font-size: 0.75rem;">Este documento se emitirá posteriormente en el módulo de caja</small>
             </div>
             
             <!-- Tipo de Despacho (solo para Guías) -->
             <div class="mb-3" id="tipo-despacho-container" style="display: none;">
-                <label class="form-label">Motivo de Traslado *</label>
+                <label class="form-label" style="font-weight: 700; color: #495057; text-align: left; display: block;">Motivo de Traslado *</label>
                 <select id="tipo-despacho" class="form-control">
                     <option value="">Seleccionar motivo...</option>
                     <option value="1">1 - Venta</option>
@@ -1584,36 +1598,82 @@ function clearCart() {
                     <option value="7">7 - Entrega gratuita</option>
                     <option value="8">8 - Otros</option>
                 </select>
-                <small class="text-muted">Según SII - Motivo de traslado de la guía de despacho</small>
+                <small style="color: #adb5bd; font-size: 0.7rem;">Según SII - Motivo de traslado de la guía de despacho</small>
             </div>
             
             <!-- Referencias (solo para Facturas y Guías) -->
             <div class="mb-3" id="referencias-container" style="display: none;">
-                <label class="form-label">Referencias del Documento</label>
-                <button type="button" class="btn btn-primary btn-sm w-100 mb-2" id="btn-agregar-referencias">
-                    <i class="fas fa-plus me-2"></i>Agregar Referencia
+                <label class="form-label" style="font-weight: 700; color: #495057; text-align: left; display: block;">Referencias del Documento</label>
+                
+                <!-- Botón para mostrar/ocultar formulario de referencias -->
+                <button type="button" id="btn-toggle-referencias" class="btn btn-sm w-100 mb-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px; border-radius: 8px; font-weight: 500; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;">
+                    <i class="fas fa-plus-circle me-2"></i>Agregar Referencias (Opcional)
                 </button>
                 
-                <!-- Lista de referencias -->
-                <div id="referencias-lista" class="mt-2">
-                    <table class="table table-sm table-bordered" id="tabla-referencias" style="display: none; font-size: 0.85rem;">
-                        <thead style="background: #f8f9fa;">
-                            <tr>
-                                <th style="width: 25%;">Tipo</th>
-                                <th style="width: 20%;">Folio</th>
-                                <th style="width: 20%;">Fecha</th>
-                                <th style="width: 25%;">Comentario</th>
-                                <th style="width: 10%; text-align: center;">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-referencias">
-                        </tbody>
-                    </table>
+                <!-- Tarjeta con formulario y lista de referencias (inicialmente oculta) -->
+                <div id="card-referencias" class="card" style="display: none; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div class="card-body" style="padding: 12px;">
+                        <!-- Formulario inline para agregar referencias -->
+                        <div id="form-referencia-inline" style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                            <h6 style="color: #495057; font-size: 0.85rem; margin-bottom: 10px; text-align: left;">
+                                <i class="fas fa-file-alt me-2"></i>Nueva Referencia
+                            </h6>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #6c757d; margin-bottom: 2px; display: block; text-align: left;">Tipo *</label>
+                                    <select id="tipo-referencia-inline" class="form-control form-control-sm">
+                                        <option value="">Seleccionar...</option>
+                                        <option value="801">Orden de Compra (801)</option>
+                                        <option value="802">Nota de Pedido (802)</option>
+                                        <option value="803">Contrato (803)</option>
+                                        <option value="52">Guía de Despacho (52)</option>
+                                        <option value="HES">HES</option>
+                                        <option value="HEM">HEM</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #6c757d; margin-bottom: 2px; display: block; text-align: left;">Folio *</label>
+                                    <input type="text" id="folio-referencia-inline" class="form-control form-control-sm" placeholder="Ej: OC-12345">
+                                </div>
+                                <div class="col-6">
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #6c757d; margin-bottom: 2px; display: block; text-align: left;">Fecha *</label>
+                                    <input type="date" id="fecha-referencia-inline" class="form-control form-control-sm">
+                                </div>
+                                <div class="col-6">
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #6c757d; margin-bottom: 2px; display: block; text-align: left;">Comentario</label>
+                                    <input type="text" id="razon-referencia-inline" class="form-control form-control-sm" placeholder="Opcional">
+                                </div>
+                            </div>
+                            <button type="button" id="btn-agregar-ref-inline" class="btn btn-success btn-sm w-100 mt-2" style="font-size: 0.8rem; padding: 6px;">
+                                <i class="fas fa-plus me-1"></i>Agregar a la Lista
+                            </button>
+                        </div>
+                        
+                        <!-- Lista de referencias agregadas -->
+                        <div id="referencias-lista">
+                            <div style="font-size: 0.8rem; color: #495057; margin-bottom: 8px; padding: 8px; background: #e7f3ff; border-radius: 6px;">
+                                <i class="fas fa-list me-2"></i><strong>Referencias Agregadas: <span id="contador-refs-inline">0</span></strong>
+                            </div>
+                            <table class="table table-sm table-bordered" id="tabla-referencias" style="display: none; font-size: 0.75rem; margin-bottom: 0;">
+                                <thead style="background: #e9ecef;">
+                                    <tr>
+                                        <th style="width: 30%; padding: 4px 6px;">Tipo</th>
+                                        <th style="width: 20%; padding: 4px 6px;">Folio</th>
+                                        <th style="width: 18%; padding: 4px 6px;">Fecha</th>
+                                        <th style="width: 22%; padding: 4px 6px;">Comentario</th>
+                                        <th style="width: 10%; text-align: center; padding: 4px 6px;"><i class="fas fa-trash"></i></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-referencias">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
             
             <div class="mb-3">
-                <label class="form-label">Cliente *</label>
+                <label class="form-label" style="font-weight: 700; color: #495057; text-align: left; display: block;">Cliente *</label>
                 
                 ${clienteYaSeleccionado && '{{ modo_pos }}' === 'con_cliente' ? `
                     <!-- Cliente ya seleccionado en modo con_cliente - NO EDITABLE -->
@@ -1669,13 +1729,14 @@ function clearCart() {
         `;
         
         Swal.fire({
-            title: 'Procesar Preventa',
+            title: '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; margin: -20px -20px 20px -20px; border-radius: 8px 8px 0 0;"><i class="fas fa-cash-register me-2"></i>Procesar Preventa</div>',
             html: html,
             showCancelButton: true,
-            confirmButtonText: 'Procesar Preventa',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#17a2b8',
+            confirmButtonText: '<i class="fas fa-check me-2"></i>Procesar Preventa',
+            cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+            confirmButtonColor: '#28a745',
             cancelButtonColor: '#6c757d',
+            width: '650px',
             preConfirm: () => {
                 const tipoDocumento = document.getElementById('tipo-documento').value;
                 const rutCliente = document.getElementById('busqueda-cliente').value;
@@ -1770,9 +1831,58 @@ function clearCart() {
             });
         }
         
-        // Botón agregar referencias
-        document.getElementById('btn-agregar-referencias').addEventListener('click', function() {
-            mostrarModalReferencias();
+        // Botón toggle para mostrar/ocultar formulario de referencias
+        document.getElementById('btn-toggle-referencias').addEventListener('click', function() {
+            const card = document.getElementById('card-referencias');
+            const btn = document.getElementById('btn-toggle-referencias');
+            
+            if (card.style.display === 'none') {
+                card.style.display = 'block';
+                btn.innerHTML = '<i class="fas fa-minus-circle me-2"></i>Ocultar Referencias';
+                btn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+            } else {
+                card.style.display = 'none';
+                btn.innerHTML = '<i class="fas fa-plus-circle me-2"></i>Agregar Referencias (Opcional)';
+                btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }
+        });
+        
+        // Botón agregar referencia inline
+        document.getElementById('btn-agregar-ref-inline').addEventListener('click', function() {
+            const tipo = document.getElementById('tipo-referencia-inline').value;
+            const folio = document.getElementById('folio-referencia-inline').value;
+            const fecha = document.getElementById('fecha-referencia-inline').value;
+            const razon = document.getElementById('razon-referencia-inline').value;
+            
+            if (!tipo || !folio || !fecha) {
+                Swal.showValidationMessage('Complete los campos obligatorios (Tipo, Folio, Fecha)');
+                return;
+            }
+            
+            // Obtener texto del tipo
+            const selectElement = document.getElementById('tipo-referencia-inline');
+            const tipoTexto = selectElement.selectedOptions[0].text;
+            
+            // Agregar referencia
+            window.referencias.push({
+                tipo: tipo,
+                tipo_texto: tipoTexto,
+                folio: folio,
+                fecha: fecha,
+                razon: razon || '-'
+            });
+            
+            // Actualizar lista visual
+            actualizarListaReferencias();
+            
+            // Limpiar formulario
+            document.getElementById('tipo-referencia-inline').value = '';
+            document.getElementById('folio-referencia-inline').value = '';
+            document.getElementById('fecha-referencia-inline').value = '';
+            document.getElementById('razon-referencia-inline').value = '';
+            
+            // Actualizar contador
+            document.getElementById('contador-refs-inline').textContent = window.referencias.length;
         });
     }
     
@@ -3092,8 +3202,14 @@ function removeFromCart(index) {
 
 // Función global para seleccionar cliente
 function seleccionarCliente(id, nombre, rut, direccion) {
-    console.log('=== SELECCIONANDO CLIENTE ===');
-    console.log('ID:', id, 'Tipo:', typeof id);
+    // Limpiar datos
+    id = String(id).trim().replace(/\s+/g, '');
+    nombre = String(nombre).trim();
+    rut = String(rut).trim();
+    direccion = String(direccion).trim();
+    
+    console.log('=== SELECCIONANDO CLIENTE (BÚSQUEDA) ===');
+    console.log('ID (limpio):', id, 'Tipo:', typeof id);
     console.log('Nombre:', nombre);
     console.log('RUT:', rut, 'Tipo:', typeof rut);
     console.log('Dirección:', direccion);
@@ -3111,7 +3227,7 @@ function seleccionarCliente(id, nombre, rut, direccion) {
         id: id,
         nombre: nombre,
         rut: rut,
-        rut_formatted: rut, // Agregar también como rut_formatted
+        rut_formatted: rut,
         direccion: direccion
     };
     
@@ -3340,15 +3456,23 @@ function mostrarHistorialTickets() {
                 </div>
             </div>
             <div class="modal-body" style="padding: 25px;">
-                <!-- Buscador de Cliente -->
+                <!-- Buscador de Cliente y Botón Crear -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold" style="color: #6F5B44;">Buscar Cliente</label>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold mb-0" style="color: #6F5B44;">Buscar Cliente</label>
+                        <a href="{% url 'clientes:cliente_create' %}" target="_blank" class="btn btn-sm" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 5px 12px; font-size: 0.8rem; box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);">
+                            <i class="fas fa-user-plus me-1"></i>Crear Cliente
+                        </a>
+                    </div>
                     <div class="input-group">
                         <span class="input-group-text" style="background: #F5F1E8; border-color: #E8DCC8;">
                             <i class="fas fa-search" style="color: #8B7355;"></i>
                         </span>
                         <input type="text" id="buscarClienteInicio" class="form-control" placeholder="Buscar por RUT o Nombre..." style="border-color: #E8DCC8;">
                     </div>
+                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                        <i class="fas fa-info-circle me-1"></i>Después de crear el cliente, recargue esta página para verlo en la lista
+                    </small>
                 </div>
                 
                 <!-- Lista de Clientes (estilo tabla compacta) -->
@@ -3362,7 +3486,7 @@ function mostrarHistorialTickets() {
                         </thead>
                         <tbody>
                             {% for cliente in clientes %}
-                            <tr class="cliente-item" data-cliente-id="{{ cliente.id }}" data-cliente-nombre="{{ cliente.nombre }}" data-cliente-rut="{{ cliente.rut|default:''" style="cursor: pointer; transition: background 0.2s;">
+                            <tr class="cliente-item" data-cliente-id="{{ cliente.id }}" data-cliente-nombre="{{ cliente.nombre }}" data-cliente-rut="{{ cliente.rut|default:'' }}" data-cliente-direccion="{{ cliente.direccion|default:'' }}" style="cursor: pointer; transition: background 0.2s;">
                                 <td style="padding: 10px 12px; color: #8B7355; font-weight: 500;">{{ cliente.rut|default:"Sin RUT" }}</td>
                                 <td style="padding: 10px 12px; color: #6F5B44; font-weight: 600;">{{ cliente.nombre }}</td>
                             </tr>
@@ -3411,26 +3535,44 @@ document.addEventListener('DOMContentLoaded', function() {
         // Seleccionar cliente
         document.querySelectorAll('.cliente-item').forEach(item => {
             item.addEventListener('click', function() {
-                const clienteId = this.dataset.clienteId;
-                const clienteNombre = this.dataset.clienteNombre;
+                const clienteId = this.dataset.clienteId.trim().replace(/\s+/g, ''); // Limpiar ID
+                const clienteNombre = this.dataset.clienteNombre.trim();
+                const clienteRut = this.dataset.clienteRut.trim();
+                const clienteDireccion = this.dataset.clienteDireccion.trim();
+                
+                console.log('=== CLIENTE SELECCIONADO DESDE MODAL INICIO ===');
+                console.log('ID (limpio):', clienteId);
+                console.log('Nombre:', clienteNombre);
+                console.log('RUT:', clienteRut);
+                console.log('Dirección:', clienteDireccion);
                 
                 // Guardar cliente en sesión/variable global
                 window.clienteSeleccionado = {
                     id: clienteId,
-                    nombre: clienteNombre
+                    nombre: clienteNombre,
+                    rut: clienteRut,
+                    rut_formatted: clienteRut,
+                    direccion: clienteDireccion
                 };
                 
                 // Mostrar cliente en header del POS
                 const headerInfo = document.querySelector('.pos-header');
                 if (headerInfo) {
+                    // Eliminar cliente anterior si existe
+                    const clienteAnterior = document.getElementById('clienteActivo');
+                    if (clienteAnterior) {
+                        clienteAnterior.remove();
+                    }
+                    
                     const clienteInfo = document.createElement('div');
                     clienteInfo.id = 'clienteActivo';
                     clienteInfo.innerHTML = `
-                        <div style="background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; display: inline-block;">
-                            <i class="fas fa-user me-2"></i>
-                            <strong>${clienteNombre}</strong>
-                            <button onclick="cambiarCliente()" class="btn btn-sm btn-light ms-2" style="padding: 2px 8px; font-size: 0.75rem;">
-                                <i class="fas fa-exchange-alt"></i> Cambiar
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; margin-left: 20px; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
+                            <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
+                            <strong style="color: white; font-size: 0.95rem;">${clienteNombre}</strong>
+                            ${clienteRut ? `<small class="ms-2" style="color: rgba(255,255,255,0.9); font-size: 0.8rem;">RUT: ${clienteRut}</small>` : ''}
+                            <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                                <i class="fas fa-exchange-alt me-1"></i>Cambiar
                             </button>
                         </div>
                     `;
@@ -3438,7 +3580,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Cerrar modal
-                modalCliente.hide();
+                const modalElement = document.getElementById('modalSeleccionCliente');
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                if (modalInstance) {
+                    modalInstance.hide();
+                } else {
+                    // Si no existe instancia, crear una y cerrarla
+                    const newModal = new bootstrap.Modal(modalElement);
+                    newModal.hide();
+                }
                 
                 Swal.fire({
                     icon: 'success',
@@ -3454,6 +3604,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Función para cambiar cliente
 function cambiarCliente() {
+    // Limpiar el campo de búsqueda del modal
+    const busquedaInput = document.getElementById('buscarClienteInicio');
+    if (busquedaInput) {
+        busquedaInput.value = '';
+    }
+    
+    // Limpiar resultados de búsqueda si existen
+    const listaClientes = document.getElementById('listaClientesInicio');
+    if (listaClientes) {
+        // Restaurar la lista completa de clientes
+        const todosLosClientes = listaClientes.querySelectorAll('.cliente-item');
+        todosLosClientes.forEach(item => {
+            item.style.display = '';
+        });
+    }
+    
     const modalCliente = new bootstrap.Modal(document.getElementById('modalSeleccionCliente'));
     modalCliente.show();
 }
@@ -3565,92 +3731,204 @@ document.addEventListener('DOMContentLoaded', function() {
 // Función para mostrar modal de referencias
 function mostrarModalReferencias() {
     Swal.fire({
-        title: 'Agregar Referencia',
+        title: '<i class="fas fa-file-alt me-2"></i>Gestionar Referencias',
         html: `
-            <div class="mb-3">
-                <label class="form-label">Tipo de Referencia *</label>
-                <select id="tipo-referencia" class="form-control" required>
-                    <option value="">Seleccionar...</option>
-                    <option value="801">Orden de Compra (801)</option>
-                    <option value="802">Nota de Pedido (802)</option>
-                    <option value="803">Contrato (803)</option>
-                    <option value="52">Guía de Despacho (52)</option>
-                    <option value="HES">Hoja de Entrada de Servicios (HES)</option>
-                    <option value="HEM">Hoja de Entrada de Materiales (HEM)</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Folio/Número *</label>
-                <input type="text" id="folio-referencia" class="form-control" placeholder="Ej: OC-12345" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Fecha *</label>
-                <input type="date" id="fecha-referencia" class="form-control" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Razón (Opcional)</label>
-                <textarea id="razon-referencia" class="form-control" rows="2" placeholder="Descripción o motivo de la referencia"></textarea>
+            <div style="text-align: left;">
+                <!-- Formulario para agregar referencia -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h6 style="color: #495057; margin-bottom: 15px; font-size: 0.9rem;">
+                        <i class="fas fa-plus-circle me-2"></i>Nueva Referencia
+                    </h6>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label style="font-size: 0.8rem; font-weight: 600; color: #6c757d;">Tipo *</label>
+                            <select id="tipo-referencia" class="form-control form-control-sm">
+                                <option value="">Seleccionar...</option>
+                                <option value="801">Orden de Compra (801)</option>
+                                <option value="802">Nota de Pedido (802)</option>
+                                <option value="803">Contrato (803)</option>
+                                <option value="52">Guía de Despacho (52)</option>
+                                <option value="HES">HES</option>
+                                <option value="HEM">HEM</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label style="font-size: 0.8rem; font-weight: 600; color: #6c757d;">Folio *</label>
+                            <input type="text" id="folio-referencia" class="form-control form-control-sm" placeholder="Ej: OC-12345">
+                        </div>
+                        <div class="col-6">
+                            <label style="font-size: 0.8rem; font-weight: 600; color: #6c757d;">Fecha *</label>
+                            <input type="date" id="fecha-referencia" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-6">
+                            <label style="font-size: 0.8rem; font-weight: 600; color: #6c757d;">Comentario</label>
+                            <input type="text" id="razon-referencia" class="form-control form-control-sm" placeholder="Opcional">
+                        </div>
+                    </div>
+                    <button type="button" id="btn-agregar-ref-modal" class="btn btn-success btn-sm w-100 mt-3" style="font-size: 0.85rem;">
+                        <i class="fas fa-plus me-2"></i>Agregar a la Lista
+                    </button>
+                </div>
+                
+                <!-- Lista de referencias agregadas -->
+                <div id="lista-referencias-modal">
+                    <h6 style="color: #495057; margin-bottom: 10px; font-size: 0.9rem;">
+                        <i class="fas fa-list me-2"></i>Referencias Agregadas (<span id="contador-refs">0</span>)
+                    </h6>
+                    <div id="tabla-refs-modal" style="max-height: 200px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered" style="font-size: 0.75rem; margin-bottom: 0;">
+                            <thead style="background: #e9ecef; position: sticky; top: 0;">
+                                <tr>
+                                    <th style="width: 30%;">Tipo</th>
+                                    <th style="width: 20%;">Folio</th>
+                                    <th style="width: 20%;">Fecha</th>
+                                    <th style="width: 20%;">Comentario</th>
+                                    <th style="width: 10%; text-align: center;">
+                                        <i class="fas fa-trash"></i>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-refs-modal">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: #adb5bd; padding: 20px;">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="display: block;"></i>
+                                        No hay referencias agregadas
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         `,
+        width: '700px',
         showCancelButton: true,
-        confirmButtonText: 'Agregar',
-        cancelButtonText: 'Cancelar',
+        confirmButtonText: '<i class="fas fa-check me-2"></i>Guardar Referencias',
+        cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+        didOpen: () => {
+            // Referencias temporales para el modal
+            window.referenciasTemp = [];
+            
+            // Botón agregar referencia en el modal
+            document.getElementById('btn-agregar-ref-modal').addEventListener('click', function() {
+                const tipo = document.getElementById('tipo-referencia').value;
+                const folio = document.getElementById('folio-referencia').value;
+                const fecha = document.getElementById('fecha-referencia').value;
+                const razon = document.getElementById('razon-referencia').value;
+                
+                if (!tipo || !folio || !fecha) {
+                    Swal.showValidationMessage('Complete los campos obligatorios (Tipo, Folio, Fecha)');
+                    return;
+                }
+                
+                // Obtener texto del tipo
+                const selectElement = document.getElementById('tipo-referencia');
+                const tipoTexto = selectElement.selectedOptions[0].text;
+                
+                // Agregar a referencias temporales
+                window.referenciasTemp.push({
+                    tipo: tipo,
+                    tipo_texto: tipoTexto,
+                    folio: folio,
+                    fecha: fecha,
+                    razon: razon || '-'
+                });
+                
+                // Actualizar tabla del modal
+                actualizarTablaReferenciasModal();
+                
+                // Limpiar formulario
+                document.getElementById('tipo-referencia').value = '';
+                document.getElementById('folio-referencia').value = '';
+                document.getElementById('fecha-referencia').value = '';
+                document.getElementById('razon-referencia').value = '';
+            });
+        },
         preConfirm: () => {
-            const tipo = document.getElementById('tipo-referencia').value;
-            const folio = document.getElementById('folio-referencia').value;
-            const fecha = document.getElementById('fecha-referencia').value;
-            const razon = document.getElementById('razon-referencia').value;
-            
-            if (!tipo || !folio || !fecha) {
-                Swal.showValidationMessage('Debe completar todos los campos obligatorios');
-                return false;
-            }
-            
-            return { tipo, folio, fecha, razon };
+            return window.referenciasTemp;
         }
     }).then((result) => {
-        if (result.isConfirmed) {
-            // Agregar referencia al array
-            const selectElement = document.createElement('select');
-            selectElement.innerHTML = `
-                <option value="801">Orden de Compra (801)</option>
-                <option value="802">Nota de Pedido (802)</option>
-                <option value="803">Contrato (803)</option>
-                <option value="52">Guía de Despacho (52)</option>
-                <option value="HES">Hoja de Entrada de Servicios (HES)</option>
-                <option value="HEM">Hoja de Entrada de Materiales (HEM)</option>
-            `;
-            selectElement.value = result.value.tipo;
-            const tipoTexto = selectElement.selectedOptions[0].text;
+        if (result.isConfirmed && result.value.length > 0) {
+            // Agregar todas las referencias al array principal
+            window.referencias.push(...result.value);
             
-            window.referencias.push({
-                tipo: result.value.tipo,
-                tipo_texto: tipoTexto,
-                folio: result.value.folio,
-                fecha: result.value.fecha,
-                razon: result.value.razon
-            });
-            
-            // Actualizar lista visual
+            // Actualizar lista visual en el modal principal
             actualizarListaReferencias();
             
-            // Mostrar mensaje de éxito breve
-            Swal.fire({
+            // Mostrar toast de éxito (no modal que interrumpa)
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 2000,
+                timerProgressBar: true
+            });
+            
+            Toast.fire({
                 icon: 'success',
-                title: 'Referencia agregada',
-                timer: 1000,
-                showConfirmButton: false
+                title: `${result.value.length} referencia(s) agregada(s)`
             });
         }
     });
+}
+
+// Función para actualizar tabla de referencias en el modal
+function actualizarTablaReferenciasModal() {
+    const tbody = document.getElementById('tbody-refs-modal');
+    const contador = document.getElementById('contador-refs');
+    
+    if (!tbody) return;
+    
+    contador.textContent = window.referenciasTemp.length;
+    
+    if (window.referenciasTemp.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; color: #adb5bd; padding: 20px;">
+                    <i class="fas fa-inbox fa-2x mb-2" style="display: block;"></i>
+                    No hay referencias agregadas
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    window.referenciasTemp.forEach((ref, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding: 4px 6px;">${ref.tipo_texto}</td>
+            <td style="padding: 4px 6px;">${ref.folio}</td>
+            <td style="padding: 4px 6px;">${ref.fecha}</td>
+            <td style="padding: 4px 6px;">${ref.razon}</td>
+            <td style="padding: 4px 6px; text-align: center;">
+                <button type="button" class="btn btn-sm btn-danger" style="padding: 1px 5px; font-size: 0.7rem;" onclick="eliminarReferenciaTemp(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// Función para eliminar referencia temporal del modal
+function eliminarReferenciaTemp(index) {
+    window.referenciasTemp.splice(index, 1);
+    actualizarTablaReferenciasModal();
 }
 
 // Actualizar lista visual de referencias
 function actualizarListaReferencias() {
     const tabla = document.getElementById('tabla-referencias');
     const tbody = document.getElementById('tbody-referencias');
+    const contador = document.getElementById('contador-refs-inline');
     
     if (!tbody) return;
+    
+    // Actualizar contador
+    if (contador) {
+        contador.textContent = window.referencias.length;
+    }
     
     if (window.referencias.length === 0) {
         tabla.style.display = 'none';
@@ -3664,10 +3942,10 @@ function actualizarListaReferencias() {
     window.referencias.forEach((ref, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="padding: 4px 6px; font-size: 0.8rem;">${ref.tipo_texto}</td>
-            <td style="padding: 4px 6px; font-size: 0.8rem;">${ref.folio}</td>
-            <td style="padding: 4px 6px; font-size: 0.8rem;">${ref.fecha}</td>
-            <td style="padding: 4px 6px; font-size: 0.8rem;">${ref.razon || '-'}</td>
+            <td style="padding: 4px 6px;">${ref.tipo_texto}</td>
+            <td style="padding: 4px 6px;">${ref.folio}</td>
+            <td style="padding: 4px 6px;">${ref.fecha}</td>
+            <td style="padding: 4px 6px;">${ref.razon || '-'}</td>
             <td style="padding: 4px 6px; text-align: center;">
                 <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 0.7rem;" onclick="eliminarReferencia(${index})">
                     <i class="fas fa-trash"></i>

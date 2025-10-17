@@ -518,10 +518,10 @@ def procesar_venta(request, ticket_id):
         if not formas_pago_dict:
             print("ERROR: No hay formas de pago")
             messages.error(request, 'Debe ingresar al menos una forma de pago.')
-        # Validar que el total pagado sea suficiente (con tolerancia de 1 peso por redondeo)
-        elif total_pagado < (total_ticket - 1):
-            print(f"ERROR: Total pagado insuficiente (diferencia: {total_ticket - total_pagado})")
-            messages.error(request, f'El total pagado (${total_pagado:,.0f}) es menor al total de la venta (${total_ticket:,.0f}).')
+        # Validar que el total pagado sea suficiente (sin tolerancia, debe ser exacto o mayor)
+        elif total_pagado < total_ticket:
+            print(f"ERROR: Total pagado insuficiente (diferencia: ${total_ticket - total_pagado:,.2f})")
+            messages.error(request, f'El monto pagado (${total_pagado:,.0f}) es MENOR al total del documento (${total_ticket:,.0f}). Faltan ${(total_ticket - total_pagado):,.0f}.')
         else:
             print("Validaciones OK, procesando venta...")
             # Procesar venta
@@ -530,6 +530,36 @@ def procesar_venta(request, ticket_id):
             
             print(f"Tipo documento: {tipo_documento}")
             print(f"Observaciones: {observaciones}")
+            
+            # VALIDAR FOLIOS DISPONIBLES ANTES DE CREAR LA VENTA
+            if request.empresa.facturacion_electronica and tipo_documento in ['factura', 'boleta']:
+                try:
+                    from facturacion_electronica.services import DTEService
+                    print(f"Verificando disponibilidad de folios para {tipo_documento}...")
+                    
+                    folios_disponibles = DTEService.verificar_disponibilidad_folios(request.empresa)
+                    
+                    if not folios_disponibles.get(tipo_documento, {}).get('disponible', False):
+                        print(f"ERROR: No hay folios disponibles para {tipo_documento}")
+                        tipo_doc_nombre = 'Factura' if tipo_documento == 'factura' else 'Boleta'
+                        messages.error(request, f'No se puede procesar la venta: No hay folios CAF disponibles para {tipo_doc_nombre}. Debe cargar folios antes de continuar.')
+                        # Retornar al formulario sin procesar
+                        return render(request, 'caja/procesar_venta.html', {
+                            'ticket': ticket,
+                            'form': form,
+                            'apertura_activa': apertura_activa,
+                        })
+                    
+                    print(f"Folios disponibles OK para {tipo_documento}")
+                    
+                except Exception as e:
+                    print(f"ERROR al verificar folios: {str(e)}")
+                    messages.error(request, f'Error al verificar disponibilidad de folios: {str(e)}')
+                    return render(request, 'caja/procesar_venta.html', {
+                        'ticket': ticket,
+                        'form': form,
+                        'apertura_activa': apertura_activa,
+                    })
 
             # Generar número FUERA de la transacción para evitar condiciones de carrera
             print(f"Generando número para {tipo_documento}...")

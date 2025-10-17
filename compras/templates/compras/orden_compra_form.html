@@ -168,6 +168,7 @@
         <div>
             <h4 class="mb-0 fw-bold">
                 {% if orden %}Editar Orden de Compra{% else %}Crear Orden de Compra{% endif %}
+                <span style="background: red; color: white; padding: 2px 8px; font-size: 0.7rem; border-radius: 3px; margin-left: 10px;">VERSIÓN ACTUALIZADA</span>
             </h4>
             <small>{% if orden %}Orden {{ orden.numero_orden }}{% else %}Nueva orden{% endif %}</small>
         </div>
@@ -204,8 +205,23 @@
                     <input type="text" name="{{ form.numero_orden.name }}" class="form-control form-control-sm" value="{% if form.numero_orden.value %}{{ form.numero_orden.value }}{% endif %}" readonly style="background-color: #e9ecef;">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Proveedor *</label>
-                    {{ form.proveedor }}
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label mb-0">Proveedor *</label>
+                        <a href="{% url 'proveedores:proveedor_create' %}" target="_blank" class="btn btn-sm" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 2px 8px; font-size: 0.7rem;">
+                            <i class="fas fa-plus me-1"></i>Nuevo
+                        </a>
+                    </div>
+                    <select name="{{ form.proveedor.name }}" id="id_proveedor" class="form-select form-select-sm" required>
+                        <option value="">Seleccionar proveedor...</option>
+                        {% for proveedor in form.fields.proveedor.queryset %}
+                            <option value="{{ proveedor.id }}" {% if form.proveedor.value == proveedor.id %}selected{% endif %}>
+                                {{ proveedor.nombre }} {% if proveedor.rut %}- {{ proveedor.rut }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted" style="font-size: 0.65rem;">
+                        <i class="fas fa-info-circle me-1"></i>Después de crear, recargue la página
+                    </small>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Fecha Orden *</label>
@@ -246,9 +262,14 @@
                     <h6 class="mb-0" style="font-weight: 600; color: #495057; font-size: 0.9rem;">
                         <i class="fas fa-list me-2"></i>Artículos Solicitados
                     </h6>
-                    <button type="button" class="btn btn-sm-compact btn-add-compact" id="addItemBtn">
-                        <i class="fas fa-plus me-1"></i>Agregar
-                    </button>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'articulos:articulo_create' %}" target="_blank" class="btn btn-sm" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border: none; padding: 3px 10px; font-size: 0.7rem;">
+                            <i class="fas fa-box me-1"></i>Nuevo Artículo
+                        </a>
+                        <button type="button" class="btn btn-sm-compact btn-add-compact" id="addItemBtn">
+                            <i class="fas fa-plus me-1"></i>Agregar Línea
+                        </button>
+                    </div>
                 </div>
 
                 {{ formset.management_form }}

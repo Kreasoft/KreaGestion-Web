@@ -1,6 +1,14 @@
 <form method="post" action="{% if precio %}{% url 'ventas:precio_cliente_edit' precio.id %}{% else %}{% url 'ventas:precio_cliente_create' %}{% endif %}">
     {% csrf_token %}
     
+    <!-- Sección: Selección de Cliente y Artículo -->
+    <div class="mb-3" style="border-bottom: 2px solid #E8DCC8; padding-bottom: 10px;">
+        <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 5px;">
+            <i class="fas fa-user-tag me-2"></i>Selección de Cliente y Artículo
+        </h6>
+        <small style="color: #999;">Seleccione el cliente y el artículo para el cual desea configurar un precio especial</small>
+    </div>
+    
     <div class="row">
         <div class="col-md-6 mb-3">
             <label class="form-label fw-bold">{{ form.cliente.label }} *</label>
@@ -19,6 +27,14 @@
         </div>
     </div>
     
+    <!-- Sección: Configuración de Precio -->
+    <div class="mb-3 mt-4" style="border-bottom: 2px solid #E8DCC8; padding-bottom: 10px;">
+        <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 5px;">
+            <i class="fas fa-dollar-sign me-2"></i>Configuración de Precio Especial
+        </h6>
+        <small style="color: #999;">Defina el precio personalizado para este cliente. El precio debe incluir todos los impuestos (IVA + impuestos específicos)</small>
+    </div>
+    
     <div class="row">
         <div class="col-md-6 mb-3">
             <label class="form-label fw-bold">{{ form.precio_especial.label }} *</label>
@@ -28,11 +44,11 @@
             </div>
             <div id="precioListaInfo" class="alert alert-info mt-2" style="padding: 10px; font-size: 0.9rem; border-left: 4px solid #0c5460;">
                 <i class="fas fa-info-circle me-1"></i>
-                <strong>Precio de Lista:</strong> <span id="precioListaValor" style="font-weight: 700; font-size: 1.1rem; color: #0c5460;">Seleccione un artículo</span>
+                <strong>Precio de Lista (con IVA e impuestos):</strong> <span id="precioListaValor" style="font-weight: 700; font-size: 1.1rem; color: #0c5460;">Seleccione un artículo</span>
             </div>
             <small class="text-muted">
                 <i class="fas fa-exclamation-triangle me-1"></i>
-                <strong>Importante:</strong> Ingrese el precio <strong>CON IMPUESTOS INCLUIDOS</strong> (precio final de venta)
+                <strong>Importante:</strong> Ingrese el precio especial <strong>CON TODOS LOS IMPUESTOS INCLUIDOS</strong> (IVA + impuestos específicos)
             </small>
             {% if form.precio_especial.errors %}
                 <div class="text-danger small">{{ form.precio_especial.errors.0 }}</div>
@@ -52,11 +68,22 @@
         </div>
     </div>
     
+    <!-- Sección: Vigencia y Estado -->
+    <div class="mb-3 mt-4" style="border-bottom: 2px solid #E8DCC8; padding-bottom: 10px;">
+        <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 5px;">
+            <i class="fas fa-calendar-alt me-2"></i>Vigencia y Estado
+        </h6>
+        <small style="color: #999;">Configure el período de validez del precio especial y su estado de activación (opcional)</small>
+    </div>
+    
     <div class="row">
         <div class="col-md-6 mb-3">
             <label class="form-label fw-bold">{{ form.fecha_inicio.label }}</label>
             {{ form.fecha_inicio }}
-            <small class="text-muted">Fecha desde la cual aplica el precio</small>
+            <small class="text-muted">
+                <i class="fas fa-play-circle me-1"></i>
+                Fecha desde la cual aplica el precio. Dejar vacío para aplicar desde hoy
+            </small>
             {% if form.fecha_inicio.errors %}
                 <div class="text-danger small">{{ form.fecha_inicio.errors.0 }}</div>
             {% endif %}
@@ -65,7 +92,10 @@
         <div class="col-md-6 mb-3">
             <label class="form-label fw-bold">{{ form.fecha_fin.label }}</label>
             {{ form.fecha_fin }}
-            <small class="text-muted">Fecha hasta la cual aplica el precio</small>
+            <small class="text-muted">
+                <i class="fas fa-stop-circle me-1"></i>
+                Fecha hasta la cual aplica el precio. Dejar vacío para vigencia indefinida
+            </small>
             {% if form.fecha_fin.errors %}
                 <div class="text-danger small">{{ form.fecha_fin.errors.0 }}</div>
             {% endif %}
@@ -79,6 +109,10 @@
                 {{ form.activo.label }}
             </label>
         </div>
+        <small class="text-muted">
+            <i class="fas fa-toggle-on me-1"></i>
+            Desactive temporalmente el precio especial sin eliminarlo
+        </small>
     </div>
 </form>
 

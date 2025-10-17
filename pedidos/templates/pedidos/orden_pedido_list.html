@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% load static %}
+{% load currency_filters %}
+
+{% block title %}Órdenes de Pedido - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-clipboard-list fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.2rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    Gestión de Órdenes de Pedido
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">Administra pedidos de clientes</small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'pedidos:orden_pedido_create' %}" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3); font-family: 'Poppins', sans-serif;">
+                                <i class="fas fa-plus me-2"></i> Nuevo Pedido
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Estadísticas -->
+                <div class="card-body" style="padding: 10px 15px;">
+                    <div class="row mb-2">
+                        <div class="col-md-2">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3);">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase;">Total</h6>
+                                    <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem;">{{ stats.total_pedidos }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); border: none;">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase;">Borrador</h6>
+                                    <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem;">{{ stats.pedidos_borrador }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); border: none;">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase;">Confirmados</h6>
+                                    <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem;">{{ stats.pedidos_confirmados }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); border: none;">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase;">En Proceso</h6>
+                                    <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem;">{{ stats.pedidos_en_proceso }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none;">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase;">Completados</h6>
+                                    <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem;">{{ stats.pedidos_completados }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%); border: none;">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase;">Monto Total</h6>
+                                    <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem;">${{ stats.monto_total|floatformat:0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formulario de búsqueda -->
+                    <div class="card" style="background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%); border: 1px solid #e3e6f0; border-radius: 10px; margin-bottom: 15px;">
+                        <div class="card-body" style="padding: 12px 15px;">
+                            <form method="get" class="row g-2">
+                                <div class="col-md-3">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-size: 0.85rem; margin-bottom: 0.25rem;">Buscar</label>
+                                    {{ search_form.search }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-size: 0.85rem; margin-bottom: 0.25rem;">Estado</label>
+                                    {{ search_form.estado }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-size: 0.85rem; margin-bottom: 0.25rem;">Cliente</label>
+                                    {{ search_form.cliente }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-size: 0.85rem; margin-bottom: 0.25rem;">Desde</label>
+                                    {{ search_form.fecha_desde }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-size: 0.85rem; margin-bottom: 0.25rem;">Hasta</label>
+                                    {{ search_form.fecha_hasta }}
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; border-radius: 8px; font-weight: 500;">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Lista de pedidos -->
+                    <div class="card" style="border: 1px solid #e3e6f0; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div class="card-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm mb-0" style="font-size: 0.8rem;">
+                                    <thead style="background: #F5F1E8; border-bottom: 2px solid #E0D5C7;">
+                                        <tr>
+                                            <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem;">N° Pedido</th>
+                                            <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem;">Cliente</th>
+                                            <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem;">Fecha</th>
+                                            <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem;">N° OC Cliente</th>
+                                            <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem;">Total</th>
+                                            <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem;">Estado</th>
+                                            <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem; text-align: center;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for pedido in page_obj %}
+                                        <tr style="transition: all 0.2s ease; border-bottom: 1px solid #E8DED5;" onmouseover="this.style.backgroundColor='#F5F1E8'" onmouseout="this.style.backgroundColor=''">
+                                            <td style="border: none; padding: 6px 10px; vertical-align: middle;">
+                                                <div style="font-weight: 600; color: #2c3e50; font-size: 0.75rem;">{{ pedido.numero_pedido }}</div>
+                                                <small class="text-muted" style="font-size: 0.65rem;">{{ pedido.bodega.nombre }}</small>
+                                            </td>
+                                            <td style="border: none; padding: 6px 10px; vertical-align: middle;">
+                                                <div style="font-weight: 500; color: #495057; font-size: 0.75rem;">{{ pedido.cliente.nombre|truncatechars:30 }}</div>
+                                                <small class="text-muted" style="font-size: 0.65rem;">{{ pedido.cliente.rut }}</small>
+                                            </td>
+                                            <td style="border: none; padding: 6px 10px; vertical-align: middle;">
+                                                <div style="font-size: 0.75rem; color: #495057;">{{ pedido.fecha_pedido|date:"d/m/Y" }}</div>
+                                                {% if pedido.fecha_entrega_estimada %}
+                                                <small class="text-muted" style="font-size: 0.65rem;">Entrega: {{ pedido.fecha_entrega_estimada|date:"d/m/Y" }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td style="border: none; padding: 6px 10px; vertical-align: middle;">
+                                                {% if pedido.numero_oc_cliente %}
+                                                <div style="font-size: 0.75rem; color: #495057;">{{ pedido.numero_oc_cliente }}</div>
+                                                {% if pedido.fecha_oc_cliente %}
+                                                <small class="text-muted" style="font-size: 0.65rem;">{{ pedido.fecha_oc_cliente|date:"d/m/Y" }}</small>
+                                                {% endif %}
+                                                {% else %}
+                                                <span class="text-muted" style="font-size: 0.65rem;">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="border: none; padding: 6px 10px; vertical-align: middle;">
+                                                <div style="font-weight: 600; color: #2c3e50; font-size: 0.8rem;">{{ pedido.total_pedido|currency_format_with_symbol }}</div>
+                                            </td>
+                                            <td style="border: none; padding: 6px 10px; vertical-align: middle;">
+                                                {% if pedido.estado == 'borrador' %}
+                                                    <span class="badge" style="background: #6c757d; color: white; font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 12px;">Borrador</span>
+                                                {% elif pedido.estado == 'confirmada' %}
+                                                    <span class="badge" style="background: #17a2b8; color: white; font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 12px;">Confirmada</span>
+                                                {% elif pedido.estado == 'en_proceso' %}
+                                                    <span class="badge" style="background: #ffc107; color: white; font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 12px;">En Proceso</span>
+                                                {% elif pedido.estado == 'completada' %}
+                                                    <span class="badge" style="background: #28a745; color: white; font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 12px;">Completada</span>
+                                                {% elif pedido.estado == 'cancelada' %}
+                                                    <span class="badge" style="background: #dc3545; color: white; font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 12px;">Cancelada</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="border: none; padding: 6px 10px; vertical-align: middle; text-align: center;">
+                                                <div class="btn-group" role="group">
+                                                    <a href="{% url 'pedidos:orden_pedido_detail' pedido.pk %}" class="btn btn-sm" style="background: #28a745; border: none; color: white; border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="Ver detalles">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="{% url 'pedidos:orden_pedido_update' pedido.pk %}" class="btn btn-sm btn-outline-secondary" style="border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="Editar">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="7" style="text-align: center; padding: 2rem; border: none;">
+                                                <div style="opacity: 0.6;">
+                                                    <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i>
+                                                </div>
+                                                <h6 class="text-muted mb-2">No hay órdenes de pedido</h6>
+                                                <a href="{% url 'pedidos:orden_pedido_create' %}" class="btn btn-sm" style="background: #28a745; border: none; color: white; border-radius: 15px; font-weight: 500;">
+                                                    <i class="fas fa-plus me-1"></i> Crear Pedido
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Paginación -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Paginación" class="mt-3">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" style="border-radius: 10px; margin: 0 2px; border: none; color: #8B7355;">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; border-radius: 10px; margin: 0 2px;">
+                                    {{ page_obj.number }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" style="border-radius: 10px; margin: 0 2px; border: none; color: #8B7355;">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

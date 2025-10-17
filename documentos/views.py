@@ -2,11 +2,14 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.db.models import Q, Sum, Count, F
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
 
 from .models import DocumentoCompra, ItemDocumentoCompra, HistorialPagoDocumento
 from .forms import (
@@ -589,3 +592,189 @@ def orden_compra_detalle_json(request, pk):
             'success': False,
             'message': 'Orden de compra no encontrada'
         })
+
+
+@login_required
+@requiere_empresa
+@permission_required('documentos.view_documento', raise_exception=True)
+def documento_compra_export_excel(request):
+    """Exportar documentos de compra a Excel (Libro de Compras)"""
+    # Obtener la empresa del usuario
+    if request.user.is_superuser:
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+    else:
+        try:
+            empresa = request.user.perfil.empresa
+        except:
+            messages.error(request, 'Usuario no tiene empresa asociada.')
+            return redirect('dashboard')
+    
+    # Obtener documentos con los mismos filtros del listado
+    documentos = DocumentoCompra.objects.filter(empresa=empresa).select_related(
+        'proveedor', 'bodega', 'orden_compra'
+    ).order_by('-fecha_emision')
+    
+    # Aplicar filtros de búsqueda
+    search_form = BusquedaDocumentoForm(request.GET)
+    if search_form.is_valid():
+        search = search_form.cleaned_data.get('search')
+        tipo_documento = search_form.cleaned_data.get('tipo_documento')
+        estado_documento = search_form.cleaned_data.get('estado_documento')
+        estado_pago = search_form.cleaned_data.get('estado_pago')
+        proveedor = search_form.cleaned_data.get('proveedor')
+        
+        if search:
+            documentos = documentos.filter(
+                Q(numero_documento__icontains=search) |
+                Q(proveedor__nombre__icontains=search) |
+                Q(proveedor__rut__icontains=search)
+            )
+        if tipo_documento:
+            documentos = documentos.filter(tipo_documento=tipo_documento)
+        if estado_documento:
+            documentos = documentos.filter(estado_documento=estado_documento)
+        if estado_pago:
+            documentos = documentos.filter(estado_pago=estado_pago)
+        if proveedor:
+            documentos = documentos.filter(proveedor=proveedor)
+    
+    # Crear libro de Excel
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Libro de Compras"
+    
+    # Estilos
+    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Título
+    ws.merge_cells('A1:K1')
+    title_cell = ws['A1']
+    title_cell.value = f"LIBRO DE COMPRAS - {empresa.nombre.upper()}"
+    title_cell.font = Font(bold=True, size=14, color="8B7355")
+    title_cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Fecha de generación
+    ws.merge_cells('A2:K2')
+    date_cell = ws['A2']
+    date_cell.value = f"Generado el: {timezone.now().strftime('%d/%m/%Y %H:%M')}"
+    date_cell.alignment = Alignment(horizontal='center')
+    date_cell.font = Font(size=10, italic=True)
+    
+    # Headers
+    headers = [
+        'Tipo Doc.', 'N° Documento', 'Fecha Emisión', 'Fecha Venc.', 
+        'Proveedor', 'RUT', 'Bodega', 'Neto', 'IVA', 'Total', 'Estado'
+    ]
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Datos
+    row_num = 5
+    total_neto = 0
+    total_iva = 0
+    total_general = 0
+    
+    for doc in documentos:
+        ws.cell(row=row_num, column=1, value=doc.get_tipo_documento_display()).border = border
+        ws.cell(row=row_num, column=2, value=doc.numero_documento).border = border
+        ws.cell(row=row_num, column=3, value=doc.fecha_emision.strftime('%d/%m/%Y')).border = border
+        ws.cell(row=row_num, column=4, value=doc.fecha_vencimiento.strftime('%d/%m/%Y') if doc.fecha_vencimiento else '').border = border
+        ws.cell(row=row_num, column=5, value=doc.proveedor.nombre).border = border
+        ws.cell(row=row_num, column=6, value=doc.proveedor.rut).border = border
+        ws.cell(row=row_num, column=7, value=doc.bodega.nombre if doc.bodega else '').border = border
+        
+        # Calcular neto e IVA
+        neto = float(doc.subtotal or 0)
+        iva = float(doc.impuestos_totales or 0)
+        total = float(doc.total_documento or 0)
+        
+        cell_neto = ws.cell(row=row_num, column=8, value=neto)
+        cell_neto.number_format = '#,##0'
+        cell_neto.border = border
+        cell_neto.alignment = Alignment(horizontal='right')
+        
+        cell_iva = ws.cell(row=row_num, column=9, value=iva)
+        cell_iva.number_format = '#,##0'
+        cell_iva.border = border
+        cell_iva.alignment = Alignment(horizontal='right')
+        
+        cell_total = ws.cell(row=row_num, column=10, value=total)
+        cell_total.number_format = '#,##0'
+        cell_total.border = border
+        cell_total.alignment = Alignment(horizontal='right')
+        cell_total.font = Font(bold=True)
+        
+        ws.cell(row=row_num, column=11, value=doc.get_estado_documento_display()).border = border
+        
+        total_neto += neto
+        total_iva += iva
+        total_general += total
+        
+        row_num += 1
+    
+    # Totales
+    row_num += 1
+    ws.cell(row=row_num, column=7, value="TOTALES:").font = Font(bold=True)
+    ws.cell(row=row_num, column=7).alignment = Alignment(horizontal='right')
+    
+    cell_total_neto = ws.cell(row=row_num, column=8, value=total_neto)
+    cell_total_neto.number_format = '#,##0'
+    cell_total_neto.font = Font(bold=True)
+    cell_total_neto.fill = PatternFill(start_color="F5F1E8", end_color="F5F1E8", fill_type="solid")
+    cell_total_neto.alignment = Alignment(horizontal='right')
+    
+    cell_total_iva = ws.cell(row=row_num, column=9, value=total_iva)
+    cell_total_iva.number_format = '#,##0'
+    cell_total_iva.font = Font(bold=True)
+    cell_total_iva.fill = PatternFill(start_color="F5F1E8", end_color="F5F1E8", fill_type="solid")
+    cell_total_iva.alignment = Alignment(horizontal='right')
+    
+    cell_total_general = ws.cell(row=row_num, column=10, value=total_general)
+    cell_total_general.number_format = '#,##0'
+    cell_total_general.font = Font(bold=True, size=12)
+    cell_total_general.fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
+    cell_total_general.font = Font(bold=True, color="FFFFFF")
+    cell_total_general.alignment = Alignment(horizontal='right')
+    
+    # Ajustar anchos de columna
+    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 30
+    ws.column_dimensions['F'].width = 15
+    ws.column_dimensions['G'].width = 20
+    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['I'].width = 15
+    ws.column_dimensions['J'].width = 15
+    ws.column_dimensions['K'].width = 12
+    
+    # Preparar respuesta
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    filename = f"libro_compras_{empresa.nombre}_{timezone.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    wb.save(response)
+    return response

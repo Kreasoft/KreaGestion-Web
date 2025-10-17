@@ -50,6 +50,7 @@ LOCAL_APPS = [
 	'documentos.apps.DocumentosConfig',
 	'proveedores.apps.ProveedoresConfig',
 	'compras.apps.ComprasConfig',
+	'pedidos.apps.PedidosConfig',
 	'reportes.apps.ReportesConfig',
 	'usuarios.apps.UsuariosConfig',
 	'tesoreria.apps.TesoreriaConfig',

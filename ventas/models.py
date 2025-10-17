@@ -479,6 +479,42 @@ class PrecioClienteArticulo(models.Model):
             return self.precio_especial - descuento
         return self.precio_especial
     
+    def get_precio_con_iva(self):
+        """
+        Retorna el precio especial (que ya incluye IVA e impuestos).
+        El precio_especial se guarda CON todos los impuestos incluidos.
+        """
+        return self.get_precio_final()
+    
+    def get_precio_neto(self):
+        """
+        Calcula el precio NETO (sin IVA ni impuestos) desde el precio especial.
+        El precio_especial incluye todos los impuestos, aquí los descontamos.
+        """
+        precio_con_impuestos = self.get_precio_final()
+        
+        # Obtener la categoría del artículo
+        categoria = getattr(self.articulo, 'categoria', None)
+        
+        if not categoria:
+            # Si no tiene categoría, descontar IVA estándar (19%)
+            return precio_con_impuestos / Decimal('1.19')
+        
+        # Obtener porcentajes de impuestos
+        iva_porcentaje = Decimal('0.00') if categoria.exenta_iva else Decimal('0.19')
+        
+        impuesto_especifico_porcentaje = Decimal('0.00')
+        if categoria.impuesto_especifico:
+            impuesto_especifico_porcentaje = categoria.impuesto_especifico.get_porcentaje_decimal()
+        
+        # Calcular precio neto
+        # Precio con impuestos = Precio Neto × (1 + IVA + Imp.Esp)
+        # Precio Neto = Precio con impuestos / (1 + IVA + Imp.Esp)
+        factor_total = Decimal('1.00') + iva_porcentaje + impuesto_especifico_porcentaje
+        precio_neto = precio_con_impuestos / factor_total
+        
+        return precio_neto
+    
     def esta_vigente(self):
         """Verifica si el precio especial está vigente según las fechas"""
         if not self.activo:

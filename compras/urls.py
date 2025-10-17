@@ -25,4 +25,5 @@ urlpatterns = [
     
     # AJAX endpoints
     path('ajax/articulo-info/', views.get_articulo_info, name='get_articulo_info'),
+    path('ajax/proveedor/crear/', views.proveedor_create_ajax, name='proveedor_create_ajax'),
 ]

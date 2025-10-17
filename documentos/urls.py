@@ -9,6 +9,7 @@ urlpatterns = [
     
     # CRUD de documentos de compra
     path('documentos/', views.documento_compra_list, name='documento_compra_list'),
+    path('documentos/exportar-excel/', views.documento_compra_export_excel, name='documento_compra_export_excel'),
     path('documentos/crear/', views.documento_compra_create, name='documento_compra_create'),
     path('documentos/<int:pk>/', views.documento_compra_detail, name='documento_compra_detail'),
     path('documentos/<int:pk>/editar/', views.documento_compra_update, name='documento_compra_update'),
