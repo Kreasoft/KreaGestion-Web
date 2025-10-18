@@ -118,7 +118,7 @@
                                     <i class="fas fa-eye"></i>
                                 </button>
                                 {% if orden.estado == 'pendiente' %}
-                                <button type="button" class="btn btn-sm" style="background: #ffc107; color: white; padding: 4px 8px;" title="Editar" onclick="abrirModalEditarOrden({{ orden.pk }}, '{{ orden.numero_orden }}', {{ orden.receta.id }}, {{ orden.cantidad_planificada }}, '{{ orden.fecha_planificada|date:'Y-m-d' }}', '{{ orden.responsable|escapejs }}', '{{ orden.lote_produccion|escapejs }}', '{{ orden.observaciones|escapejs }}')">
+                                <button type="button" class="btn btn-sm" style="background: #ffc107; color: white; padding: 4px 8px;" title="Editar" onclick="abrirModalEditarOrden({{ orden.pk }}, '{{ orden.numero_orden }}', {{ orden.receta.id }}, '{{ orden.cantidad_planificada }}', '-1', '{{ orden.fecha_planificada|date:'Y-m-d' }}', '{{ orden.responsable|escapejs }}', '{{ orden.lote_produccion|escapejs }}', '{{ orden.observaciones|escapejs }}')">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <a href="{% url 'produccion:orden_iniciar' orden.pk %}" class="btn btn-sm btn-success" style="padding: 4px 8px;" title="Iniciar">
@@ -217,6 +217,40 @@
                             </div>
                             <small class="text-muted" style="font-size: 0.75rem;">
                                 <i class="fas fa-info-circle me-1"></i>Período de garantía del producto fabricado (opcional)
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Bodega de Insumos *</label>
+                            <div class="input-group">
+                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
+                                    <i class="fas fa-boxes" style="color: #8B7355;"></i>
+                                </span>
+                                <select name="bodega_insumos" id="finalizarBodegaInsumos" class="form-select" style="height: 42px; border-color: #ccc; padding: 8px 12px;" required>
+                                    <option value="">Seleccione bodega...</option>
+                                    {% for bodega in bodegas %}
+                                    <option value="{{ bodega.id }}">{{ bodega.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.75rem;">
+                                <i class="fas fa-info-circle me-1"></i>De donde se consumirán los insumos
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Bodega de Productos *</label>
+                            <div class="input-group">
+                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
+                                    <i class="fas fa-warehouse" style="color: #8B7355;"></i>
+                                </span>
+                                <select name="bodega_productos" id="finalizarBodegaProductos" class="form-select" style="height: 42px; border-color: #ccc; padding: 8px 12px;" required>
+                                    <option value="">Seleccione bodega...</option>
+                                    {% for bodega in bodegas %}
+                                    <option value="{{ bodega.id }}">{{ bodega.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.75rem;">
+                                <i class="fas fa-info-circle me-1"></i>Donde se almacenará el producto terminado
                             </small>
                         </div>
                         <div class="col-md-12">
@@ -437,6 +471,23 @@
                                 <i class="fas fa-info-circle me-1"></i>Selecciona la receta que define los insumos y proceso de fabricación
                             </small>
                         </div>
+                        <div class="col-md-12">
+                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Bodega *</label>
+                            <div class="input-group">
+                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
+                                    <i class="fas fa-warehouse" style="color: #8B7355;"></i>
+                                </span>
+                                <select name="bodega" id="bodega" class="form-select" style="height: 42px; border-color: #ccc; padding: 8px 12px;" required>
+                                    <option value="">Seleccione la bodega...</option>
+                                    {% for bodega in bodegas %}
+                                    <option value="{{ bodega.id }}">{{ bodega.nombre }} ({{ bodega.codigo }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.75rem;">
+                                <i class="fas fa-info-circle me-1"></i>Bodega de donde se consumirán los insumos y se agregará el producto final
+                            </small>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Fecha Planificada *</label>
                             <div class="input-group">
@@ -511,13 +562,14 @@ function abrirModalNuevaOrden() {
 }
 
 // Abrir modal para editar orden
-function abrirModalEditarOrden(ordenId, numeroOrden, recetaId, cantidad, fecha, responsable, lote, observaciones) {
+function abrirModalEditarOrden(ordenId, numeroOrden, recetaId, cantidad, bodegaId, fecha, responsable, lote, observaciones) {
     document.getElementById('modalTitulo').textContent = 'Editar Orden de Producción';
     document.getElementById('modalSubtitulo').textContent = 'Modifica los datos de la orden de producción';
     document.getElementById('ordenId').value = ordenId;
     document.getElementById('numero_orden').value = numeroOrden;
     document.getElementById('receta').value = recetaId;
-    document.getElementById('cantidad_planificada').value = cantidad;
+    document.getElementById('cantidad_planificada').value = parseFloat(cantidad) || cantidad;
+    document.getElementById('bodega').value = (bodegaId && bodegaId != '-1') ? bodegaId : '';
     document.getElementById('fecha_planificada').value = fecha;
     document.getElementById('responsable').value = responsable || '';
     document.getElementById('lote_produccion').value = lote || '';
