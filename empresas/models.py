@@ -88,6 +88,23 @@ class Empresa(models.Model):
         verbose_name="Régimen Tributario"
     )
     
+    # Configuración de producción
+    TIPO_INDUSTRIA_CHOICES = [
+        ('textil', 'Textil y Confección'),
+        ('carnico', 'Cárnico y Alimenticio'),
+        ('panaderia', 'Panadería y Pastelería'),
+        ('quimico', 'Químico y Farmacéutico'),
+        ('otro', 'Otro'),
+    ]
+    tipo_industria = models.CharField(
+        max_length=20,
+        choices=TIPO_INDUSTRIA_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name="Tipo de Industria",
+        help_text="Define el tipo de industria para adaptar formularios de producción"
+    )
+    
     # === FACTURACIÓN ELECTRÓNICA ===
     facturacion_electronica = models.BooleanField(
         default=False,

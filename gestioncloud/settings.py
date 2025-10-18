@@ -58,6 +58,7 @@ LOCAL_APPS = [
 	'facturacion_electronica.apps.FacturacionElectronicaConfig',
 	'utilidades.apps.UtilidadesConfig',
 	'informes.apps.InformesConfig',
+	'produccion.apps.ProduccionConfig',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

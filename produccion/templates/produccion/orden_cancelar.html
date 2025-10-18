@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cancelar Orden{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultar top-bar */
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        margin-top: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header terroso -->
+    <div class="d-flex justify-content-between align-items-center mb-3" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 class="mb-0" style="color: white; font-size: 1.5rem;">
+            <i class="fas fa-times-circle me-2"></i>Cancelar Orden OP-{{ orden.numero_orden }}
+        </h2>
+        <a href="{% url 'produccion:orden_detail' orden.pk %}" class="btn" style="background: #6F5B44; color: white; padding: 8px 16px; border: none;">
+            <i class="fas fa-arrow-left me-2"></i>Volver
+        </a>
+    </div>
+
+    <!-- Información de la orden -->
+    <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-header text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 10px 15px;">
+            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Detalles de la Orden</h5>
+        </div>
+        <div class="card-body" style="padding: 15px;">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Receta:</strong> {{ orden.receta.nombre }}</p>
+                    <p><strong>Producto Final:</strong> {{ orden.receta.producto_final.nombre }}</p>
+                    <p><strong>Cantidad Planificada:</strong> {{ orden.cantidad_planificada }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Estado Actual:</strong> 
+                        {% if orden.estado == 'pendiente' %}
+                            <span class="badge bg-secondary">Pendiente</span>
+                        {% elif orden.estado == 'en_proceso' %}
+                            <span class="badge bg-primary">En Proceso</span>
+                        {% endif %}
+                    </p>
+                    <p><strong>Fecha Planificada:</strong> {{ orden.fecha_planificada|date:"d/m/Y" }}</p>
+                    <p><strong>Responsable:</strong> {{ orden.responsable|default:"-" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advertencia -->
+    <div class="alert alert-danger" style="border-radius: 8px;">
+        <h5><i class="fas fa-exclamation-triangle me-2"></i>¿Está seguro de cancelar esta orden?</h5>
+        <p class="mb-0">Esta acción cambiará el estado de la orden a "Cancelada". No se realizarán movimientos de stock.</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="text-end">
+            <a href="{% url 'produccion:orden_detail' orden.pk %}" class="btn" style="background: #6F5B44; color: white; padding: 10px 20px; border: none;">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+            <button type="submit" class="btn btn-danger" style="padding: 10px 20px; font-weight: 500;">
+                <i class="fas fa-times me-2"></i>Cancelar Orden
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Ocultar top menu
+document.addEventListener('DOMContentLoaded', function() {
+    const topMenu = document.querySelector('.top-menu');
+    if (topMenu) {
+        topMenu.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

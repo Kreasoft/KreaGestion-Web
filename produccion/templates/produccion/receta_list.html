@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Recetas de Producción{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultar top-bar */
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        margin-top: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header con estilo terroso -->
+    <div class="d-flex justify-content-between align-items-center mb-3" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div>
+            <h2 class="mb-0" style="color: white; font-size: 1.5rem;">
+                <i class="fas fa-flask me-2"></i>Recetas de Producción
+            </h2>
+            <p class="mb-0 mt-1" style="color: rgba(255,255,255,0.85); font-size: 0.85rem;">
+                Gestiona las fórmulas de fabricación con sus insumos y cantidades necesarias
+            </p>
+        </div>
+        <a href="{% url 'produccion:receta_create' %}" class="btn" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; border: none; padding: 8px 20px; font-weight: 500;">
+            <i class="fas fa-plus me-2"></i>Nueva Receta
+        </a>
+    </div>
+
+    <!-- Filtros compactos -->
+    <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-body" style="padding: 12px 15px;">
+            <form method="get" class="row g-2">
+                <div class="col-md-4">
+                    <input type="text" name="search" class="form-control" placeholder="Buscar..." value="{{ search }}">
+                </div>
+                <div class="col-md-3">
+                    <select name="tipo_produccion" class="form-select">
+                        <option value="">Todas las industrias</option>
+                        <option value="textil" {% if tipo_produccion == 'textil' %}selected{% endif %}>Textil</option>
+                        <option value="carnico" {% if tipo_produccion == 'carnico' %}selected{% endif %}>Cárnico</option>
+                        <option value="panaderia" {% if tipo_produccion == 'panaderia' %}selected{% endif %}>Panadería</option>
+                        <option value="quimico" {% if tipo_produccion == 'quimico' %}selected{% endif %}>Químico</option>
+                        <option value="otro" {% if tipo_produccion == 'otro' %}selected{% endif %}>Otro</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="activo" class="form-select">
+                        <option value="">Todas</option>
+                        <option value="true" {% if activo == 'true' %}selected{% endif %}>Activas</option>
+                        <option value="false" {% if activo == 'false' %}selected{% endif %}>Inactivas</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; padding: 6px 12px;">
+                        <i class="fas fa-search me-2"></i>Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de recetas compacta -->
+    <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-body" style="padding: 15px;">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Producto Final</th>
+                            <th>Cantidad</th>
+                            <th>Industria</th>
+                            <th>Costo Unitario</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for receta in recetas %}
+                        <tr>
+                            <td>{{ receta.codigo }}</td>
+                            <td>{{ receta.nombre }}</td>
+                            <td>{{ receta.producto_final.nombre }}</td>
+                            <td>{{ receta.cantidad_producir }} {{ receta.unidad_medida }}</td>
+                            <td>
+                                {% if receta.tipo_industria %}
+                                    <span class="badge bg-info">{{ receta.producto_final.get_tipo_produccion_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>${{ receta.costo_unitario|floatformat:0 }}</td>
+                            <td>
+                                {% if receta.activo %}
+                                    <span class="badge bg-success">Activa</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactiva</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'produccion:receta_detail' receta.pk %}" class="btn btn-sm" style="background: #8B7355; color: white; padding: 4px 8px;" title="Ver">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'produccion:receta_update' receta.pk %}" class="btn btn-sm" style="background: #C8A882; color: white; padding: 4px 8px;" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'produccion:receta_delete' receta.pk %}" class="btn btn-sm btn-danger" style="padding: 4px 8px;" title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No hay recetas registradas</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Ocultar top menu
+document.addEventListener('DOMContentLoaded', function() {
+    const topMenu = document.querySelector('.top-menu');
+    if (topMenu) {
+        topMenu.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

@@ -993,6 +993,36 @@
             </div>
             {% endif %}
             
+            <!-- Submenú de Producción -->
+            {% if user.is_authenticated %}
+            <div class="nav-item has-submenu">
+                <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#produccionSubmenu" aria-expanded="false">
+                    <i class="nav-icon fas fa-industry"></i>
+                    <span class="nav-text">Producción</span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
+                </a>
+                <div class="collapse submenu" id="produccionSubmenu">
+                    <div class="submenu-items">
+                        <a href="{% url 'produccion:receta_list' %}" class="nav-link submenu-link {% if 'recetas' in request.path %}active{% endif %}">
+                            <i class="fas fa-flask me-2" style="color: #8B7355;"></i>
+                            <span>Recetas</span>
+                        </a>
+                        <a href="{% url 'produccion:orden_list' %}" class="nav-link submenu-link {% if 'ordenes' in request.path %}active{% endif %}">
+                            <i class="fas fa-tasks me-2" style="color: #A0826D;"></i>
+                            <span>Órdenes de Producción</span>
+                        </a>
+                        
+                        <!-- Reportes -->
+                        <div class="submenu-separator"></div>
+                        <a href="{% url 'produccion:reportes' %}" class="nav-link submenu-link {% if 'reportes' in request.path and 'produccion' in request.path %}active{% endif %}">
+                            <i class="fas fa-chart-bar me-2" style="color: #D4A574;"></i>
+                            <span>Reportes</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <!-- Submenú de Caja -->
             {% if perms.caja.view_caja or perms.caja.view_aperturacaja or user.is_superuser %}
             <div class="nav-item has-submenu">
@@ -1356,14 +1386,8 @@
                 });
             });
             
-            // No cerrar submenú al hacer clic en enlaces del submenú
-            const submenuLinks = document.querySelectorAll('.submenu-link');
-            submenuLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    // No prevenir el comportamiento por defecto, permitir navegación
-                    // El submenú permanecerá abierto
-                });
-            });
+            // NO cerrar submenú al hacer clic en enlaces (mantener abierto)
+            // Los submenús permanecen abiertos para mejor navegación
             
             // Auto-expand submenu if current page is in it
             const currentUrl = window.location.pathname;
@@ -1476,6 +1500,21 @@
                 if (informesSubmenu && informesToggle) {
                     informesSubmenu.classList.add('show');
                     informesToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+            
+            // Auto-expand produccion submenu
+            const produccionUrls = [
+                '/produccion/'
+            ];
+            
+            if (produccionUrls.some(url => currentUrl.startsWith(url))) {
+                const produccionSubmenu = document.getElementById('produccionSubmenu');
+                const produccionToggle = document.querySelector('[data-bs-target="#produccionSubmenu"]');
+                
+                if (produccionSubmenu && produccionToggle) {
+                    produccionSubmenu.classList.add('show');
+                    produccionToggle.setAttribute('aria-expanded', 'true');
                 }
             }
             

@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Iniciar Orden{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultar top-bar */
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        margin-top: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header terroso -->
+    <div class="d-flex justify-content-between align-items-center mb-3" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 class="mb-0" style="color: white; font-size: 1.5rem;">
+            <i class="fas fa-play-circle me-2"></i>Iniciar Orden OP-{{ orden.numero_orden }}
+        </h2>
+        <a href="{% url 'produccion:orden_detail' orden.pk %}" class="btn" style="background: #6F5B44; color: white; padding: 8px 16px; border: none;">
+            <i class="fas fa-arrow-left me-2"></i>Volver
+        </a>
+    </div>
+
+    <!-- Información de la orden -->
+    <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-header text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 10px 15px;">
+            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Detalles de la Orden</h5>
+        </div>
+        <div class="card-body" style="padding: 15px;">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Receta:</strong> {{ orden.receta.nombre }}</p>
+                    <p><strong>Producto Final:</strong> {{ orden.receta.producto_final.nombre }}</p>
+                    <p><strong>Cantidad a Producir:</strong> {{ orden.cantidad_planificada }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Fecha Planificada:</strong> {{ orden.fecha_planificada|date:"d/m/Y" }}</p>
+                    <p><strong>Responsable:</strong> {{ orden.responsable|default:"-" }}</p>
+                    <p><strong>Tiempo Estimado:</strong> {{ orden.receta.tiempo_estimado }} minutos</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insumos necesarios -->
+    <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-header text-white" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); padding: 10px 15px;">
+            <h5 class="mb-0"><i class="fas fa-boxes me-2"></i>Insumos Necesarios</h5>
+        </div>
+        <div class="card-body" style="padding: 15px;">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Insumo</th>
+                            <th>Cantidad Necesaria</th>
+                            <th>Unidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for insumo in orden.receta.insumos.all %}
+                        <tr>
+                            <td>{{ insumo.articulo.nombre }}</td>
+                            <td>{{ insumo.cantidad }}</td>
+                            <td>{{ insumo.articulo.get_unidad_produccion_display|default:"Unidades" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmación -->
+    <div class="alert alert-success" style="border-radius: 8px;">
+        <h5><i class="fas fa-info-circle me-2"></i>¿Está listo para iniciar la producción?</h5>
+        <p class="mb-0">Al iniciar la orden, se registrará la fecha y hora de inicio. Asegúrese de tener todos los insumos necesarios disponibles.</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="text-end">
+            <a href="{% url 'produccion:orden_detail' orden.pk %}" class="btn" style="background: #6F5B44; color: white; padding: 10px 20px; border: none;">
+                <i class="fas fa-times me-2"></i>Cancelar
+            </a>
+            <button type="submit" class="btn btn-success" style="padding: 10px 20px; font-weight: 500;">
+                <i class="fas fa-play me-2"></i>Iniciar Producción
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Ocultar top menu
+document.addEventListener('DOMContentLoaded', function() {
+    const topMenu = document.querySelector('.top-menu');
+    if (topMenu) {
+        topMenu.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

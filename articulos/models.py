@@ -158,6 +158,7 @@ class Articulo(models.Model):
     TIPO_ARTICULO_CHOICES = [
         ('producto_venta', 'Producto de Venta'),
         ('insumo', 'Insumo'),
+        ('produccion', 'Artículo de Producción'),
         ('ambos', 'Producto e Insumo'),
     ]
     tipo_articulo = models.CharField(
@@ -259,8 +260,8 @@ class Articulo(models.Model):
         return dict(self.TIPO_ARTICULO_CHOICES).get(self.tipo_articulo, 'Desconocido')
     
     def es_producto_venta(self):
-        """Retorna True si el artículo es un producto de venta"""
-        return self.tipo_articulo in ['producto_venta', 'ambos']
+        """Retorna True si el artículo es un producto de venta (incluye artículos de producción)"""
+        return self.tipo_articulo in ['producto_venta', 'produccion', 'ambos']
     
     def es_insumo(self):
         """Retorna True si el artículo es un insumo"""
@@ -699,7 +700,7 @@ class RecetaProduccion(models.Model):
         on_delete=models.PROTECT,
         related_name='recetas',
         verbose_name="Producto Final",
-        limit_choices_to={'tipo_articulo__in': ['producto_venta', 'ambos']}
+        limit_choices_to={'tipo_articulo': 'produccion'}  # Solo artículos de producción
     )
     
     # Cantidad que produce esta receta
@@ -896,6 +897,14 @@ class OrdenProduccion(models.Model):
     
     # Observaciones
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    
+    # Garantía
+    meses_garantia = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Meses de Garantía",
+        help_text="Período de garantía del producto fabricado"
+    )
     
     # Campos específicos por industria
     lote_produccion = models.CharField(

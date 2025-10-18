@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load l10n %}
+
+{% block title %}{% if receta %}Editar{% else %}Nueva{% endif %} Receta{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultar top-bar */
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        margin-top: 0 !important;
+    }
+    
+    /* Mejorar select de insumos */
+    .select-insumo {
+        width: 100%;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+    }
+    
+    .select-insumo:focus {
+        border-color: #8B7355;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <!-- Header terroso -->
+    <div class="d-flex justify-content-between align-items-center mb-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 12px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div>
+            <h2 class="mb-0" style="color: white; font-size: 1.3rem;">
+                <i class="fas fa-flask me-2"></i>{% if receta %}Editar{% else %}Nueva{% endif %} Receta de Producción
+            </h2>
+            <p class="mb-0 mt-1" style="color: rgba(255,255,255,0.85); font-size: 0.85rem;">
+                {% if receta %}
+                Modifica los datos de la receta, insumos y cantidades necesarias para la producción
+                {% else %}
+                Define el producto final, los insumos necesarios y las cantidades para fabricar
+                {% endif %}
+            </p>
+        </div>
+        <a href="{% url 'produccion:receta_list' %}" class="btn" style="background: #6F5B44; color: white; padding: 6px 14px; border: none;">
+            <i class="fas fa-arrow-left me-2"></i>Volver
+        </a>
+    </div>
+
+    <form method="post" id="recetaForm">
+        {% csrf_token %}
+        
+        <!-- Tarjeta única compacta -->
+        <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
+            <div class="card-body" style="padding: 20px;">
+                <!-- Información básica -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Código *</label>
+                        <input type="text" name="codigo" class="form-control form-control-sm" value="{{ receta.codigo|default:'' }}" required>
+                    </div>
+                    <div class="col-md-9">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Nombre de la Receta *</label>
+                        <input type="text" name="nombre" class="form-control form-control-sm" value="{{ receta.nombre|default:'' }}" required>
+                    </div>
+                </div>
+
+                <!-- Producto final -->
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Producto Final *</label>
+                        <select name="producto_final" class="form-select form-select-sm" id="productoFinal" required>
+                            <option value="">Seleccione un producto...</option>
+                            {% for producto in productos %}
+                            <option value="{{ producto.id|stringformat:'d' }}" {% if receta and receta.producto_final_id == producto.id %}selected{% endif %}>{{ producto.codigo }} - {{ producto.nombre }}</option>
+                            {% empty %}
+                            <option value="" disabled>No hay artículos de producción creados</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted" style="font-size: 0.75rem;">
+                            <i class="fas fa-info-circle me-1"></i>Solo se muestran artículos tipo "Artículo de Producción". Créalos en el módulo de Artículos.
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Descripción -->
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Descripción</label>
+                        <textarea name="descripcion" class="form-control form-control-sm" rows="2">{{ receta.descripcion|default:'' }}</textarea>
+                    </div>
+                </div>
+
+                <hr style="border-color: #D4A574; margin: 20px 0;">
+
+                <!-- Insumos -->
+                <div class="mb-3">
+                    <label class="form-label" style="font-weight: 700; font-size: 0.95rem; color: #8B7355;">
+                        <i class="fas fa-boxes me-2"></i>Insumos Necesarios
+                    </label>
+                    <small class="text-muted d-block mb-2" style="font-size: 0.75rem;">
+                        <i class="fas fa-info-circle me-1"></i>Materias primas o componentes que se consumirán para fabricar el producto final
+                    </small>
+                    
+                    <!-- Títulos de columnas -->
+                    <div class="row mb-1">
+                        <div class="col-md-7">
+                            <small style="font-weight: 600; font-size: 0.7rem; color: #6F5B44;">Insumo</small>
+                        </div>
+                        <div class="col-md-2">
+                            <small style="font-weight: 600; font-size: 0.7rem; color: #6F5B44;">Cantidad</small>
+                        </div>
+                        <div class="col-md-2">
+                            <small style="font-weight: 600; font-size: 0.7rem; color: #6F5B44;">Notas</small>
+                        </div>
+                        <div class="col-md-1"></div>
+                    </div>
+                    
+                    <div id="insumosContainer">
+                    {% if receta %}
+                        {% for insumo in receta.insumos.all %}
+                        <div class="row mb-1 insumo-row align-items-center">
+                            <div class="col-md-7">
+                                <select name="insumo_articulo[]" class="form-select" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" required>
+                                    <option value="">Buscar insumo...</option>
+                                    {% for ins in insumos %}
+                                    <option value="{{ ins.id|stringformat:'d' }}" {% if ins.id == insumo.articulo_id %}selected{% endif %}>{{ ins.codigo }} - {{ ins.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <input type="number" name="insumo_cantidad[]" class="form-control" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" step="0.01" min="0" value="{{ insumo.cantidad|unlocalize }}" required>
+                            </div>
+                            <div class="col-md-2">
+                                <input type="text" name="insumo_notas[]" class="form-control" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" value="{{ insumo.notas }}" placeholder="Opcional">
+                            </div>
+                            <div class="col-md-1">
+                                <button type="button" class="btn btn-danger btn-sm w-100" style="height: 32px; padding: 0; font-size: 0.75rem;" onclick="eliminarInsumo(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                    </div>
+                    <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; border: none; padding: 6px 14px;" onclick="agregarInsumo()">
+                        <i class="fas fa-plus me-2"></i>Agregar Insumo
+                    </button>
+                </div>
+
+                <hr style="border-color: #D4A574; margin: 20px 0;">
+
+                <!-- Estado y botones -->
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="form-check">
+                        <input type="checkbox" name="activo" class="form-check-input" id="activo" {% if not receta or receta.activo %}checked{% endif %}>
+                        <label class="form-check-label" for="activo" style="font-weight: 600;">
+                            Receta Activa
+                        </label>
+                    </div>
+                    <div>
+                        <a href="{% url 'produccion:receta_list' %}" class="btn btn-sm" style="background: #6F5B44; color: white; padding: 8px 16px; border: none;">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; padding: 8px 20px; border: none; font-weight: 600;" onclick="limpiarProductoFinal();">
+                            <i class="fas fa-save me-2"></i>Guardar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script type="text/javascript">
+// Template para nuevos insumos (JSON pre-generado desde Django)
+var insumosDisponibles = {{ insumos_json|safe }};
+
+// Consolidar todo en un solo DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 JavaScript cargado');
+    
+    // Mostrar mensajes de Django con SweetAlert2
+    {% if messages %}
+        {% for message in messages %}
+            Swal.fire({
+                icon: '{{ message.tags }}' === 'success' ? 'success' : 'error',
+                title: '{{ message.tags }}' === 'success' ? '¡Éxito!' : 'Error',
+                text: '{{ message|escapejs }}',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Aceptar'
+            });
+        {% endfor %}
+    {% endif %}
+    
+    // INTERCEPTAR SUBMIT DEL FORMULARIO
+    var form = document.getElementById('recetaForm');
+    console.log('📝 Formulario encontrado:', form ? 'SÍ' : 'NO');
+    
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            console.log('=== SUBMIT INTERCEPTADO ===');
+            
+            var productoFinal = document.querySelector('select[name="producto_final"]');
+            if (productoFinal) {
+                var valorOriginal = productoFinal.value;
+                console.log('Producto final original:', valorOriginal);
+                
+                if (valorOriginal) {
+                    // Eliminar TODOS los caracteres que no sean dígitos
+                    var valorLimpio = valorOriginal.replace(/\D/g, '');
+                    console.log('Producto final limpio:', valorLimpio);
+                    
+                    if (valorLimpio && valorLimpio.length > 0) {
+                        productoFinal.value = valorLimpio;
+                        console.log('✅ Valor actualizado a:', productoFinal.value);
+                    } else {
+                        console.log('❌ ERROR: No se encontraron dígitos');
+                    }
+                } else {
+                    console.log('⚠️ Producto final vacío');
+                }
+            } else {
+                console.log('❌ ERROR: No se encontró el select');
+            }
+            
+            console.log('=== FIN LIMPIEZA ===');
+        });
+    }
+});
+
+// Función para limpiar producto final (se llama en el click del botón)
+function limpiarProductoFinal() {
+    console.log('🔘 Limpiando formulario...');
+    
+    // Limpiar producto final
+    var productoFinal = document.querySelector('select[name="producto_final"]');
+    if (productoFinal && productoFinal.value) {
+        var valorOriginal = productoFinal.value;
+        var valorLimpio = valorOriginal.replace(/\D/g, '');
+        
+        console.log('Producto final - Original:', valorOriginal, 'Limpio:', valorLimpio);
+        
+        if (valorLimpio && valorLimpio.length > 0) {
+            productoFinal.value = valorLimpio;
+        }
+    }
+    
+    // Limpiar insumos
+    var insumoSelects = document.querySelectorAll('select[name="insumo_articulo[]"]');
+    console.log('Limpiando', insumoSelects.length, 'insumos...');
+    
+    insumoSelects.forEach(function(select, index) {
+        if (select.value) {
+            var valorOriginal = select.value;
+            var valorLimpio = valorOriginal.replace(/\D/g, '');
+            
+            if (valorLimpio && valorLimpio.length > 0) {
+                select.value = valorLimpio;
+                console.log('Insumo', index, '- Original:', valorOriginal, 'Limpio:', valorLimpio);
+            }
+        }
+    });
+    
+    console.log('✅ Limpieza completada');
+}
+
+function agregarInsumo() {
+    var container = document.getElementById('insumosContainer');
+    var row = document.createElement('div');
+    row.className = 'row mb-1 insumo-row align-items-center';
+    
+    var optionsHtml = '<option value="">Buscar insumo...</option>';
+    for (var i = 0; i < insumosDisponibles.length; i++) {
+        var ins = insumosDisponibles[i];
+        optionsHtml += '<option value="' + ins.id + '">' + ins.codigo + ' - ' + ins.nombre + '</option>';
+    }
+    
+    row.innerHTML = '<div class="col-md-7">' +
+        '<select name="insumo_articulo[]" class="form-select" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" required>' +
+        optionsHtml +
+        '</select>' +
+        '</div>' +
+        '<div class="col-md-2">' +
+        '<input type="number" name="insumo_cantidad[]" class="form-control" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" step="0.01" min="0" required>' +
+        '</div>' +
+        '<div class="col-md-2">' +
+        '<input type="text" name="insumo_notas[]" class="form-control" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" placeholder="Opcional">' +
+        '</div>' +
+        '<div class="col-md-1">' +
+        '<button type="button" class="btn btn-danger btn-sm w-100" style="height: 32px; padding: 0; font-size: 0.75rem;" onclick="eliminarInsumo(this)">' +
+        '<i class="fas fa-trash"></i>' +
+        '</button>' +
+        '</div>';
+    
+    container.appendChild(row);
+}
+
+function eliminarInsumo(btn) {
+    var row = btn.closest('.insumo-row');
+    if (row) {
+        row.remove();
+    }
+}
+</script>
+{% endblock %}

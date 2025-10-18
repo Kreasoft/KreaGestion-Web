@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if orden %}Editar{% else %}Nueva{% endif %} Orden{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultar top-bar */
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        margin-top: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header terroso -->
+    <div class="d-flex justify-content-between align-items-center mb-3" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 class="mb-0" style="color: white; font-size: 1.5rem;">
+            <i class="fas fa-industry me-2"></i>{% if orden %}Editar{% else %}Nueva{% endif %} Orden de Producción
+        </h2>
+        <a href="{% url 'produccion:orden_list' %}" class="btn" style="background: #6F5B44; color: white; padding: 8px 16px; border: none;">
+            <i class="fas fa-arrow-left me-2"></i>Volver
+        </a>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
+            <div class="card-header text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 10px 15px;">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información General</h5>
+            </div>
+            <div class="card-body" style="padding: 15px;">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Número de Orden *</label>
+                        <input type="text" name="numero_orden" class="form-control form-control-sm" value="{{ orden.numero_orden|default:'' }}" required>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Receta *</label>
+                        <select name="receta" class="form-select form-select-sm" required>
+                            <option value="">Seleccione una receta...</option>
+                            {% for receta in recetas %}
+                            <option value="{{ receta.id|stringformat:'d' }}" {% if orden and orden.receta.id == receta.id %}selected{% endif %}>{{ receta.codigo }} - {{ receta.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Cantidad *</label>
+                        <input type="number" name="cantidad_planificada" class="form-control form-control-sm" step="0.01" min="0" value="{{ orden.cantidad_planificada|default:'1' }}" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Fecha Planificada *</label>
+                        <input type="date" name="fecha_planificada" class="form-control form-control-sm" value="{{ orden.fecha_planificada|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Responsable</label>
+                        <input type="text" name="responsable" class="form-control form-control-sm" value="{{ orden.responsable|default:'' }}" placeholder="Nombre del responsable">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Lote</label>
+                        <input type="text" name="lote_produccion" class="form-control form-control-sm" value="{{ orden.lote_produccion|default:'' }}" placeholder="Ej: LOTE-2025-001">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="form-check">
+                <input type="checkbox" name="activo" class="form-check-input" id="activo" {% if not orden or orden.activo %}checked{% endif %}>
+                <label class="form-check-label" for="activo" style="font-weight: 600;">Orden Activa</label>
+            </div>
+            <div>
+                <a href="{% url 'produccion:orden_list' %}" class="btn btn-sm" style="background: #6F5B44; color: white; padding: 8px 16px; border: none;">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </a>
+                <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; padding: 8px 20px; border: none; font-weight: 600;">
+                    <i class="fas fa-save me-2"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Ocultar top menu
+document.addEventListener('DOMContentLoaded', function() {
+    const topMenu = document.querySelector('.top-menu');
+    if (topMenu) {
+        topMenu.style.display = 'none';
+    }
+    
+    // Mostrar mensajes con SweetAlert2
+    {% if messages %}
+        {% for message in messages %}
+            Swal.fire({
+                icon: '{{ message.tags }}' === 'success' ? 'success' : 'error',
+                title: '{{ message.tags }}' === 'success' ? '¡Éxito!' : 'Error',
+                text: '{{ message|escapejs }}',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Aceptar'
+            });
+        {% endfor %}
+    {% endif %}
+});
+</script>
+{% endblock %}

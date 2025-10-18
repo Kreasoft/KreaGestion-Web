@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Orden de Producción{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultar top-bar */
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        margin-top: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header terroso -->
+    <div class="d-flex justify-content-between align-items-center mb-3" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 class="mb-0" style="color: white; font-size: 1.5rem;"><i class="fas fa-industry me-2"></i>OP-{{ orden.numero_orden }}</h2>
+        <div>
+            {% if orden.estado == 'pendiente' %}
+            <a href="{% url 'produccion:orden_iniciar' orden.pk %}" class="btn btn-success" style="padding: 8px 16px;">
+                <i class="fas fa-play me-2"></i>Iniciar
+            </a>
+            <a href="{% url 'produccion:orden_update' orden.pk %}" class="btn" style="background: #C8A882; color: white; padding: 8px 16px;">
+                <i class="fas fa-edit me-2"></i>Editar
+            </a>
+            <a href="{% url 'produccion:orden_cancelar' orden.pk %}" class="btn btn-danger" style="padding: 8px 16px;">
+                <i class="fas fa-times me-2"></i>Cancelar
+            </a>
+            {% elif orden.estado == 'en_proceso' %}
+            <a href="{% url 'produccion:orden_finalizar' orden.pk %}" class="btn" style="background: #8B7355; color: white; padding: 8px 16px;">
+                <i class="fas fa-check me-2"></i>Finalizar
+            </a>
+            <a href="{% url 'produccion:orden_cancelar' orden.pk %}" class="btn btn-danger" style="padding: 8px 16px;">
+                <i class="fas fa-times me-2"></i>Cancelar
+            </a>
+            {% endif %}
+            <a href="{% url 'produccion:orden_list' %}" class="btn" style="background: #6F5B44; color: white; padding: 8px 16px;">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Estado de la orden -->
+    <div class="alert alert-{% if orden.estado == 'terminada' %}success{% elif orden.estado == 'en_proceso' %}primary{% elif orden.estado == 'cancelada' %}danger{% else %}secondary{% endif %} mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="mb-0">
+                    Estado: 
+                    {% if orden.estado == 'pendiente' %}Pendiente
+                    {% elif orden.estado == 'en_proceso' %}En Proceso
+                    {% elif orden.estado == 'terminada' %}Terminada
+                    {% elif orden.estado == 'cancelada' %}Cancelada
+                    {% endif %}
+                </h4>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="progress" style="height: 30px;">
+                    <div class="progress-bar progress-bar-striped {% if orden.estado == 'en_proceso' %}progress-bar-animated{% endif %}" 
+                         role="progressbar" 
+                         style="width: {{ orden.porcentaje_completado }}%"
+                         aria-valuenow="{{ orden.porcentaje_completado }}" 
+                         aria-valuemin="0" aria-valuemax="100">
+                        <strong>{{ orden.porcentaje_completado|floatformat:1 }}%</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Información General -->
+        <div class="col-md-6">
+            <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 10px 15px;">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información General</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Receta:</th>
+                            <td>
+                                <a href="{% url 'produccion:receta_detail' orden.receta.pk %}">
+                                    {{ orden.receta.nombre }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Producto:</th>
+                            <td>{{ orden.receta.producto_final.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <th>Sucursal:</th>
+                            <td>{{ orden.sucursal.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <th>Responsable:</th>
+                            <td>{{ orden.responsable|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Fecha Planificada:</th>
+                            <td>{{ orden.fecha_planificada|date:"d/m/Y" }}</td>
+                        </tr>
+                        {% if orden.fecha_inicio %}
+                        <tr>
+                            <th>Fecha Inicio:</th>
+                            <td>{{ orden.fecha_inicio|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if orden.fecha_fin %}
+                        <tr>
+                            <th>Fecha Fin:</th>
+                            <td>{{ orden.fecha_fin|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cantidades y Costos -->
+        <div class="col-md-6">
+            <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 10px 15px;">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Cantidades y Costos</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Cantidad Planificada:</th>
+                            <td class="text-end"><strong>{{ orden.cantidad_planificada }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Cantidad Producida:</th>
+                            <td class="text-end"><strong>{{ orden.cantidad_producida }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Merma Real:</th>
+                            <td class="text-end">{{ orden.merma_real }}</td>
+                        </tr>
+                        <tr>
+                            <th>Costo Total:</th>
+                            <td class="text-end"><strong>${{ orden.costo_total|floatformat:0 }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trazabilidad (si aplica) -->
+    {% if orden.lote_produccion or orden.fecha_vencimiento or orden.temperatura_proceso %}
+    <div class="card mb-4">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0"><i class="fas fa-barcode me-2"></i>Trazabilidad</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% if orden.lote_produccion %}
+                <div class="col-md-4">
+                    <strong>Lote de Producción:</strong><br>
+                    <span class="badge bg-dark fs-6">{{ orden.lote_produccion }}</span>
+                </div>
+                {% endif %}
+                {% if orden.fecha_vencimiento %}
+                <div class="col-md-4">
+                    <strong>Fecha de Vencimiento:</strong><br>
+                    {{ orden.fecha_vencimiento|date:"d/m/Y" }}
+                </div>
+                {% endif %}
+                {% if orden.temperatura_proceso %}
+                <div class="col-md-4">
+                    <strong>Temperatura de Proceso:</strong><br>
+                    {{ orden.temperatura_proceso }}°C
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Observaciones -->
+    {% if orden.observaciones %}
+    <div class="card">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-comment me-2"></i>Observaciones</h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-0">{{ orden.observaciones }}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Ocultar top menu
+document.addEventListener('DOMContentLoaded', function() {
+    const topMenu = document.querySelector('.top-menu');
+    if (topMenu) {
+        topMenu.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

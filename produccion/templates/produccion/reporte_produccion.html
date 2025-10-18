@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reporte de Producción{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultar top-bar */
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        margin-top: 0 !important;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        .card {
+            break-inside: avoid;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header con estilo terroso -->
+    <div class="d-flex justify-content-between align-items-center mb-3 no-print" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div>
+            <h2 class="mb-0" style="color: white; font-size: 1.5rem;">
+                <i class="fas fa-chart-line me-2"></i>Reporte de Producción
+            </h2>
+            <p class="mb-0 mt-1" style="color: rgba(255,255,255,0.85); font-size: 0.85rem;">
+                Análisis detallado de órdenes de producción y rendimiento
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'produccion:exportar_reporte_produccion_excel' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&estado={{ estado }}" class="btn me-2" style="background: #28a745; color: white; border: none; padding: 6px 12px; font-size: 0.8rem;">
+                <i class="fas fa-file-excel me-2"></i>Excel
+            </a>
+            <a href="{% url 'produccion:exportar_reporte_produccion_pdf' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&estado={{ estado }}" class="btn me-2" style="background: #dc3545; color: white; border: none; padding: 6px 12px; font-size: 0.8rem;" target="_blank">
+                <i class="fas fa-file-pdf me-2"></i>PDF
+            </a>
+            <button onclick="window.print()" class="btn me-2" style="background: #C8A882; color: white; border: none; padding: 6px 12px; font-size: 0.8rem;">
+                <i class="fas fa-print me-2"></i>Imprimir
+            </button>
+            <a href="{% url 'produccion:orden_list' %}" class="btn" style="background: #6F5B44; color: white; border: none; padding: 6px 12px; font-size: 0.8rem;">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-3 no-print" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-body" style="padding: 15px;">
+            <form method="get" class="row g-2">
+                <div class="col-md-3">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Fecha Desde</label>
+                    <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" style="height: 35px; border-color: #ccc;">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Fecha Hasta</label>
+                    <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" style="height: 35px; border-color: #ccc;">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Estado</label>
+                    <select name="estado" class="form-select" style="height: 35px; border-color: #ccc;">
+                        <option value="">Todos</option>
+                        <option value="terminada" {% if estado == 'terminada' %}selected{% endif %}>Terminada</option>
+                        <option value="en_proceso" {% if estado == 'en_proceso' %}selected{% endif %}>En Proceso</option>
+                        <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; height: 35px; border: none;">
+                        <i class="fas fa-filter me-2"></i>Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resumen en Cards Compactas -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card" style="border: 1px solid #8B7355; border-radius: 6px;">
+                <div class="card-body text-center" style="padding: 10px 15px;">
+                    <i class="fas fa-clipboard-list mb-1" style="color: #8B7355; font-size: 1.2rem;"></i>
+                    <h4 class="mb-0" style="color: #6F5B44; font-weight: 700; font-size: 1.5rem;">{{ total_ordenes }}</h4>
+                    <p class="mb-0" style="color: #666; font-size: 0.75rem;">Órdenes Totales</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card" style="border: 1px solid #28a745; border-radius: 6px;">
+                <div class="card-body text-center" style="padding: 10px 15px;">
+                    <i class="fas fa-check-circle mb-1" style="color: #28a745; font-size: 1.2rem;"></i>
+                    <h4 class="mb-0" style="color: #28a745; font-weight: 700; font-size: 1.5rem;">{{ ordenes_terminadas }}</h4>
+                    <p class="mb-0" style="color: #666; font-size: 0.75rem;">Terminadas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card" style="border: 1px solid #C8A882; border-radius: 6px;">
+                <div class="card-body text-center" style="padding: 10px 15px;">
+                    <i class="fas fa-cubes mb-1" style="color: #C8A882; font-size: 1.2rem;"></i>
+                    <h4 class="mb-0" style="color: #C8A882; font-weight: 700; font-size: 1.5rem;">{{ total_producido|floatformat:0 }}</h4>
+                    <p class="mb-0" style="color: #666; font-size: 0.75rem;">Unidades Producidas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card" style="border: 1px solid #dc3545; border-radius: 6px;">
+                <div class="card-body text-center" style="padding: 10px 15px;">
+                    <i class="fas fa-exclamation-triangle mb-1" style="color: #dc3545; font-size: 1.2rem;"></i>
+                    <h4 class="mb-0" style="color: #dc3545; font-weight: 700; font-size: 1.5rem;">{{ total_merma|floatformat:0 }}</h4>
+                    <p class="mb-0" style="color: #666; font-size: 0.75rem;">Merma Total</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Órdenes -->
+    <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-header" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); color: white; padding: 12px 15px;">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Detalle de Órdenes</h5>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead style="background: #F5F5F0;">
+                        <tr>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Orden</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Receta</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Fecha</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Planificada</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Producida</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Merma</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Eficiencia</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Estado</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Costo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for orden in ordenes %}
+                        <tr>
+                            <td style="padding: 10px;"><strong>OP-{{ orden.numero_orden }}</strong></td>
+                            <td style="padding: 10px;">{{ orden.receta.nombre }}</td>
+                            <td style="padding: 10px;">{{ orden.fecha_planificada|date:"d/m/Y" }}</td>
+                            <td style="padding: 10px;">{{ orden.cantidad_planificada }}</td>
+                            <td style="padding: 10px;"><strong style="color: #28a745;">{{ orden.cantidad_producida }}</strong></td>
+                            <td style="padding: 10px;"><strong style="color: #dc3545;">{{ orden.merma_real }}</strong></td>
+                            <td style="padding: 10px;">
+                                <span style="font-weight: 600; color: {% if orden.porcentaje_completado >= 90 %}#28a745{% elif orden.porcentaje_completado >= 70 %}#ffc107{% else %}#dc3545{% endif %};">
+                                    {{ orden.porcentaje_completado|floatformat:0 }}%
+                                </span>
+                            </td>
+                            <td style="padding: 10px;">
+                                {% if orden.estado == 'terminada' %}
+                                    <span class="badge bg-success">Terminada</span>
+                                {% elif orden.estado == 'en_proceso' %}
+                                    <span class="badge bg-primary">En Proceso</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ orden.get_estado_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 10px;"><strong>${{ orden.costo_total|floatformat:0 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4" style="color: #999;">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <p class="mb-0">No hay órdenes en el período seleccionado</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot style="background: #F5F5F0; font-weight: 600;">
+                        <tr>
+                            <td colspan="3" style="padding: 12px; color: #6F5B44;">TOTALES</td>
+                            <td style="padding: 12px; color: #6F5B44;">{{ total_planificado|floatformat:0 }}</td>
+                            <td style="padding: 12px; color: #28a745;">{{ total_producido|floatformat:0 }}</td>
+                            <td style="padding: 12px; color: #dc3545;">{{ total_merma|floatformat:0 }}</td>
+                            <td style="padding: 12px; color: #6F5B44;">{{ eficiencia_promedio|floatformat:0 }}%</td>
+                            <td style="padding: 12px;"></td>
+                            <td style="padding: 12px; color: #6F5B44;">${{ costo_total|floatformat:0 }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Ocultar top menu
+document.addEventListener('DOMContentLoaded', function() {
+    const topMenu = document.querySelector('.top-menu');
+    if (topMenu) {
+        topMenu.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

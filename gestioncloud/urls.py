@@ -44,6 +44,7 @@ urlpatterns = [
 	path('facturacion-electronica/', include('facturacion_electronica.urls')),
 	path('utilidades/', include('utilidades.urls')),
 	path('informes/', include('informes.urls')),
+	path('produccion/', include('produccion.urls')),
 ]
 
 # Configuración para archivos estáticos y media en desarrollo

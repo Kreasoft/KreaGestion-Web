@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Detalle de Receta{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultar top-bar */
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        margin-top: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header terroso -->
+    <div class="d-flex justify-content-between align-items-center mb-3" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 class="mb-0" style="color: white; font-size: 1.5rem;"><i class="fas fa-flask me-2"></i>{{ receta.nombre }}</h2>
+        <div>
+            <a href="{% url 'produccion:receta_update' receta.pk %}" class="btn" style="background: #C8A882; color: white; padding: 8px 16px;">
+                <i class="fas fa-edit me-2"></i>Editar
+            </a>
+            <a href="{% url 'produccion:receta_list' %}" class="btn" style="background: #6F5B44; color: white; padding: 8px 16px;">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Mensajes -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% if messages %}
+            {% for message in messages %}
+                Swal.fire({
+                    icon: '{{ message.tags }}' === 'success' ? 'success' : 'error',
+                    title: '{{ message.tags }}' === 'success' ? '¡Éxito!' : 'Error',
+                    text: '{{ message|escapejs }}',
+                    confirmButtonColor: '#8B7355',
+                    confirmButtonText: 'Aceptar'
+                });
+            {% endfor %}
+        {% endif %}
+    });
+    </script>
+
+    <div class="row">
+        <!-- Información General -->
+        <div class="col-md-6">
+            <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 10px 15px;">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información General</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Código:</th>
+                            <td>{{ receta.codigo }}</td>
+                        </tr>
+                        <tr>
+                            <th>Producto Final:</th>
+                            <td>{{ receta.producto_final.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <th>Cantidad a Producir:</th>
+                            <td>{{ receta.cantidad_producir }} {{ receta.unidad_medida }}</td>
+                        </tr>
+                        <tr>
+                            <th>Industria:</th>
+                            <td>
+                                {% if receta.tipo_industria %}
+                                    <span class="badge bg-info">{{ receta.producto_final.get_tipo_produccion_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Merma Estimada:</th>
+                            <td>{{ receta.merma_estimada }}%</td>
+                        </tr>
+                        <tr>
+                            <th>Tiempo Estimado:</th>
+                            <td>{{ receta.tiempo_estimado }} minutos</td>
+                        </tr>
+                        {% if receta.temperatura_proceso %}
+                        <tr>
+                            <th>Temperatura Proceso:</th>
+                            <td>{{ receta.temperatura_proceso }}°C</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Estado:</th>
+                            <td>
+                                {% if receta.activo %}
+                                    <span class="badge bg-success">Activa</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactiva</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Costos -->
+        <div class="col-md-6">
+            <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 10px 15px;">
+                    <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Costos</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Costo Total Insumos:</th>
+                            <td class="text-end"><strong>${{ receta.costo_total_insumos|floatformat:0 }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Costo Unitario:</th>
+                            <td class="text-end"><strong>${{ receta.costo_unitario|floatformat:0 }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insumos -->
+    <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-header text-white" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); padding: 10px 15px;">
+            <h5 class="mb-0"><i class="fas fa-boxes me-2"></i>Insumos Necesarios</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Orden</th>
+                            <th>Código</th>
+                            <th>Insumo</th>
+                            <th>Cantidad</th>
+                            <th>Costo Unitario</th>
+                            <th>Costo Total</th>
+                            <th>Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for insumo in insumos %}
+                        <tr>
+                            <td>{{ insumo.orden }}</td>
+                            <td>{{ insumo.articulo.codigo }}</td>
+                            <td>{{ insumo.articulo.nombre }}</td>
+                            <td>{{ insumo.cantidad }}</td>
+                            <td>${{ insumo.costo_unitario|floatformat:0 }}</td>
+                            <td><strong>${{ insumo.costo_total|floatformat:0 }}</strong></td>
+                            <td>{{ insumo.notas|default:"-" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">No hay insumos configurados</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-active">
+                            <th colspan="5" class="text-end">TOTAL:</th>
+                            <th>${{ receta.costo_total_insumos|floatformat:0 }}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Ocultar top menu
+document.addEventListener('DOMContentLoaded', function() {
+    const topMenu = document.querySelector('.top-menu');
+    if (topMenu) {
+        topMenu.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

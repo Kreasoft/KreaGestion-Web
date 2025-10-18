@@ -36,7 +36,7 @@ def articulo_list(request):
     # Filtros
     search = request.GET.get('search', '')
     categoria_id = request.GET.get('categoria', '')
-    activo = request.GET.get('activo', '')
+    tipo_articulo = request.GET.get('tipo_articulo', '')
     
     if search:
         articulos = articulos.filter(
@@ -48,8 +48,8 @@ def articulo_list(request):
     if categoria_id:
         articulos = articulos.filter(categoria_id=categoria_id)
     
-    if activo != '':
-        articulos = articulos.filter(activo=activo == 'true')
+    if tipo_articulo:
+        articulos = articulos.filter(tipo_articulo=tipo_articulo)
     
     # Paginación
     paginator = Paginator(articulos, 25)  # 25 artículos por página
@@ -83,7 +83,7 @@ def articulo_list(request):
         'categorias': categorias,
         'search': search,
         'categoria_id': categoria_id,
-        'activo': activo,
+        'tipo_articulo': tipo_articulo,
         'total_articulos': total_articulos,
         'articulos_activos': articulos_activos,
         'articulos_inactivos': articulos_inactivos,

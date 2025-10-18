@@ -1872,16 +1872,57 @@ function clearCart() {
         return;
     }
     
-        // Crear opciones de documentos
+        // Crear botones de documentos con badges destacados
         const opciones = tiposPermitidos.map(tipo => {
-            const nombres = {
-                'factura': 'Factura',
-                'boleta': 'Boleta',
-                'guia': 'Guía de Despacho',
-                'cotizacion': 'Cotización',
-                'vale': 'Vale Facturable'
+            const config = {
+                'factura': { nombre: 'Factura', icono: 'fa-file-invoice', color: '#28a745', disponibles: window.currentEstacion.folios_factura || 0 },
+                'boleta': { nombre: 'Boleta', icono: 'fa-receipt', color: '#007bff', disponibles: window.currentEstacion.folios_boleta || 0 },
+                'guia': { nombre: 'Guía Manual', icono: 'fa-truck', color: '#ffc107', disponibles: 999 },
+                'cotizacion': { nombre: 'Cotización', icono: 'fa-file-alt', color: '#6f42c1', disponibles: 999 },
+                'vale': { nombre: 'Vale Facturable', icono: 'fa-ticket-alt', color: '#6c757d', disponibles: 999 }
             };
-            return `<option value="${tipo}">${nombres[tipo]}</option>`;
+            
+            const info = config[tipo];
+            const iconoEstado = info.disponibles > 10 ? '✓' : (info.disponibles > 0 ? '⚠️' : '✗');
+            const colorBadge = info.disponibles > 10 ? '#28a745' : (info.disponibles > 0 ? '#ffc107' : '#dc3545');
+            
+            return `
+                <button type="button" class="btn-tipo-documento" data-tipo="${tipo}" style="
+                    width: 100%;
+                    padding: 16px;
+                    margin-bottom: 12px;
+                    background: white;
+                    border: 3px solid ${info.color};
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                " onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 16px rgba(0,0,0,0.15)';" 
+                   onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)';">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <i class="fas ${info.icono}" style="font-size: 2rem; color: ${info.color};"></i>
+                        <div style="text-align: left;">
+                            <div style="font-size: 1.2rem; font-weight: 700; color: #2c3e50;">${info.nombre}</div>
+                            <div style="font-size: 0.75rem; color: #6c757d;">Documento tributario</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.5rem;">${iconoEstado}</span>
+                        <span style="
+                            padding: 6px 12px;
+                            border: 2px solid ${colorBadge};
+                            border-radius: 8px;
+                            font-size: 0.9rem;
+                            font-weight: 600;
+                            color: ${colorBadge};
+                            background: white;
+                        ">${info.disponibles}</span>
+                    </div>
+                </button>
+            `;
         }).join('');
         
         // Verificar si ya hay un cliente seleccionado
@@ -1897,12 +1938,16 @@ function clearCart() {
         
         const html = `
             <div class="mb-3">
-                <label class="form-label" style="font-weight: 700; color: #495057; text-align: left; display: block;">Tipo de Documento a Emitir *</label>
-                <select id="tipo-documento" class="form-control" required>
-                    <option value="">Seleccionar tipo...</option>
+                <label class="form-label" style="font-weight: 700; color: #2c3e50; font-size: 1.1rem; text-align: left; display: block; margin-bottom: 16px;">
+                    <i class="fas fa-file-invoice me-2"></i>Seleccione el Tipo de Documento a Emitir *
+                </label>
+                <input type="hidden" id="tipo-documento" required>
+                <div id="botones-tipo-documento">
                     ${opciones}
-                </select>
-                <small style="color: #adb5bd; font-size: 0.75rem;">Este documento se emitirá posteriormente en el módulo de caja</small>
+                </div>
+                <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 8px; text-align: center;">
+                    <i class="fas fa-info-circle me-1"></i>Este documento se emitirá posteriormente en el módulo de caja
+                </small>
             </div>
             
             <!-- Tipo de Despacho (solo para Guías) -->
@@ -2139,6 +2184,28 @@ function clearCart() {
                 referenciasContainer.style.display = 'none';
             }
         }
+        
+        // Manejar clics en botones de tipo de documento
+        document.querySelectorAll('.btn-tipo-documento').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remover selección de todos los botones
+                document.querySelectorAll('.btn-tipo-documento').forEach(b => {
+                    b.style.background = 'white';
+                    b.style.transform = 'scale(1)';
+                });
+                
+                // Marcar este botón como seleccionado
+                this.style.background = 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
+                this.style.transform = 'scale(1.02)';
+                
+                // Actualizar campo oculto
+                const tipo = this.getAttribute('data-tipo');
+                tipoDocSelect.value = tipo;
+                
+                // Trigger del evento change para mostrar/ocultar campos
+                toggleCamposSegunTipoDoc();
+            });
+        });
         
         tipoDocSelect.addEventListener('change', toggleCamposSegunTipoDoc);
         toggleCamposSegunTipoDoc(); // Verificar estado inicial

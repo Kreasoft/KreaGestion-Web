@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reporte de Costos de Producción{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultar top-bar */
+    .top-bar {
+        display: none !important;
+    }
+    .main-content {
+        margin-top: 0 !important;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        .card {
+            break-inside: avoid;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header con estilo terroso -->
+    <div class="d-flex justify-content-between align-items-center mb-3 no-print" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div>
+            <h2 class="mb-0" style="color: white; font-size: 1.5rem;">
+                <i class="fas fa-dollar-sign me-2"></i>Reporte de Costos de Producción
+            </h2>
+            <p class="mb-0 mt-1" style="color: rgba(255,255,255,0.85); font-size: 0.85rem;">
+                Análisis detallado de costos por receta y orden de producción
+            </p>
+        </div>
+        <div>
+            <button onclick="window.print()" class="btn me-2" style="background: #C8A882; color: white; border: none; padding: 8px 16px;">
+                <i class="fas fa-print me-2"></i>Imprimir
+            </button>
+            <a href="{% url 'produccion:orden_list' %}" class="btn" style="background: #6F5B44; color: white; border: none; padding: 8px 16px;">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-3 no-print" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-body" style="padding: 15px;">
+            <form method="get" class="row g-2">
+                <div class="col-md-3">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Fecha Desde</label>
+                    <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" style="height: 35px; border-color: #ccc;">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Fecha Hasta</label>
+                    <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" style="height: 35px; border-color: #ccc;">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Receta</label>
+                    <select name="receta" class="form-select" style="height: 35px; border-color: #ccc;">
+                        <option value="">Todas</option>
+                        {% for r in recetas %}
+                        <option value="{{ r.id }}" {% if receta_id == r.id|stringformat:'s' %}selected{% endif %}>{{ r.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; height: 35px; border: none;">
+                        <i class="fas fa-filter me-2"></i>Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resumen en Cards -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card" style="border: 2px solid #8B7355; border-radius: 8px;">
+                <div class="card-body text-center" style="padding: 20px;">
+                    <i class="fas fa-dollar-sign fa-2x mb-2" style="color: #8B7355;"></i>
+                    <h3 class="mb-0" style="color: #6F5B44; font-weight: 700;">${{ costo_total_insumos|floatformat:0 }}</h3>
+                    <p class="mb-0" style="color: #666; font-size: 0.85rem;">Costo Total Insumos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card" style="border: 2px solid #28a745; border-radius: 8px;">
+                <div class="card-body text-center" style="padding: 20px;">
+                    <i class="fas fa-box fa-2x mb-2" style="color: #28a745;"></i>
+                    <h3 class="mb-0" style="color: #28a745; font-weight: 700;">${{ costo_total_produccion|floatformat:0 }}</h3>
+                    <p class="mb-0" style="color: #666; font-size: 0.85rem;">Costo Total Producción</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card" style="border: 2px solid #C8A882; border-radius: 8px;">
+                <div class="card-body text-center" style="padding: 20px;">
+                    <i class="fas fa-calculator fa-2x mb-2" style="color: #C8A882;"></i>
+                    <h3 class="mb-0" style="color: #C8A882; font-weight: 700;">${{ costo_promedio_unitario|floatformat:2 }}</h3>
+                    <p class="mb-0" style="color: #666; font-size: 0.85rem;">Costo Promedio Unitario</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card" style="border: 2px solid #17a2b8; border-radius: 8px;">
+                <div class="card-body text-center" style="padding: 20px;">
+                    <i class="fas fa-flask fa-2x mb-2" style="color: #17a2b8;"></i>
+                    <h3 class="mb-0" style="color: #17a2b8; font-weight: 700;">{{ total_recetas }}</h3>
+                    <p class="mb-0" style="color: #666; font-size: 0.85rem;">Recetas Producidas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Costos por Receta -->
+    <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-header" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); color: white; padding: 12px 15px;">
+            <h5 class="mb-0"><i class="fas fa-flask me-2"></i>Costos por Receta</h5>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead style="background: #F5F5F0;">
+                        <tr>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Receta</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Producto Final</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Cantidad Produce</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Costo Insumos</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Costo Unitario</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Órdenes</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Total Producido</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in costos_por_receta %}
+                        <tr>
+                            <td style="padding: 10px;"><strong>{{ item.receta.nombre }}</strong></td>
+                            <td style="padding: 10px;">{{ item.receta.producto_final.nombre }}</td>
+                            <td style="padding: 10px;">{{ item.receta.cantidad_producir }}</td>
+                            <td style="padding: 10px;"><strong style="color: #dc3545;">${{ item.receta.costo_total_insumos|floatformat:2 }}</strong></td>
+                            <td style="padding: 10px;"><strong style="color: #28a745;">${{ item.receta.costo_unitario|floatformat:2 }}</strong></td>
+                            <td style="padding: 10px;">{{ item.total_ordenes }}</td>
+                            <td style="padding: 10px;"><strong style="color: #8B7355;">${{ item.costo_total_producido|floatformat:0 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4" style="color: #999;">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <p class="mb-0">No hay datos en el período seleccionado</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Órdenes con Costos -->
+    <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
+        <div class="card-header" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); color: white; padding: 12px 15px;">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Detalle de Órdenes y Costos</h5>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead style="background: #F5F5F0;">
+                        <tr>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Orden</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Receta</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Fecha</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Cantidad</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Costo Unitario</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Costo Total</th>
+                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for orden in ordenes %}
+                        <tr>
+                            <td style="padding: 10px;"><strong>OP-{{ orden.numero_orden }}</strong></td>
+                            <td style="padding: 10px;">{{ orden.receta.nombre }}</td>
+                            <td style="padding: 10px;">{{ orden.fecha_planificada|date:"d/m/Y" }}</td>
+                            <td style="padding: 10px;">{{ orden.cantidad_planificada }}</td>
+                            <td style="padding: 10px;"><strong style="color: #28a745;">${{ orden.receta.costo_unitario|floatformat:2 }}</strong></td>
+                            <td style="padding: 10px;"><strong style="color: #8B7355;">${{ orden.costo_total|floatformat:0 }}</strong></td>
+                            <td style="padding: 10px;">
+                                {% if orden.estado == 'terminada' %}
+                                    <span class="badge bg-success">Terminada</span>
+                                {% elif orden.estado == 'en_proceso' %}
+                                    <span class="badge bg-primary">En Proceso</span>
+                                {% elif orden.estado == 'pendiente' %}
+                                    <span class="badge bg-secondary">Pendiente</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Cancelada</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4" style="color: #999;">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <p class="mb-0">No hay órdenes en el período seleccionado</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot style="background: #F5F5F0; font-weight: 600;">
+                        <tr>
+                            <td colspan="5" style="padding: 12px; color: #6F5B44;">TOTAL</td>
+                            <td style="padding: 12px; color: #8B7355;">${{ costo_total_produccion|floatformat:0 }}</td>
+                            <td style="padding: 12px;"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Ocultar top menu
+document.addEventListener('DOMContentLoaded', function() {
+    const topMenu = document.querySelector('.top-menu');
+    if (topMenu) {
+        topMenu.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}
