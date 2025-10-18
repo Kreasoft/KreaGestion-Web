@@ -20,7 +20,10 @@ urlpatterns = [
     path('movimientos/', views.inventario_list, name='inventario_list'),
     path('movimientos/nuevo/', views.inventario_create, name='inventario_create'),
     path('movimientos/<int:pk>/', views.inventario_detail, name='inventario_detail'),
+    path('movimientos/<int:pk>/modal/', views.inventario_detail_modal, name='inventario_detail_modal'),
     path('movimientos/<int:pk>/editar/', views.inventario_update, name='inventario_update'),
+    path('movimientos/formulario/modal/', views.inventario_form_modal, name='inventario_form_modal_create'),
+    path('movimientos/<int:pk>/formulario/modal/', views.inventario_form_modal, name='inventario_form_modal_edit'),
     path('movimientos/<int:pk>/eliminar/', views.inventario_delete, name='inventario_delete'),
     
     # Control de Stock

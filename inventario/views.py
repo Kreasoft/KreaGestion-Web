@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Sum, F
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
+from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 import pandas as pd
@@ -163,7 +164,7 @@ def inventario_delete(request, pk):
 def inventario_detail(request, pk):
     """Detalle de movimiento de inventario"""
     inventario = get_object_or_404(Inventario, pk=pk, empresa=request.empresa)
-    
+
     context = {
         'inventario': inventario,
         'titulo': f'Detalle: {inventario.articulo.nombre}'
@@ -394,12 +395,6 @@ from usuarios.decorators import requiere_empresa
 @requiere_empresa
 def inventario_list(request):
     """Lista todos los movimientos de inventario"""
-    print(f"DEBUG: Usuario {request.user.username} accediendo a inventario_list")
-    print(f"DEBUG: Empresa del usuario: {request.empresa}")
-    print(f"DEBUG: Template que se va a usar: inventario/inventario_list.html")
-    print(f"DEBUG: URL completa: {request.build_absolute_uri()}")
-    print(f"DEBUG: Método HTTP: {request.method}")
-
     inventarios = Inventario.objects.filter(empresa=request.empresa).select_related(
         'bodega_destino', 'articulo', 'creado_por'
     ).order_by('-fecha_movimiento', '-fecha_creacion')
@@ -548,6 +543,73 @@ def inventario_detail(request, pk):
     }
     
     return render(request, 'inventario/inventario_detail.html', context)
+
+
+@login_required
+@requiere_empresa
+def inventario_detail_modal(request, pk):
+    """Retorna el detalle del movimiento para modal via AJAX."""
+    inventario = get_object_or_404(Inventario, pk=pk, empresa=request.empresa)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string(
+            'inventario/partials/inventario_detail_content.html',
+            {'inventario': inventario},
+            request=request
+        )
+        return JsonResponse({'html': html})
+
+    return redirect('inventario:inventario_detail', pk=pk)
+
+
+@login_required
+@requiere_empresa
+def inventario_form_modal(request, pk=None):
+    """Renderizar o procesar formulario de inventario para modal via AJAX."""
+    inventario = None
+    if pk:
+        inventario = get_object_or_404(Inventario, pk=pk, empresa=request.empresa)
+
+    if request.method == 'POST':
+        form = InventarioForm(request.POST, instance=inventario, empresa=request.empresa)
+        if form.is_valid():
+            with transaction.atomic():
+                if inventario:
+                    revertir_stock(inventario)
+
+                movimiento = form.save(commit=False)
+                movimiento.empresa = request.empresa
+                if inventario:
+                    movimiento.actualizado_por = request.user
+                else:
+                    movimiento.creado_por = request.user
+                movimiento.save()
+
+                actualizar_stock(movimiento)
+
+            return JsonResponse({'success': True})
+        html = render_to_string(
+            'inventario/partials/inventario_form_modal.html',
+            {
+                'form': form,
+                'submit_text': 'Actualizar Movimiento' if pk else 'Guardar Movimiento',
+                'action_url': request.path
+            },
+            request=request
+        )
+        return JsonResponse({'success': False, 'html': html}, status=400)
+
+    form = InventarioForm(instance=inventario, empresa=request.empresa)
+    html = render_to_string(
+        'inventario/partials/inventario_form_modal.html',
+        {
+            'form': form,
+            'submit_text': 'Actualizar Movimiento' if pk else 'Guardar Movimiento',
+            'action_url': request.path
+        },
+        request=request
+    )
+    return JsonResponse({'html': html})
 
 
 @login_required

@@ -65,74 +65,74 @@
 
     <!-- Tabla de órdenes compacta -->
     <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
-        <div class="card-body" style="padding: 15px;">
+        <div class="card-body" style="padding: 10px;">
             <div class="table-responsive">
-                <table class="table table-hover table-sm mb-0">
-                    <thead>
+                <table class="table table-hover table-sm mb-0" style="font-size: 0.75rem;">
+                    <thead style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
                         <tr>
-                            <th>N° Orden</th>
-                            <th>Receta</th>
-                            <th>Cantidad</th>
-                            <th>Producido</th>
-                            <th>% Completado</th>
-                            <th>Estado</th>
-                            <th>Fecha</th>
-                            <th>Responsable</th>
-                            <th>Acciones</th>
+                            <th style="padding: 6px 8px; font-size: 0.7rem;">N° Orden</th>
+                            <th style="padding: 6px 8px; font-size: 0.7rem;">Receta</th>
+                            <th style="padding: 6px 8px; font-size: 0.7rem;">Cantidad</th>
+                            <th style="padding: 6px 8px; font-size: 0.7rem;">Producido</th>
+                            <th style="padding: 6px 8px; font-size: 0.7rem;">% Completado</th>
+                            <th style="padding: 6px 8px; font-size: 0.7rem;">Estado</th>
+                            <th style="padding: 6px 8px; font-size: 0.7rem;">Fecha</th>
+                            <th style="padding: 6px 8px; font-size: 0.7rem;">Responsable</th>
+                            <th style="padding: 6px 8px; font-size: 0.7rem;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for orden in ordenes %}
-                        <tr>
-                            <td><strong>OP-{{ orden.numero_orden }}</strong></td>
-                            <td>{{ orden.receta.nombre }}</td>
-                            <td>{{ orden.cantidad_planificada }}</td>
-                            <td>{{ orden.cantidad_producida }}</td>
-                            <td>
-                                <div class="progress" style="height: 20px; background-color: #E8E8E8; border-radius: 6px;">
+                        <tr style="height: 32px;">
+                            <td style="padding: 4px 8px; vertical-align: middle;"><strong>OP-{{ orden.numero_orden }}</strong></td>
+                            <td style="padding: 4px 8px; vertical-align: middle;">{{ orden.receta.nombre }}</td>
+                            <td style="padding: 4px 8px; vertical-align: middle;">{{ orden.cantidad_planificada }}</td>
+                            <td style="padding: 4px 8px; vertical-align: middle;">{{ orden.cantidad_producida }}</td>
+                            <td style="padding: 4px 8px; vertical-align: middle;">
+                                <div class="progress" style="height: 16px; background-color: #E8E8E8; border-radius: 4px;">
                                     {% with porcentaje=orden.porcentaje_completado|floatformat:0 %}
                                     <div class="progress-bar" role="progressbar" 
-                                         style="width: {{ porcentaje }}%; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-radius: 6px;"
+                                         style="width: {{ porcentaje }}%; background: {% if porcentaje == '100' %}linear-gradient(135deg, #6B7C4A 0%, #556338 100%){% else %}linear-gradient(135deg, #8B7355 0%, #6F5B44 100%){% endif %}; border-radius: 6px;"
                                          aria-valuenow="{{ porcentaje }}" 
                                          aria-valuemin="0" aria-valuemax="100">
-                                        <span style="font-weight: 600; font-size: 0.75rem; color: white;">{{ porcentaje }}%</span>
+                                        <span style="font-weight: 600; font-size: 0.65rem; color: white;">{{ porcentaje }}%</span>
                                     </div>
                                     {% endwith %}
                                 </div>
                             </td>
-                            <td>
+                            <td style="padding: 4px 8px; vertical-align: middle;">
                                 {% if orden.estado == 'pendiente' %}
-                                    <span class="badge bg-secondary">Pendiente</span>
+                                    <span class="badge bg-secondary" style="font-size: 0.65rem;">Pendiente</span>
                                 {% elif orden.estado == 'en_proceso' %}
-                                    <span class="badge bg-primary">En Proceso</span>
+                                    <span class="badge bg-primary" style="font-size: 0.65rem;">En Proceso</span>
                                 {% elif orden.estado == 'terminada' %}
-                                    <span class="badge bg-success">Terminada</span>
+                                    <span class="badge bg-success" style="font-size: 0.65rem;">Terminada</span>
                                 {% elif orden.estado == 'cancelada' %}
-                                    <span class="badge bg-danger">Cancelada</span>
+                                    <span class="badge bg-danger" style="font-size: 0.65rem;">Cancelada</span>
                                 {% endif %}
                             </td>
-                            <td>{{ orden.fecha_planificada|date:"d/m/Y" }}</td>
-                            <td>{{ orden.responsable|default:"-" }}</td>
-                            <td>
-                                <button type="button" class="btn btn-sm" style="background: #8B7355; color: white; padding: 4px 8px;" title="Ver Detalle" onclick="verDetalleOrden({{ orden.pk }})">
-                                    <i class="fas fa-eye"></i>
+                            <td style="padding: 4px 8px; vertical-align: middle;">{{ orden.fecha_planificada|date:"d/m/Y" }}</td>
+                            <td style="padding: 4px 8px; vertical-align: middle;">{{ orden.responsable|default:"-" }}</td>
+                            <td style="padding: 4px 8px; vertical-align: middle;">
+                                <button type="button" class="btn btn-sm" style="background: #8B7355; color: white; padding: 2px 6px; font-size: 0.7rem;" title="Ver Detalle" onclick="verDetalleOrden({{ orden.pk }})">
+                                    <i class="fas fa-eye" style="font-size: 0.7rem;"></i>
                                 </button>
                                 {% if orden.estado == 'pendiente' %}
-                                <button type="button" class="btn btn-sm" style="background: #ffc107; color: white; padding: 4px 8px;" title="Editar" onclick="abrirModalEditarOrden({{ orden.pk }}, '{{ orden.numero_orden }}', {{ orden.receta.id }}, '{{ orden.cantidad_planificada }}', '-1', '{{ orden.fecha_planificada|date:'Y-m-d' }}', '{{ orden.responsable|escapejs }}', '{{ orden.lote_produccion|escapejs }}', '{{ orden.observaciones|escapejs }}')">
+                                <button type="button" class="btn btn-sm" style="background: #ffc107; color: white; padding: 2px 6px; font-size: 0.7rem;" title="Editar" onclick="abrirModalEditarOrden({{ orden.pk }}, '{{ orden.numero_orden }}', {{ orden.receta.id }}, '{{ orden.cantidad_planificada }}', '-1', '{{ orden.fecha_planificada|date:'Y-m-d' }}', '{{ orden.responsable|escapejs }}', '{{ orden.lote_produccion|escapejs }}', '{{ orden.observaciones|escapejs }}')">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <a href="{% url 'produccion:orden_iniciar' orden.pk %}" class="btn btn-sm btn-success" style="padding: 4px 8px;" title="Iniciar">
-                                    <i class="fas fa-play"></i>
+                                <a href="{% url 'produccion:orden_iniciar' orden.pk %}" class="btn btn-sm btn-success" style="padding: 2px 6px; font-size: 0.7rem;" title="Iniciar">
+                                    <i class="fas fa-play" style="font-size: 0.7rem;"></i>
                                 </a>
-                                <button type="button" class="btn btn-sm btn-danger" style="padding: 4px 8px;" title="Cancelar" onclick="cancelarOrden({{ orden.pk }}, '{{ orden.numero_orden }}')">
+                                <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 0.7rem;" title="Cancelar" onclick="cancelarOrden({{ orden.pk }}, '{{ orden.numero_orden }}')">
                                     <i class="fas fa-ban"></i>
                                 </button>
                                 {% elif orden.estado == 'en_proceso' %}
-                                <button type="button" class="btn btn-sm" style="background: #C8A882; color: white; padding: 4px 8px;" title="Finalizar Orden" onclick="abrirModalFinalizar({{ orden.pk }}, '{{ orden.numero_orden }}', {{ orden.cantidad_planificada }})">
+                                <button type="button" class="btn btn-sm" style="background: #C8A882; color: white; padding: 2px 6px; font-size: 0.7rem;" title="Finalizar Orden" onclick="abrirModalFinalizar({{ orden.pk }}, '{{ orden.numero_orden }}', {{ orden.cantidad_planificada }})">
                                     <i class="fas fa-check"></i>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-danger" style="padding: 4px 8px;" title="Cancelar" onclick="cancelarOrden({{ orden.pk }}, '{{ orden.numero_orden }}')">
-                                    <i class="fas fa-ban"></i>
+                                <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 0.7rem;" title="Cancelar" onclick="cancelarOrden({{ orden.pk }}, '{{ orden.numero_orden }}')">
+                                    <i class="fas fa-ban" style="font-size: 0.7rem;"></i>
                                 </button>
                                 {% endif %}
                             </td>
@@ -652,7 +652,14 @@ function verDetalleOrden(ordenId) {
             // Barra de progreso
             const porcentaje = Math.round(data.porcentaje_completado);
             document.getElementById('detallePorcentaje').textContent = `${porcentaje}%`;
-            document.getElementById('detalleBarraProgreso').style.width = `${porcentaje}%`;
+            const barraProgreso = document.getElementById('detalleBarraProgreso');
+            barraProgreso.style.width = `${porcentaje}%`;
+            // Cambiar color a verde oliva oscuro terroso cuando está completado
+            if (porcentaje === 100) {
+                barraProgreso.style.background = 'linear-gradient(135deg, #6B7C4A 0%, #556338 100%)';
+            } else {
+                barraProgreso.style.background = 'linear-gradient(135deg, #8B7355 0%, #6F5B44 100%)';
+            }
             
             // Información General
             document.getElementById('detalleReceta').textContent = data.receta_nombre;

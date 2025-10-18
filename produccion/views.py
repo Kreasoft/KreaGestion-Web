@@ -787,10 +787,11 @@ def orden_finalizar(request, pk):
                     precio_unitario=Decimal(insumo.articulo.precio_costo.replace(',', '.')) if insumo.articulo.precio_costo else Decimal('0'),
                     total=cantidad_consumir * (Decimal(insumo.articulo.precio_costo.replace(',', '.')) if insumo.articulo.precio_costo else Decimal('0')),
                     motivo=f'Consumo por Producción - Orden {orden.numero_orden}',
-                    observaciones=f'Insumo consumido en producción de {orden.receta.producto_final.nombre}',
+                    descripcion=f'Insumo consumido en producción de {orden.receta.producto_final.nombre}',
+                    numero_documento=str(orden.numero_orden),
                     estado='confirmado',
                     fecha_movimiento=timezone.now(),
-                    usuario=request.user
+                    creado_por=request.user
                 )
                 print(f"✅ Movimiento SALIDA creado: ID={mov_salida.id}, Artículo={insumo.articulo.nombre}, Bodega={bodega_insumos.nombre}, Cantidad={cantidad_consumir}")
             
@@ -820,10 +821,11 @@ def orden_finalizar(request, pk):
                 precio_unitario=orden.receta.costo_unitario,
                 total=cantidad_producida * orden.receta.costo_unitario,
                 motivo=f'Producción - Orden {orden.numero_orden}',
-                observaciones=f'Producto fabricado. Merma: {merma_real}. {comentarios[:100] if comentarios else ""}',
+                descripcion=f'Producto fabricado. Merma: {merma_real}. {comentarios[:100] if comentarios else ""}',
+                numero_documento=str(orden.numero_orden),
                 estado='confirmado',
                 fecha_movimiento=timezone.now(),
-                usuario=request.user
+                creado_por=request.user
             )
             print(f"✅ Movimiento ENTRADA creado: ID={mov_entrada.id}, Artículo={orden.receta.producto_final.nombre}, Bodega={bodega_productos.nombre}, Cantidad={cantidad_producida}")
             
@@ -892,7 +894,50 @@ def orden_cancelar(request, pk):
 @login_required
 def reportes(request):
     """Vista principal de reportes"""
-    return render(request, 'produccion/reportes.html')
+    from django.db.models import Sum, Count
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    
+    empresa = request.empresa
+    hoy = timezone.now()
+    inicio_mes = hoy.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Órdenes activas (pendiente + en_proceso)
+    ordenes_activas = OrdenProduccion.objects.filter(
+        empresa=empresa,
+        estado__in=['pendiente', 'en_proceso']
+    ).count()
+    
+    # Completadas este mes
+    completadas_mes = OrdenProduccion.objects.filter(
+        empresa=empresa,
+        estado='terminada',
+        fecha_fin__gte=inicio_mes
+    ).count()
+    
+    # Recetas activas
+    recetas_activas = RecetaProduccion.objects.filter(
+        empresa=empresa,
+        activo=True
+    ).count()
+    
+    # Costo total del mes (calculado desde las propiedades)
+    ordenes_terminadas_mes = OrdenProduccion.objects.filter(
+        empresa=empresa,
+        estado='terminada',
+        fecha_fin__gte=inicio_mes
+    ).select_related('receta')
+    
+    costo_total_mes = sum(orden.costo_total for orden in ordenes_terminadas_mes)
+    
+    context = {
+        'ordenes_activas': ordenes_activas,
+        'completadas_mes': completadas_mes,
+        'recetas_activas': recetas_activas,
+        'costo_total_mes': costo_total_mes,
+    }
+    
+    return render(request, 'produccion/reportes.html', context)
 
 
 @requiere_empresa

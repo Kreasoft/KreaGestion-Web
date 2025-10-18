@@ -21,7 +21,7 @@
 <div class="container-fluid" style="margin-top: 20px;">
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 14px; overflow: hidden;">
 
                 <!-- HEADER PRINCIPAL CON COLORES VIBRANTES -->
                 <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
@@ -44,9 +44,9 @@
                             <a href="{% url 'inventario:stock_list' %}" class="btn btn-sm me-2" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
                                 <i class="fas fa-boxes me-1"></i> Control de Stock
                             </a>
-                            <a href="{% url 'inventario:inventario_create' %}" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;">
+                            <button type="button" class="btn btn-sm btn-nuevo-movimiento" data-url="{% url 'inventario:inventario_form_modal_create' %}" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;">
                                 <i class="fas fa-plus me-1"></i> Nuevo Movimiento
-                            </a>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -132,8 +132,8 @@
                     </div>
                     
                     <!-- Lista de Movimientos -->
-                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                        <table class="table table-hover table-compact mb-0">
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact table-sm mb-0">
                             <thead>
                                 <tr>
                                     <th style="width: 8%;">Folio</th>
@@ -150,7 +150,7 @@
                             </thead>
                             <tbody>
                                 {% for movimiento in page_obj %}
-                                <tr style="border-bottom: 1px solid #F5F1E8;">
+                                <tr>
                                     <td style="font-size: 0.7rem;">
                                         <strong style="color: #6F5B44;">{{ movimiento.folio }}</strong>
                                     </td>
@@ -184,24 +184,26 @@
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group" role="group">
-                                            <a href="{% url 'inventario:inventario_detail' movimiento.pk %}"
-                                               class="btn btn-sm btn-action btn-outline-primary"
-                                               title="Ver detalle">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-action btn-outline-primary btn-ver-detalle"
+                                                    data-url="{% url 'inventario:inventario_detail_modal' movimiento.pk %}"
+                                                    title="Ver detalle">
                                                 <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{% url 'inventario:inventario_update' movimiento.pk %}"
-                                               class="btn btn-sm btn-action btn-outline-secondary"
-                                               title="Editar">
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-action btn-outline-secondary btn-editar-movimiento"
+                                                    data-url="{% url 'inventario:inventario_form_modal_edit' movimiento.pk %}"
+                                                    title="Editar">
                                                 <i class="fas fa-edit"></i>
-                                            </a>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="10" class="text-center py-2">
+                                    <td colspan="10" class="text-center py-2" style="font-size: 0.7rem;">
                                         <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
-                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay movimientos registrados</p>
+                                        <p style="color: #8B7355; font-size: 0.7rem;">No hay movimientos registrados</p>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -254,6 +256,232 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Formulario Movimiento -->
+<div class="modal fade" id="modalInventarioForm" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border-bottom: none;">
+                <h5 class="modal-title" id="modalInventarioFormTitle" style="font-weight: 600;">Movimiento de Inventario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0" id="modalInventarioFormBody">
+                <div class="p-4 text-center" style="color: #6F5B44;">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                    <p>Cargando formulario...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalle Movimiento -->
+<div class="modal fade" id="modalInventarioDetalle" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border-bottom: none;">
+                <h5 class="modal-title" style="font-weight: 600;">Detalle del Movimiento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0" id="modalInventarioDetalleBody">
+                <div class="p-4 text-center" style="color: #6F5B44;">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                    <p>Cargando detalle...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modalDetalle = new bootstrap.Modal(document.getElementById('modalInventarioDetalle'));
+    const modalDetalleBody = document.getElementById('modalInventarioDetalleBody');
+
+    const modalForm = new bootstrap.Modal(document.getElementById('modalInventarioForm'));
+    const modalFormBody = document.getElementById('modalInventarioFormBody');
+    const modalFormTitle = document.getElementById('modalInventarioFormTitle');
+
+    function initSelectTerroso(scope) {
+        if (window.jQuery) {
+            $(scope).find('.select-terroso').select2({
+                theme: 'default',
+                width: '100%',
+                dropdownParent: $('#modalInventarioForm'),
+                placeholder: function() {
+                    return $(this).data('placeholder') || 'Seleccione';
+                }
+            });
+        }
+    }
+
+    function bindFormEvents(container) {
+        const form = container.querySelector('#inventarioFormModal');
+        if (!form) return;
+
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
+            }
+
+            const formData = new FormData(form);
+            const csrfToken = form.querySelector('[name="csrfmiddlewaretoken"]').value;
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw data;
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    modalForm.hide();
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                const html = error && error.html ? error.html : `
+                    <div class="p-4 text-center" style="color: #dc3545;">
+                        <i class="fas fa-times-circle fa-2x mb-2"></i>
+                        <p>No se pudo guardar el movimiento.</p>
+                    </div>`;
+                modalFormBody.innerHTML = html;
+                initSelectTerroso(modalFormBody);
+                bindFormEvents(modalFormBody);
+            })
+            .finally(() => {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = submitButton.dataset.label || submitButton.innerHTML;
+                }
+            });
+        });
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn && !submitBtn.dataset.label) {
+            submitBtn.dataset.label = submitBtn.innerHTML;
+        }
+    }
+
+    function cargarFormulario(url, titulo) {
+        modalFormTitle.textContent = titulo;
+        modalFormBody.innerHTML = `
+            <div class="p-4 text-center" style="color: #6F5B44;">
+                <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                <p>Cargando formulario...</p>
+            </div>
+        `;
+
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(resp => {
+            if (!resp.ok) throw new Error('No se pudo cargar el formulario');
+            return resp.json();
+        })
+        .then(data => {
+            modalFormBody.innerHTML = data.html;
+            initSelectTerroso(modalFormBody);
+            bindFormEvents(modalFormBody);
+            modalForm.show();
+        })
+        .catch(err => {
+            modalFormBody.innerHTML = `
+                <div class="p-4 text-center" style="color: #dc3545;">
+                    <i class="fas fa-times-circle fa-2x mb-2"></i>
+                    <p>${err.message}</p>
+                </div>
+            `;
+            modalForm.show();
+        });
+    }
+
+    document.querySelectorAll('.btn-nuevo-movimiento').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const url = btn.dataset.url;
+            if (!url) return;
+            cargarFormulario(url, 'Nuevo Movimiento');
+        });
+    });
+
+    document.querySelectorAll('.btn-editar-movimiento').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const url = btn.dataset.url;
+            if (!url) return;
+            cargarFormulario(url, 'Editar Movimiento');
+        });
+    });
+
+    document.querySelectorAll('.btn-ver-detalle').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const url = this.dataset.url;
+            if (!url) return;
+
+            modalDetalleBody.innerHTML = `
+                <div class="p-4 text-center" style="color: #6F5B44;">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                    <p>Cargando detalle...</p>
+                </div>
+            `;
+
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(resp => {
+                if (!resp.ok) throw new Error('Error al cargar el detalle');
+                return resp.json();
+            })
+            .then(data => {
+                modalDetalleBody.innerHTML = data.html;
+                modalDetalle.show();
+            })
+            .catch(err => {
+                modalDetalleBody.innerHTML = `
+                    <div class="p-4 text-center" style="color: #dc3545;">
+                        <i class="fas fa-times-circle fa-2x mb-2"></i>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+                modalDetalle.show();
+            });
+        });
+    });
+
+    // FIX: Eliminar backdrop cuando se cierra el modal
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('hidden.bs.modal', function () {
+            document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+                backdrop.remove();
+            });
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = 'auto';
+            document.body.style.paddingRight = '0';
+        });
+    });
+});
+</script>
+{% endblock %}
 
 <style>
     /* Paleta terrosa para tarjetas de estadísticas */
@@ -364,6 +592,28 @@
         padding: 4px 10px;
         font-size: 0.75rem;
         border-radius: 6px;
+    }
+
+    .btn-outline-primary {
+        color: #8B7355;
+        border-color: #8B7355;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: #8B7355;
+        border-color: #8B7355;
+        color: white;
+    }
+
+    .btn-outline-secondary {
+        color: #A67C52;
+        border-color: #A67C52;
+    }
+
+    .btn-outline-secondary:hover {
+        background-color: #A67C52;
+        border-color: #A67C52;
+        color: white;
     }
 </style>
 

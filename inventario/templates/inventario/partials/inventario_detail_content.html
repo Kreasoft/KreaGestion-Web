@@ -1,0 +1,233 @@
+{% load format_filters %}
+
+<style>
+    .detail-container {
+        background: white;
+        border: 2px solid #E8DCC8;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin: 0;
+    }
+
+    .detail-header {
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        color: #6F5B44;
+        padding: 1.2rem 1.5rem;
+        border-bottom: 2px solid #D4C4A8;
+    }
+
+    .detail-body {
+        padding: 1.2rem 1.5rem;
+        background: #FAFAF8;
+    }
+
+    .detail-info {
+        background: #FAFAF8;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 8px;
+        border: 1px solid rgba(139, 115, 85, 0.15);
+    }
+
+    .detail-info h6 {
+        color: #6F5B44;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #D4C4A8;
+        padding-bottom: 4px;
+    }
+
+    .detail-row {
+        display: flex;
+        margin-bottom: 4px;
+        font-size: 0.8rem;
+    }
+
+    .detail-label {
+        font-weight: 600;
+        color: #8B7355;
+        min-width: 120px;
+    }
+
+    .detail-value {
+        color: #6F5B44;
+        flex: 1;
+    }
+
+    .btn-action-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        box-shadow: 0 3px 8px rgba(111, 91, 68, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .btn-action-terroso:hover {
+        transform: translateY(-2px);
+        color: white;
+        box-shadow: 0 4px 12px rgba(111, 91, 68, 0.4);
+    }
+</style>
+
+{% if inventario %}
+<div class="detail-container">
+    <div class="detail-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exchange-alt fa-lg me-2" style="color: #6F5B44;"></i>
+                <div>
+                    <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                        Detalle del Movimiento #{{ inventario.folio }}
+                    </h5>
+                    <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                        {{ inventario.fecha_movimiento|date:"d/m/Y H:i" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="detail-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="detail-info">
+                    <h6><i class="fas fa-info-circle me-2"></i>Información General</h6>
+                    <div class="detail-row">
+                        <span class="detail-label">Folio:</span>
+                        <span class="detail-value"><strong>{{ inventario.folio }}</strong></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Tipo:</span>
+                        <span class="detail-value">
+                            {% if inventario.tipo_movimiento == 'entrada' %}
+                                <span class="badge bg-success">Entrada</span>
+                            {% else %}
+                                <span class="badge bg-danger">Salida</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Fecha:</span>
+                        <span class="detail-value">{{ inventario.fecha_movimiento|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Estado:</span>
+                        <span class="detail-value">
+                            {% if inventario.estado == 'pendiente' %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                            {% else %}
+                                <span class="badge bg-success">Procesado</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if inventario.creado_por %}
+                    <div class="detail-row">
+                        <span class="detail-label">Creado por:</span>
+                        <span class="detail-value">{{ inventario.creado_por.get_full_name|default:inventario.creado_por.username }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="detail-info">
+                    <h6><i class="fas fa-box me-2"></i>Artículo</h6>
+                    <div class="detail-row">
+                        <span class="detail-label">Nombre:</span>
+                        <span class="detail-value">{{ inventario.articulo.nombre }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Código:</span>
+                        <span class="detail-value">{{ inventario.articulo.codigo }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Cantidad:</span>
+                        <span class="detail-value"><strong>{{ inventario.cantidad|format_miles }}</strong></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Precio Unitario:</span>
+                        <span class="detail-value">${{ inventario.precio_unitario|format_miles }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Total:</span>
+                        <span class="detail-value" style="font-weight: 600; color: #6F5B44;">${{ inventario.total|format_miles }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-3">
+            {% if inventario.bodega_origen %}
+            <div class="col-md-6">
+                <div class="detail-info">
+                    <h6><i class="fas fa-warehouse me-2"></i>Bodega Origen</h6>
+                    <div class="detail-row">
+                        <span class="detail-label">Nombre:</span>
+                        <span class="detail-value">{{ inventario.bodega_origen.nombre }}</span>
+                    </div>
+                    {% if inventario.bodega_origen.direccion %}
+                    <div class="detail-row">
+                        <span class="detail-label">Dirección:</span>
+                        <span class="detail-value">{{ inventario.bodega_origen.direccion }}</span>
+                    </div>
+                    {% endif %}
+                    {% if inventario.bodega_origen.telefono %}
+                    <div class="detail-row">
+                        <span class="detail-label">Teléfono:</span>
+                        <span class="detail-value">{{ inventario.bodega_origen.telefono }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if inventario.bodega_destino %}
+            <div class="col-md-6">
+                <div class="detail-info">
+                    <h6><i class="fas fa-warehouse me-2"></i>Bodega Destino</h6>
+                    <div class="detail-row">
+                        <span class="detail-label">Nombre:</span>
+                        <span class="detail-value">{{ inventario.bodega_destino.nombre }}</span>
+                    </div>
+                    {% if inventario.bodega_destino.direccion %}
+                    <div class="detail-row">
+                        <span class="detail-label">Dirección:</span>
+                        <span class="detail-value">{{ inventario.bodega_destino.direccion }}</span>
+                    </div>
+                    {% endif %}
+                    {% if inventario.bodega_destino.telefono %}
+                    <div class="detail-row">
+                        <span class="detail-label">Teléfono:</span>
+                        <span class="detail-value">{{ inventario.bodega_destino.telefono }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if inventario.descripcion %}
+            <div class="col-md-6">
+                <div class="detail-info">
+                    <h6><i class="fas fa-sticky-note me-2"></i>Descripción</h6>
+                    <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #8B4513; font-size: 0.85rem;">
+                        {{ inventario.descripcion|linebreaks }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="d-flex justify-content-end mt-4 gap-2">
+            <a href="{% url 'inventario:inventario_update' inventario.pk %}" class="btn btn-action-terroso" style="padding: 8px 16px;">
+                <i class="fas fa-edit me-2"></i>Editar Movimiento
+            </a>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="p-4 text-center">
+    <i class="fas fa-exclamation-triangle fa-2x mb-2" style="color: #d39e00;"></i>
+    <p>Movimiento no encontrado.</p>
+</div>
+{% endif %}
