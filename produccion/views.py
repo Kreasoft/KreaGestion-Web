@@ -726,7 +726,13 @@ def orden_finalizar(request, pk):
                     sucursal=orden.sucursal
                 ).first()
             
-            stock_disponible = Decimal(stock.cantidad_disponible.replace(',', '.')) if stock else Decimal('0')
+            if stock:
+                if isinstance(stock.cantidad_disponible, str):
+                    stock_disponible = Decimal(stock.cantidad_disponible.replace(',', '.'))
+                else:
+                    stock_disponible = Decimal(str(stock.cantidad_disponible))
+            else:
+                stock_disponible = Decimal('0')
             
             if stock_disponible < cantidad_necesaria:
                 insumos_sin_stock.append({
@@ -735,100 +741,101 @@ def orden_finalizar(request, pk):
                     'disponible': float(stock_disponible),
                     'faltante': float(cantidad_necesaria - stock_disponible)
                 })
-        
-        # Si hay insumos sin stock, devolver advertencia
-        if insumos_sin_stock:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                mensaje = "⚠️ ADVERTENCIA: Los siguientes insumos tienen stock insuficiente:\n\n"
-                for insumo in insumos_sin_stock:
-                    mensaje += f"• {insumo['nombre']}: Necesario {insumo['necesario']}, Disponible {insumo['disponible']}, Falta {insumo['faltante']}\n"
-                
-                return JsonResponse({
-                    'success': False,
-                    'message': mensaje,
-                    'insumos_sin_stock': insumos_sin_stock
-                })
-        
-        # Actualizar orden
-        orden.estado = 'terminada'
-        orden.fecha_fin = timezone.now()
-        orden.cantidad_producida = cantidad_producida
-        orden.merma_real = merma_real
-        orden.observaciones = comentarios
-        orden.meses_garantia = int(meses_garantia) if meses_garantia else None
-        orden.save()
-        
-        # Consumir stock de insumos
-        for insumo in orden.receta.insumos.all():
-            cantidad_consumir = insumo.cantidad * factor_produccion
             
-            # Buscar stock del insumo en la sucursal
-            stock, created = StockArticulo.objects.get_or_create(
-                articulo=insumo.articulo,
+            # Si hay insumos sin stock, solo registrar advertencia (no bloquear)
+            if insumos_sin_stock:
+                print("⚠️ ADVERTENCIA: Insumos con stock insuficiente:")
+                for insumo in insumos_sin_stock:
+                    print(f"  • {insumo['nombre']}: Necesario {insumo['necesario']}, Disponible {insumo['disponible']}, Falta {insumo['faltante']}")
+            
+            # Actualizar orden
+            orden.estado = 'terminada'
+            orden.fecha_fin = timezone.now()
+            orden.cantidad_producida = cantidad_producida
+            orden.merma_real = merma_real
+            orden.observaciones = comentarios
+            orden.meses_garantia = int(meses_garantia) if meses_garantia else None
+            orden.save()
+            
+            # Consumir stock de insumos
+            for insumo in orden.receta.insumos.all():
+                cantidad_consumir = insumo.cantidad * factor_produccion
+                
+                # Buscar stock del insumo en la sucursal
+                stock, created = StockArticulo.objects.get_or_create(
+                    articulo=insumo.articulo,
+                    sucursal=orden.sucursal,
+                    defaults={'cantidad_disponible': '0', 'cantidad_reservada': '0'}
+                )
+                
+                # Reducir stock disponible
+                if isinstance(stock.cantidad_disponible, str):
+                    stock_actual = Decimal(stock.cantidad_disponible.replace(',', '.'))
+                else:
+                    stock_actual = Decimal(str(stock.cantidad_disponible))
+                nuevo_stock = stock_actual - cantidad_consumir
+                stock.cantidad_disponible = str(nuevo_stock)
+                stock.save()
+                
+                # Registrar movimiento en kardex (SALIDA de insumo desde bodega de insumos)
+                mov_salida = Inventario.objects.create(
+                    empresa=orden.empresa,
+                    bodega_origen=bodega_insumos,
+                    articulo=insumo.articulo,
+                    tipo_movimiento='salida',
+                    cantidad=cantidad_consumir,
+                    precio_unitario=Decimal(insumo.articulo.precio_costo.replace(',', '.')) if insumo.articulo.precio_costo else Decimal('0'),
+                    total=cantidad_consumir * (Decimal(insumo.articulo.precio_costo.replace(',', '.')) if insumo.articulo.precio_costo else Decimal('0')),
+                    motivo=f'Consumo por Producción - Orden {orden.numero_orden}',
+                    observaciones=f'Insumo consumido en producción de {orden.receta.producto_final.nombre}',
+                    estado='confirmado',
+                    fecha_movimiento=timezone.now(),
+                    usuario=request.user
+                )
+                print(f"✅ Movimiento SALIDA creado: ID={mov_salida.id}, Artículo={insumo.articulo.nombre}, Bodega={bodega_insumos.nombre}, Cantidad={cantidad_consumir}")
+            
+            # Agregar stock del producto final
+            stock_producto, created = StockArticulo.objects.get_or_create(
+                articulo=orden.receta.producto_final,
                 sucursal=orden.sucursal,
                 defaults={'cantidad_disponible': '0', 'cantidad_reservada': '0'}
             )
             
-            # Reducir stock disponible
-            stock_actual = Decimal(stock.cantidad_disponible.replace(',', '.'))
-            nuevo_stock = stock_actual - cantidad_consumir
-            stock.cantidad_disponible = str(nuevo_stock)
-            stock.save()
+            # Aumentar stock disponible
+            if isinstance(stock_producto.cantidad_disponible, str):
+                stock_actual = Decimal(stock_producto.cantidad_disponible.replace(',', '.'))
+            else:
+                stock_actual = Decimal(str(stock_producto.cantidad_disponible))
+            nuevo_stock = stock_actual + cantidad_producida
+            stock_producto.cantidad_disponible = str(nuevo_stock)
+            stock_producto.save()
             
-            # Registrar movimiento en kardex (SALIDA de insumo desde bodega de insumos)
-            Inventario.objects.create(
+            # Registrar movimiento en kardex (ENTRADA de producto final a bodega de productos)
+            mov_entrada = Inventario.objects.create(
                 empresa=orden.empresa,
-                bodega_origen=bodega_insumos,
-                articulo=insumo.articulo,
-                tipo_movimiento='salida',
-                cantidad=cantidad_consumir,
-                precio_unitario=insumo.articulo.precio_compra or Decimal('0'),
-                total=cantidad_consumir * (insumo.articulo.precio_compra or Decimal('0')),
-                motivo=f'Consumo por Producción - Orden {orden.numero_orden}',
-                observaciones=f'Insumo consumido en producción de {orden.receta.producto_final.nombre}',
+                bodega_destino=bodega_productos,
+                articulo=orden.receta.producto_final,
+                tipo_movimiento='entrada',
+                cantidad=cantidad_producida,
+                precio_unitario=orden.receta.costo_unitario,
+                total=cantidad_producida * orden.receta.costo_unitario,
+                motivo=f'Producción - Orden {orden.numero_orden}',
+                observaciones=f'Producto fabricado. Merma: {merma_real}. {comentarios[:100] if comentarios else ""}',
                 estado='confirmado',
                 fecha_movimiento=timezone.now(),
                 usuario=request.user
             )
-        
-        # Agregar stock del producto final
-        stock_producto, created = StockArticulo.objects.get_or_create(
-            articulo=orden.receta.producto_final,
-            sucursal=orden.sucursal,
-            defaults={'cantidad_disponible': '0', 'cantidad_reservada': '0'}
-        )
-        
-        # Aumentar stock disponible
-        stock_actual = Decimal(stock_producto.cantidad_disponible.replace(',', '.'))
-        nuevo_stock = stock_actual + cantidad_producida
-        stock_producto.cantidad_disponible = str(nuevo_stock)
-        stock_producto.save()
-        
-        # Registrar movimiento en kardex (ENTRADA de producto final a bodega de productos)
-        Inventario.objects.create(
-            empresa=orden.empresa,
-            bodega_destino=bodega_productos,
-            articulo=orden.receta.producto_final,
-            tipo_movimiento='entrada',
-            cantidad=cantidad_producida,
-            precio_unitario=orden.receta.costo_unitario,
-            total=cantidad_producida * orden.receta.costo_unitario,
-            motivo=f'Producción - Orden {orden.numero_orden}',
-            observaciones=f'Producto fabricado. Merma: {merma_real}. {comentarios[:100] if comentarios else ""}',
-            estado='confirmado',
-            fecha_movimiento=timezone.now(),
-            usuario=request.user
-        )
-        
-        # Si es AJAX, devolver JSON
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': 'Orden finalizada exitosamente.'
-            })
-        
-        messages.success(request, 'Orden finalizada exitosamente.')
-        return redirect('produccion:orden_detail', pk=pk)
+            print(f"✅ Movimiento ENTRADA creado: ID={mov_entrada.id}, Artículo={orden.receta.producto_final.nombre}, Bodega={bodega_productos.nombre}, Cantidad={cantidad_producida}")
+            
+            # Si es AJAX, devolver JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Orden finalizada exitosamente.'
+                })
+            
+            messages.success(request, 'Orden finalizada exitosamente.')
+            return redirect('produccion:orden_detail', pk=pk)
         except Exception as e:
             import traceback
             error_detail = traceback.format_exc()
