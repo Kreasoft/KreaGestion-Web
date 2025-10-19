@@ -300,8 +300,8 @@
                             </div>
                         </div>
 
-                        <!-- Formas de Pago Múltiples -->
-                        <div class="mb-4">
+                        <!-- Formas de Pago Múltiples (ocultar si es guía) -->
+                        <div class="mb-4" id="formas-pago-section">
                             <label class="form-label fw-bold">
                                 <i class="fas fa-credit-card me-2"></i>Formas de Pago
                             </label>
@@ -408,7 +408,12 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('🟢 DOM Content Loaded - Inicializando...');
     
     const totalVenta = {{ ticket.total|unlocalize }};
+    const tipoDocumentoPlaneado = '{{ tipo_documento_planeado|default:"" }}';
     console.log('💰 Total Venta:', totalVenta);
+    console.log('📋 Tipo documento planeado RAW:', '{{ tipo_documento_planeado }}');
+    console.log('📋 Tipo documento planeado VAR:', tipoDocumentoPlaneado);
+    console.log('📋 Ticket tipo_documento:', '{{ ticket.tipo_documento }}');
+    console.log('📋 Ticket tipo_documento_planeado:', '{{ ticket.tipo_documento_planeado }}');
     let contadorPagos = 1;
     
     // Verificar que el formulario existe
@@ -418,6 +423,71 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!formulario) {
         console.error('❌ ERROR: No se encontró el formulario con ID "formProcesar"');
         return;
+    }
+    
+    // Función para mostrar/ocultar formas de pago según tipo de documento
+    function toggleFormasPago() {
+        // Usar el valor del ticket directamente
+        const tipoDocTicket = '{{ ticket.tipo_documento_planeado|default:"" }}';
+        const radioMarcado = document.querySelector('input[name="tipo_documento"]:checked');
+        const tipoDoc = tipoDocTicket || (radioMarcado ? radioMarcado.value : null);
+        const formasPagoSection = document.getElementById('formas-pago-section');
+        const btnProcesar = document.getElementById('btn-procesar');
+        
+        console.log('🔍 toggleFormasPago - Tipo ticket:', tipoDocTicket);
+        console.log('🔍 toggleFormasPago - Radio marcado:', radioMarcado ? radioMarcado.id : 'ninguno');
+        console.log('🔍 toggleFormasPago - Tipo documento FINAL:', tipoDoc);
+        
+        if (tipoDoc === 'guia') {
+            // Ocultar formas de pago para guías
+            formasPagoSection.style.display = 'none';
+            btnProcesar.innerHTML = '<i class="fas fa-truck me-2"></i>Generar Guía de Despacho';
+            
+            // Remover required de campos de pago
+            formasPagoSection.querySelectorAll('select, input').forEach(field => {
+                field.removeAttribute('required');
+            });
+            
+            console.log('📦 Guía seleccionada - Formas de pago ocultas y campos no requeridos');
+        } else {
+            // Mostrar formas de pago para otros documentos
+            formasPagoSection.style.display = 'block';
+            btnProcesar.innerHTML = '<i class="fas fa-check me-2"></i>Procesar Pago';
+            
+            // Restaurar required en campos de pago
+            formasPagoSection.querySelectorAll('.forma-pago-select').forEach(field => {
+                field.setAttribute('required', 'required');
+            });
+            formasPagoSection.querySelectorAll('.monto-pago').forEach(field => {
+                field.setAttribute('required', 'required');
+            });
+            
+            console.log('💳 Documento con pago - Formas de pago visibles y campos requeridos');
+        }
+    }
+    
+    // Ejecutar cuando cambie el tipo de documento
+    document.querySelectorAll('input[name="tipo_documento"]').forEach(radio => {
+        radio.addEventListener('change', toggleFormasPago);
+    });
+    
+    // FORZAR ejecución múltiple para garantizar detección
+    toggleFormasPago();
+    requestAnimationFrame(toggleFormasPago);
+    setTimeout(toggleFormasPago, 0);
+    setTimeout(toggleFormasPago, 50);
+    setTimeout(toggleFormasPago, 100);
+    setTimeout(toggleFormasPago, 200);
+    setTimeout(toggleFormasPago, 300);
+    
+    // Si es guía, agregar listener al botón para forzar envío
+    const tipoDocTicketBtn = '{{ ticket.tipo_documento_planeado|default:"" }}';
+    if (tipoDocTicketBtn === 'guia') {
+        const btnProcesar = document.getElementById('btn-procesar');
+        btnProcesar.addEventListener('click', function(e) {
+            console.log('🚀 CLICK EN BOTÓN GUÍA - Forzando envío');
+            // No prevenir default, dejar que envíe el formulario
+        });
     }
     
     // Preparar opciones de formas de pago
@@ -597,15 +667,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // Validar antes de enviar
     document.getElementById('formProcesar').addEventListener('submit', function(e) {
         console.log('=== SUBMIT DEL FORMULARIO ===');
+        
+        // Obtener tipo de documento del ticket
+        const tipoDocTicket = '{{ ticket.tipo_documento_planeado|default:"" }}';
+        console.log('✅ Tipo documento del ticket:', tipoDocTicket);
+        
+        // Si el ticket tiene tipo_documento_planeado='guia', FORZAR que sea guía
+        if (tipoDocTicket === 'guia') {
+            console.log('✅ GUÍA DETECTADA - Permitiendo envío sin validaciones');
+            // Asegurar que el radio de guía esté marcado
+            const radioGuia = document.getElementById('tipo_guia');
+            if (radioGuia) {
+                radioGuia.checked = true;
+            }
+            return true; // Permitir envío inmediatamente
+        }
+        
+        // Para otros tipos, validar normalmente
+        const radioMarcado = document.querySelector('input[name="tipo_documento"]:checked');
+        const tipoDocumento = radioMarcado ? radioMarcado.value : null;
+        console.log('✅ Tipo documento radio:', tipoDocumento);
+        
         const totalPagado = calcularTotalPagado();
         console.log('Total Venta:', totalVenta);
         console.log('Total Pagado:', totalPagado);
 
         // 1. Validación de disponibilidad de folios para documentos electrónicos
         {% if empresa.facturacion_electronica and disponibilidad_folios %}
-        const tipoDocumento = document.querySelector('input[name="tipo_documento"]:checked')?.value;
-        console.log('Tipo documento seleccionado:', tipoDocumento);
-
         if (tipoDocumento && (tipoDocumento === 'boleta' || tipoDocumento === 'factura')) {
             const disponibilidad = {{ disponibilidad_folios_json|safe }};
             const datosTipo = disponibilidad[tipoDocumento];
@@ -628,7 +716,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         {% endif %}
 
-        // 2. Validación de monto pagado
+        // 2. Validación de monto pagado (solo para documentos con pago)
         // Permitir diferencia de hasta 1 peso por redondeo
         const diferencia = totalVenta - totalPagado;
         console.log('Diferencia:', diferencia);

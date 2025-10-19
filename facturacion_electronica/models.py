@@ -298,6 +298,13 @@ class DocumentoTributarioElectronico(models.Model):
     folio = models.IntegerField(verbose_name="Folio")
     fecha_emision = models.DateField(verbose_name="Fecha de Emisión")
     
+    # EMISOR
+    rut_emisor = models.CharField(max_length=12, verbose_name="RUT Emisor", default='')
+    razon_social_emisor = models.CharField(max_length=200, verbose_name="Razón Social Emisor", default='')
+    giro_emisor = models.CharField(max_length=200, blank=True, verbose_name="Giro Emisor")
+    direccion_emisor = models.CharField(max_length=200, blank=True, verbose_name="Dirección Emisor")
+    comuna_emisor = models.CharField(max_length=100, blank=True, verbose_name="Comuna Emisor")
+    
     # RECEPTOR
     rut_receptor = models.CharField(max_length=12, verbose_name="RUT Receptor")
     razon_social_receptor = models.CharField(max_length=200, verbose_name="Razón Social Receptor")
@@ -351,6 +358,23 @@ class DocumentoTributarioElectronico(models.Model):
         blank=True,
         verbose_name="Respuesta del SII"
     )
+    respuesta_sii = models.TextField(
+        blank=True,
+        verbose_name="Respuesta Completa del SII"
+    )
+    error_envio = models.TextField(
+        blank=True,
+        verbose_name="Error en Envío"
+    )
+    fecha_consulta_estado = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha Última Consulta Estado"
+    )
+    datos_pdf417 = models.TextField(
+        blank=True,
+        verbose_name="Datos para PDF417"
+    )
     
     # TIPO DE TRASLADO (Solo para Guías de Despacho - Tipo 52)
     tipo_traslado = models.CharField(
@@ -385,6 +409,8 @@ class DocumentoTributarioElectronico(models.Model):
     usuario_creacion = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         verbose_name="Usuario Creación"
     )
     

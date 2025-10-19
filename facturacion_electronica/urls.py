@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import views_dte
 
 app_name = 'facturacion_electronica'
 
@@ -14,8 +15,14 @@ urlpatterns = [
     # Alertas de Folios
     path('alertas-folios/', views.alertas_folios_config, name='alertas_folios_config'),
     
-    # DTEs
-    path('dte/', views.dte_list, name='dte_list'),
-    path('dte/<int:pk>/', views.dte_detail, name='dte_detail'),
+    # DTEs - Lista y detalle
+    path('dte/', views_dte.dte_list, name='dte_list'),
+    path('dte/<int:pk>/', views_dte.dte_detail, name='dte_detail'),
+    
+    # DTEs - Generación y envío
+    path('venta/<int:venta_id>/generar-dte/', views_dte.generar_dte_venta, name='generar_dte_venta'),
+    path('dte/<int:dte_id>/enviar/', views_dte.enviar_dte_sii, name='enviar_dte'),
+    path('dte/<int:dte_id>/consultar-estado/', views_dte.consultar_estado_dte, name='consultar_estado_dte'),
+    path('dte/<int:dte_id>/ver-factura/', views_dte.ver_factura_electronica, name='ver_factura_electronica'),
 ]
 

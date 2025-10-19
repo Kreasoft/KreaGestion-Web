@@ -1993,22 +1993,30 @@ def venta_html(request, pk):
     if venta.tipo_documento in ['factura', 'boleta']:
         try:
             from facturacion_electronica.models import DocumentoTributarioElectronico
-            # Buscar por relación en VentaProcesada primero
-            from caja.models import VentaProcesada
-            venta_procesada = VentaProcesada.objects.filter(venta=venta).first()
-            if venta_procesada and hasattr(venta_procesada, 'dte_generado'):
-                dte = venta_procesada.dte_generado
-        except:
+            
+            # Buscar DTE directamente asociado a la venta
+            if hasattr(venta, 'dte'):
+                dte = venta.dte
+            else:
+                # Buscar por relación en VentaProcesada
+                from caja.models import VentaProcesada
+                venta_procesada = VentaProcesada.objects.filter(venta_final=venta).first()
+                if venta_procesada and hasattr(venta_procesada, 'dte_generado'):
+                    dte = venta_procesada.dte_generado
+        except Exception as e:
+            print(f"Error al buscar DTE: {str(e)}")
             pass
     
     # Determinar el template según el tipo de documento
     # USAR SIEMPRE EL NUEVO FORMATO ULTRA-COMPACTO PARA FACTURAS
     if venta.tipo_documento == 'factura':
         template_name = 'ventas/factura_electronica_html.html'
+    elif venta.tipo_documento == 'guia':
+        # Las guías usan el mismo formato que las de transferencias
+        template_name = 'inventario/guia_despacho_html.html'
     else:
         tipo_templates = {
             'boleta': 'ventas/boleta_html.html',
-            'guia': 'ventas/guia_html.html',
             'vale': 'ventas/vale_html.html',
             'cotizacion': 'ventas/cotizacion_html.html',
         }
@@ -2022,10 +2030,23 @@ def venta_html(request, pk):
         # Alias para compatibilidad con templates específicos
         'boleta': venta if venta.tipo_documento == 'boleta' else None,
         'factura': venta if venta.tipo_documento == 'factura' else None,
-        'guia': venta if venta.tipo_documento == 'guia' else None,
         'vale': venta if venta.tipo_documento == 'vale' else None,
         'cotizacion': venta if venta.tipo_documento == 'cotizacion' else None,
     }
+    
+    # Para guías, pasar el DTE como 'guia' para compatibilidad con template de transferencias
+    if venta.tipo_documento == 'guia' and dte:
+        context['guia'] = dte
+    elif venta.tipo_documento == 'guia':
+        # Si no hay DTE, crear objeto temporal con datos de la venta
+        class GuiaTemp:
+            def __init__(self, venta):
+                self.folio = venta.numero_venta
+                self.monto_neto = venta.neto
+                self.monto_iva = venta.iva
+                self.monto_total = venta.total
+                self.timbre_pdf417 = None
+        context['guia'] = GuiaTemp(venta)
 
     return render(request, template_name, context)
 

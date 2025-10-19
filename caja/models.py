@@ -158,7 +158,7 @@ class VentaProcesada(models.Model):
     venta_final = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name='venta_final', verbose_name="Venta Final (Documento Tributario)")
     
     apertura_caja = models.ForeignKey(AperturaCaja, on_delete=models.CASCADE, verbose_name="Apertura de Caja")
-    movimiento_caja = models.ForeignKey(MovimientoCaja, on_delete=models.CASCADE, verbose_name="Movimiento de Caja")
+    movimiento_caja = models.ForeignKey(MovimientoCaja, on_delete=models.CASCADE, null=True, blank=True, verbose_name="Movimiento de Caja")
     
     fecha_proceso = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Proceso")
     usuario_proceso = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="Usuario que Procesó")

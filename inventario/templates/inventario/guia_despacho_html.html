@@ -263,7 +263,7 @@
                         ELECTRÓNICA
                     </div>
                     <div class="document-folio">N° {{ guia.folio }}</div>
-                    <div class="document-sii">S.I.I. - {{ empresa.ciudad|default:"SANTIAGO" }}</div>
+                    <div class="document-sii">S.I.I. - {{ empresa.oficina_sii|default:"SANTIAGO" }}</div>
                 </div>
             </div>
         </div>
@@ -324,29 +324,54 @@
                         <td class="text-center">{{ detalle.cantidad }}</td>
                         <td class="text-right">${{ detalle.articulo.precio_venta|format_miles }}</td>
                         <td class="text-right">$0</td>
-                        <td class="text-right">${{ detalle.articulo.precio_venta|multiply:detalle.cantidad|format_miles }}</td>
+                        <td class="text-right">${{ detalle.total|format_miles }}</td>
                     </tr>
                     {% endfor %}
                 {% endif %}
             </tbody>
         </table>
 
-        <!-- TOTALES -->
-        <div class="totales-section">
-            <table class="totales-table">
-                <tr>
-                    <td class="totales-label">NETO:</td>
-                    <td class="totales-value">${{ guia.monto_neto|format_miles }}</td>
-                </tr>
-                <tr>
-                    <td class="totales-label">IVA (19%):</td>
-                    <td class="totales-value">${{ guia.monto_iva|format_miles }}</td>
-                </tr>
-                <tr class="total-final">
-                    <td class="totales-label">TOTAL:</td>
-                    <td class="totales-value">${{ guia.monto_total|format_miles }}</td>
-                </tr>
-            </table>
+        <!-- SECCIÓN INFERIOR: TIMBRE Y TOTALES -->
+        <div style="display: table; width: 100%; margin-top: 10px;">
+            <!-- TIMBRE (izquierda) -->
+            <div style="display: table-cell; width: 45%; vertical-align: top; padding-right: 10px;">
+                {% if guia.timbre_pdf417 %}
+                <div class="timbre-section" style="text-align: center; margin-top: 0;">
+                    <img src="{{ guia.timbre_pdf417.url }}" alt="Timbre Electrónico" style="max-width: 100%; height: auto;">
+                    <div style="font-size: 7pt; margin-top: 5px;">
+                        <strong>TIMBRE ELECTRÓNICO SII</strong><br>
+                        Folio: {{ guia.folio }}<br>
+                        Verifique en www.sii.cl
+                    </div>
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 20px; background: #f0f0f0; border: 2px dashed #ccc;">
+                    <strong>DOCUMENTO TRIBUTARIO ELECTRÓNICO</strong><br>
+                    <small>Timbre Electrónico SII</small><br>
+                    <small>Verifique documento en www.sii.cl</small>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- TOTALES (derecha) -->
+            <div style="display: table-cell; width: 55%; vertical-align: top;">
+                <div class="totales-section">
+                    <table class="totales-table">
+                        <tr>
+                            <td class="totales-label">NETO:</td>
+                            <td class="totales-value">${{ guia.monto_neto|format_miles }}</td>
+                        </tr>
+                        <tr>
+                            <td class="totales-label">IVA (19%):</td>
+                            <td class="totales-value">${{ guia.monto_iva|format_miles }}</td>
+                        </tr>
+                        <tr class="total-final">
+                            <td class="totales-label">TOTAL:</td>
+                            <td class="totales-value">${{ guia.monto_total|format_miles }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <div style="clear: both;"></div>
@@ -361,9 +386,6 @@
 
         <!-- PIE DE PÁGINA -->
         <div class="footer-section">
-            <div><strong>DOCUMENTO TRIBUTARIO ELECTRÓNICO</strong></div>
-            <div>Timbre Electrónico SII</div>
-            <div>Verifique documento en www.sii.cl</div>
             {% if transferencia %}
             <div style="margin-top: 8px;">
                 <strong>Transferencia:</strong> {{ transferencia.numero_folio }} | 
@@ -372,13 +394,6 @@
             </div>
             {% endif %}
         </div>
-
-        <!-- TIMBRE (si existe) -->
-        {% if guia.timbre_pdf417 %}
-        <div class="timbre-section">
-            <img src="{{ guia.timbre_pdf417.url }}" alt="Timbre Electrónico" style="max-width: 200px;">
-        </div>
-        {% endif %}
     </div>
 
     <!-- Botón de impresión (no se imprime) -->

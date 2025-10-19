@@ -410,6 +410,7 @@ def transferencia_imprimir_guia(request, pk):
     total = subtotal + iva
     
     context = {
+        'guia': dte,  # Usar 'guia' como nombre de variable para el template
         'dte': dte,
         'transferencia': transferencia,
         'detalles': detalles,
@@ -419,7 +420,7 @@ def transferencia_imprimir_guia(request, pk):
         'empresa': request.empresa,
     }
     
-    return render(request, 'inventario/guia_despacho_electronica_html.html', context)
+    return render(request, 'inventario/guia_despacho_html.html', context)
 
 
 @login_required
@@ -472,49 +473,130 @@ def transferencia_generar_guia(request, pk):
             iva = subtotal * Decimal('0.19')
             total = subtotal + iva
             
-            # Crear DTE
-            dte = DocumentoTributarioElectronico.objects.create(
-                empresa=request.empresa,
-                caf_utilizado=caf,
-                tipo_dte='52',
-                folio=folio,
-                fecha_emision=timezone.now().date(),
-                tipo_traslado='5',  # Traslado interno
-                # Receptor (usar datos de la empresa para traslado interno)
-                rut_receptor=request.empresa.rut,
-                razon_social_receptor=request.empresa.nombre,
-                giro_receptor=request.empresa.giro or '',
-                direccion_receptor=request.empresa.direccion or '',
-                comuna_receptor=request.empresa.comuna or '',
-                ciudad_receptor=request.empresa.ciudad or '',
-                # Montos
-                monto_neto=subtotal.quantize(Decimal('1')),
-                monto_exento=Decimal('0'),
-                monto_iva=iva.quantize(Decimal('1')),
-                monto_total=total.quantize(Decimal('1')),
-                # Estado
-                estado_sii='generado',
-                usuario_creacion=request.user
-            )
-            
-            # Generar timbre electrónico (TED)
+            # Generar DTE completo con timbre usando el servicio
             try:
-                timbre_electronico = DTEService.generar_timbre_electronico(dte)
-                dte.timbre_electronico = timbre_electronico
+                from facturacion_electronica.dte_service import DTEService as DTEServiceReal
+                from facturacion_electronica.dte_generator import DTEXMLGenerator
+                from facturacion_electronica.firma_electronica import FirmadorDTE
+                from facturacion_electronica.pdf417_generator import PDF417Generator
                 
-                # Generar imagen PDF417
-                pdf417_imagen = DTEService.generar_pdf417_imagen(dte)
-                if pdf417_imagen:
-                    dte.timbre_pdf417.save(
-                        f'guia_pdf417_{dte.folio}.png',
-                        ContentFile(pdf417_imagen),
-                        save=False
-                    )
+                # Preparar datos para el generador de XML
+                # Crear objeto temporal tipo venta para el generador
+                class TransferenciaWrapper:
+                    def __init__(self, transferencia, subtotal, iva, total):
+                        self.fecha = transferencia.fecha_creacion
+                        self.cliente = None
+                        self.subtotal = subtotal
+                        self.iva = iva
+                        self.total = total
+                        self.descuento = Decimal('0')
+                        self.items = transferencia.detalles
+                        
+                venta_wrapper = TransferenciaWrapper(transferencia, subtotal, iva, total)
                 
-                dte.save()
+                # 1. Generar XML del DTE
+                generator = DTEXMLGenerator(request.empresa, venta_wrapper, '52', folio, caf)
+                xml_sin_firmar = generator.generar_xml()
+                
+                # 2. Firmar el XML
+                firmador = FirmadorDTE(
+                    request.empresa.certificado_digital.path,
+                    request.empresa.password_certificado
+                )
+                xml_firmado = firmador.firmar_xml(xml_sin_firmar)
+                
+                # 3. Generar TED
+                dte_data = {
+                    'rut_emisor': request.empresa.rut,
+                    'tipo_dte': '52',
+                    'folio': folio,
+                    'fecha_emision': timezone.now().date().strftime('%Y-%m-%d'),
+                    'rut_receptor': request.empresa.rut,
+                    'razon_social_receptor': request.empresa.nombre,
+                    'monto_total': total,
+                    'item_1': 'Guía de Despacho Electrónica',
+                }
+                
+                caf_data = {
+                    'rut_emisor': request.empresa.rut,
+                    'razon_social': request.empresa.razon_social_sii or request.empresa.razon_social,
+                    'tipo_documento': '52',
+                    'folio_desde': caf.folio_desde,
+                    'folio_hasta': caf.folio_hasta,
+                    'fecha_autorizacion': caf.fecha_autorizacion.strftime('%Y-%m-%d'),
+                    'modulo': 'MODULO_RSA',
+                    'exponente': 'EXPONENTE_RSA',
+                    'firma': caf.firma_electronica,
+                }
+                
+                ted_xml = firmador.generar_ted(dte_data, caf_data)
+                pdf417_data = firmador.generar_datos_pdf417(ted_xml)
+                
+                # 4. Crear DTE en BD
+                dte = DocumentoTributarioElectronico.objects.create(
+                    empresa=request.empresa,
+                    caf_utilizado=caf,
+                    tipo_dte='52',
+                    folio=folio,
+                    fecha_emision=timezone.now().date(),
+                    tipo_traslado='5',  # Traslado interno
+                    # Emisor
+                    rut_emisor=request.empresa.rut,
+                    razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
+                    giro_emisor=request.empresa.giro_sii or request.empresa.giro or '',
+                    direccion_emisor=request.empresa.direccion_casa_matriz or request.empresa.direccion or '',
+                    comuna_emisor=request.empresa.comuna_casa_matriz or request.empresa.comuna or '',
+                    # Receptor (usar datos de la empresa para traslado interno)
+                    rut_receptor=request.empresa.rut,
+                    razon_social_receptor=request.empresa.nombre,
+                    giro_receptor=request.empresa.giro or '',
+                    direccion_receptor=request.empresa.direccion or '',
+                    comuna_receptor=request.empresa.comuna or '',
+                    ciudad_receptor=request.empresa.ciudad or '',
+                    # Montos
+                    monto_neto=subtotal.quantize(Decimal('1')),
+                    monto_exento=Decimal('0'),
+                    monto_iva=iva.quantize(Decimal('1')),
+                    monto_total=total.quantize(Decimal('1')),
+                    # XML y Timbre
+                    xml_dte=xml_sin_firmar,
+                    xml_firmado=xml_firmado,
+                    timbre_electronico=ted_xml,
+                    datos_pdf417=pdf417_data,
+                    # Estado
+                    estado_sii='generado',
+                    usuario_creacion=request.user
+                )
+                
+                # 5. Generar imagen PDF417
+                PDF417Generator.guardar_pdf417_en_dte(dte)
+                
+                print(f"✅ Guía de Despacho generada con timbre: Folio {folio}")
+                
             except Exception as e:
-                print(f"Error generando timbre: {e}")
-                # Continuar sin timbre, se puede generar después
+                print(f"❌ Error generando DTE con timbre: {e}")
+                import traceback
+                traceback.print_exc()
+                
+                # Crear DTE básico sin timbre
+                dte = DocumentoTributarioElectronico.objects.create(
+                    empresa=request.empresa,
+                    caf_utilizado=caf,
+                    tipo_dte='52',
+                    folio=folio,
+                    fecha_emision=timezone.now().date(),
+                    tipo_traslado='5',
+                    rut_emisor=request.empresa.rut,
+                    razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
+                    rut_receptor=request.empresa.rut,
+                    razon_social_receptor=request.empresa.nombre,
+                    monto_neto=subtotal.quantize(Decimal('1')),
+                    monto_exento=Decimal('0'),
+                    monto_iva=iva.quantize(Decimal('1')),
+                    monto_total=total.quantize(Decimal('1')),
+                    estado_sii='generado',
+                    usuario_creacion=request.user
+                )
             
             # Asociar guía a la transferencia
             transferencia.guia_despacho = dte
