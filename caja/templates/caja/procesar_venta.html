@@ -279,7 +279,7 @@
                                 </div>
                                 <div class="col-4">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="tipo_documento" id="tipo_guia" value="guia" {% if tipo_documento_planeado == 'guia' %}checked{% endif %}>
+                                        <input class="form-check-input" type="radio" name="tipo_documento" id="tipo_guia" value="guia" {% if ticket.tipo_documento_planeado == 'guia' %}checked{% endif %}>
                                         <label class="form-check-label" for="tipo_guia">
                                             Guía
                                             <span class="badge bg-secondary ms-1">Manual</span>
@@ -311,8 +311,11 @@
                                 <div class="forma-pago-item mb-3 p-3" style="border-radius: 8px;">
                                     <div class="row align-items-end">
                                         <div class="col-md-6">
-                                            <label class="form-label small">Forma de Pago</label>
-                                            <select class="form-select forma-pago-select" name="forma_pago_1" required>
+                                            <label class="form-label fw-bold" style="color: #8B7355; font-size: 1rem;">
+                                                <i class="fas fa-hand-holding-usd me-2"></i>Forma de Pago *
+                                            </label>
+                                            <select class="form-select forma-pago-select" name="forma_pago_1" required 
+                                                    style="border: 3px solid #8B7355; font-size: 1.1rem; font-weight: 600; padding: 12px; background: linear-gradient(135deg, #FFFFFF 0%, #F5F1E8 100%);">
                                                 <option value="">Seleccione...</option>
                                                 {% for fp in form.forma_pago.field.queryset %}
                                                 <option value="{{ fp.id }}" data-requiere-cheque="{{ fp.requiere_cheque }}">{{ fp.nombre }}</option>
@@ -320,8 +323,12 @@
                                             </select>
                                         </div>
                                         <div class="col-md-5">
-                                            <label class="form-label small">Monto <span class="text-muted">(Total: ${{ ticket.total|floatformat:0 }})</span></label>
-                                            <input type="number" class="form-control monto-pago" name="monto_pago_1" step="1" min="0" placeholder="{{ ticket.total|floatformat:0 }}" value="{{ ticket.total|floatformat:0 }}" required>
+                                            <label class="form-label fw-bold" style="color: #8B7355; font-size: 1rem;">
+                                                <i class="fas fa-dollar-sign me-2"></i>Monto a Pagar *
+                                            </label>
+                                            <span class="d-block small text-muted mb-1">(Total: ${{ ticket.total|unlocalize }})</span>
+                                            <input type="number" class="form-control monto-pago" name="monto_pago_1" step="1" min="0" placeholder="{{ ticket.total|unlocalize }}" value="{{ ticket.total|unlocalize }}" required
+                                                   style="border: 3px solid #8B7355; font-size: 1.3rem; font-weight: 700; padding: 12px; text-align: right; background: linear-gradient(135deg, #FFFFFF 0%, #F5F1E8 100%);">
                                         </div>
                                         <div class="col-md-1">
                                             <button type="button" class="btn btn-sm btn-danger remove-pago" style="display: none;">
@@ -346,6 +353,8 @@
                                             </div>
                                         </div>
                                     </div>
+                                    <!-- Contenedor para formas de pago adicionales -->
+                                    <div id="formas-adicionales-container"></div>
                                 </div>
                             </div>
 
@@ -409,12 +418,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const totalVenta = {{ ticket.total|unlocalize }};
     const tipoDocumentoPlaneado = '{{ tipo_documento_planeado|default:"" }}';
+    const disponibilidadFolios = {{ disponibilidad_folios_json|safe }};
     console.log('💰 Total Venta:', totalVenta);
     console.log('📋 Tipo documento planeado RAW:', '{{ tipo_documento_planeado }}');
     console.log('📋 Tipo documento planeado VAR:', tipoDocumentoPlaneado);
     console.log('📋 Ticket tipo_documento:', '{{ ticket.tipo_documento }}');
     console.log('📋 Ticket tipo_documento_planeado:', '{{ ticket.tipo_documento_planeado }}');
     let contadorPagos = 1;
+    let bloqueoFolios = false;
     
     // Verificar que el formulario existe
     const formulario = document.getElementById('formProcesar');
@@ -426,6 +437,53 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Función para mostrar/ocultar formas de pago según tipo de documento
+    function mostrarAlertaFolios(tipoDoc, btnProcesar) {
+        const nombres = {
+            'boleta': 'Boleta Electrónica',
+            'factura': 'Factura Electrónica',
+            'guia': 'Guía de Despacho'
+        };
+        const nombreDoc = nombres[tipoDoc] || 'documento seleccionado';
+
+        Swal.fire({
+            icon: 'error',
+            title: 'Sin folios disponibles',
+            html: `No quedan folios CAF activos para <strong>${nombreDoc}</strong>.` +
+                  '<br>Debe cargar nuevos folios antes de continuar.',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#dc3545'
+        });
+
+        if (btnProcesar) {
+            btnProcesar.disabled = true;
+            btnProcesar.classList.add('disabled');
+        }
+    }
+
+    function verificarFoliosDisponibles(tipoDoc, btnProcesar) {
+        bloqueoFolios = false;
+        if (!tipoDoc) {
+            if (btnProcesar) {
+                btnProcesar.disabled = false;
+                btnProcesar.classList.remove('disabled');
+            }
+            return;
+        }
+
+        const datos = disponibilidadFolios[tipoDoc];
+        if (!datos || !datos.disponible || datos.folios_disponibles <= 0) {
+            console.log('❌ Sin folios disponibles para', tipoDoc);
+            bloqueoFolios = true;
+            mostrarAlertaFolios(tipoDoc, btnProcesar);
+        } else {
+            console.log(`✅ Folios disponibles para ${tipoDoc}:`, datos.folios_disponibles);
+            if (btnProcesar) {
+                btnProcesar.disabled = false;
+                btnProcesar.classList.remove('disabled');
+            }
+        }
+    }
+
     function toggleFormasPago() {
         // Usar el valor del ticket directamente
         const tipoDocTicket = '{{ ticket.tipo_documento_planeado|default:"" }}';
@@ -433,11 +491,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const tipoDoc = tipoDocTicket || (radioMarcado ? radioMarcado.value : null);
         const formasPagoSection = document.getElementById('formas-pago-section');
         const btnProcesar = document.getElementById('btn-procesar');
-        
+
         console.log('🔍 toggleFormasPago - Tipo ticket:', tipoDocTicket);
         console.log('🔍 toggleFormasPago - Radio marcado:', radioMarcado ? radioMarcado.id : 'ninguno');
         console.log('🔍 toggleFormasPago - Tipo documento FINAL:', tipoDoc);
-        
+
+        verificarFoliosDisponibles(tipoDoc, btnProcesar);
+
         if (tipoDoc === 'guia') {
             // Ocultar formas de pago para guías
             formasPagoSection.style.display = 'none';
@@ -480,15 +540,37 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(toggleFormasPago, 200);
     setTimeout(toggleFormasPago, 300);
     
-    // Si es guía, agregar listener al botón para forzar envío
-    const tipoDocTicketBtn = '{{ ticket.tipo_documento_planeado|default:"" }}';
-    if (tipoDocTicketBtn === 'guia') {
-        const btnProcesar = document.getElementById('btn-procesar');
-        btnProcesar.addEventListener('click', function(e) {
-            console.log('🚀 CLICK EN BOTÓN GUÍA - Forzando envío');
-            // No prevenir default, dejar que envíe el formulario
-        });
-    }
+    // Configurar botón para guía DESPUÉS de todos los toggleFormasPago
+    setTimeout(function() {
+        const tipoDocTicket = '{{ ticket.tipo_documento_planeado|default:"" }}';
+        console.log('🔍 Valor de tipoDocTicket:', tipoDocTicket);
+        console.log('🔍 Es guía?', tipoDocTicket === 'guia');
+        
+        if (tipoDocTicket === 'guia') {
+            console.log('🎯 CONFIGURANDO BOTÓN PARA GUÍA');
+            const btnProcesar = document.getElementById('btn-procesar');
+            
+            // Cambiar el botón a type="button" para evitar validaciones HTML5
+            btnProcesar.type = 'button';
+            
+            // Agregar listener con capture para interceptar antes que otros
+            btnProcesar.addEventListener('click', function(e) {
+                console.log('🚀 CLICK EN BOTÓN GUÍA DETECTADO');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Remover todos los required
+                document.querySelectorAll('[required]').forEach(field => {
+                    field.removeAttribute('required');
+                });
+                
+                console.log('🚀 Enviando formulario...');
+                formulario.submit();
+            }, true); // capture: true
+            
+            console.log('✅ Listener agregado al botón');
+        }
+    }, 500); // Esperar 500ms para que terminen todos los toggleFormasPago
     
     // Preparar opciones de formas de pago
     const formasPagoOptions = [
@@ -496,7 +578,7 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: '{{ fp.id }}',
             nombre: '{{ fp.nombre|escapejs }}',
-            requiereCheque: '{{ fp.requiere_cheque }}'
+            requiereCheque: {% if fp.requiere_cheque %}true{% else %}false{% endif %}
         }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
@@ -581,8 +663,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Agregar otra forma de pago
     document.getElementById('btn-agregar-pago').addEventListener('click', function() {
+        console.log('Botón agregar forma de pago clickeado');
         contadorPagos++;
-        const container = document.getElementById('formas-pago-container');
+        const container = document.getElementById('formas-adicionales-container');
+        
+        if (!container) {
+            console.error('No se encontró el contenedor formas-adicionales-container');
+            return;
+        }
+        
+        console.log('Contenedor encontrado:', container);
         
         // Generar opciones de formas de pago
         let optionsHTML = '<option value="">Seleccione...</option>';
@@ -596,22 +686,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const montoSugerido = montoRestante > 0 ? montoRestante.toFixed(0) : '0';
         
         const nuevoItem = document.createElement('div');
-        nuevoItem.className = 'forma-pago-item mb-3 p-3';
-        nuevoItem.style.cssText = 'background: #f8f9fa; border-radius: 8px; border-left: 4px solid #ffc107;';
+        nuevoItem.className = 'forma-pago-adicional mt-2 pt-2';
+        nuevoItem.style.cssText = 'border-top: 1px dashed #D4C4A8;';
         nuevoItem.innerHTML = `
             <div class="row align-items-end">
                 <div class="col-md-6">
-                    <label class="form-label small">Forma de Pago</label>
-                    <select class="form-select forma-pago-select" name="forma_pago_${contadorPagos}" required>
+                    <select class="form-select forma-pago-select" name="forma_pago_${contadorPagos}" required 
+                            style="border: 3px solid #8B7355; font-size: 1.1rem; font-weight: 600; padding: 12px; background: linear-gradient(135deg, #FFFFFF 0%, #F5F1E8 100%);">
                         ${optionsHTML}
                     </select>
                 </div>
                 <div class="col-md-5">
-                    <label class="form-label small">Monto <span class="text-muted">(Saldo: $${formatearNumero(montoRestante)})</span></label>
-                    <input type="number" class="form-control monto-pago" name="monto_pago_${contadorPagos}" step="1" min="0" placeholder="${montoSugerido}" value="${montoSugerido}" required>
+                    <input type="number" class="form-control monto-pago" name="monto_pago_${contadorPagos}" step="1" min="0" 
+                           placeholder="${montoSugerido}" value="${montoSugerido}" required
+                           style="border: 3px solid #8B7355; font-size: 1.3rem; font-weight: 700; padding: 12px; background: linear-gradient(135deg, #FFFEF8 0%, #F5F1E8 100%); color: #6F5B44;">
+                    <small class="text-muted">Saldo restante: $${formatearNumero(montoRestante)}</small>
                 </div>
                 <div class="col-md-1">
-                    <button type="button" class="btn btn-sm btn-danger remove-pago">
+                    <button type="button" class="btn btn-sm btn-danger remove-pago" style="padding: 8px 12px;">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -644,21 +736,7 @@ document.addEventListener('DOMContentLoaded', function() {
         nuevoItem.querySelector('.remove-pago').addEventListener('click', function() {
             nuevoItem.remove();
             actualizarResumen();
-            
-            // Si solo queda uno, ocultar botón de eliminar
-            const items = document.querySelectorAll('.forma-pago-item');
-            if (items.length === 1) {
-                items[0].querySelector('.remove-pago').style.display = 'none';
-            }
         });
-        
-        // Mostrar botones de eliminar si hay más de uno
-        const items = document.querySelectorAll('.forma-pago-item');
-        if (items.length > 1) {
-            items.forEach(item => {
-                item.querySelector('.remove-pago').style.display = 'inline-block';
-            });
-        }
         
         // Actualizar resumen con el nuevo monto
         actualizarResumen();
@@ -674,6 +752,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Si el ticket tiene tipo_documento_planeado='guia', FORZAR que sea guía
         if (tipoDocTicket === 'guia') {
+            if (bloqueoFolios) {
+                e.preventDefault();
+                mostrarAlertaFolios('guia', document.getElementById('btn-procesar'));
+                return false;
+            }
+
             console.log('✅ GUÍA DETECTADA - Permitiendo envío sin validaciones');
             // Asegurar que el radio de guía esté marcado
             const radioGuia = document.getElementById('tipo_guia');
@@ -682,11 +766,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             return true; // Permitir envío inmediatamente
         }
-        
+
         // Para otros tipos, validar normalmente
         const radioMarcado = document.querySelector('input[name="tipo_documento"]:checked');
         const tipoDocumento = radioMarcado ? radioMarcado.value : null;
         console.log('✅ Tipo documento radio:', tipoDocumento);
+
+        if (bloqueoFolios) {
+            e.preventDefault();
+            mostrarAlertaFolios(tipoDocumento, document.getElementById('btn-procesar'));
+            return false;
+        }
         
         const totalPagado = calcularTotalPagado();
         console.log('Total Venta:', totalVenta);
@@ -695,7 +785,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // 1. Validación de disponibilidad de folios para documentos electrónicos
         {% if empresa.facturacion_electronica and disponibilidad_folios %}
         if (tipoDocumento && (tipoDocumento === 'boleta' || tipoDocumento === 'factura')) {
-            const disponibilidad = {{ disponibilidad_folios_json|safe }};
+            const disponibilidad = disponibilidadFolios;
             const datosTipo = disponibilidad[tipoDocumento];
 
             if (!datosTipo || !datosTipo.disponible || datosTipo.folios_disponibles <= 0) {

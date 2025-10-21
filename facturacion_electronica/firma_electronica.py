@@ -46,7 +46,7 @@ class FirmadorDTE:
             self.private_key = private_key
             self.certificate = certificate
             
-            print(f"✅ Certificado cargado exitosamente")
+            print(f"Certificado cargado exitosamente")
             print(f"   Subject: {certificate.subject}")
             print(f"   Issuer: {certificate.issuer}")
             print(f"   Valid from: {certificate.not_valid_before}")
@@ -54,6 +54,63 @@ class FirmadorDTE:
             
         except Exception as e:
             raise ValueError(f"Error al cargar el certificado: {str(e)}")
+    
+    def firmar_token_request(self, xml_string):
+        """
+        Firma una solicitud de token (getToken) para el SII
+        Formato esperado: <getToken><item><Semilla>XXX</Semilla></item></getToken>
+        
+        Args:
+            xml_string: String con el XML de solicitud de token (sin declaración XML)
+            
+        Returns:
+            str: XML firmado (sin declaración XML para embeber en SOAP)
+        """
+        try:
+            # Parsear el XML
+            if isinstance(xml_string, str):
+                xml_string = xml_string.encode('utf-8')
+            
+            root = etree.fromstring(xml_string)
+            
+            # Para getToken, firmamos el elemento raíz directamente
+            # Monkey-patch para permitir SHA1 (requerido por SII Chile)
+            import signxml.signer
+            original_check = signxml.signer.XMLSigner.check_deprecated_methods
+            signxml.signer.XMLSigner.check_deprecated_methods = lambda self: None
+            
+            signer = XMLSigner(
+                method=methods.enveloped,
+                signature_algorithm="rsa-sha1",
+                digest_algorithm="sha1",
+                c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
+            )
+            
+            # Restaurar el check original
+            signxml.signer.XMLSigner.check_deprecated_methods = original_check
+            
+            # Firmar el documento
+            signed_root = signer.sign(
+                root,
+                key=self.private_key,
+                cert=[self.certificate]
+            )
+            
+            # Convertir a string SIN declaración XML (para embeber en SOAP)
+            xml_firmado = etree.tostring(
+                signed_root,
+                pretty_print=False,  # Compacto
+                xml_declaration=False,  # Sin declaración XML
+                encoding='unicode'
+            )
+            
+            print(f"Solicitud de token firmada exitosamente")
+            
+            return xml_firmado
+            
+        except Exception as e:
+            print(f"ERROR al firmar solicitud de token: {str(e)}")
+            raise
     
     def firmar_xml(self, xml_string):
         """
@@ -81,6 +138,12 @@ class FirmadorDTE:
                 raise ValueError("No se encontró el elemento Documento en el XML")
             
             # Crear el firmador
+            # Nota: El SII de Chile requiere SHA1, aunque esté deprecado
+            # Monkey-patch para permitir SHA1 (requerido por SII Chile)
+            import signxml.signer
+            original_check = signxml.signer.XMLSigner.check_deprecated_methods
+            signxml.signer.XMLSigner.check_deprecated_methods = lambda self: None
+            
             signer = XMLSigner(
                 method=methods.enveloped,
                 signature_algorithm="rsa-sha1",
@@ -88,11 +151,14 @@ class FirmadorDTE:
                 c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
             )
             
+            # Restaurar el check original (buena práctica)
+            signxml.signer.XMLSigner.check_deprecated_methods = original_check
+            
             # Firmar el documento
             signed_root = signer.sign(
                 root,
                 key=self.private_key,
-                cert=self.certificate,
+                cert=[self.certificate],  # signxml espera una lista de certificados
                 reference_uri=f"#{documento.get('ID')}"
             )
             
@@ -104,12 +170,12 @@ class FirmadorDTE:
                 encoding='ISO-8859-1'
             ).decode('ISO-8859-1')
             
-            print(f"✅ XML firmado exitosamente")
+            print(f"XML firmado exitosamente")
             
             return xml_firmado
             
         except Exception as e:
-            print(f"❌ Error al firmar XML: {str(e)}")
+            print(f"ERROR al firmar XML: {str(e)}")
             raise
     
     def generar_ted(self, dte_data, caf_data):
@@ -209,12 +275,12 @@ class FirmadorDTE:
                 encoding='ISO-8859-1'
             ).decode('ISO-8859-1')
             
-            print(f"✅ TED generado exitosamente")
+            print(f"TED generado exitosamente")
             
             return ted_string
             
         except Exception as e:
-            print(f"❌ Error al generar TED: {str(e)}")
+            print(f"ERROR al generar TED: {str(e)}")
             raise
     
     def verificar_firma(self, xml_firmado):
@@ -237,11 +303,11 @@ class FirmadorDTE:
             verifier = XMLVerifier()
             verified_data = verifier.verify(root, x509_cert=self.certificate)
             
-            print(f"✅ Firma verificada exitosamente")
+            print(f"Firma verificada exitosamente")
             return True
             
         except Exception as e:
-            print(f"❌ Error al verificar firma: {str(e)}")
+            print(f"ERROR al verificar firma: {str(e)}")
             return False
     
     def obtener_info_certificado(self):
@@ -281,5 +347,5 @@ class FirmadorDTE:
             return pdf417_data
             
         except Exception as e:
-            print(f"❌ Error al generar datos PDF417: {str(e)}")
+            print(f"ERROR al generar datos PDF417: {str(e)}")
             raise

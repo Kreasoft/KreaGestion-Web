@@ -231,6 +231,31 @@
             line-height: 1.1;
         }
 
+        /* Información de Pago */
+        .payment-info {
+            background: #f9f9f9;
+            padding: 6px;
+            margin-bottom: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .payment-title {
+            font-weight: bold;
+            font-size: 7pt;
+            margin-bottom: 3px;
+        }
+        
+        .payment-method {
+            font-size: 7pt;
+        }
+        
+        .payment-balance {
+            font-size: 7pt;
+            color: #666;
+            margin-top: 2px;
+        }
+
         /* Print styles */
         @media print {
             body {
@@ -272,7 +297,13 @@
                 <div class="document-box">
                     <div class="document-rut">RUT: {{ venta.empresa.rut }}</div>
                     <div class="document-type">BOLETA ELECTRÓNICA</div>
-                    <div class="document-folio">N° {{ dte.folio|default:venta.numero_venta|stringformat:"08d" }}</div>
+                    <div class="document-folio">
+                        {% if dte and dte.folio %}
+                            N° {{ dte.folio }}
+                        {% else %}
+                            N° {{ venta.numero_venta }}
+                        {% endif %}
+                    </div>
                     <div class="document-sii">SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}</div>
                 </div>
             </div>
@@ -337,18 +368,27 @@
             <div class="footer-left">
                 <div class="timbre-box">
                     {% if dte and dte.timbre_pdf417 %}
-                    <img src="data:image/png;base64,{{ dte.timbre_pdf417 }}" alt="Timbre Electrónico" class="timbre-image">
-                    {% else %}
-                    <div style="padding: 30px; background: #f5f5f5; border: 2px dashed #999;">
-                        <div style="font-size: 7pt; color: #666;">
-                            ██████████████████<br>
-                            █ ██ █ █ ██ █ ██ █<br>
-                            █ ███ ██ █ ██ █ ██<br>
-                            ██ █ ██ █ ██ ██ ██<br>
-                            ██████████████████<br>
-                            <strong>TIMBRE ELECTRÓNICO SII</strong>
+                        <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico" style="max-width: 200px; height: auto; display: block; margin: 0 auto;">
+                    {% elif dte and dte.folio %}
+                        <div style="padding: 30px; background: #f5f5f5; border: 2px dashed #999; text-align: center;">
+                            <div style="font-size: 9pt; color: #666; font-weight: bold; margin-bottom: 5px;">
+                                TIMBRE ELECTRÓNICO SII
+                            </div>
+                            <div style="font-size: 7pt; color: #999;">
+                                Folio: {{ dte.folio }}<br>
+                                (Imagen del timbre pendiente)
+                            </div>
                         </div>
-                    </div>
+                    {% else %}
+                        <div style="padding: 30px; background: #fff8dc; border: 2px dashed #ffa500; text-align: center;">
+                            <div style="font-size: 9pt; color: #ff8c00; font-weight: bold; margin-bottom: 5px;">
+                                DOCUMENTO NO ELECTRÓNICO
+                            </div>
+                            <div style="font-size: 7pt; color: #666;">
+                                Este documento NO ha sido enviado al SII<br>
+                                Número de Venta: {{ venta.numero_venta }}
+                            </div>
+                        </div>
                     {% endif %}
                     <div class="timbre-info">
                         <strong>Timbre Electrónico SII</strong><br>
@@ -391,6 +431,17 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- INFORMACIÓN DE PAGO -->
+                {% if venta.forma_pago %}
+                <div class="payment-info">
+                    <div class="payment-title">Forma de Pago:</div>
+                    <div class="payment-method">{{ venta.forma_pago.nombre }}</div>
+                    {% if venta.forma_pago.es_cuenta_corriente and venta.saldo_pendiente > 0 %}
+                    <div class="payment-balance">Saldo Pendiente: ${{ venta.saldo_pendiente|floatformat:"0" }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -401,8 +452,8 @@
         <button onclick="window.print()" style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
             🖨️ Imprimir Boleta
         </button>
-        <button onclick="window.close()" style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
-            ✗ Cerrar
+        <button onclick="if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) { window.history.back(); } else { window.location.href = '/'; }" style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
+            ← Volver
         </button>
     </div>
 

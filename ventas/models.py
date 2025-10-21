@@ -142,6 +142,10 @@ class Venta(models.Model):
     estado_cotizacion = models.CharField(max_length=20, choices=ESTADO_COTIZACION_CHOICES, default='pendiente', verbose_name="Estado Cotización", blank=True, null=True)
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     
+    # Información de pago
+    monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Monto Pagado")
+    saldo_pendiente = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Saldo Pendiente")
+
     # Auditoría
     usuario_creacion = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='ventas_creadas', verbose_name="Usuario Creación")
     fecha_creacion = models.DateTimeField(auto_now_add=True)
@@ -155,6 +159,19 @@ class Venta(models.Model):
     
     def __str__(self):
         return f"Venta {self.numero_venta} - {self.fecha}"
+
+    def save(self, *args, **kwargs):
+        """Calcula automáticamente el saldo pendiente antes de guardar"""
+        # Si es una venta confirmada, calcular saldo pendiente
+        if self.estado == 'confirmada' and self.forma_pago:
+            if self.forma_pago.es_cuenta_corriente:
+                self.saldo_pendiente = self.total - self.monto_pagado
+            else:
+                # Si no es cuenta corriente, el monto pagado debe ser igual al total
+                self.monto_pagado = self.total
+                self.saldo_pendiente = Decimal('0.00')
+
+        super().save(*args, **kwargs)
     
     def calcular_totales(self):
         """
@@ -571,3 +588,196 @@ class VentaReferencia(models.Model):
     
     def __str__(self):
         return f"{self.get_tipo_referencia_display()} - {self.folio_referencia}"
+
+
+class NotaCredito(models.Model):
+    """Modelo para Notas de Crédito"""
+    
+    TIPO_NC_CHOICES = [
+        ('ANULA', 'Anula Documento Completo'),
+        ('CORRIGE_MONTO', 'Corrige Monto'),
+        ('CORRIGE_TEXTO', 'Corrige Texto'),
+    ]
+    
+    TIPO_DOC_AFECTADO_CHOICES = [
+        ('33', 'Factura Electrónica'),
+        ('39', 'Boleta Electrónica'),
+        ('52', 'Guía de Despacho Electrónica'),
+        ('46', 'Factura de Compra Electrónica'),
+    ]
+    
+    # Datos principales
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, verbose_name="Sucursal", null=True, blank=True)
+    numero = models.CharField(max_length=20, verbose_name="N° Nota de Crédito")
+    fecha = models.DateField(default=timezone.now, verbose_name="Fecha Emisión")
+    
+    # Cliente
+    cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, verbose_name="Cliente")
+    
+    # Vendedor y bodega
+    vendedor = models.ForeignKey(Vendedor, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vendedor")
+    bodega = models.ForeignKey('bodegas.Bodega', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Bodega")
+    
+    # Tipo de Nota de Crédito
+    tipo_nc = models.CharField(
+        max_length=20,
+        choices=TIPO_NC_CHOICES,
+        default='ANULA',
+        verbose_name="Tipo de Nota de Crédito"
+    )
+    
+    # Documento que afecta
+    tipo_doc_afectado = models.CharField(
+        max_length=2,
+        choices=TIPO_DOC_AFECTADO_CHOICES,
+        verbose_name="Tipo Documento Afectado"
+    )
+    numero_doc_afectado = models.CharField(max_length=20, verbose_name="N° Documento Afectado")
+    fecha_doc_afectado = models.DateField(verbose_name="Fecha Doc. Afectado")
+    
+    # Motivo
+    motivo = models.TextField(verbose_name="Motivo de la Nota de Crédito")
+    
+    # Montos
+    subtotal = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name="Subtotal"
+    )
+    descuento = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name="Descuento"
+    )
+    iva = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name="IVA"
+    )
+    total = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name="Total"
+    )
+    
+    # Estado
+    estado = models.CharField(
+        max_length=20,
+        choices=[
+            ('borrador', 'Borrador'),
+            ('emitida', 'Emitida'),
+            ('enviada_sii', 'Enviada al SII'),
+            ('aceptada_sii', 'Aceptada por SII'),
+            ('anulada', 'Anulada'),
+        ],
+        default='borrador',
+        verbose_name="Estado"
+    )
+    
+    # DTE asociado (si es electrónica)
+    dte = models.ForeignKey(
+        'facturacion_electronica.DocumentoTributarioElectronico',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="DTE Generado",
+        related_name='notas_credito'
+    )
+    
+    # Auditoría
+    usuario_creacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='notas_credito_creadas',
+        verbose_name="Usuario Creación"
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha Creación")
+    fecha_modificacion = models.DateTimeField(auto_now=True, verbose_name="Fecha Modificación")
+    
+    class Meta:
+        verbose_name = "Nota de Crédito"
+        verbose_name_plural = "Notas de Crédito"
+        ordering = ['-fecha', '-numero']
+        unique_together = ['empresa', 'numero']
+    
+    def __str__(self):
+        return f"NC {self.numero} - {self.cliente.nombre}"
+    
+    def calcular_totales(self):
+        """Calcula los totales de la nota de crédito"""
+        items = self.items.all()
+        self.subtotal = sum(item.total for item in items)
+        self.iva = self.subtotal * Decimal('0.19')
+        self.total = self.subtotal + self.iva
+        self.save()
+
+
+class NotaCreditoDetalle(models.Model):
+    """Detalle de items de una Nota de Crédito"""
+    
+    nota_credito = models.ForeignKey(
+        NotaCredito,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name="Nota de Crédito"
+    )
+    
+    # Datos del artículo
+    articulo = models.ForeignKey(
+        Articulo,
+        on_delete=models.PROTECT,
+        verbose_name="Artículo"
+    )
+    codigo = models.CharField(max_length=50, verbose_name="Código")
+    descripcion = models.CharField(max_length=255, verbose_name="Descripción")
+    
+    # Cantidades y precios
+    cantidad = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('1.00'),
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name="Cantidad"
+    )
+    precio_unitario = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name="Precio Unitario"
+    )
+    descuento = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('100.00'))],
+        verbose_name="% Descuento"
+    )
+    total = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        verbose_name="Total"
+    )
+    
+    # Auditoría
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Detalle Nota de Crédito"
+        verbose_name_plural = "Detalles Notas de Crédito"
+        ordering = ['id']
+    
+    def __str__(self):
+        return f"{self.codigo} - {self.cantidad} x {self.precio_unitario}"
+    
+    def save(self, *args, **kwargs):
+        # Calcular total
+        subtotal = self.cantidad * self.precio_unitario
+        descuento_monto = subtotal * (self.descuento / Decimal('100'))
+        self.total = subtotal - descuento_monto
+        super().save(*args, **kwargs)

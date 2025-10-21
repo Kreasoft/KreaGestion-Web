@@ -16,15 +16,23 @@ class FolioService:
     def obtener_siguiente_folio(empresa, tipo_documento):
         """
         Obtiene el siguiente folio disponible para un tipo de documento
-        
+
         Args:
             empresa: Instancia de Empresa
             tipo_documento: Código del tipo de documento (33, 39, etc.)
-        
+
         Returns:
             tuple: (folio, caf) si hay folios disponibles
             tuple: (None, None) si no hay folios disponibles
         """
+        # Verificar si está en modo de reutilización de folios (solo para certificación)
+        modo_reutilizacion = empresa.modo_reutilizacion_folios
+        es_certificacion = empresa.ambiente_sii == 'certificacion'
+
+        if modo_reutilizacion and es_certificacion:
+            return FolioService._obtener_folio_modo_prueba(empresa, tipo_documento)
+
+        # Modo normal: consumir folios reales
         with transaction.atomic():
             # Buscar CAFs activos para este tipo de documento
             cafs_activos = ArchivoCAF.objects.filter(
@@ -32,42 +40,83 @@ class FolioService:
                 tipo_documento=tipo_documento,
                 estado='activo'
             ).select_for_update().order_by('folio_desde')
-            
+
             if not cafs_activos.exists():
-                print(f"❌ No hay CAFs activos para tipo documento {tipo_documento}")
+                print(f"No hay CAFs activos para tipo documento {tipo_documento}")
                 return None, None
-            
+
             # Intentar obtener folio del primer CAF disponible
             for caf in cafs_activos:
                 # VERIFICAR VIGENCIA DEL CAF (6 meses desde autorización)
                 if not caf.esta_vigente():
-                    print(f"⚠️ CAF vencido: {caf.tipo_documento} ({caf.folio_desde}-{caf.folio_hasta}), autorizado el {caf.fecha_autorizacion}")
+                    print(f"CAF vencido: {caf.tipo_documento} ({caf.folio_desde}-{caf.folio_hasta}), autorizado el {caf.fecha_autorizacion}")
                     caf.estado = 'vencido'
                     caf.save()
                     continue
-                
+
                 # Verificar folios disponibles
                 if caf.folios_disponibles() > 0:
                     # Incrementar el folio actual
                     caf.folio_actual += 1
                     caf.folios_utilizados += 1
-                    
+
                     folio = caf.folio_actual
-                    
+
                     # Verificar si se agotaron los folios
                     if caf.folios_disponibles() == 0:
                         caf.estado = 'agotado'
                         caf.fecha_agotamiento = timezone.now()
-                        print(f"⚠️ CAF agotado: {caf.tipo_documento} ({caf.folio_desde}-{caf.folio_hasta})")
-                    
+                        print(f"CAF agotado: {caf.tipo_documento} ({caf.folio_desde}-{caf.folio_hasta})")
+
                     caf.save()
-                    
-                    print(f"✅ Folio asignado: {folio} (CAF: {caf.folio_desde}-{caf.folio_hasta})")
+
+                    print(f"Folio asignado: {folio} (CAF: {caf.folio_desde}-{caf.folio_hasta})")
                     return folio, caf
-            
+
             # No hay folios disponibles en ningún CAF
-            print(f"❌ Todos los CAFs están agotados para tipo documento {tipo_documento}")
+            print(f"Todos los CAFs están agotados para tipo documento {tipo_documento}")
             return None, None
+
+    @staticmethod
+    def _obtener_folio_modo_prueba(empresa, tipo_documento):
+        """
+        Obtiene un folio para pruebas sin consumir folios reales
+
+        Args:
+            empresa: Instancia de Empresa
+            tipo_documento: Código del tipo de documento
+
+        Returns:
+            tuple: (folio, caf) para pruebas
+        """
+        # Buscar CAFs activos para este tipo de documento
+        cafs_activos = ArchivoCAF.objects.filter(
+            empresa=empresa,
+            tipo_documento=tipo_documento,
+            estado='activo'
+        ).order_by('folio_desde')
+
+        if not cafs_activos.exists():
+            print(f"No hay CAFs activos para tipo documento {tipo_documento}")
+            return None, None
+
+        # Usar el primer CAF disponible
+        caf = cafs_activos.first()
+
+        # VERIFICAR VIGENCIA DEL CAF
+        if not caf.esta_vigente():
+            print(f"CAF vencido: {caf.tipo_documento} ({caf.folio_desde}-{caf.folio_hasta})")
+            caf.estado = 'vencido'
+            caf.save()
+            return None, None
+
+        # Usar siempre el mismo folio para pruebas (el inicial del CAF)
+        folio_prueba = caf.folio_desde
+
+        print(f"MODO PRUEBA - Folio asignado: {folio_prueba} (CAF: {caf.folio_desde}-{caf.folio_hasta})")
+        print(f"ADVERTENCIA: Este folio NO consume del CAF real - solo para pruebas")
+
+        return folio_prueba, caf
     
     @staticmethod
     def verificar_folios_disponibles(empresa, tipo_documento):
@@ -144,13 +193,14 @@ class DTEService:
         )
     
     @staticmethod
-    def crear_dte_desde_venta(venta):
+    def crear_dte_desde_venta(venta, usuario=None):
         """
         Crea un DTE a partir de una venta
-        
+
         Args:
             venta: Instancia de Venta
-        
+            usuario: Usuario que crea el DTE (opcional)
+
         Returns:
             DocumentoTributarioElectronico o None
         """
@@ -182,6 +232,7 @@ class DTEService:
                 tipo_documento=tipo_doc_sii,
                 folio=folio,
                 fecha_emision=venta.fecha,
+                usuario_creacion=usuario or venta.usuario_creacion,
 
                 # Datos del emisor (empresa)
                 rut_emisor=venta.empresa.rut,

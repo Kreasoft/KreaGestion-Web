@@ -184,6 +184,11 @@
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="impresoras-tab" data-bs-toggle="tab" data-bs-target="#impresoras" type="button" role="tab" aria-controls="impresoras" aria-selected="false">
+                                <i class="fas fa-print me-2"></i>Configuración de Impresoras
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
                             <button class="nav-link" id="facturacion-tab" data-bs-toggle="tab" data-bs-target="#facturacion" type="button" role="tab" aria-controls="facturacion" aria-selected="false">
                                 <i class="fas fa-file-invoice me-2"></i>Facturación Electrónica
                             </button>
@@ -581,6 +586,237 @@
                                             </button>
                                         </div>
                                     </div>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Pestaña Configuración de Impresoras -->
+                        <div class="tab-pane fade" id="impresoras" role="tabpanel" aria-labelledby="impresoras-tab">
+                            <form method="post" action="{% url 'empresas:configurar_impresoras' %}">
+                                {% csrf_token %}
+                                
+                                <div class="alert alert-info mb-4">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Configure el tipo de impresora que se utilizará para imprimir cada tipo de documento.
+                                </div>
+                                
+                                <!-- Información sobre tipos -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6><i class="fas fa-desktop me-2"></i>Impresora Láser/Inyección (A4)</h6>
+                                                <p class="small mb-0">Formato completo con detalles y timbre electrónico</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6><i class="fas fa-receipt me-2"></i>Impresora Térmica (80mm)</h6>
+                                                <p class="small mb-0">Formato compacto tipo ticket</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Documentos Electrónicos -->
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-file-invoice me-2"></i>Documentos Electrónicos (DTE)
+                                </h6>
+                                
+                                <div class="row g-3 mb-4">
+                                    <!-- Factura -->
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <label class="fw-bold mb-2">
+                                                    <i class="fas fa-file-invoice me-2"></i>Factura Electrónica
+                                                </label>
+                                                <div class="d-flex gap-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_factura" id="factura_laser" value="laser" {% if empresa.impresora_factura == 'laser' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="factura_laser">
+                                                            <i class="fas fa-desktop me-1"></i>Láser
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_factura" id="factura_termica" value="termica" {% if empresa.impresora_factura == 'termica' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="factura_termica">
+                                                            <i class="fas fa-receipt me-1"></i>Térmica
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Boleta -->
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <label class="fw-bold mb-2">
+                                                    <i class="fas fa-receipt me-2"></i>Boleta Electrónica
+                                                </label>
+                                                <div class="d-flex gap-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_boleta" id="boleta_laser" value="laser" {% if empresa.impresora_boleta == 'laser' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="boleta_laser">
+                                                            <i class="fas fa-desktop me-1"></i>Láser
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_boleta" id="boleta_termica" value="termica" {% if empresa.impresora_boleta == 'termica' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="boleta_termica">
+                                                            <i class="fas fa-receipt me-1"></i>Térmica
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Guía -->
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <label class="fw-bold mb-2">
+                                                    <i class="fas fa-truck me-2"></i>Guía de Despacho
+                                                </label>
+                                                <div class="d-flex gap-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_guia" id="guia_laser" value="laser" {% if empresa.impresora_guia == 'laser' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="guia_laser">
+                                                            <i class="fas fa-desktop me-1"></i>Láser
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_guia" id="guia_termica" value="termica" {% if empresa.impresora_guia == 'termica' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="guia_termica">
+                                                            <i class="fas fa-receipt me-1"></i>Térmica
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Nota Crédito -->
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <label class="fw-bold mb-2">
+                                                    <i class="fas fa-file-excel me-2"></i>Nota de Crédito
+                                                </label>
+                                                <div class="d-flex gap-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_nota_credito" id="nc_laser" value="laser" {% if empresa.impresora_nota_credito == 'laser' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="nc_laser">
+                                                            <i class="fas fa-desktop me-1"></i>Láser
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_nota_credito" id="nc_termica" value="termica" {% if empresa.impresora_nota_credito == 'termica' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="nc_termica">
+                                                            <i class="fas fa-receipt me-1"></i>Térmica
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Nota Débito -->
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <label class="fw-bold mb-2">
+                                                    <i class="fas fa-file-invoice-dollar me-2"></i>Nota de Débito
+                                                </label>
+                                                <div class="d-flex gap-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_nota_debito" id="nd_laser" value="laser" {% if empresa.impresora_nota_debito == 'laser' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="nd_laser">
+                                                            <i class="fas fa-desktop me-1"></i>Láser
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_nota_debito" id="nd_termica" value="termica" {% if empresa.impresora_nota_debito == 'termica' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="nd_termica">
+                                                            <i class="fas fa-receipt me-1"></i>Térmica
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Documentos Internos -->
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-file-alt me-2"></i>Documentos Internos
+                                </h6>
+                                
+                                <div class="row g-3 mb-4">
+                                    <!-- Vale -->
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <label class="fw-bold mb-2">
+                                                    <i class="fas fa-ticket-alt me-2"></i>Vale / Ticket de Venta
+                                                </label>
+                                                <div class="d-flex gap-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_vale" id="vale_laser" value="laser" {% if empresa.impresora_vale == 'laser' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="vale_laser">
+                                                            <i class="fas fa-desktop me-1"></i>Láser
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_vale" id="vale_termica" value="termica" {% if empresa.impresora_vale == 'termica' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="vale_termica">
+                                                            <i class="fas fa-receipt me-1"></i>Térmica
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Cotización -->
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <label class="fw-bold mb-2">
+                                                    <i class="fas fa-calculator me-2"></i>Cotización
+                                                </label>
+                                                <div class="d-flex gap-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_cotizacion" id="cot_laser" value="laser" {% if empresa.impresora_cotizacion == 'laser' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="cot_laser">
+                                                            <i class="fas fa-desktop me-1"></i>Láser
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="impresora_cotizacion" id="cot_termica" value="termica" {% if empresa.impresora_cotizacion == 'termica' %}checked{% endif %}>
+                                                        <label class="form-check-label" for="cot_termica">
+                                                            <i class="fas fa-receipt me-1"></i>Térmica
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Botones -->
+                                <div class="d-flex justify-content-end gap-3">
+                                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i>Cancelar
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Guardar Configuración
+                                    </button>
                                 </div>
                             </form>
                         </div>

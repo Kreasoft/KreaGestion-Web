@@ -69,3 +69,9 @@ class InventarioConfig(AppConfig):
 
 
 
+
+
+
+
+
+

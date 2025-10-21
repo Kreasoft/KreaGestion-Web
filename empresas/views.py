@@ -577,3 +577,91 @@ def sucursal_detail(request, pk):
 		'titulo': f'Sucursal: {sucursal.nombre}',
 	}
 	return render(request, 'empresas/sucursal_detail.html', context)
+
+
+@login_required
+@requiere_empresa
+def configurar_impresoras(request):
+	"""Configurar tipos de impresora para cada tipo de documento"""
+	empresa = request.empresa
+	
+	if request.method == 'POST':
+		# Actualizar configuración de impresoras
+		empresa.impresora_factura = request.POST.get('impresora_factura', 'laser')
+		empresa.impresora_boleta = request.POST.get('impresora_boleta', 'laser')
+		empresa.impresora_guia = request.POST.get('impresora_guia', 'laser')
+		empresa.impresora_nota_credito = request.POST.get('impresora_nota_credito', 'laser')
+		empresa.impresora_nota_debito = request.POST.get('impresora_nota_debito', 'laser')
+		empresa.impresora_vale = request.POST.get('impresora_vale', 'termica')
+		empresa.impresora_cotizacion = request.POST.get('impresora_cotizacion', 'laser')
+		
+		empresa.save()
+		
+		messages.success(request, 'Configuración de impresoras guardada correctamente.')
+		# Redirigir a la página de editar empresa
+		return redirect('empresas:empresa_update', pk=empresa.id)
+	
+	# Agrupar documentos para mejor presentación
+	documentos_electronicos = [
+		{
+			'nombre': 'Factura Electrónica',
+			'campo': 'impresora_factura',
+			'valor': empresa.impresora_factura,
+			'icon': 'fas fa-file-invoice',
+			'descripcion': 'Formato A4 con timbre electrónico'
+		},
+		{
+			'nombre': 'Boleta Electrónica',
+			'campo': 'impresora_boleta',
+			'valor': empresa.impresora_boleta,
+			'icon': 'fas fa-receipt',
+			'descripcion': 'Boletas con timbre PDF417'
+		},
+		{
+			'nombre': 'Guía de Despacho Electrónica',
+			'campo': 'impresora_guia',
+			'valor': empresa.impresora_guia,
+			'icon': 'fas fa-truck',
+			'descripcion': 'Documentos de traslado de mercadería'
+		},
+		{
+			'nombre': 'Nota de Crédito Electrónica',
+			'campo': 'impresora_nota_credito',
+			'valor': empresa.impresora_nota_credito,
+			'icon': 'fas fa-file-alt',
+			'descripcion': 'Anulaciones y devoluciones'
+		},
+		{
+			'nombre': 'Nota de Débito Electrónica',
+			'campo': 'impresora_nota_debito',
+			'valor': empresa.impresora_nota_debito,
+			'icon': 'fas fa-file-alt',
+			'descripcion': 'Cargos adicionales'
+		},
+	]
+	
+	documentos_internos = [
+		{
+			'nombre': 'Vale / Ticket de Venta',
+			'campo': 'impresora_vale',
+			'valor': empresa.impresora_vale,
+			'icon': 'fas fa-ticket-alt',
+			'descripcion': 'Preventa y tickets de caja'
+		},
+		{
+			'nombre': 'Cotización',
+			'campo': 'impresora_cotizacion',
+			'valor': empresa.impresora_cotizacion,
+			'icon': 'fas fa-file-signature',
+			'descripcion': 'Presupuestos y cotizaciones'
+		},
+	]
+	
+	context = {
+		'empresa': empresa,
+		'documentos_electronicos': documentos_electronicos,
+		'documentos_internos': documentos_internos,
+		'titulo': 'Configuración de Impresoras',
+	}
+	
+	return render(request, 'empresas/configurar_impresoras.html', context)

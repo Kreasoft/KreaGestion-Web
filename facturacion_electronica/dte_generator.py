@@ -241,7 +241,7 @@ class DTEXMLGenerator:
             etree.SubElement(receptor, "RUTRecep").text = rut_receptor
             
             # Razón Social
-            razon_social = cliente.razon_social or cliente.nombre
+            razon_social = cliente.nombre
             etree.SubElement(receptor, "RznSocRecep").text = razon_social[:100]
             
             # Giro
@@ -285,7 +285,7 @@ class DTEXMLGenerator:
     
     def _generar_detalles(self, documento):
         """Genera los detalles (items) del documento"""
-        for index, item in enumerate(self.venta.items.all(), start=1):
+        for index, item in enumerate(self.venta.ventadetalle_set.all(), start=1):
             detalle = etree.SubElement(documento, "Detalle")
             
             # Número de línea
@@ -308,9 +308,10 @@ class DTEXMLGenerator:
             etree.SubElement(detalle, "QtyItem").text = f"{cantidad:.4f}"
             
             # Unidad de medida
-            unidad = "UN"  # Por defecto unidad
-            if hasattr(item, 'articulo') and hasattr(item.articulo, 'unidad_medida'):
-                unidad = item.articulo.unidad_medida.codigo_sii or "UN"
+            unidad = "UN"  # Por defecto
+            if hasattr(item, 'articulo') and item.articulo and hasattr(item.articulo, 'unidad_medida') and item.articulo.unidad_medida:
+                if hasattr(item.articulo.unidad_medida, 'codigo_sii') and item.articulo.unidad_medida.codigo_sii:
+                    unidad = item.articulo.unidad_medida.codigo_sii
             etree.SubElement(detalle, "UnmdItem").text = unidad
             
             # Precio unitario
@@ -318,7 +319,7 @@ class DTEXMLGenerator:
             etree.SubElement(detalle, "PrcItem").text = str(precio_unitario)
             
             # Monto total del item
-            monto_item = int(round(float(item.subtotal)))
+            monto_item = int(round(float(item.precio_total)))
             etree.SubElement(detalle, "MontoItem").text = str(monto_item)
     
     def _generar_transporte(self, encabezado):

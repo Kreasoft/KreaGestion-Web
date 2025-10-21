@@ -366,3 +366,6 @@ def articulo_delete(request, pk):
 
 
 
+
+
+

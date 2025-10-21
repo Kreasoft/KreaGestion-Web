@@ -1,0 +1,89 @@
+LOG COMPLETO DE COMUNICACIÓN CON SII
+============================================================
+
+EMPRESA
+-------
+Razón Social: Kreasoft spa
+RUT: 77.117.239-3
+Ambiente: Certificación
+
+CERTIFICADO DIGITAL
+------------------
+Archivo: empresas/certificados/Ricardo_González_Gaete.pfx
+Subject: CN=RICARDO ANTONIO GONZALEZ GAETE
+Issuer: IDOK FIRMA ELECTRONICA V4
+Válido hasta: 2026-01-17
+
+PASO 1: OBTENER SEMILLA
+-----------------------
+URL: https://maullin.sii.cl/DTEWS/CrSeed.jws
+Método: getSeed()
+Resultado: EXITOSO
+Semilla obtenida: 150089385238
+
+PASO 2: GENERAR Y FIRMAR TOKEN
+------------------------------
+XML generado: getToken con elemento item/Semilla
+Firma aplicada: rsa-sha1 con certificado X509
+Algoritmo digest: sha1
+Canonicalization: http://www.w3.org/TR/2001/REC-xml-c14n-20010315
+Resultado: EXITOSO
+Tamaño XML firmado: 3330 bytes
+
+PASO 3: ENVIAR TOKEN AL SII
+---------------------------
+URL: https://maullin.sii.cl/DTEWS/GetTokenFromSeed.jws
+Método: getToken()
+Request: Ver archivo SOPORTE_soap_request.xml
+
+RESPUESTA DEL SII
+----------------
+Status Code: 500
+Content-Type: text/xml;charset=utf-8
+
+Contenido:
+<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+ <soapenv:Body>
+  <soapenv:Fault>
+   <faultcode>soapenv:Server.userException</faultcode>
+   <faultstring>java.lang.NullPointerException</faultstring>
+   <detail/>
+  </soapenv:Fault>
+ </soapenv:Body>
+</soapenv:Envelope>
+
+ERROR IDENTIFICADO
+-----------------
+Error: java.lang.NullPointerException
+Tipo: Fault del servidor SII
+Descripción: El servidor no puede procesar la solicitud debido a un valor nulo
+
+ANÁLISIS
+--------
+- La conexión con el SII es exitosa
+- El certificado es válido
+- La semilla se obtiene correctamente
+- La firma se aplica sin errores
+- El SII recibe la petición pero falla internamente (NullPointerException)
+
+POSIBLES CAUSAS
+--------------
+1. Formato del XML getToken no coincide con lo esperado
+2. Estructura de la firma digital incorrecta
+3. Falta algún elemento o atributo requerido
+4. Problema con la validación del certificado en ambiente de certificación
+
+ARCHIVOS ADJUNTOS
+----------------
+1. SOPORTE_gettoken_firmado.xml - XML completo firmado que enviamos
+2. SOPORTE_soap_request.xml - Request SOAP completo
+3. SOPORTE_respuesta_sii.xml - Respuesta del servidor SII
+4. SOPORTE_LOG.txt - Este archivo
+
+SOLICITUD AL SOPORTE
+-------------------
+Necesitamos validación del formato exacto del XML getToken y la estructura
+de firma que debe utilizarse para obtener el token de autenticación.
+
+Fecha: 2025-10-20

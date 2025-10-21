@@ -1,5 +1,6 @@
 from django import forms
-from .models import Vendedor, FormaPago, EstacionTrabajo, PrecioClienteArticulo
+from django.forms import inlineformset_factory
+from .models import Vendedor, FormaPago, EstacionTrabajo, PrecioClienteArticulo, NotaCredito, NotaCreditoDetalle
 
 
 class VendedorForm(forms.ModelForm):
@@ -29,8 +30,8 @@ class FormaPagoForm(forms.ModelForm):
         model = FormaPago
         fields = ['codigo', 'nombre', 'es_cuenta_corriente', 'requiere_cheque', 'activo']
         widgets = {
-            'codigo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: EF', 'maxlength': '20'}),
-            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Efectivo'}),
+            'codigo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: EF, TC, CH'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Efectivo, Tarjeta de Crédito'}),
             'es_cuenta_corriente': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'requiere_cheque': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -44,98 +45,175 @@ class FormaPagoForm(forms.ModelForm):
         }
 
 
+class EstacionTrabajoForm(forms.ModelForm):
+    """Formulario para crear y editar estaciones de trabajo"""
+    
+    class Meta:
+        model = EstacionTrabajo
+        fields = ['numero', 'nombre', 'descripcion', 'activo']
+        widgets = {
+            'numero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: EST001'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre de la estación'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción opcional'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'numero': 'Número',
+            'nombre': 'Nombre',
+            'descripcion': 'Descripción',
+            'activo': 'Activa',
+        }
+
+
 class PrecioClienteArticuloForm(forms.ModelForm):
-    """Formulario para crear y editar precios especiales por cliente"""
+    """Formulario para crear y editar precios especiales de artículos por cliente"""
     
     class Meta:
         model = PrecioClienteArticulo
-        fields = ['cliente', 'articulo', 'precio_especial', 'descuento_porcentaje', 'activo', 'fecha_inicio', 'fecha_fin']
+        fields = ['cliente', 'articulo', 'precio_especial']
         widgets = {
-            'cliente': forms.Select(attrs={'class': 'form-select', 'required': True}),
-            'articulo': forms.Select(attrs={'class': 'form-select', 'required': True}),
-            'precio_especial': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01', 'required': True}),
-            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'max': '100'}),
-            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
-            'fecha_fin': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
+            'cliente': forms.Select(attrs={'class': 'form-select'}),
+            'articulo': forms.Select(attrs={'class': 'form-select'}),
+            'precio_especial': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
         }
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Configurar formato de fecha para que funcione con input type="date"
-        self.fields['fecha_inicio'].input_formats = ['%Y-%m-%d']
-        self.fields['fecha_fin'].input_formats = ['%Y-%m-%d']
-        
-        # Valores por defecto solo para nuevos registros
-        if not self.instance.pk:
-            from datetime import date
-            hoy = date.today()
-            ultimo_dia_año = date(hoy.year, 12, 31)
-            self.fields['fecha_inicio'].initial = hoy
-            self.fields['fecha_fin'].initial = ultimo_dia_año
         labels = {
             'cliente': 'Cliente',
             'articulo': 'Artículo',
             'precio_especial': 'Precio Especial',
-            'descuento_porcentaje': 'Descuento Adicional (%)',
-            'activo': 'Activo',
-            'fecha_inicio': 'Fecha Inicio Vigencia',
-            'fecha_fin': 'Fecha Fin Vigencia',
         }
 
 
-class EstacionTrabajoForm(forms.ModelForm):
-    """Formulario para crear y editar estaciones de trabajo"""
+# Estilos terrosos para los formularios de Nota de Crédito
+ESTILO_TERROSO = {
+    'input': 'form-control',
+    'select': 'form-select',
+    'textarea': 'form-control',
+    'checkbox': 'form-check-input',
+    'date': 'form-control',
+}
 
+
+class NotaCreditoForm(forms.ModelForm):
+    """Formulario para crear y editar Notas de Crédito"""
+    
     class Meta:
-        model = EstacionTrabajo
-        fields = ['numero', 'nombre', 'descripcion', 'modo_pos', 'correlativo_ticket', 'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale', 'max_items_factura', 'max_items_boleta', 'max_items_guia', 'max_items_cotizacion', 'max_items_vale', 'activo']
+        model = NotaCredito
+        fields = [
+            'numero', 'fecha', 'cliente', 'vendedor', 'bodega',
+            'tipo_nc', 'tipo_doc_afectado', 'numero_doc_afectado',
+            'fecha_doc_afectado', 'motivo'
+        ]
         widgets = {
-            'numero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 001', 'maxlength': '10'}),
-            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Caja Principal'}),
-            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción de la estación de trabajo'}),
-            'modo_pos': forms.Select(attrs={'class': 'form-select'}),
-            'correlativo_ticket': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'title': 'Correlativo único de ticket de la estación'}),
-            'puede_facturar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'puede_boletar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'puede_guia': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'puede_cotizar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'puede_vale': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'max_items_factura': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '100'}),
-            'max_items_boleta': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '100'}),
-            'max_items_guia': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '100'}),
-            'max_items_cotizacion': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '100'}),
-            'max_items_vale': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '100'}),
-            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'numero': forms.TextInput(attrs={
+                'class': ESTILO_TERROSO['input'],
+                'placeholder': 'N° Nota de Crédito',
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'fecha': forms.DateInput(attrs={
+                'class': ESTILO_TERROSO['date'],
+                'type': 'date',
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'cliente': forms.Select(attrs={
+                'class': ESTILO_TERROSO['select'],
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'vendedor': forms.Select(attrs={
+                'class': ESTILO_TERROSO['select'],
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'bodega': forms.Select(attrs={
+                'class': ESTILO_TERROSO['select'],
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'tipo_nc': forms.RadioSelect(attrs={
+                'class': 'form-check-input',
+                'style': 'border-color: #8B7355;'
+            }),
+            'tipo_doc_afectado': forms.Select(attrs={
+                'class': ESTILO_TERROSO['select'],
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'numero_doc_afectado': forms.TextInput(attrs={
+                'class': ESTILO_TERROSO['input'],
+                'placeholder': 'N° Documento',
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'fecha_doc_afectado': forms.DateInput(attrs={
+                'class': ESTILO_TERROSO['date'],
+                'type': 'date',
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'motivo': forms.Textarea(attrs={
+                'class': ESTILO_TERROSO['textarea'],
+                'rows': 3,
+                'placeholder': 'Describa el motivo de la nota de crédito...',
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
         }
         labels = {
-            'numero': 'Número de Estación',
-            'nombre': 'Nombre de la Estación',
-            'descripcion': 'Descripción',
-            'modo_pos': 'Modo de Operación POS',
-            'correlativo_ticket': 'Correlativo de Ticket',
-            'puede_facturar': 'Puede Emitir Facturas',
-            'puede_boletar': 'Puede Emitir Boletas',
-            'puede_guia': 'Puede Emitir Guías',
-            'puede_cotizar': 'Puede Emitir Cotizaciones',
-            'puede_vale': 'Puede Emitir Vales',
-            'max_items_factura': 'Máx. Items Factura',
-            'max_items_boleta': 'Máx. Items Boleta',
-            'max_items_guia': 'Máx. Items Guía',
-            'max_items_cotizacion': 'Máx. Items Cotización',
-            'max_items_vale': 'Máx. Items Vale',
-            'activo': 'Activo',
+            'numero': 'N° NC',
+            'fecha': 'Fecha Emisión',
+            'cliente': 'Cliente (RUT - Nombre)',
+            'vendedor': 'Vendedor',
+            'bodega': 'Bodega',
+            'tipo_nc': 'Tipo de Nota de Crédito',
+            'tipo_doc_afectado': 'Tipo Documento Afectado',
+            'numero_doc_afectado': 'N° Documento Afectado',
+            'fecha_doc_afectado': 'Fecha Emisión Doc.',
+            'motivo': 'Motivo',
         }
 
 
+class NotaCreditoDetalleForm(forms.ModelForm):
+    """Formulario para items de Nota de Crédito"""
+    
+    class Meta:
+        model = NotaCreditoDetalle
+        fields = ['articulo', 'codigo', 'descripcion', 'cantidad', 'precio_unitario', 'descuento']
+        widgets = {
+            'articulo': forms.Select(attrs={
+                'class': 'form-select form-select-sm',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
+            }),
+            'codigo': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'readonly': 'readonly',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem; background-color: #FAF8F3;'
+            }),
+            'descripcion': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
+            }),
+            'cantidad': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-end',
+                'min': '0.01',
+                'step': '0.01',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
+            }),
+            'precio_unitario': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-end',
+                'min': '0',
+                'step': '0.01',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
+            }),
+            'descuento': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-end',
+                'min': '0',
+                'max': '100',
+                'step': '0.01',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
+            }),
+        }
 
 
-
-
-
-
-
-
-
-
-
+# Formset para los detalles de Nota de Crédito
+NotaCreditoDetalleFormSet = inlineformset_factory(
+    NotaCredito,
+    NotaCreditoDetalle,
+    form=NotaCreditoDetalleForm,
+    extra=1,
+    can_delete=True,
+    min_num=1,
+    validate_min=True,
+)

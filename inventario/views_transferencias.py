@@ -540,6 +540,7 @@ def transferencia_generar_guia(request, pk):
                     folio=folio,
                     fecha_emision=timezone.now().date(),
                     tipo_traslado='5',  # Traslado interno
+                    usuario_creacion=request.user,
                     # Emisor
                     rut_emisor=request.empresa.rut,
                     razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
@@ -564,8 +565,7 @@ def transferencia_generar_guia(request, pk):
                     timbre_electronico=ted_xml,
                     datos_pdf417=pdf417_data,
                     # Estado
-                    estado_sii='generado',
-                    usuario_creacion=request.user
+                    estado_sii='generado'
                 )
                 
                 # 5. Generar imagen PDF417
@@ -586,6 +586,7 @@ def transferencia_generar_guia(request, pk):
                     folio=folio,
                     fecha_emision=timezone.now().date(),
                     tipo_traslado='5',
+                    usuario_creacion=request.user,
                     rut_emisor=request.empresa.rut,
                     razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
                     rut_receptor=request.empresa.rut,
@@ -594,8 +595,7 @@ def transferencia_generar_guia(request, pk):
                     monto_exento=Decimal('0'),
                     monto_iva=iva.quantize(Decimal('1')),
                     monto_total=total.quantize(Decimal('1')),
-                    estado_sii='generado',
-                    usuario_creacion=request.user
+                    estado_sii='generado'
                 )
             
             # Asociar guía a la transferencia

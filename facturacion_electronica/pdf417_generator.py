@@ -49,7 +49,7 @@ class PDF417Generator:
             return buffer.getvalue()
             
         except Exception as e:
-            print(f"❌ Error al generar PDF417: {str(e)}")
+            print(f"ERROR al generar PDF417: {str(e)}")
             # Generar imagen de placeholder en caso de error
             return PDF417Generator._generar_placeholder(ancho, alto)
     
@@ -146,9 +146,9 @@ class PDF417Generator:
                 save=True
             )
             
-            print(f"✅ PDF417 generado y guardado para DTE {dte.tipo_dte}-{dte.folio}")
+            print(f"PDF417 generado y guardado para DTE {dte.tipo_dte}-{dte.folio}")
             return True
             
         except Exception as e:
-            print(f"❌ Error al guardar PDF417: {str(e)}")
+            print(f"ERROR al guardar PDF417: {str(e)}")
             return False

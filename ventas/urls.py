@@ -4,6 +4,7 @@ URLs para el módulo de ventas
 from django.urls import path
 from django.shortcuts import render
 from . import views
+from . import views_notas_credito
 
 app_name = 'ventas'
 
@@ -83,4 +84,19 @@ urlpatterns = [
     # API Artículos
     path('articulos/api/articulo/<int:pk>/precio/', views.articulo_precio_api, name='articulo_precio_api'),
     path('api/precio-cliente/<int:cliente_id>/<int:articulo_id>/', views.precio_cliente_articulo_api, name='precio_cliente_articulo_api'),
+    
+    # Notas de Crédito
+    path('notas-credito/', views_notas_credito.notacredito_list, name='notacredito_list'),
+    path('notas-credito/crear/', views_notas_credito.notacredito_create, name='notacredito_create'),
+    path('notas-credito/<int:pk>/', views_notas_credito.notacredito_detail, name='notacredito_detail'),
+    path('notas-credito/<int:pk>/imprimir/', views_notas_credito.notacredito_print, name='notacredito_print'),
+    path('notas-credito/<int:pk>/editar/', views_notas_credito.notacredito_update, name='notacredito_update'),
+    path('notas-credito/<int:pk>/eliminar/', views_notas_credito.notacredito_delete, name='notacredito_delete'),
+    path('notas-credito/<int:pk>/emitir/', views_notas_credito.notacredito_emitir, name='notacredito_emitir'),
+    
+    # API AJAX para cargar items de venta
+    path('ajax/cargar-items-venta/', views_notas_credito.ajax_cargar_items_venta, name='ajax_cargar_items_venta'),
+
+    # API AJAX para buscar documentos afectados
+    path('ajax/buscar-documento-afectado/', views_notas_credito.ajax_buscar_documento_afectado, name='ajax_buscar_documento_afectado'),
 ]

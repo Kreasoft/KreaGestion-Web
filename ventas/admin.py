@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Vendedor, FormaPago, EstacionTrabajo, Venta, VentaDetalle, Devolucion, DevolucionDetalle, PrecioClienteArticulo, VentaReferencia
+from .models import Vendedor, FormaPago, EstacionTrabajo, Venta, VentaDetalle, Devolucion, DevolucionDetalle, PrecioClienteArticulo, VentaReferencia, NotaCredito, NotaCreditoDetalle
 
 
 @admin.register(Vendedor)
@@ -193,3 +193,48 @@ class VentaReferenciaAdmin(admin.ModelAdmin):
             'fields': ('razon_referencia',)
         }),
     )
+
+
+class NotaCreditoDetalleInline(admin.TabularInline):
+    model = NotaCreditoDetalle
+    extra = 1
+    fields = ['articulo', 'codigo', 'descripcion', 'cantidad', 'precio_unitario', 'descuento', 'total']
+    readonly_fields = ['total']
+
+
+@admin.register(NotaCredito)
+class NotaCreditoAdmin(admin.ModelAdmin):
+    list_display = ['numero', 'fecha', 'cliente', 'tipo_nc', 'numero_doc_afectado', 'estado', 'total', 'empresa']
+    list_filter = ['estado', 'tipo_nc', 'tipo_doc_afectado', 'empresa', 'fecha']
+    search_fields = ['numero', 'cliente__nombre', 'cliente__rut', 'numero_doc_afectado', 'motivo']
+    ordering = ['-fecha', '-numero']
+    date_hierarchy = 'fecha'
+    inlines = [NotaCreditoDetalleInline]
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('empresa', 'sucursal', 'numero', 'fecha', 'cliente', 'vendedor', 'bodega', 'usuario_creacion')
+        }),
+        ('Tipo de Nota de Crédito', {
+            'fields': ('tipo_nc',)
+        }),
+        ('Documento Afectado', {
+            'fields': ('tipo_doc_afectado', 'numero_doc_afectado', 'fecha_doc_afectado', 'motivo')
+        }),
+        ('Montos', {
+            'fields': ('subtotal', 'descuento', 'iva', 'total')
+        }),
+        ('Estado', {
+            'fields': ('estado', 'dte')
+        }),
+    )
+    
+    readonly_fields = ['usuario_creacion', 'fecha_creacion', 'fecha_modificacion']
+
+
+@admin.register(NotaCreditoDetalle)
+class NotaCreditoDetalleAdmin(admin.ModelAdmin):
+    list_display = ['nota_credito', 'articulo', 'codigo', 'cantidad', 'precio_unitario', 'descuento', 'total']
+    list_filter = ['nota_credito__empresa']
+    search_fields = ['nota_credito__numero', 'articulo__nombre', 'articulo__codigo', 'codigo']
+    ordering = ['-fecha_creacion']

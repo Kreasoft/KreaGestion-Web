@@ -21,6 +21,8 @@ urlpatterns = [
 	path('sucursales/<int:pk>/eliminar/', views.sucursal_delete, name='sucursal_delete'),
 	# Configuración de empresa
 	path('configuracion/', views.empresa_configuracion, name='empresa_configuracion'),
+	# Configuración de impresoras
+	path('configuracion/impresoras/', views.configurar_impresoras, name='configurar_impresoras'),
 	# Paleta de colores
 	path('paleta-colores/', views.paleta_colores, name='paleta_colores'),
 	# Seleccionar empresa (solo superusuarios)

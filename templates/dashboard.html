@@ -288,7 +288,7 @@
     <div class="row mb-4">
         <!-- Total Artículos -->
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card text-white" style="background: linear-gradient(135deg, #2E8B57 0%, #3CB371 100%); border: none; box-shadow: 0 4px 15px rgba(46, 139, 87, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div class="card text-white" style="background: linear-gradient(135deg, #6B8E23 0%, #7BA428 100%); border: none; box-shadow: 0 4px 15px rgba(107, 142, 35, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -538,22 +538,31 @@ const ventasChart = new Chart(ctx1, {
 
 // Gráfico de categorías (Dona) - DATOS REALES
 const ctx2 = document.getElementById('categoriasChart').getContext('2d');
-// TODO: Implementar datos reales de categorías desde el backend
+const categoriasLabels = {{ categorias_labels|safe }};
+const categoriasData = {{ categorias_data|safe }};
+
+// Colores terrosos para categorías: verde oliva, dorados, cafés
+const coloresTerrosos = [
+    '#6B8E23',  // Verde oliva terroso
+    '#B8860B',  // Dorado oscuro terroso
+    '#8B7355',  // Café claro
+    '#A0826D',  // Café medio
+    '#CD853F',  // Dorado tierra
+    '#D2B48C',  // Beige dorado
+    '#8B4513',  // Café silla de montar
+    '#BC8F8F'   // Rosa café
+];
+
 const categoriasChart = new Chart(ctx2, {
     type: 'doughnut',
     data: {
-        labels: ['Sin datos'],
+        labels: categoriasLabels,
         datasets: [{
-            data: [1],
-            backgroundColor: [
-                paletaTerrosa.primary,
-                paletaTerrosa.secondary,
-                paletaTerrosa.tertiary,
-                paletaTerrosa.quaternary,
-                paletaTerrosa.quinary
-            ],
+            data: categoriasData,
+            backgroundColor: coloresTerrosos,
             borderColor: '#fff',
-            borderWidth: 2
+            borderWidth: 2,
+            hoverOffset: 4
         }]
     },
     options: {
@@ -562,12 +571,32 @@ const categoriasChart = new Chart(ctx2, {
         plugins: {
             legend: {
                 position: 'bottom',
-                labels: { color: paletaTerrosa.senary, padding: 15, font: { size: 11 } }
+                labels: { 
+                    color: paletaTerrosa.senary, 
+                    padding: 12, 
+                    font: { size: 11 },
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                }
             },
             tooltip: {
                 backgroundColor: paletaTerrosa.senary,
                 titleColor: '#fff',
-                bodyColor: '#fff'
+                bodyColor: '#fff',
+                borderColor: '#fff',
+                borderWidth: 1,
+                padding: 10,
+                displayColors: true,
+                callbacks: {
+                    label: function(context) {
+                        let label = context.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        label += '$' + context.parsed.toLocaleString('es-CL');
+                        return label;
+                    }
+                }
             }
         }
     }
@@ -586,14 +615,8 @@ const productosChart = new Chart(ctx3, {
         datasets: [{
             label: 'Unidades Vendidas',
             data: productosData,
-            backgroundColor: [
-                paletaTerrosa.primary,
-                paletaTerrosa.secondary,
-                paletaTerrosa.tertiary,
-                paletaTerrosa.quaternary,
-                paletaTerrosa.quinary
-            ],
-            borderColor: paletaTerrosa.senary,
+            backgroundColor: coloresTerrosos,
+            borderColor: '#fff',
             borderWidth: 1
         }]
     },

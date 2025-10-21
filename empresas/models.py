@@ -119,6 +119,11 @@ class Empresa(models.Model):
         default='certificacion',
         verbose_name="Ambiente SII"
     )
+    modo_reutilizacion_folios = models.BooleanField(
+        default=False,
+        verbose_name="Modo Reutilización de Folios",
+        help_text="Permite reutilizar folios para pruebas (solo en certificación)"
+    )
     
     # Certificado Digital
     certificado_digital = models.FileField(
@@ -198,6 +203,65 @@ class Empresa(models.Model):
         default=10,
         verbose_name="Folios Mínimos para Alerta",
         help_text="Cantidad de folios restantes para comenzar a alertar por documento"
+    )
+    
+    # CONFIGURACIÓN DE IMPRESORAS POR TIPO DE DOCUMENTO
+    TIPO_IMPRESORA_CHOICES = [
+        ('laser', 'Impresora Láser/Inyección (A4)'),
+        ('termica', 'Impresora Térmica (80mm)'),
+    ]
+    
+    # Documentos Electrónicos (DTE)
+    impresora_factura = models.CharField(
+        max_length=10,
+        choices=TIPO_IMPRESORA_CHOICES,
+        default='laser',
+        verbose_name="Impresora para Facturas Electrónicas",
+        help_text="Tipo de impresora a usar para imprimir facturas electrónicas"
+    )
+    impresora_boleta = models.CharField(
+        max_length=10,
+        choices=TIPO_IMPRESORA_CHOICES,
+        default='laser',
+        verbose_name="Impresora para Boletas Electrónicas",
+        help_text="Tipo de impresora a usar para imprimir boletas electrónicas"
+    )
+    impresora_guia = models.CharField(
+        max_length=10,
+        choices=TIPO_IMPRESORA_CHOICES,
+        default='laser',
+        verbose_name="Impresora para Guías de Despacho",
+        help_text="Tipo de impresora a usar para imprimir guías de despacho"
+    )
+    impresora_nota_credito = models.CharField(
+        max_length=10,
+        choices=TIPO_IMPRESORA_CHOICES,
+        default='laser',
+        verbose_name="Impresora para Notas de Crédito",
+        help_text="Tipo de impresora a usar para imprimir notas de crédito"
+    )
+    impresora_nota_debito = models.CharField(
+        max_length=10,
+        choices=TIPO_IMPRESORA_CHOICES,
+        default='laser',
+        verbose_name="Impresora para Notas de Débito",
+        help_text="Tipo de impresora a usar para imprimir notas de débito"
+    )
+    
+    # Documentos Internos
+    impresora_vale = models.CharField(
+        max_length=10,
+        choices=TIPO_IMPRESORA_CHOICES,
+        default='termica',
+        verbose_name="Impresora para Vales/Tickets",
+        help_text="Tipo de impresora a usar para imprimir vales y tickets de venta"
+    )
+    impresora_cotizacion = models.CharField(
+        max_length=10,
+        choices=TIPO_IMPRESORA_CHOICES,
+        default='laser',
+        verbose_name="Impresora para Cotizaciones",
+        help_text="Tipo de impresora a usar para imprimir cotizaciones"
     )
     
     # Estado y auditoría

@@ -2008,15 +2008,20 @@ def venta_html(request, pk):
             pass
     
     # Determinar el template según el tipo de documento
-    # USAR SIEMPRE EL NUEVO FORMATO ULTRA-COMPACTO PARA FACTURAS
+    # USAR SIEMPRE EL NUEVO FORMATO ULTRA-COMPACTO PARA FACTURAS Y BOLETAS ELECTRÓNICAS
     if venta.tipo_documento == 'factura':
         template_name = 'ventas/factura_electronica_html.html'
+    elif venta.tipo_documento == 'boleta':
+        # Usar template electrónico si tiene DTE, sino el normal
+        if dte:
+            template_name = 'ventas/boleta_electronica_html.html'
+        else:
+            template_name = 'ventas/boleta_html.html'
     elif venta.tipo_documento == 'guia':
         # Las guías usan el mismo formato que las de transferencias
         template_name = 'inventario/guia_despacho_html.html'
     else:
         tipo_templates = {
-            'boleta': 'ventas/boleta_html.html',
             'vale': 'ventas/vale_html.html',
             'cotizacion': 'ventas/cotizacion_html.html',
         }
@@ -2330,7 +2335,7 @@ def libro_ventas(request):
     # Consulta DTEs (Documentos Tributarios Electrónicos)
     dtes = DocumentoTributarioElectronico.objects.filter(
         empresa=request.empresa
-    ).select_related('caf_utilizado', 'usuario_creacion')
+    ).select_related('caf_utilizado', 'usuario_creacion').prefetch_related('usuario_creacion')
     
     # Aplicar filtros de fecha
     try:

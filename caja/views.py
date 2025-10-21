@@ -6,6 +6,7 @@ from django.db import transaction, IntegrityError, models
 from django.utils import timezone
 from decimal import Decimal
 from datetime import datetime
+import json
 
 from empresas.decorators import requiere_empresa
 from .models import Caja, AperturaCaja, MovimientoCaja, VentaProcesada
@@ -267,9 +268,17 @@ def apertura_imprimir(request, pk):
     ventas_por_forma_pago = {}
     for venta_proc in ventas:
         venta_final = venta_proc.venta_final
-        movimiento = venta_proc.movimiento_caja
         
-        forma_pago_nombre = movimiento.forma_pago.nombre if movimiento.forma_pago else 'Sin especificar'
+        #movimiento = venta_proc.movimiento_caja
+
+        mov = venta_proc.movimiento_caja
+
+        if mov and mov.forma_pago:
+            forma_pago_nombre = mov.forma_pago.nombre
+        elif mov:
+            forma_pago_nombre = 'Movimiento sin forma de pago'
+        else:
+            forma_pago_nombre = 'Sin movimiento de caja'
         if forma_pago_nombre not in ventas_por_forma_pago:
             ventas_por_forma_pago[forma_pago_nombre] = {
                 'ventas': [],
@@ -281,6 +290,7 @@ def apertura_imprimir(request, pk):
         ventas_por_forma_pago[forma_pago_nombre]['cantidad'] += 1
     
     # Obtener movimientos de caja (ingresos/egresos manuales, no ventas)
+    #movimientos = MovimientoCaja.objects.filter(
     movimientos = MovimientoCaja.objects.filter(
         apertura_caja=apertura,
         tipo__in=['ingreso', 'retiro']  # Solo movimientos manuales
@@ -789,6 +799,11 @@ def procesar_venta(request, ticket_id):
                                 print(f"   Cliente: {dte.razon_social_receptor}")
                                 print(f"   Monto: ${dte.monto_total}")
 
+                                # ✅ ASIGNAR EL DTE A LA VENTA PROCESADA
+                                venta_procesada.dte_generado = dte
+                                venta_procesada.save()
+                                print(f"   DTE asignado a VentaProcesada ID: {venta_procesada.id}")
+
                                 # Mensaje específico según el tipo de documento
                                 if tipo_documento == 'boleta':
                                     mensaje_dte = f'✅ Boleta Electrónica N° {dte.folio} generada con timbre SII.'
@@ -890,7 +905,7 @@ def procesar_venta(request, ticket_id):
         'detalles': detalles,
         'apertura_activa': apertura_activa,
         'disponibilidad_folios': disponibilidad_folios,
-        'disponibilidad_folios_json': disponibilidad_folios,  # Para JavaScript
+        'disponibilidad_folios_json': json.dumps(disponibilidad_folios) if disponibilidad_folios else '{}',  # Para JavaScript
         'tipo_documento_planeado': ticket.tipo_documento_planeado,  # ← TIPO PLANEADO
         'title': f'Procesar Ticket #{ticket.numero_venta}',
         'mostrar_modal_apertura': mostrar_modal_apertura,

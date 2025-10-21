@@ -231,6 +231,15 @@ class ArchivoCAF(models.Model):
         
         self.save()
         return siguiente
+    
+    def resetear_folios(self):
+        """Resetea el CAF para reutilizar los folios (SOLO PARA PRUEBAS)"""
+        self.folio_actual = self.folio_desde - 1
+        self.folios_utilizados = 0
+        self.estado = 'activo'
+        self.fecha_agotamiento = None
+        self.save()
+        return True
 
 
 class DocumentoTributarioElectronico(models.Model):

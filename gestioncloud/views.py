@@ -146,6 +146,36 @@ def dashboard(request):
         labels.append(month_start.strftime('%b %Y'))
         data.append(float(monto))
 
+    # Ventas por categoría del mes
+    ventas_categoria_query = VentaDetalle.objects.filter(
+        venta__empresa=request.empresa,
+        venta__fecha__gte=inicio_mes,
+        venta__estado='confirmada'
+    )
+    
+    # Filtrar por sucursal si está seleccionada
+    if sucursal_seleccionada:
+        ventas_categoria_query = ventas_categoria_query.filter(venta__sucursal=sucursal_seleccionada)
+    
+    ventas_por_categoria = (
+        ventas_categoria_query
+        .values('articulo__categoria__nombre')
+        .annotate(total=Sum('precio_total'))
+        .order_by('-total')[:5]
+    )
+    
+    categorias_labels = []
+    categorias_data = []
+    for item in ventas_por_categoria:
+        nombre_cat = item['articulo__categoria__nombre'] or 'Sin categoría'
+        categorias_labels.append(nombre_cat)
+        categorias_data.append(float(item['total']) if item['total'] else 0)
+    
+    # Si no hay datos, mostrar mensaje
+    if not categorias_labels:
+        categorias_labels = ['Sin datos']
+        categorias_data = [1]
+    
     import json
     
     # Verificar si el usuario puede cambiar de sucursal manualmente
@@ -160,6 +190,8 @@ def dashboard(request):
         'top_productos': json.dumps(top_productos),  # Convertir a JSON
         'ventas_series_labels': labels,
         'ventas_series_data': data,
+        'categorias_labels': categorias_labels,
+        'categorias_data': categorias_data,
         # Filtro de sucursal
         'puede_filtrar_sucursal': puede_filtrar_sucursal,
         'sucursales': sucursales if puede_filtrar_sucursal else [],

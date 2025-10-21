@@ -5,6 +5,7 @@ Envío y consulta de estado de DTE
 from zeep import Client
 from zeep.transports import Transport
 from requests import Session
+import requests
 from lxml import etree
 import base64
 from datetime import datetime
@@ -16,14 +17,16 @@ class ClienteSII:
     # URLs de los webservices del SII
     URLS = {
         'certificacion': {
-            'envio': 'https://maullin.sii.cl/DTEWS/services/QueryEstDte?wsdl',
+            'seed': 'https://maullin.sii.cl/DTEWS/CrSeed.jws?WSDL',
+            'token': 'https://maullin.sii.cl/DTEWS/GetTokenFromSeed.jws?WSDL',
+            'envio': 'https://maullin.sii.cl/cgi_dte/UPL/DTEUpload',
             'consulta': 'https://maullin.sii.cl/DTEWS/services/QueryEstDte?wsdl',
-            'token': 'https://maullin.sii.cl/DTEWS/CrSeed.jws?WSDL',
         },
         'produccion': {
-            'envio': 'https://palena.sii.cl/DTEWS/services/QueryEstDte?wsdl',
+            'seed': 'https://palena.sii.cl/DTEWS/CrSeed.jws?WSDL',
+            'token': 'https://palena.sii.cl/DTEWS/GetTokenFromSeed.jws?WSDL',
+            'envio': 'https://palena.sii.cl/cgi_dte/UPL/DTEUpload',
             'consulta': 'https://palena.sii.cl/DTEWS/services/QueryEstDte?wsdl',
-            'token': 'https://palena.sii.cl/DTEWS/CrSeed.jws?WSDL',
         }
     }
     
@@ -44,40 +47,84 @@ class ClienteSII:
         # Configurar transporte
         self.transport = Transport(session=self.session, timeout=30)
         
-        print(f"🌐 Cliente SII inicializado - Ambiente: {ambiente}")
+        print(f"Cliente SII inicializado - Ambiente: {ambiente}")
     
     def obtener_semilla(self):
         """
-        Obtiene la semilla (seed) del SII para autenticación
+        Obtiene la semilla (seed) del SII para autenticación usando requests directo
         
         Returns:
             str: Semilla obtenida
         """
+        import requests
+        import html
+        
         try:
-            # Crear cliente SOAP para obtener semilla
-            client = Client(self.urls['token'], transport=self.transport)
+            print(f"Obteniendo semilla del SII...")
             
-            # Llamar al método getSeed
-            response = client.service.getSeed()
+            # URL sin ?WSDL para el servicio
+            url = self.urls['seed'].replace('?WSDL', '')
             
-            # Parsear la respuesta XML
-            root = etree.fromstring(response.encode('utf-8'))
+            # SOAP envelope
+            soap_request = """<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+                  xmlns:def="http://DefaultNamespace">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <def:getSeed/>
+   </soapenv:Body>
+</soapenv:Envelope>"""
             
-            # Buscar el elemento SEMILLA
-            semilla_elem = root.find('.//{http://www.sii.cl/XMLSchema}SEMILLA')
+            headers = {
+                'Content-Type': 'text/xml; charset=utf-8',
+                'SOAPAction': '',
+            }
+            
+            # Enviar petición
+            response = requests.post(
+                url,
+                data=soap_request.encode('utf-8'),
+                headers=headers,
+                timeout=30,
+                verify=True
+            )
+            
+            if response.status_code != 200:
+                raise ValueError(f"Error HTTP {response.status_code}: {response.text[:200]}")
+            
+            # Parsear respuesta SOAP
+            root = etree.fromstring(response.content)
+            
+            # Buscar getSeedReturn (el XML está escapado dentro)
+            seed_return = root.find('.//{http://DefaultNamespace}getSeedReturn')
+            if seed_return is None:
+                seed_return = root.find('.//getSeedReturn')
+            
+            if seed_return is None or seed_return.text is None:
+                raise ValueError("No se encontró getSeedReturn en la respuesta")
+            
+            # Decodificar el XML escapado
+            xml_escapado = seed_return.text
+            xml_decodificado = html.unescape(xml_escapado)
+            
+            # Parsear el XML interno
+            root_interno = etree.fromstring(xml_decodificado.encode('utf-8'))
+            
+            # Buscar SEMILLA
+            semilla_elem = root_interno.find('.//{http://www.sii.cl/XMLSchema}SEMILLA')
             if semilla_elem is None:
-                semilla_elem = root.find('.//SEMILLA')
+                semilla_elem = root_interno.find('.//SEMILLA')
             
-            if semilla_elem is None:
-                raise ValueError("No se pudo obtener la semilla del SII")
+            if semilla_elem is None or semilla_elem.text is None:
+                raise ValueError("No se encontró SEMILLA en la respuesta interna")
             
             semilla = semilla_elem.text
             
-            print(f"✅ Semilla obtenida: {semilla}")
+            print(f"Semilla obtenida: {semilla}")
             return semilla
             
         except Exception as e:
-            print(f"❌ Error al obtener semilla: {str(e)}")
+            print(f"ERROR al obtener semilla: {str(e)}")
             raise
     
     def obtener_token(self, semilla, firmador):
@@ -92,7 +139,10 @@ class ClienteSII:
             str: Token de autenticación
         """
         try:
-            # Crear XML de solicitud de token
+            print(f"Obteniendo token de autenticación...")
+            
+            # Crear XML SIMPLE de solicitud de token (sin namespaces complejos)
+            # Según ejemplo real del SII: <getToken><item><Semilla>XXX</Semilla></item></getToken>
             gettoken = etree.Element("getToken")
             item = etree.SubElement(gettoken, "item")
             semilla_elem = etree.SubElement(item, "Semilla")
@@ -101,38 +151,90 @@ class ClienteSII:
             # Convertir a string
             gettoken_string = etree.tostring(
                 gettoken,
-                pretty_print=True,
-                xml_declaration=True,
-                encoding='ISO-8859-1'
-            ).decode('ISO-8859-1')
+                pretty_print=False,  # Sin formato para que quede compacto
+                xml_declaration=False,  # Sin declaración XML
+                encoding='unicode'
+            )
             
-            # Firmar la solicitud
-            gettoken_firmado = firmador.firmar_xml(gettoken_string)
+            # Firmar la solicitud (usando método específico para tokens)
+            gettoken_firmado = firmador.firmar_token_request(gettoken_string)
             
-            # Crear cliente SOAP
-            client = Client(self.urls['token'], transport=self.transport)
+            # DEBUG: Guardar el XML firmado para análisis
+            with open('gettoken_firmado_simple.xml', 'w', encoding='utf-8') as f:
+                f.write(gettoken_firmado)
+            print(f"   XML firmado guardado en: gettoken_firmado_simple.xml")
             
-            # Enviar solicitud de token
-            response = client.service.getToken(gettoken_firmado)
+            # El SII espera el XML firmado como string escapado
+            import html
+            gettoken_escapado = html.escape(gettoken_firmado)
             
-            # Parsear respuesta
-            root = etree.fromstring(response.encode('utf-8'))
+            # URL sin ?WSDL
+            url = self.urls['token'].replace('?WSDL', '')
             
-            # Buscar el token
-            token_elem = root.find('.//{http://www.sii.cl/XMLSchema}TOKEN')
+            # SOAP envelope con el XML firmado escapado como string
+            soap_request = f"""<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+                  xmlns:def="http://DefaultNamespace">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <def:getToken>{gettoken_escapado}</def:getToken>
+   </soapenv:Body>
+</soapenv:Envelope>"""
+            
+            headers = {
+                'Content-Type': 'text/xml; charset=utf-8',
+                'SOAPAction': '',
+            }
+            
+            # Enviar petición
+            response = requests.post(
+                url,
+                data=soap_request.encode('utf-8'),
+                headers=headers,
+                timeout=30,
+                verify=True
+            )
+            
+            if response.status_code != 200:
+                print(f"\n   ERROR HTTP {response.status_code} al obtener token")
+                print(f"   Respuesta completa del SII:")
+                print(response.text[:1500])
+                raise ValueError(f"Error HTTP {response.status_code}")
+            
+            # Parsear respuesta SOAP
+            root = etree.fromstring(response.content)
+            
+            # Buscar getTokenReturn (el XML está escapado dentro)
+            token_return = root.find('.//{http://DefaultNamespace}getTokenReturn')
+            if token_return is None:
+                token_return = root.find('.//getTokenReturn')
+            
+            if token_return is None or token_return.text is None:
+                raise ValueError("No se encontró getTokenReturn en la respuesta")
+            
+            # Decodificar el XML escapado
+            import html
+            xml_escapado = token_return.text
+            xml_decodificado = html.unescape(xml_escapado)
+            
+            # Parsear el XML interno
+            root_interno = etree.fromstring(xml_decodificado.encode('utf-8'))
+            
+            # Buscar TOKEN
+            token_elem = root_interno.find('.//{http://www.sii.cl/XMLSchema}TOKEN')
             if token_elem is None:
-                token_elem = root.find('.//TOKEN')
+                token_elem = root_interno.find('.//TOKEN')
             
-            if token_elem is None:
-                raise ValueError("No se pudo obtener el token del SII")
+            if token_elem is None or token_elem.text is None:
+                raise ValueError("No se encontró TOKEN en la respuesta interna")
             
             token = token_elem.text
             
-            print(f"✅ Token obtenido exitosamente")
+            print(f"Token obtenido exitosamente")
             return token
             
         except Exception as e:
-            print(f"❌ Error al obtener token: {str(e)}")
+            print(f"ERROR al obtener token: {str(e)}")
             raise
     
     def enviar_dte(self, xml_envio, token, rut_emisor, rut_envia):
@@ -180,14 +282,14 @@ class ClienteSII:
             }
             
             if resultado['track_id']:
-                print(f"✅ DTE enviado exitosamente - Track ID: {resultado['track_id']}")
+                print(f"DTE enviado exitosamente - Track ID: {resultado['track_id']}")
             else:
-                print(f"⚠️ Respuesta del SII sin Track ID")
+                print(f"ADVERTENCIA: Respuesta del SII sin Track ID")
             
             return resultado
             
         except Exception as e:
-            print(f"❌ Error al enviar DTE: {str(e)}")
+            print(f"ERROR al enviar DTE: {str(e)}")
             raise
     
     def consultar_estado_dte(self, track_id, token, rut_emisor):
@@ -227,12 +329,12 @@ class ClienteSII:
                 'respuesta_completa': response
             }
             
-            print(f"✅ Estado consultado - Estado: {resultado['estado']}")
+            print(f"Estado consultado - Estado: {resultado['estado']}")
             
             return resultado
             
         except Exception as e:
-            print(f"❌ Error al consultar estado: {str(e)}")
+            print(f"ERROR al consultar estado: {str(e)}")
             raise
     
     def consultar_estado_documento(self, rut_emisor, tipo_dte, folio, fecha_emision, 
@@ -281,12 +383,12 @@ class ClienteSII:
                 'respuesta_completa': response
             }
             
-            print(f"✅ Estado documento consultado - Estado: {resultado['estado']}")
+            print(f"Estado documento consultado - Estado: {resultado['estado']}")
             
             return resultado
             
         except Exception as e:
-            print(f"❌ Error al consultar estado documento: {str(e)}")
+            print(f"ERROR al consultar estado documento: {str(e)}")
             raise
     
     def _obtener_dv(self, rut):
@@ -371,10 +473,10 @@ class ClienteSII:
                 encoding='ISO-8859-1'
             ).decode('ISO-8859-1')
             
-            print(f"✅ SetDTE creado con {len(dtes_firmados)} documento(s)")
+            print(f"SetDTE creado con {len(dtes_firmados)} documento(s)")
             
             return set_dte_string
             
         except Exception as e:
-            print(f"❌ Error al crear SetDTE: {str(e)}")
+            print(f"ERROR al crear SetDTE: {str(e)}")
             raise
