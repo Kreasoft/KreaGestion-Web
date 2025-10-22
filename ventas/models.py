@@ -609,7 +609,7 @@ class NotaCredito(models.Model):
     # Datos principales
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, verbose_name="Sucursal", null=True, blank=True)
-    numero = models.CharField(max_length=20, verbose_name="N° Nota de Crédito")
+    numero = models.CharField(max_length=20, verbose_name="N° Nota de Crédito", null=True, blank=True) # Se asigna al emitir DTE
     fecha = models.DateField(default=timezone.now, verbose_name="Fecha Emisión")
     
     # Cliente
@@ -704,7 +704,6 @@ class NotaCredito(models.Model):
         verbose_name = "Nota de Crédito"
         verbose_name_plural = "Notas de Crédito"
         ordering = ['-fecha', '-numero']
-        unique_together = ['empresa', 'numero']
     
     def __str__(self):
         return f"NC {self.numero} - {self.cliente.nombre}"
@@ -712,10 +711,11 @@ class NotaCredito(models.Model):
     def calcular_totales(self):
         """Calcula los totales de la nota de crédito"""
         items = self.items.all()
-        self.subtotal = sum(item.total for item in items)
+        subtotal_calculado = sum(item.total for item in items)
+        self.subtotal = subtotal_calculado
         self.iva = self.subtotal * Decimal('0.19')
         self.total = self.subtotal + self.iva
-        self.save()
+        self.save(update_fields=['subtotal', 'iva', 'total'])
 
 
 class NotaCreditoDetalle(models.Model):
@@ -739,15 +739,15 @@ class NotaCreditoDetalle(models.Model):
     
     # Cantidades y precios
     cantidad = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
+        max_digits=12,
+        decimal_places=4,
         default=Decimal('1.00'),
         validators=[MinValueValidator(Decimal('0.01'))],
         verbose_name="Cantidad"
     )
     precio_unitario = models.DecimalField(
         max_digits=15,
-        decimal_places=2,
+        decimal_places=4,
         validators=[MinValueValidator(Decimal('0.00'))],
         verbose_name="Precio Unitario"
     )

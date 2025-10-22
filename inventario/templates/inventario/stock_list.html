@@ -112,6 +112,18 @@
                                         <option value="normal" {% if request.GET.estado == "normal" %}selected{% endif %}>Stock Normal</option>
                                     </select>
                                 </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                        <i class="fas fa-tags me-1"></i>Tipo de artículo
+                                    </label>
+                                    <select name="tipo_articulo" class="form-select form-select-sm">
+                                        <option value="" {% if not request.GET.tipo_articulo %}selected{% endif %}>Todos</option>
+                                        <option value="producto_venta" {% if request.GET.tipo_articulo == "producto_venta" %}selected{% endif %}>Producto de venta</option>
+                                        <option value="insumo" {% if request.GET.tipo_articulo == "insumo" %}selected{% endif %}>Insumo</option>
+                                        <option value="produccion" {% if request.GET.tipo_articulo == "produccion" %}selected{% endif %}>Artículo de producción</option>
+                                        <option value="ambos" {% if request.GET.tipo_articulo == "ambos" %}selected{% endif %}>Producto e Insumo</option>
+                                    </select>
+                                </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
                                         <i class="fas fa-search me-1"></i>Buscar
@@ -178,6 +190,7 @@
                                     <td style="font-size: 0.7rem;" class="text-center text-muted">{{ stock.stock_minimo|floatformat:0 }}</td>
                                     <td style="font-size: 0.7rem;" class="text-center text-muted">{{ stock.stock_maximo|floatformat:0 }}</td>
                                     <td class="text-center">
+                                        {% if stock.pk %}
                                         <button type="button" 
                                                 class="btn btn-sm btn-action btn-outline-warning" 
                                                 title="Editar Stock"
@@ -185,6 +198,11 @@
                                                 onclick="editarStock(this.dataset.stockId)">
                                             <i class="fas fa-edit"></i>
                                         </button>
+                                        {% else %}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" title="Sin registro" disabled>
+                                            <i class="fas fa-ban"></i>
+                                        </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}
@@ -206,10 +224,10 @@
                             <ul class="pagination pagination-sm mb-0" style="font-size: 0.75rem;">
                                 {% if page_obj.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page=1{% if request.GET.bodega %}&bodega={{ request.GET.bodega }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">«</a>
+                                    <a class="page-link" href="?page=1{% if request.GET.bodega %}&bodega={{ request.GET.bodega }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.tipo_articulo %}&tipo_articulo={{ request.GET.tipo_articulo }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">«</a>
                                 </li>
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.bodega %}&bodega={{ request.GET.bodega }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">‹</a>
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.bodega %}&bodega={{ request.GET.bodega }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.tipo_articulo %}&tipo_articulo={{ request.GET.tipo_articulo }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">‹</a>
                                 </li>
                                 {% endif %}
 
@@ -221,10 +239,10 @@
 
                                 {% if page_obj.has_next %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.bodega %}&bodega={{ request.GET.bodega }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">›</a>
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.bodega %}&bodega={{ request.GET.bodega }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.tipo_articulo %}&tipo_articulo={{ request.GET.tipo_articulo }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">›</a>
                                 </li>
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.bodega %}&bodega={{ request.GET.bodega }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">»</a>
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.bodega %}&bodega={{ request.GET.bodega }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.tipo_articulo %}&tipo_articulo={{ request.GET.tipo_articulo }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">»</a>
                                 </li>
                                 {% endif %}
                             </ul>

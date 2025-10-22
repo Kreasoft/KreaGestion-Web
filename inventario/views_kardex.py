@@ -177,17 +177,47 @@ def kardex_articulo(request):
         activo=True
     ).order_by('nombre')
     
-    # Stock actual del artículo
-    stock_actual = None
-    if articulo and bodega:
+    # Stock en sistema basado en movimientos de Inventario (coherente con la cartola)
+    stock_sistema = None
+    if articulo:
+        stock_sistema_calc = 0
+        inv_qs = Inventario.objects.filter(
+            empresa=request.empresa,
+            articulo=articulo,
+            estado='confirmado'
+        ).select_related('bodega_origen', 'bodega_destino')
+        # Considerar movimientos hasta la fecha_hasta seleccionada
         try:
-            stock_actual = Stock.objects.get(
-                empresa=request.empresa,
-                articulo=articulo,
-                bodega=bodega
-            )
-        except Stock.DoesNotExist:
-            pass
+            fecha_hasta_obj  # ya calculada arriba
+        except NameError:
+            from datetime import datetime as _dt
+            from django.utils import timezone as _tz
+            fecha_hasta_obj = _tz.now().date()
+        inv_qs = inv_qs.filter(fecha_movimiento__date__lte=fecha_hasta_obj)
+        if bodega:
+            inv_qs = inv_qs.filter(Q(bodega_origen=bodega) | Q(bodega_destino=bodega))
+        for inv in inv_qs:
+            t = (inv.tipo_movimiento or '').lower()
+            if t == 'entrada':
+                if not bodega or inv.bodega_destino == bodega:
+                    stock_sistema_calc += inv.cantidad
+            elif t == 'salida':
+                if not bodega or inv.bodega_origen == bodega:
+                    stock_sistema_calc -= inv.cantidad
+            elif t == 'ajuste':
+                # En ajustes, la cantidad puede ser negativa; usar bodega_destino como referencia
+                if not bodega or inv.bodega_destino == bodega:
+                    stock_sistema_calc += inv.cantidad
+            elif t == 'transferencia':
+                if bodega:
+                    if inv.bodega_origen == bodega:
+                        stock_sistema_calc -= inv.cantidad
+                    elif inv.bodega_destino == bodega:
+                        stock_sistema_calc += inv.cantidad
+                else:
+                    # Sin bodega, transferencias netean en 0 a nivel global
+                    pass
+        stock_sistema = stock_sistema_calc
     
     context = {
         'articulo': articulo,
@@ -196,7 +226,7 @@ def kardex_articulo(request):
         'articulos': articulos,
         'movimientos': movimientos,
         'saldo_actual': saldo_actual,
-        'stock_actual': stock_actual,
+        'stock_sistema': stock_sistema,
         'fecha_desde': fecha_desde,
         'fecha_hasta': fecha_hasta,
         'tiene_sucursal': hasattr(request, 'sucursal_activa') and request.sucursal_activa,

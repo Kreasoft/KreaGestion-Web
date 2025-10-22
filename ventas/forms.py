@@ -99,7 +99,7 @@ class NotaCreditoForm(forms.ModelForm):
     class Meta:
         model = NotaCredito
         fields = [
-            'numero', 'fecha', 'cliente', 'vendedor', 'bodega',
+            'fecha', 'cliente', 'vendedor', 'bodega',
             'tipo_nc', 'tipo_doc_afectado', 'numero_doc_afectado',
             'fecha_doc_afectado', 'motivo'
         ]
@@ -167,10 +167,12 @@ class NotaCreditoForm(forms.ModelForm):
 
 class NotaCreditoDetalleForm(forms.ModelForm):
     """Formulario para items de Nota de Crédito"""
+    cantidad = forms.DecimalField(localize=True, widget=forms.TextInput)
+    precio_unitario = forms.DecimalField(localize=True, widget=forms.TextInput)
     
     class Meta:
         model = NotaCreditoDetalle
-        fields = ['articulo', 'codigo', 'descripcion', 'cantidad', 'precio_unitario', 'descuento']
+        fields = ['articulo', 'cantidad', 'precio_unitario', 'descuento']
         widgets = {
             'articulo': forms.Select(attrs={
                 'class': 'form-select form-select-sm',
@@ -185,16 +187,12 @@ class NotaCreditoDetalleForm(forms.ModelForm):
                 'class': 'form-control form-control-sm',
                 'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
             }),
-            'cantidad': forms.NumberInput(attrs={
+            'cantidad': forms.TextInput(attrs={
                 'class': 'form-control form-control-sm text-end',
-                'min': '0.01',
-                'step': '0.01',
                 'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
             }),
-            'precio_unitario': forms.NumberInput(attrs={
+            'precio_unitario': forms.TextInput(attrs={
                 'class': 'form-control form-control-sm text-end',
-                'min': '0',
-                'step': '0.01',
                 'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
             }),
             'descuento': forms.NumberInput(attrs={

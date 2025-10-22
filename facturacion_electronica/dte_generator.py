@@ -14,19 +14,19 @@ class DTEXMLGenerator:
     # Namespace del SII
     NS_SII = "http://www.sii.cl/SiiDte"
     
-    def __init__(self, empresa, venta, tipo_dte, folio, caf):
+    def __init__(self, empresa, documento, tipo_dte, folio, caf):
         """
         Inicializa el generador de DTE
         
         Args:
             empresa: Instancia de Empresa
-            venta: Instancia de Venta
+            documento: Instancia de Venta o NotaCredito
             tipo_dte: Código del tipo de DTE (33, 39, etc.)
             folio: Número de folio asignado
             caf: Instancia de ArchivoCAF
         """
         self.empresa = empresa
-        self.venta = venta
+        self.documento = documento
         self.tipo_dte = tipo_dte
         self.folio = folio
         self.caf = caf
@@ -160,20 +160,23 @@ class DTEXMLGenerator:
         id_doc = etree.SubElement(encabezado, "IdDoc")
         etree.SubElement(id_doc, "TipoDTE").text = self.tipo_dte
         etree.SubElement(id_doc, "Folio").text = str(self.folio)
-        etree.SubElement(id_doc, "FchEmis").text = self.venta.fecha.strftime('%Y-%m-%d')
+        etree.SubElement(id_doc, "FchEmis").text = self.documento.fecha.strftime('%Y-%m-%d')
         
         # Indicador de servicio (solo para facturas de servicios)
         if self.tipo_dte in ['33', '34']:
             etree.SubElement(id_doc, "IndServicio").text = "3"  # 3 = Servicios y productos
         
         # Forma de pago
-        if hasattr(self.venta, 'forma_pago'):
-            forma_pago = "1" if self.venta.forma_pago == 'contado' else "2"
+        from ventas.models import Venta
+        if isinstance(self.documento, Venta) and hasattr(self.documento, 'forma_pago') and self.documento.forma_pago:
+            # 1: Contado, 2: Crédito, 3: Sin costo
+            forma_pago = "2" if self.documento.forma_pago.es_cuenta_corriente else "1"
             etree.SubElement(id_doc, "FmaPago").text = forma_pago
         
         # Fecha de vencimiento (si es crédito)
-        if hasattr(self.venta, 'fecha_vencimiento') and self.venta.fecha_vencimiento:
-            etree.SubElement(id_doc, "FchVenc").text = self.venta.fecha_vencimiento.strftime('%Y-%m-%d')
+        from ventas.models import Venta
+        if isinstance(self.documento, Venta) and hasattr(self.documento, 'fecha_vencimiento') and self.documento.fecha_vencimiento:
+            etree.SubElement(id_doc, "FchVenc").text = self.documento.fecha_vencimiento.strftime('%Y-%m-%d')
         
         # Emisor
         self._generar_emisor(encabezado)
@@ -227,14 +230,15 @@ class DTEXMLGenerator:
         receptor = etree.SubElement(encabezado, "Receptor")
         
         # Si es boleta y no hay cliente, usar datos genéricos
-        if self.tipo_dte in ['39', '41'] and not self.venta.cliente:
+        from ventas.models import Venta
+        if isinstance(self.documento, Venta) and self.tipo_dte in ['39', '41'] and not self.documento.cliente:
             etree.SubElement(receptor, "RUTRecep").text = "66666666-6"
             etree.SubElement(receptor, "RznSocRecep").text = "Cliente Genérico"
             return
         
         # Cliente específico
-        if self.venta.cliente:
-            cliente = self.venta.cliente
+        if self.documento.cliente:
+            cliente = self.documento.cliente
             
             # RUT
             rut_receptor = cliente.rut.replace('.', '')
@@ -266,26 +270,36 @@ class DTEXMLGenerator:
         
         # Monto Neto
         if self.tipo_dte not in ['34', '41']:  # No exentos
-            monto_neto = int(round(float(self.venta.subtotal)))
+            # Para NC, el subtotal es el neto. Para Venta, hay que calcularlo.
+            neto = self.documento.neto if hasattr(self.documento, 'neto') else self.documento.subtotal
+            monto_neto = int(round(float(neto)))
             etree.SubElement(totales, "MntNeto").text = str(monto_neto)
         
         # Monto Exento
         if self.tipo_dte in ['34', '41']:  # Documentos exentos
-            monto_exento = int(round(float(self.venta.total)))
+            monto_exento = int(round(float(self.documento.total)))
             etree.SubElement(totales, "MntExe").text = str(monto_exento)
         
         # IVA
         if self.tipo_dte not in ['34', '41']:
-            monto_iva = int(round(float(self.venta.iva)))
+            monto_iva = int(round(float(self.documento.iva)))
             etree.SubElement(totales, "IVA").text = str(monto_iva)
         
         # Monto Total
-        monto_total = int(round(float(self.venta.total)))
+        monto_total = int(round(float(self.documento.total)))
         etree.SubElement(totales, "MntTotal").text = str(monto_total)
     
     def _generar_detalles(self, documento):
         """Genera los detalles (items) del documento"""
-        for index, item in enumerate(self.venta.ventadetalle_set.all(), start=1):
+        from ventas.models import Venta, NotaCredito
+        if isinstance(self.documento, Venta):
+            items = self.documento.ventadetalle_set.all()
+        elif isinstance(self.documento, NotaCredito):
+            items = self.documento.items.all()
+        else:
+            items = []
+
+        for index, item in enumerate(items, start=1):
             detalle = etree.SubElement(documento, "Detalle")
             
             # Número de línea
@@ -319,7 +333,7 @@ class DTEXMLGenerator:
             etree.SubElement(detalle, "PrcItem").text = str(precio_unitario)
             
             # Monto total del item
-            monto_item = int(round(float(item.precio_total)))
+            monto_item = int(round(float(item.total)))
             etree.SubElement(detalle, "MontoItem").text = str(monto_item)
     
     def _generar_transporte(self, encabezado):
@@ -344,27 +358,36 @@ class DTEXMLGenerator:
     
     def _generar_referencia(self, documento, obligatorio=False):
         """Genera referencias a otros documentos"""
-        # Para notas de crédito/débito debe referenciar el documento original
-        if hasattr(self.venta, 'documento_referencia') and self.venta.documento_referencia:
-            ref = self.venta.documento_referencia
-            
+        from ventas.models import Venta, NotaCredito
+
+        # Caso para Nota de Crédito (referencia obligatoria)
+        if isinstance(self.documento, NotaCredito):
             referencia = etree.SubElement(documento, "Referencia")
-            
-            # Número de línea de referencia
             etree.SubElement(referencia, "NroLinRef").text = "1"
+            etree.SubElement(referencia, "TpoDocRef").text = self.documento.tipo_doc_afectado
+            etree.SubElement(referencia, "FolioRef").text = self.documento.numero_doc_afectado
+            etree.SubElement(referencia, "FchRef").text = self.documento.fecha_doc_afectado.strftime('%Y-%m-%d')
             
-            # Tipo de documento referenciado
+            cod_ref_map = {
+                'ANULA': '1',
+                'CORRIGE_TEXTO': '2',
+                'CORRIGE_MONTO': '3',
+            }
+            cod_ref = cod_ref_map.get(self.documento.tipo_nc, '1')
+            etree.SubElement(referencia, "CodRef").text = cod_ref
+
+            etree.SubElement(referencia, "RazonRef").text = self.documento.motivo[:90]
+
+        # Caso para Venta con referencia opcional (ej. Guía de Despacho)
+        elif isinstance(self.documento, Venta) and hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia:
+            ref = self.documento.documento_referencia
+            referencia = etree.SubElement(documento, "Referencia")
+            etree.SubElement(referencia, "NroLinRef").text = "1"
             if hasattr(ref, 'tipo_dte'):
                 etree.SubElement(referencia, "TpoDocRef").text = ref.tipo_dte
-            
-            # Folio del documento referenciado
             if hasattr(ref, 'folio'):
                 etree.SubElement(referencia, "FolioRef").text = str(ref.folio)
-            
-            # Fecha del documento referenciado
             if hasattr(ref, 'fecha_emision'):
                 etree.SubElement(referencia, "FchRef").text = ref.fecha_emision.strftime('%Y-%m-%d')
-            
-            # Razón de la referencia
-            if hasattr(self.venta, 'razon_referencia') and self.venta.razon_referencia:
-                etree.SubElement(referencia, "RazonRef").text = self.venta.razon_referencia[:90]
+            if hasattr(self.documento, 'razon_referencia') and self.documento.razon_referencia:
+                etree.SubElement(referencia, "RazonRef").text = self.documento.razon_referencia[:90]

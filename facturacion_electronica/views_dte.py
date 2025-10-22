@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from empresas.decorators import requiere_empresa
 from .models import DocumentoTributarioElectronico
 from .dte_service import DTEService
-from ventas.models import Venta
+from ventas.models import Venta, NotaCredito
 
 
 @login_required
@@ -116,6 +116,8 @@ def enviar_dte_sii(request, dte_id):
     return render(request, 'facturacion_electronica/enviar_dte_confirm.html', context)
 
 
+
+
 @login_required
 @requiere_empresa
 def consultar_estado_dte(request, dte_id):
@@ -198,6 +200,29 @@ def ver_factura_electronica(request, dte_id):
         template = 'ventas/factura_electronica_html.html'
     
     return render(request, template, context)
+
+
+@login_required
+@requiere_empresa
+def ver_notacredito_electronica(request, notacredito_id):
+    """
+    Muestra la Nota de Crédito electrónica con el timbre
+    """
+    nota = get_object_or_404(NotaCredito, pk=notacredito_id, empresa=request.empresa)
+    
+    # Obtener el DTE asociado directamente desde la nota de crédito
+    dte = nota.dte
+
+    # Obtener detalles de la nota de crédito
+    detalles = nota.items.all()
+    
+    context = {
+        'dte': dte,
+        'nota': nota,
+        'detalles': detalles,
+    }
+    
+    return render(request, 'ventas/notacredito_electronica_html.html', context)
 
 
 @login_required

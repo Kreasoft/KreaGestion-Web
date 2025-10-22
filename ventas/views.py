@@ -2335,7 +2335,7 @@ def libro_ventas(request):
     # Consulta DTEs (Documentos Tributarios Electrónicos)
     dtes = DocumentoTributarioElectronico.objects.filter(
         empresa=request.empresa
-    ).select_related('caf_utilizado', 'usuario_creacion').prefetch_related('usuario_creacion')
+    ).select_related('caf_utilizado', 'usuario_creacion').prefetch_related('usuario_creacion', 'notas_credito')
     
     # Aplicar filtros de fecha
     try:
@@ -2399,6 +2399,18 @@ def libro_ventas(request):
     for dte in dtes_list:
         dte.fecha_documento = dte.fecha_emision
         dte.es_dte = True
+        # Marcar y ajustar montos para Notas de Crédito (tipo 61) como negativos
+        dte.es_nota_credito = (getattr(dte, 'tipo_dte', '') == '61')
+        if dte.es_nota_credito:
+            dte.monto_neto = -(dte.monto_neto or 0)
+            dte.monto_iva = -(dte.monto_iva or 0)
+            dte.monto_total = -(dte.monto_total or 0)
+            # Exponer ID de Nota de Crédito asociada (si existe) para el template
+            try:
+                nc = dte.notas_credito.all()[0] if hasattr(dte, 'notas_credito') and dte.notas_credito.all() else None
+                dte.notacredito_id = nc.id if nc else None
+            except Exception:
+                dte.notacredito_id = None
     
     documentos = sorted(
         chain(ventas_list, dtes_list),
@@ -2416,12 +2428,14 @@ def libro_ventas(request):
     else:
         stats_ventas = {'total_neto': 0, 'total_iva': 0, 'total_general': 0}
     
-    if dtes.exists():
-        stats_dtes = dtes.aggregate(
-            total_neto=Sum('monto_neto'),
-            total_iva=Sum('monto_iva'),
-            total_general=Sum('monto_total')
-        )
+    # Calcular stats DTE desde la lista ajustada (NC negativas)
+    if dtes_list:
+        from decimal import Decimal as _Dec
+        stats_dtes = {
+            'total_neto': sum((d.monto_neto or 0) for d in dtes_list) or _Dec('0'),
+            'total_iva': sum((d.monto_iva or 0) for d in dtes_list) or _Dec('0'),
+            'total_general': sum((d.monto_total or 0) for d in dtes_list) or _Dec('0'),
+        }
     else:
         stats_dtes = {'total_neto': 0, 'total_iva': 0, 'total_general': 0}
     
@@ -2438,15 +2452,22 @@ def libro_ventas(request):
         total=Sum('total')
     )
     
-    stats_dtes_tipo = dtes.values('tipo_dte').annotate(
-        cantidad=Count('id'),
-        total=Sum('monto_total')
-    )
-    
-    stats_por_tipo = list(stats_ventas_tipo) + [
-        {'tipo_documento': s['tipo_dte'], 'cantidad': s['cantidad'], 'total': s['total']}
-        for s in stats_dtes_tipo
+    # Construir stats por tipo DTE desde la lista (NC como negativas)
+    from collections import defaultdict
+    from decimal import Decimal as _Dec
+    dte_stats_map = defaultdict(lambda: {'cantidad': 0, 'total': _Dec('0')})
+    for d in dtes_list:
+        t = getattr(d, 'tipo_dte', None)
+        if not t:
+            continue
+        dte_stats_map[t]['cantidad'] += 1
+        dte_stats_map[t]['total'] += (d.monto_total or _Dec('0'))
+    stats_dtes_tipo = [
+        {'tipo_documento': k, 'cantidad': v['cantidad'], 'total': v['total']}
+        for k, v in dte_stats_map.items()
     ]
+
+    stats_por_tipo = list(stats_ventas_tipo) + stats_dtes_tipo
     
     # Paginación
     paginator = Paginator(documentos, 50)

@@ -11,6 +11,7 @@ from decimal import Decimal
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
 
 from empresas.decorators import requiere_empresa
 from .models import NotaCredito, NotaCreditoDetalle, Venta, VentaDetalle
@@ -19,7 +20,8 @@ from clientes.models import Cliente
 from bodegas.models import Bodega
 from articulos.models import Articulo
 from facturacion_electronica.models import DocumentoTributarioElectronico
-
+from facturacion_electronica.dte_service import DTEService
+from facturacion_electronica.services import FolioService
 
 @login_required
 @requiere_empresa
@@ -60,8 +62,8 @@ def notacredito_list(request):
 
 @login_required
 @requiere_empresa
+@never_cache
 def notacredito_create(request):
-    """Crear nueva nota de crédito"""
     # Procesar datos del formulario incluyendo campos ocultos del AJAX
     post_data = request.POST.copy() if request.method == 'POST' else {}
 
@@ -107,59 +109,36 @@ def notacredito_create(request):
 
         if form.is_valid() and formset.is_valid():
             try:
-                with transaction.atomic():
-                    # Guardar nota de crédito
-                    nota = form.save(commit=False)
-                    nota.empresa = request.empresa
-                    # Derivar la sucursal desde la bodega seleccionada en el formulario
-                    if nota.bodega and nota.bodega.sucursal:
-                        nota.sucursal = nota.bodega.sucursal
-                    else:
-                        # Fallback: primera sucursal de la empresa si no hay bodega o la bodega no tiene sucursal
-                        nota.sucursal = request.empresa.sucursales.first()
-                    nota.usuario_creacion = request.user
+                # Crear la nota de crédito en memoria (sin guardar aún)
+                nota = form.save(commit=False)
+                nota.empresa = request.empresa
+                nota.usuario_creacion = request.user
+                nota.estado = 'emitida'  # Estado final desde el inicio
 
-                    print(f"DEBUG: Datos del formulario - cliente: {post_data.get('cliente')}, tipo_doc_afectado: {post_data.get('tipo_doc_afectado')}")
-                    print(f"DEBUG: Nota antes de save - cliente: {nota.cliente}, tipo_doc_afectado: {nota.tipo_doc_afectado}")
+                if nota.bodega and nota.bodega.sucursal:
+                    nota.sucursal = nota.bodega.sucursal
+                else:
+                    nota.sucursal = request.empresa.sucursales.first()
 
-                    # Verificar que todos los campos requeridos estén presentes
-                    if not nota.cliente:
-                        print(f"ERROR: Cliente no encontrado - cliente field: {nota.cliente}")
-                        messages.error(request, 'Cliente no encontrado. Selecciona un cliente válido.')
-                        return render(request, 'ventas/notacredito_form.html', context)
+                # Crear items en memoria
+                items = formset.save(commit=False)
 
-                    if not nota.tipo_doc_afectado:
-                        print(f"ERROR: Tipo de documento afectado no especificado - tipo_doc_afectado field: {nota.tipo_doc_afectado}")
-                        messages.error(request, 'Tipo de documento afectado es requerido.')
-                        return render(request, 'ventas/notacredito_form.html', context)
+                # Instanciar el servicio de DTE
+                dte_service = DTEService(request.empresa)
 
-                    if not nota.fecha_doc_afectado:
-                        print(f"ERROR: Fecha del documento afectado no especificada - fecha_doc_afectado field: {nota.fecha_doc_afectado}")
-                        messages.error(request, 'Fecha del documento afectado es requerida.')
-                        return render(request, 'ventas/notacredito_form.html', context)
+                # El servicio se encargará de la transacción, obtener folio, guardar y generar DTE
+                dte = dte_service.generar_dte_desde_nota_credito(nota, items)
 
-                    nota.save()
-
-                    # Guardar detalles
-                    formset.instance = nota
-                    items = formset.save(commit=False)
-
-                    for item in items:
-                        # Completar datos del artículo si no están
-                        if not item.codigo:
-                            item.codigo = item.articulo.codigo
-                        if not item.descripcion:
-                            item.descripcion = item.articulo.nombre
-                        item.save()
-
-                    # Calcular totales
-                    nota.calcular_totales()
-
-                    messages.success(request, f'Nota de Crédito N° {nota.numero} creada exitosamente.')
-                    return redirect('ventas:notacredito_detail', pk=nota.pk)
+                messages.success(
+                    request,
+                    f'Nota de Crédito Electrónica N° {dte.folio} generada exitosamente.'
+                )
+                # Redirigir a la vista de impresión del DTE
+                return redirect('facturacion_electronica:ver_notacredito_electronica', notacredito_id=nota.id)
 
             except Exception as e:
-                messages.error(request, f'Error al crear la nota de crédito: {str(e)}')
+                messages.error(request, f'Error al emitir la Nota de Crédito: {str(e)}')
+
         else:
             # Formulario o formset inválido
             if not form.is_valid():
@@ -521,9 +500,6 @@ def cargar_items_documento_afectado(tipo_doc, numero_doc, empresa):
         return []
 
 
-@login_required
-@requiere_empresa
-def notacredito_update(request, pk):
     """Editar nota de crédito existente"""
     nota = get_object_or_404(NotaCredito, pk=pk, empresa=request.empresa)
     

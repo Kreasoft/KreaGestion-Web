@@ -24,5 +24,6 @@ urlpatterns = [
     path('dte/<int:dte_id>/enviar/', views_dte.enviar_dte_sii, name='enviar_dte'),
     path('dte/<int:dte_id>/consultar-estado/', views_dte.consultar_estado_dte, name='consultar_estado_dte'),
     path('dte/<int:dte_id>/ver-factura/', views_dte.ver_factura_electronica, name='ver_factura_electronica'),
+    path('nota-credito/<int:notacredito_id>/ver/', views_dte.ver_notacredito_electronica, name='ver_notacredito_electronica'),
 ]
 

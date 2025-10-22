@@ -8,6 +8,12 @@ from bodegas.models import Bodega
 class OrdenPedidoForm(forms.ModelForm):
     """Formulario para crear/editar órdenes de pedido"""
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for f in ['fecha_pedido', 'fecha_entrega_estimada', 'fecha_oc_cliente']:
+            if f in self.fields:
+                self.fields[f].input_formats = ['%Y-%m-%d']
+
     class Meta:
         model = OrdenPedido
         fields = [
@@ -18,10 +24,10 @@ class OrdenPedidoForm(forms.ModelForm):
         widgets = {
             'cliente': forms.Select(attrs={'class': 'form-select form-select-sm'}),
             'bodega': forms.Select(attrs={'class': 'form-select form-select-sm'}),
-            'fecha_pedido': forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
-            'fecha_entrega_estimada': forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
+            'fecha_pedido': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
+            'fecha_entrega_estimada': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
             'numero_oc_cliente': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'N° OC del cliente'}),
-            'fecha_oc_cliente': forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
+            'fecha_oc_cliente': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
             'condiciones_pago': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Ej: 30 días'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 3, 'placeholder': 'Observaciones adicionales'}),
             'estado': forms.Select(attrs={'class': 'form-select form-select-sm'}),

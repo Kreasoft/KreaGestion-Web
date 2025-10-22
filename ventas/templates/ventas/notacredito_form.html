@@ -683,7 +683,7 @@
         {% endfor %}
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data" id="notaCreditoForm">
+    <form method="post" enctype="multipart/form-data" id="notaCreditoForm" autocomplete="off">
         {% csrf_token %}
 
         <!-- Campos ocultos para datos del documento afectado -->
@@ -777,16 +777,6 @@
                     <i class="fas fa-file-alt me-1"></i>Información de la Nota de Crédito
                 </h5>
                 <div class="row g-2 align-items-center">
-                    <div class="col-md-2">
-                        <label for="{{ form.numero.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">Número *</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-hashtag"></i></span>
-                            {{ form.numero }}
-                        </div>
-                        {% if form.numero.errors %}
-                            <div class="text-danger small">{{ form.numero.errors.0 }}</div>
-                        {% endif %}
-                    </div>
                     <div class="col-md-4">
                         <label for="{{ form.cliente.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">
                             Cliente *
@@ -867,9 +857,13 @@
                 </div>
 
                 <div class="row g-2 mt-1">
-                    <!-- Campo oculto para fecha_doc_afectado -->
-                    <input type="hidden" name="{{ form.fecha_doc_afectado.name }}" id="{{ form.fecha_doc_afectado.id_for_label }}"
-                           value="{% if nota.fecha_doc_afectado %}{{ nota.fecha_doc_afectado|date:'Y-m-d' }}{% elif form.fecha_doc_afectado.value %}{{ form.fecha_doc_afectado.value|date:'Y-m-d' }}{% elif form.initial.fecha_doc_afectado %}{{ form.initial.fecha_doc_afectado|date:'Y-m-d' }}{% endif %}">
+                    <div class="col-md-3">
+                        <label for="{{ form.fecha_doc_afectado.id_for_label }}" class="form-label">Fecha Doc. Afectado *</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                            {{ form.fecha_doc_afectado }}
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Divisor sutil -->
@@ -884,74 +878,40 @@
                 </h5>
                 <div class="items-container">
                     {{ formset.management_form }}
-                     <!-- Headers de columnas -->
-                     <div class="row mb-1 align-items-center" style="font-weight: 600; color: #6F5B44; font-size: 0.7rem; background: #F5F1E8; padding: 0.2rem 0.5rem; border-radius: 4px; border-bottom: 1px solid #E0D5C7;">
-                         <div class="col-md-4">Artículo</div>
-                         <div class="col-md-2">Cantidad</div>
-                         <div class="col-md-2">Precio Unit.</div>
-                         <div class="col-md-2">Desc. %</div>
-                         <div class="col-md-1">Total</div>
-                         <div class="col-md-1 text-center">Acciones</div>
-                     </div>
-
-                    <!-- Items compactos -->
                     {% for item_form in formset %}
                         <div class="item-form-compact" data-form-index="{{ forloop.counter0 }}" style="margin-bottom: 0; padding: 0.05rem 0.5rem; border-bottom: 1px solid #e9ecef; {% cycle 'background: #ffffff;' 'background: #f8f9fc;' %}">
                             <div class="row align-items-center">
-                                <div class="col-md-4">
-                                    <select name="{{ item_form.articulo.html_name }}" class="form-select form-select-sm articulo-select" data-index="{{ forloop.counter0 }}" style="font-size: 0.8rem; padding: 0.25rem 0.5rem; height: 32px;">
-                                        <option value="">Seleccionar artículo</option>
-                                        {% for articulo in articulos_empresa %}
-                                            <option value="{{ articulo.id }}"
-                                                    data-codigo="{{ articulo.codigo }}"
-                                                    data-nombre="{{ articulo.nombre }}"
-                                                    {% if item_form.articulo.value == articulo.id %}selected{% endif %}>
-                                                {{ articulo.codigo }} - {{ articulo.nombre|truncatechars:50 }}
-                                            </option>
-                                        {% empty %}
-                                            <option value="">No hay artículos disponibles</option>
-                                        {% endfor %}
-                                    </select>
-                                    {% if item_form.articulo.errors %}
-                                        <div class="text-danger small" style="font-size: 0.7rem;">{{ item_form.articulo.errors.0 }}</div>
-                                    {% endif %}
+                                <div class="col-md-5">
+                                    {{ item_form.articulo }}
                                 </div>
                                 <div class="col-md-2">
                                     {{ item_form.cantidad }}
-                                    {% if item_form.cantidad.errors %}
-                                        <div class="text-danger small" style="font-size: 0.65rem;">{{ item_form.cantidad.errors.0 }}</div>
-                                    {% endif %}
                                 </div>
                                 <div class="col-md-2">
                                     {{ item_form.precio_unitario }}
-                                    {% if item_form.precio_unitario.errors %}
-                                        <div class="text-danger small" style="font-size: 0.65rem;">{{ item_form.precio_unitario.errors.0 }}</div>
-                                    {% endif %}
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-1">
                                     {{ item_form.descuento }}
-                                    {% if item_form.descuento.errors %}
-                                        <div class="text-danger small" style="font-size: 0.65rem;">{{ item_form.descuento.errors.0 }}</div>
-                                    {% endif %}
                                 </div>
                                 <div class="col-md-1">
-                                    <input type="text" class="form-control form-control-sm item-total" readonly placeholder="0" style="font-weight: 600; background-color: #f8f9fc; font-size: 0.75rem; padding: 0.25rem 0.5rem; height: 32px;">
+                                    <input type="text" class="form-control form-control-sm item-total" readonly>
                                 </div>
-                                <div class="col-md-1">
-                                    <div class="d-flex gap-1 justify-content-center">
-                                        {% for hidden in item_form.hidden_fields %}
-                                            {{ hidden }}
-                                        {% endfor %}
-                                        <button type="button" class="btn btn-sm btn-outline-danger delete-item-btn"
-                                                data-form-index="{{ forloop.counter0 }}"
-                                                title="Eliminar item"
+                                <div class="col-md-1 text-center">
+                                    {% if item_form.instance.pk %}
+                                        {{ item_form.DELETE }}
+                                    {% else %}
+                                        <button type="button" class="btn btn-danger btn-sm remove-item-btn" style="padding: 0.1rem 0.4rem; font-size: 0.7rem;">
                                                 style="padding: 0.25rem 0.5rem; font-size: 0.75rem; height: 32px;"
                                                 onclick="eliminarItem(this)">
                                             <i class="fas fa-trash"></i>
                                         </button>
-                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
+                        </div>
+                    {% empty %}
+                        <div class="alert alert-info" role="alert">
+                            No se han agregado items a la nota de crédito.
                         </div>
                     {% endfor %}
                 </div>
@@ -974,18 +934,14 @@
                 </div>
                 <!-- Botones -->
                 <div class="d-flex justify-content-end gap-2 mt-2">
-                    <a href="{% url 'ventas:notacredito_list' %}" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-times me-1"></i>
-                        Cancelar
-                    </a>
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class="fas fa-save me-1"></i>
-                        {% if nota %}
-                            Actualizar
-                        {% else %}
-                            Crear
-                        {% endif %}
-                    </button>
+                  <a href="{% url 'ventas:notacredito_list' %}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-times me-1"></i>
+                    Cancelar
+                  </a>
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>
+                    Emitir Nota de Crédito
+                  </button>
                 </div>
             </div>
             <div class="col-lg-4">
@@ -1957,6 +1913,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log('ENVIANDO FORMULARIO...');
         // NO hacer preventDefault() - dejar que Django maneje la validación
+    });
+
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) {
+            window.location.reload();
+        }
     });
 
     // ========================================

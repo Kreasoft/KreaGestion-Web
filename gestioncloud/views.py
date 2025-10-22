@@ -59,11 +59,38 @@ def dashboard(request):
         ).values_list('id', flat=True)
         stock_query = stock_query.filter(bodega_id__in=bodegas_sucursal)
     
-    # Stock bajo (artículos con cantidad <= stock_minimo)
-    stock_bajo = stock_query.filter(
-        cantidad__lte=F('stock_minimo'),
-        cantidad__gt=0
-    ).count()
+    # Estado del stock (por artículo, sumado en todas las bodegas; incluir artículos sin registro=0)
+    # Construir totales por artículo
+    stock_totales = (
+        stock_query
+        .values('articulo_id')
+        .annotate(
+            total_cantidad=Sum('cantidad'),
+            total_min=Sum('stock_minimo'),
+            total_max=Sum('stock_maximo'),
+        )
+    )
+    totales_map = {row['articulo_id']: row for row in stock_totales}
+    
+    articulos_activos = Articulo.objects.filter(empresa=request.empresa, activo=True).values_list('id', flat=True)
+    stock_normal = 0
+    stock_bajo = 0
+    stock_sin = 0
+    stock_sobre = 0
+    
+    for art_id in articulos_activos:
+        row = totales_map.get(art_id, None)
+        total = float(row['total_cantidad']) if row and row['total_cantidad'] is not None else 0.0
+        min_total = float(row['total_min']) if row and row['total_min'] is not None else 0.0
+        max_total = float(row['total_max']) if row and row['total_max'] is not None else 0.0
+        if total <= 0:
+            stock_sin += 1
+        elif max_total > 0 and total >= max_total:
+            stock_sobre += 1
+        elif total <= min_total:
+            stock_bajo += 1
+        else:
+            stock_normal += 1
     
     # Ventas del mes actual (total confirmadas)
     inicio_mes = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -185,6 +212,9 @@ def dashboard(request):
         'total_articulos': total_articulos,
         'total_clientes': total_clientes,
         'stock_bajo': stock_bajo,
+        'stock_normal': stock_normal,
+        'stock_sin': stock_sin,
+        'stock_sobre': stock_sobre,
         'ventas_mes': ventas_mes,
         'clientes_nuevos_mes': clientes_nuevos_mes,
         'top_productos': json.dumps(top_productos),  # Convertir a JSON

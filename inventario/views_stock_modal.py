@@ -7,7 +7,9 @@ from django.template import loader
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.middleware.csrf import get_token
-from .models import Stock
+from django.db.models import Q
+from decimal import Decimal
+from .models import Stock, Inventario
 from .forms import StockModalForm
 import logging
 
@@ -37,33 +39,84 @@ def stock_update_modal(request, pk):
     if request.method == 'POST':
         logger.info(f"POST Data: {request.POST}")
         
-        # Actualizar directamente sin formulario para debugging
         try:
-            cantidad = request.POST.get('cantidad')
-            stock_minimo = request.POST.get('stock_minimo')
-            stock_maximo = request.POST.get('stock_maximo')
+            # Leer valores deseados
+            cantidad_str = request.POST.get('cantidad', '0')
+            stock_minimo_str = request.POST.get('stock_minimo')
+            stock_maximo_str = request.POST.get('stock_maximo')
             
-            logger.info(f"Valores recibidos - Cantidad: {cantidad}, Min: {stock_minimo}, Max: {stock_maximo}")
+            desired = Decimal(str(cantidad_str or '0'))
+            min_val = Decimal(str(stock_minimo_str)) if stock_minimo_str is not None else stock.stock_minimo
+            max_val = Decimal(str(stock_maximo_str)) if stock_maximo_str is not None else stock.stock_maximo
             
-            if cantidad is not None:
-                stock.cantidad = cantidad
-            if stock_minimo is not None:
-                stock.stock_minimo = stock_minimo
-            if stock_maximo is not None:
-                stock.stock_maximo = stock_maximo
+            # Calcular cantidad actual basada en movimientos confirmados
+            current = Decimal('0')
+            inv_qs = (
+                Inventario.objects
+                .filter(empresa=empresa, articulo=stock.articulo, estado='confirmado')
+                .select_related('bodega_origen', 'bodega_destino')
+            )
+            for inv in inv_qs:
+                t = (inv.tipo_movimiento or '').lower()
+                if t == 'entrada':
+                    if inv.bodega_destino_id == stock.bodega_id:
+                        current += inv.cantidad
+                elif t == 'salida':
+                    if inv.bodega_origen_id == stock.bodega_id:
+                        current -= inv.cantidad
+                elif t == 'ajuste':
+                    if inv.bodega_destino_id == stock.bodega_id:
+                        current += inv.cantidad
+                elif t == 'transferencia':
+                    if inv.bodega_origen_id == stock.bodega_id:
+                        current -= inv.cantidad
+                    if inv.bodega_destino_id == stock.bodega_id:
+                        current += inv.cantidad
             
+            delta = desired - current
+            movimiento = None
+            if abs(delta) >= Decimal('0.01'):
+                if delta > 0:
+                    movimiento = Inventario.objects.create(
+                        empresa=empresa,
+                        articulo=stock.articulo,
+                        bodega_destino=stock.bodega,
+                        tipo_movimiento='entrada',
+                        cantidad=abs(delta),
+                        descripcion='Ajuste manual (modal de stock)',
+                        estado='confirmado',
+                        creado_por=request.user
+                    )
+                else:
+                    movimiento = Inventario.objects.create(
+                        empresa=empresa,
+                        articulo=stock.articulo,
+                        bodega_origen=stock.bodega,
+                        tipo_movimiento='salida',
+                        cantidad=abs(delta),
+                        descripcion='Ajuste manual (modal de stock)',
+                        estado='confirmado',
+                        creado_por=request.user
+                    )
+            
+            # Actualizar Stock para compatibilidad con otras vistas
+            stock.cantidad = desired
+            stock.stock_minimo = min_val
+            stock.stock_maximo = max_val
             stock.actualizado_por = request.user
             stock.save()
             
-            logger.info(f"Stock actualizado exitosamente: {stock.pk}")
+            logger.info(f"Stock y ajuste registrados correctamente: StockID={stock.pk}, Delta={delta}")
             
             return JsonResponse({
                 'success': True,
-                'message': f'Stock de {stock.articulo.nombre} actualizado exitosamente.',
+                'message': 'Ajuste aplicado exitosamente.' if movimiento else 'Valores de stock guardados.',
                 'data': {
                     'cantidad': float(stock.cantidad),
                     'stock_minimo': float(stock.stock_minimo),
-                    'stock_maximo': float(stock.stock_maximo)
+                    'stock_maximo': float(stock.stock_maximo),
+                    'delta': float(delta),
+                    'movimiento': movimiento.tipo_movimiento if movimiento else None
                 }
             })
         except Exception as e:
@@ -75,6 +128,38 @@ def stock_update_modal(request, pk):
     else:
         # GET - Generar formulario HTML directamente
         csrf_token = get_token(request)
+        
+        # Calcular cantidad actual basada en movimientos (confirmados) para alinear con Kardex/stock_list
+        cantidad_mov = Decimal('0')
+        try:
+            inv_qs = (
+                Inventario.objects
+                .filter(
+                    empresa=empresa,
+                    articulo=stock.articulo,
+                    estado='confirmado'
+                )
+                .select_related('bodega_origen', 'bodega_destino')
+            )
+            for inv in inv_qs:
+                t = (inv.tipo_movimiento or '').lower()
+                if t == 'entrada':
+                    if inv.bodega_destino_id == stock.bodega_id:
+                        cantidad_mov += inv.cantidad
+                elif t == 'salida':
+                    if inv.bodega_origen_id == stock.bodega_id:
+                        cantidad_mov -= inv.cantidad
+                elif t == 'ajuste':
+                    if inv.bodega_destino_id == stock.bodega_id:
+                        cantidad_mov += inv.cantidad
+                elif t == 'transferencia':
+                    if inv.bodega_origen_id == stock.bodega_id:
+                        cantidad_mov -= inv.cantidad
+                    if inv.bodega_destino_id == stock.bodega_id:
+                        cantidad_mov += inv.cantidad
+        except Exception as e:
+            logger.warning(f"No se pudo calcular cantidad por movimientos: {e}")
+            cantidad_mov = stock.cantidad
         
         html = f'''
 <form method="post" id="formEditarStock">
@@ -98,7 +183,7 @@ def stock_update_modal(request, pk):
                     <i class="fas fa-boxes me-1"></i>Cantidad Actual
                 </label>
                 <input type="number" name="cantidad" id="id_cantidad" class="form-control" 
-                       step="0.01" min="0" value="{stock.cantidad}" required>
+                       step="0.01" value="{cantidad_mov}" required>
             </div>
         </div>
         

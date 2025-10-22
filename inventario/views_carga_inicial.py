@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
+from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
 import io
 import json
@@ -151,7 +152,7 @@ def importar_inventario_excel(request):
             for index, row in df.iterrows():
                 try:
                     codigo = str(row['CODIGO']).strip()
-                    stock_inicial = float(row['STOCK_INICIAL']) if pd.notna(row['STOCK_INICIAL']) else 0
+                    stock_inicial = Decimal(str(row['STOCK_INICIAL'])) if pd.notna(row['STOCK_INICIAL']) else Decimal('0')
                     
                     print(f"DEBUG - Buscando artículo con código: '{codigo}'")
                     
@@ -164,29 +165,66 @@ def importar_inventario_excel(request):
                     
                     print(f"DEBUG - Artículo encontrado: {articulo.nombre}")
                     
-                    # Crear o actualizar stock
+                    # Calcular stock actual por movimientos confirmados en esta bodega
+                    current = Decimal('0')
+                    inv_qs = Inventario.objects.filter(
+                        empresa=request.empresa,
+                        articulo=articulo,
+                        estado='confirmado'
+                    ).select_related('bodega_origen', 'bodega_destino')
+                    for inv in inv_qs:
+                        t = (inv.tipo_movimiento or '').lower()
+                        if t == 'entrada':
+                            if inv.bodega_destino_id == bodega.id:
+                                current += inv.cantidad
+                        elif t == 'salida':
+                            if inv.bodega_origen_id == bodega.id:
+                                current -= inv.cantidad
+                        elif t == 'ajuste':
+                            if inv.bodega_destino_id == bodega.id:
+                                current += inv.cantidad
+                        elif t == 'transferencia':
+                            if inv.bodega_origen_id == bodega.id:
+                                current -= inv.cantidad
+                            if inv.bodega_destino_id == bodega.id:
+                                current += inv.cantidad
+                    
+                    delta = (stock_inicial - current).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    # Crear movimiento por diferencia (>= 0.01), estado confirmado
+                    if abs(delta) >= Decimal('0.01'):
+                        if delta > 0:
+                            Inventario.objects.create(
+                                empresa=request.empresa,
+                                articulo=articulo,
+                                bodega_destino=bodega,
+                                tipo_movimiento='entrada',
+                                cantidad=abs(delta),
+                                descripcion='Carga inicial de inventario (planilla)',
+                                estado='confirmado',
+                                creado_por=request.user
+                            )
+                        else:
+                            Inventario.objects.create(
+                                empresa=request.empresa,
+                                articulo=articulo,
+                                bodega_origen=bodega,
+                                tipo_movimiento='salida',
+                                cantidad=abs(delta),
+                                descripcion='Ajuste por carga inicial (planilla)',
+                                estado='confirmado',
+                                creado_por=request.user
+                            )
+                    
+                    # Crear o actualizar tabla Stock para compatibilidad
                     stock, created = Stock.objects.get_or_create(
                         empresa=request.empresa,
                         articulo=articulo,
                         bodega=bodega,
                         defaults={'cantidad': stock_inicial}
                     )
-                    
                     if not created:
                         stock.cantidad = stock_inicial
                         stock.save()
-                    
-                    # Crear movimiento de inventario
-                    Inventario.objects.create(
-                        empresa=request.empresa,
-                        articulo=articulo,
-                        bodega_destino=bodega,
-                        tipo_movimiento='entrada',
-                        cantidad=stock_inicial,
-                        descripcion='Carga inicial de inventario',
-                        estado='completado',
-                        creado_por=request.user
-                    )
                     
                     resultados['exitosos'] += 1
                     
@@ -317,36 +355,71 @@ def guardar_inventario_manual(request):
             for item in inventarios:
                 try:
                     articulo_id = item.get('articulo_id')
-                    cantidad = float(item.get('cantidad', 0))
+                    cantidad = Decimal(str(item.get('cantidad', 0)))
                     
-                    if cantidad <= 0:
-                        continue
+                    if cantidad < 0:
+                        cantidad = Decimal('0')
                     
                     articulo = get_object_or_404(Articulo, id=articulo_id, empresa=request.empresa)
                     
-                    # Crear o actualizar stock
+                    # Calcular stock actual por movimientos confirmados en esta bodega
+                    current = Decimal('0')
+                    inv_qs = Inventario.objects.filter(
+                        empresa=request.empresa,
+                        articulo=articulo,
+                        estado='confirmado'
+                    ).select_related('bodega_origen', 'bodega_destino')
+                    for inv in inv_qs:
+                        t = (inv.tipo_movimiento or '').lower()
+                        if t == 'entrada':
+                            if inv.bodega_destino_id == bodega.id:
+                                current += inv.cantidad
+                        elif t == 'salida':
+                            if inv.bodega_origen_id == bodega.id:
+                                current -= inv.cantidad
+                        elif t == 'ajuste':
+                            if inv.bodega_destino_id == bodega.id:
+                                current += inv.cantidad
+                        elif t == 'transferencia':
+                            if inv.bodega_origen_id == bodega.id:
+                                current -= inv.cantidad
+                            if inv.bodega_destino_id == bodega.id:
+                                current += inv.cantidad
+                    delta = (cantidad - current).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    if abs(delta) >= Decimal('0.01'):
+                        if delta > 0:
+                            Inventario.objects.create(
+                                empresa=request.empresa,
+                                articulo=articulo,
+                                bodega_destino=bodega,
+                                tipo_movimiento='entrada',
+                                cantidad=abs(delta),
+                                descripcion='Carga inicial de inventario (manual)',
+                                estado='confirmado',
+                                creado_por=request.user
+                            )
+                        else:
+                            Inventario.objects.create(
+                                empresa=request.empresa,
+                                articulo=articulo,
+                                bodega_origen=bodega,
+                                tipo_movimiento='salida',
+                                cantidad=abs(delta),
+                                descripcion='Ajuste por carga inicial (manual)',
+                                estado='confirmado',
+                                creado_por=request.user
+                            )
+                    
+                    # Crear o actualizar Stock para compatibilidad
                     stock, created = Stock.objects.get_or_create(
                         empresa=request.empresa,
                         articulo=articulo,
                         bodega=bodega,
                         defaults={'cantidad': cantidad}
                     )
-                    
                     if not created:
                         stock.cantidad = cantidad
                         stock.save()
-                    
-                    # Crear movimiento de inventario
-                    Inventario.objects.create(
-                        empresa=request.empresa,
-                        articulo=articulo,
-                        bodega_destino=bodega,
-                        tipo_movimiento='entrada',
-                        cantidad=cantidad,
-                        descripcion='Carga inicial de inventario (manual)',
-                        estado='completado',
-                        creado_por=request.user
-                    )
                     
                     resultados['exitosos'] += 1
                     

@@ -8,6 +8,8 @@ from django.utils import timezone
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
+from collections import defaultdict
+from decimal import Decimal
 import pandas as pd
 import io
 import json
@@ -615,49 +617,112 @@ def inventario_form_modal(request, pk=None):
 @login_required
 @requiere_empresa
 def stock_list(request):
-    """Lista el stock actual de todos los artículos"""
+    """Lista el stock actual de todos los artículos, mostrando también los que no tienen registro (0)."""
     from bodegas.models import Bodega
     
-    stocks = Stock.objects.filter(empresa=request.empresa).select_related(
-        'bodega', 'articulo'
-    ).order_by('articulo__nombre', 'bodega__nombre')
+    # Base: artículos activos y bodegas activas para construir vista completa artículo×bodega
+    articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria').order_by('nombre')
+    bodegas = Bodega.objects.filter(empresa=request.empresa)
     
-    # Filtros
+    # Calcular cantidades desde movimientos de Inventario (estado confirmado), por artículo×bodega
+    mov_rows = (
+        Inventario.objects
+        .filter(empresa=request.empresa, estado='confirmado')
+        .values('articulo_id', 'tipo_movimiento', 'cantidad', 'bodega_origen_id', 'bodega_destino_id')
+    )
+    cantidad_map = defaultdict(Decimal)
+    for r in mov_rows:
+        art_id = r['articulo_id']
+        t = (r['tipo_movimiento'] or '').lower()
+        qty = Decimal(r['cantidad'] or 0)
+        if t == 'entrada':
+            bid = r['bodega_destino_id']
+            if bid:
+                cantidad_map[(art_id, bid)] += qty
+        elif t == 'salida':
+            bid = r['bodega_origen_id']
+            if bid:
+                cantidad_map[(art_id, bid)] -= qty
+        elif t == 'ajuste':
+            bid = r['bodega_destino_id']
+            if bid:
+                # Puede ser negativo o positivo; se suma directo al destino
+                cantidad_map[(art_id, bid)] += qty
+        elif t == 'transferencia':
+            bid_o = r['bodega_origen_id']
+            bid_d = r['bodega_destino_id']
+            if bid_o:
+                cantidad_map[(art_id, bid_o)] -= qty
+            if bid_d:
+                cantidad_map[(art_id, bid_d)] += qty
+        else:
+            # Tipos desconocidos: ignorar
+            pass
+
+    # Construir lista de stocks incluyendo ceros cuando no existe registro
+    stocks_data = []
+    existing_qs = Stock.objects.filter(empresa=request.empresa).select_related('bodega', 'articulo')
+    # Índice rápido articulo-bodega -> Stock
+    existing_map = {(s.articulo_id, s.bodega_id): s for s in existing_qs}
+    for articulo in articulos:
+        for bodega in bodegas:
+            s = existing_map.get((articulo.id, bodega.id))
+            if s:
+                # Sobrescribir cantidad mostrada con cálculo por movimientos
+                s.cantidad = cantidad_map.get((articulo.id, bodega.id), Decimal(0))
+                stocks_data.append(s)
+            else:
+                # Crear objeto Stock en memoria (no persistente) con cantidad=0
+                s0 = Stock(
+                    empresa=request.empresa,
+                    bodega=bodega,
+                    articulo=articulo,
+                    cantidad=cantidad_map.get((articulo.id, bodega.id), Decimal(0)),
+                    stock_minimo=0,
+                    stock_maximo=0,
+                )
+                stocks_data.append(s0)
+    
+    # Filtros GET
     bodega_id = request.GET.get('bodega')
-    if bodega_id:
-        stocks = stocks.filter(bodega_id=bodega_id)
-    
     estado = request.GET.get('estado')
+    search = request.GET.get('search', '')
+    tipo_articulo = request.GET.get('tipo_articulo', '')
+    
+    if bodega_id:
+        try:
+            bodega_id_int = int(bodega_id)
+            stocks_data = [s for s in stocks_data if s.bodega and s.bodega.id == bodega_id_int]
+        except ValueError:
+            pass
+    
     if estado == 'sin_stock':
-        stocks = stocks.filter(cantidad__lte=0)
+        stocks_data = [s for s in stocks_data if (s.cantidad or 0) <= 0]
     elif estado == 'bajo':
-        stocks = stocks.filter(cantidad__gt=0, cantidad__lte=F('stock_minimo'))
+        stocks_data = [s for s in stocks_data if (s.cantidad or 0) > 0 and (s.cantidad or 0) <= (s.stock_minimo or 0)]
     elif estado == 'normal':
-        stocks = stocks.filter(cantidad__gt=F('stock_minimo'))
+        stocks_data = [s for s in stocks_data if (s.cantidad or 0) > (s.stock_minimo or 0)]
     
-    search = request.GET.get('search')
+    if tipo_articulo:
+        stocks_data = [s for s in stocks_data if getattr(s.articulo, 'tipo_articulo', '') == tipo_articulo]
+    
     if search:
-        stocks = stocks.filter(
-            Q(articulo__codigo__icontains=search) |
-            Q(articulo__nombre__icontains=search)
-        )
+        q = search.lower()
+        stocks_data = [
+            s for s in stocks_data
+            if q in (s.articulo.codigo or '').lower() or q in (s.articulo.nombre or '').lower()
+        ]
     
-    # Estadísticas (sobre el queryset filtrado)
-    total_articulos = stocks.count()
-    sin_stock = stocks.filter(cantidad__lte=0).count()
-    stock_bajo = stocks.filter(
-        cantidad__gt=0, 
-        cantidad__lte=F('stock_minimo')
-    ).count()
-    stock_normal = stocks.filter(cantidad__gt=F('stock_minimo')).count()
+    # Estadísticas básicas sobre el conjunto filtrado
+    total_articulos = len(stocks_data)
+    sin_stock = sum(1 for s in stocks_data if (s.cantidad or 0) <= 0)
+    stock_bajo = sum(1 for s in stocks_data if (s.cantidad or 0) > 0 and (s.cantidad or 0) <= (s.stock_minimo or 0))
+    stock_normal = sum(1 for s in stocks_data if (s.cantidad or 0) > (s.stock_minimo or 0))
     
     # Paginación
-    paginator = Paginator(stocks, 20)
+    paginator = Paginator(stocks_data, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
-    # Obtener todas las bodegas
-    bodegas = Bodega.objects.filter(empresa=request.empresa)
     
     context = {
         'page_obj': page_obj,
@@ -666,9 +731,8 @@ def stock_list(request):
         'sin_stock': sin_stock,
         'stock_bajo': stock_bajo,
         'stock_normal': stock_normal,
-        'titulo': 'Control de Stock'
+        'titulo': 'Control de Stock',
     }
-    
     return render(request, 'inventario/stock_list.html', context)
 
 

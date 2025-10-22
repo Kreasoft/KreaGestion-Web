@@ -90,9 +90,6 @@ urlpatterns = [
     path('notas-credito/crear/', views_notas_credito.notacredito_create, name='notacredito_create'),
     path('notas-credito/<int:pk>/', views_notas_credito.notacredito_detail, name='notacredito_detail'),
     path('notas-credito/<int:pk>/imprimir/', views_notas_credito.notacredito_print, name='notacredito_print'),
-    path('notas-credito/<int:pk>/editar/', views_notas_credito.notacredito_update, name='notacredito_update'),
-    path('notas-credito/<int:pk>/eliminar/', views_notas_credito.notacredito_delete, name='notacredito_delete'),
-    path('notas-credito/<int:pk>/emitir/', views_notas_credito.notacredito_emitir, name='notacredito_emitir'),
     
     # API AJAX para cargar items de venta
     path('ajax/cargar-items-venta/', views_notas_credito.ajax_cargar_items_venta, name='ajax_cargar_items_venta'),

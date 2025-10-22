@@ -119,6 +119,73 @@ class DTEService:
         except Exception as e:
             print(f"\nError al generar DTE: {str(e)}")
             raise
+
+    def generar_dte_desde_nota_credito(self, nota_credito, items):
+        """
+        Genera un DTE de Nota de Crédito (tipo 61)
+        """
+        TIPO_DTE_NC = '61'
+        try:
+            with transaction.atomic():
+                # 1. Obtener folio y asignarlo como número de la nota de crédito
+                folio, caf = FolioService.obtener_siguiente_folio(self.empresa, TIPO_DTE_NC)
+                if folio is None:
+                    raise ValueError("No hay folios disponibles para Notas de Crédito (61)")
+                
+                nota_credito.numero = folio
+                nota_credito.save() # Guardar la nota de crédito para obtener un ID
+
+                # 2. Guardar los items y asociarlos a la nota de crédito
+                for item in items:
+                    item.nota_credito = nota_credito
+                    # Completar datos del artículo si no están
+                    if not item.codigo:
+                        item.codigo = item.articulo.codigo
+                    if not item.descripcion:
+                        item.descripcion = item.articulo.nombre
+                    item.save()
+                
+                # 3. Calcular totales ahora que los items están guardados
+                nota_credito.calcular_totales()
+                nota_credito.save()
+
+                # 4. Generar XML
+                generator = DTEXMLGenerator(self.empresa, nota_credito, TIPO_DTE_NC, folio, caf)
+                xml_sin_firmar = generator.generar_xml()
+
+                # 5. Firmar el XML
+                firmador = self._obtener_firmador()
+                xml_firmado = firmador.firmar_xml(xml_sin_firmar)
+
+                # 6. Generar TED
+                ted_xml = self._generar_ted_nc(nota_credito, TIPO_DTE_NC, folio, caf, firmador)
+
+                # 7. Generar datos para PDF417
+                pdf417_data = firmador.generar_datos_pdf417(ted_xml)
+
+                # 8. Crear registro del DTE
+                dte = self._crear_registro_dte_nc(
+                    nota_credito=nota_credito,
+                    tipo_dte=TIPO_DTE_NC,
+                    folio=folio,
+                    caf=caf,
+                    xml_sin_firmar=xml_sin_firmar,
+                    xml_firmado=xml_firmado,
+                    ted_xml=ted_xml,
+                    pdf417_data=pdf417_data
+                )
+
+                # 9. Generar imagen PDF417 del timbre
+                PDF417Generator.guardar_pdf417_en_dte(dte)
+
+                # 10. Asociar DTE a la Nota de Crédito (ya está asociada en _crear_registro_dte_nc)
+                nota_credito.dte = dte
+                nota_credito.save(update_fields=['dte'])
+
+                return dte
+        except Exception as e:
+            print(f"\nError al generar DTE de Nota de Crédito: {str(e)}")
+            raise
     
     def enviar_dte_al_sii(self, dte):
         """
@@ -292,6 +359,33 @@ class DTEService:
         }
         
         return firmador.generar_ted(dte_data, caf_data)
+
+    def _generar_ted_nc(self, nota, tipo_dte, folio, caf, firmador):
+        """Genera el TED para una Nota de Crédito"""
+        dte_data = {
+            'rut_emisor': self.empresa.rut,
+            'tipo_dte': tipo_dte,
+            'folio': folio,
+            'fecha_emision': nota.fecha.strftime('%Y-%m-%d'),
+            'rut_receptor': nota.cliente.rut,
+            'razon_social_receptor': nota.cliente.nombre,
+            'monto_total': nota.total,
+            'item_1': 'Nota de Crédito Electrónica',
+        }
+        
+        caf_data = {
+            'rut_emisor': self.empresa.rut,
+            'razon_social': self.empresa.razon_social_sii or self.empresa.razon_social,
+            'tipo_documento': tipo_dte,
+            'folio_desde': caf.folio_desde,
+            'folio_hasta': caf.folio_hasta,
+            'fecha_autorizacion': caf.fecha_autorizacion.strftime('%Y-%m-%d'),
+            'modulo': 'MODULO_RSA',  # Extraer del CAF real
+            'exponente': 'EXPONENTE_RSA',  # Extraer del CAF real
+            'firma': caf.firma_electronica,
+        }
+        
+        return firmador.generar_ted(dte_data, caf_data)
     
     def _crear_registro_dte(self, venta, tipo_dte, folio, caf, xml_sin_firmar, 
                            xml_firmado, ted_xml, pdf417_data):
@@ -347,4 +441,43 @@ class DTEService:
             estado_sii='generado',
         )
         
+        return dte
+
+    def _crear_registro_dte_nc(self, nota_credito, tipo_dte, folio, caf, xml_sin_firmar, 
+                               xml_firmado, ted_xml, pdf417_data):
+        """Crea el registro del DTE para una Nota de Crédito"""
+        dte = DocumentoTributarioElectronico.objects.create(
+            empresa=self.empresa,
+            caf_utilizado=caf,
+            tipo_dte=tipo_dte,
+            folio=folio,
+            fecha_emision=nota_credito.fecha,
+            usuario_creacion=nota_credito.usuario_creacion,
+            
+            # Emisor
+            rut_emisor=self.empresa.rut,
+            razon_social_emisor=self.empresa.razon_social_sii or self.empresa.razon_social,
+            giro_emisor=self.empresa.giro_sii or self.empresa.giro,
+            direccion_emisor=self.empresa.direccion_casa_matriz or self.empresa.direccion,
+            comuna_emisor=self.empresa.comuna_casa_matriz or self.empresa.comuna,
+            
+            # Receptor
+            rut_receptor=nota_credito.cliente.rut,
+            razon_social_receptor=nota_credito.cliente.nombre,
+            direccion_receptor=nota_credito.cliente.direccion or '',
+            comuna_receptor=nota_credito.cliente.comuna or '',
+            
+            # Montos
+            monto_neto=nota_credito.subtotal, # Asumiendo que subtotal es neto
+            monto_iva=nota_credito.iva,
+            monto_total=nota_credito.total,
+            
+            # XML y Timbre
+            xml_dte=xml_sin_firmar,
+            xml_firmado=xml_firmado,
+            timbre_electronico=ted_xml,
+            datos_pdf417=pdf417_data,
+            
+            estado_sii='generado',
+        )
         return dte
