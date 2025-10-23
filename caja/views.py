@@ -524,8 +524,8 @@ def procesar_venta(request, ticket_id):
         # Convertir ticket.total a float para comparación precisa
         total_ticket = float(ticket.total)
         
-        # Obtener tipo de documento
-        tipo_documento = request.POST.get('tipo_documento')
+        # Obtener tipo de documento (fallback al planeado o boleta)
+        tipo_documento = request.POST.get('tipo_documento') or ticket.tipo_documento_planeado or 'boleta'
         
         # Las guías de despacho NO requieren pago (son documentos de traslado)
         if tipo_documento == 'guia':
@@ -549,7 +549,7 @@ def procesar_venta(request, ticket_id):
         if tipo_documento == 'guia' or (formas_pago_dict and total_pagado >= total_ticket):
             print("Validaciones OK, procesando venta...")
             # Procesar venta
-            tipo_documento = request.POST.get('tipo_documento')
+            tipo_documento = tipo_documento
             observaciones = request.POST.get('observaciones', '')
             
             print(f"Tipo documento: {tipo_documento}")
@@ -772,8 +772,15 @@ def procesar_venta(request, ticket_id):
                     
                     venta_procesada.save()
 
-                    # GENERAR DTE SI FE ESTÁ ACTIVADA Y TIPO DE DOCUMENTO ES FACTURABLE
-                    if request.empresa.facturacion_electronica and tipo_documento in ['factura', 'boleta', 'guia']:
+                    # GENERAR DTE SI FE ESTÁ ACTIVADA O CIERRE DIRECTO ACTIVO, Y TIPO DE DOCUMENTO ES FACTURABLE
+                    print(
+                        f"[POS] Flags cierre_directo={request.session.get('pos_cierre_directo', False)} "
+                        f"enviar_sii_directo={request.session.get('pos_enviar_sii_directo', True)} "
+                        f"flujo={request.session.get('pos_flujo_directo', '')} tipo_doc={tipo_documento} "
+                        f"FE_activa={request.empresa.facturacion_electronica}"
+                    )
+                    cierre_directo_flag = request.session.get('pos_cierre_directo', False)
+                    if (request.empresa.facturacion_electronica or cierre_directo_flag) and tipo_documento in ['factura', 'boleta', 'guia']:
                         try:
                             from facturacion_electronica.dte_service import DTEService
                             print(f"Generando DTE para {tipo_documento} #{numero_venta}...")
@@ -814,6 +821,22 @@ def procesar_venta(request, ticket_id):
 
                                 messages.success(request, mensaje_dte)
 
+                                # Envío automático al SII si cierre directo y envío directo están activos
+                                cierre_directo = request.session.get('pos_cierre_directo', False)
+                                enviar_sii_directo = request.session.get('pos_enviar_sii_directo', True)
+                                if cierre_directo and enviar_sii_directo:
+                                    try:
+                                        print("🔄 Enviando DTE al SII por cierre directo...")
+                                        resp_envio = dte_service.enviar_dte_al_sii(dte)
+                                        track_id = resp_envio.get('track_id') if isinstance(resp_envio, dict) else None
+                                        if track_id:
+                                            messages.success(request, f"✅ DTE enviado al SII. Track ID: {track_id}")
+                                        else:
+                                            messages.info(request, "DTE enviado al SII (sin Track ID en respuesta).")
+                                    except Exception as e_envio:
+                                        print(f"⚠️ Error al enviar DTE al SII (cierre directo): {str(e_envio)}")
+                                        messages.warning(request, f"DTE generado pero no enviado al SII: {str(e_envio)}")
+
                         except ValueError as e:
                             print(f"❌ ERROR al generar DTE (ValueError): {str(e)}")
                             # Errores de validación (sin folios, sin certificado, etc.)
@@ -832,6 +855,17 @@ def procesar_venta(request, ticket_id):
                             traceback.print_exc()
                             messages.warning(request, f'⚠️ Error al generar DTE: {str(e)}. La venta se procesó correctamente.')
                     
+                    # Limpiar banderas de sesión de cierre directo (si existen)
+                    try:
+                        if 'pos_cierre_directo' in request.session:
+                            request.session.pop('pos_cierre_directo')
+                        if 'pos_flujo_directo' in request.session:
+                            request.session.pop('pos_flujo_directo')
+                        if 'pos_enviar_sii_directo' in request.session:
+                            request.session.pop('pos_enviar_sii_directo')
+                    except Exception:
+                        pass
+
                     # Actualizar estado del ticket
                     ticket.estado = 'confirmada'
                     ticket.save()
@@ -906,10 +940,13 @@ def procesar_venta(request, ticket_id):
         'apertura_activa': apertura_activa,
         'disponibilidad_folios': disponibilidad_folios,
         'disponibilidad_folios_json': json.dumps(disponibilidad_folios) if disponibilidad_folios else '{}',  # Para JavaScript
-        'tipo_documento_planeado': ticket.tipo_documento_planeado,  # ← TIPO PLANEADO
+        'tipo_documento_planeado': ticket.tipo_documento_planeado or 'boleta',  # ← TIPO PLANEADO con default
         'title': f'Procesar Ticket #{ticket.numero_venta}',
         'mostrar_modal_apertura': mostrar_modal_apertura,
         'form_apertura': form_apertura,
+        'cierre_directo': request.session.get('pos_cierre_directo', False),
+        'flujo_directo': request.session.get('pos_flujo_directo', ''),
+        'enviar_sii_directo': request.session.get('pos_enviar_sii_directo', True),
     }
     return render(request, 'caja/procesar_venta.html', context)
 
