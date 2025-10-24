@@ -615,9 +615,13 @@ def procesar_venta(request, ticket_id):
                             'apertura_activa': apertura_activa,
                         })
                     
-                    # Obtener siguiente folio del CAF
-                    folio_caf = caf.obtener_siguiente_folio()
-                    print(f"✅ Folio CAF obtenido: {folio_caf}")
+                    # Verificar si hay folios disponibles (sin consumir)
+                    if caf.folios_disponibles() <= 0:
+                        raise ValueError("El CAF seleccionado no tiene folios disponibles.")
+                    
+                    # El folio se obtendrá y consumirá dentro del DTEService para asegurar atomicidad
+                    folio_caf = caf.folio_actual + 1 # Simular para la lógica que sigue
+                    print(f"✅ Verificación de folios OK. Próximo folio a usar: {folio_caf}")
                     
                 except Exception as e:
                     print(f"ERROR al obtener folio CAF: {str(e)}")
@@ -877,8 +881,8 @@ def procesar_venta(request, ticket_id):
                             request.session.pop('pos_flujo_directo')
                         if 'pos_enviar_sii_directo' in request.session:
                             request.session.pop('pos_enviar_sii_directo')
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        print(f"Error limpiando flags de sesión: {e}")
 
                     # Actualizar estado del ticket
                     ticket.estado = 'confirmada'
@@ -890,24 +894,31 @@ def procesar_venta(request, ticket_id):
                     
                     # Mensaje de éxito
                     if tipo_documento == 'guia':
-                        mensaje = f'Guía de Despacho #{venta_final.numero_venta} generada exitosamente.'
+                        msg = f'Exito: Guía de Despacho #{venta_final.numero_venta} generada exitosamente.'
                     else:
-                        mensaje = f'{venta_final.get_tipo_documento_display()} #{venta_final.numero_venta} generada exitosamente.'
-                        if len(formas_pago_dict) > 1:
-                            mensaje += f' Pagado con {len(formas_pago_dict)} formas de pago.'
+                        msg = f'Exito: {venta_final.get_tipo_documento_display()} #{venta_final.numero_venta} generada exitosamente. Cambio: ${monto_cambio:,.0f}'
+                    messages.success(request, msg)
                     
-                    print(f"Exito: {mensaje}")
-                    messages.success(request, mensaje)
-                    
-                    if tipo_documento != 'guia' and monto_cambio > 0:
-                        messages.info(request, f'Cambio a entregar: ${monto_cambio:,.0f}')
-                        
-                        print(f"🖨️ Redirigiendo a impresión: /ventas/{venta_final.pk}/html/")
+                    venta_creada_exitosamente = True
 
-                    # Si llegamos aquí, la venta fue creada exitosamente
-                    # Redirigir a impresión del documento y volver al POS
-                    return redirect('ventas:venta_imprimir_y_volver', pk=venta_final.pk)
-                
+                                        # --- INICIO: Bloque para impresión automática ---
+                    # Determinar la URL de impresión y renderizar la página intermedia
+                    doc_url = ""
+                    from django.urls import reverse
+                    dte_generado = venta_procesada.dte_generado
+
+                    if dte_generado:
+                        doc_url = reverse('facturacion_electronica:ver_factura_electronica', args=[dte_generado.pk])
+                        doc_url += "?auto=1"
+                    else:
+                        doc_url = reverse('ventas:venta_imprimir', args=[venta_final.pk]) + "?auto=1"
+
+                    return render(request, 'ventas/venta_imprimir_y_volver.html', {
+                        'venta': venta_final,
+                        'doc_url': doc_url
+                    })
+                    # --- FIN: Bloque para impresión automática ---
+                    
                 except IntegrityError as e:
                     if 'UNIQUE constraint failed' in str(e) and 'numero_venta' in str(e):
                         print(f"Numero {numero_venta} ya existe (IntegrityError), incrementando...")
@@ -949,19 +960,13 @@ def procesar_venta(request, ticket_id):
     context = {
         'form': form,
         'ticket': ticket,
-        'empresa': request.empresa,  # Usar request.empresa para el contexto
-        'detalles': detalles,
+        'form': form,
         'apertura_activa': apertura_activa,
-        'disponibilidad_folios': disponibilidad_folios,
-        'disponibilidad_folios_json': json.dumps(disponibilidad_folios) if disponibilidad_folios else '{}',  # Para JavaScript
-        'tipo_documento_planeado': ticket.tipo_documento_planeado or 'boleta',  # ← TIPO PLANEADO con default
-        'title': f'Procesar Ticket #{ticket.numero_venta}',
         'mostrar_modal_apertura': mostrar_modal_apertura,
         'form_apertura': form_apertura,
-        'cierre_directo': request.session.get('pos_cierre_directo', False),
-        'flujo_directo': request.session.get('pos_flujo_directo', ''),
-        'enviar_sii_directo': request.session.get('pos_enviar_sii_directo', True),
+        'tipo_documento_planeado': ticket.tipo_documento_planeado
     }
+    
     return render(request, 'caja/procesar_venta.html', context)
 
 

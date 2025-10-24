@@ -192,3 +192,4 @@ estará completamente automatizado cuando el SII valide nuestro formato.
 **Estado**: Sistema funcional al 98%
 **Próximo paso**: Contactar soporte SII
 
+

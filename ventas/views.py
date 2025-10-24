@@ -2070,7 +2070,7 @@ def venta_html(request, pk):
     context = {
         'venta': venta,
         'detalles': detalles,
-        'empresa': venta.empresa,
+        'empresa': venta.empresa,  # Asegurar que empresa siempre esté en el contexto
         'dte': dte,  # DTE si existe (puede ser None)
         # Alias para compatibilidad con templates específicos
         'boleta': venta if venta.tipo_documento == 'boleta' else None,
@@ -2090,8 +2090,36 @@ def venta_html(request, pk):
                 self.monto_neto = venta.neto
                 self.monto_iva = venta.iva
                 self.monto_total = venta.total
-                self.timbre_pdf417 = None
+                # Datos receptor
+                if venta.cliente:
+                    self.rut_receptor = venta.cliente.rut
+                    self.razon_social_receptor = venta.cliente.nombre
+                    self.giro_receptor = getattr(venta.cliente, 'giro', '')
+                    self.direccion_receptor = venta.cliente.direccion or ''
+                    self.comuna_receptor = venta.cliente.comuna or ''
+                    self.ciudad_receptor = venta.cliente.ciudad or ''
+                else:
+                    self.rut_receptor = '66666666-6'
+                    self.razon_social_receptor = 'Cliente Genérico'
+                    self.giro_receptor = ''
+                    self.direccion_receptor = ''
+                    self.comuna_receptor = ''
+                    self.ciudad_receptor = ''
+                # Generar placeholder PDF417 en base64 para mostrar timbre
+                try:
+                    from facturacion_electronica.pdf417_generator import PDF417Generator
+                    placeholder_bytes = PDF417Generator._generar_placeholder(280, 100)
+                    import base64
+                    self.datos_pdf417 = base64.b64encode(placeholder_bytes).decode('ascii')
+                    self.timbre_pdf417 = None  # Usamos datos base64
+                except Exception:
+                    self.timbre_pdf417 = None
+                    self.datos_pdf417 = None
+                # Tipo traslado display helper
+                self.get_tipo_traslado_display = lambda: 'Venta'
         context['guia'] = GuiaTemp(venta)
+        # Pasar detalles para template compacto
+        context['detalles'] = list(venta.ventadetalle_set.all())
 
     return render(request, template_name, context)
 

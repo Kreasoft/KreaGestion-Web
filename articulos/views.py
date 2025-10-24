@@ -750,13 +750,12 @@ def buscar_por_codigo_barras(request):
         })
 
 
-@csrf_exempt
 @login_required
 def stock_actual(request):
     """Vista para obtener stock actual de múltiples artículos"""
     try:
-        print(f"DEBUG - stock_actual: Usuario: {request.user}")
-        print(f"DEBUG - stock_actual: Empresa: {getattr(request, 'empresa', None)}")
+        # print(f"DEBUG - stock_actual: Usuario: {request.user}")
+        # print(f"DEBUG - stock_actual: Empresa: {getattr(request, 'empresa', None)}")
         
         if request.method != 'POST':
             return JsonResponse({
@@ -768,7 +767,7 @@ def stock_actual(request):
         data = json.loads(request.body)
         articulo_ids = data.get('articulo_ids', [])
         
-        print(f"DEBUG - stock_actual: IDs recibidos: {articulo_ids}")
+        # print(f"DEBUG - stock_actual: IDs recibidos: {articulo_ids}")
         
         if not articulo_ids:
             return JsonResponse({
@@ -792,11 +791,11 @@ def stock_actual(request):
                     # Obtener stock actual
                     stock_actual = articulo.stock_actual
                     stocks[articulo_id] = stock_actual
-                    print(f"DEBUG - stock_actual: Artículo {articulo_id} stock: {stock_actual}")
+                    # print(f"DEBUG - stock_actual: Artículo {articulo_id} stock: {stock_actual}")
                     
                 except Articulo.DoesNotExist:
                     stocks[articulo_id] = 0
-                    print(f"DEBUG - stock_actual: Artículo {articulo_id} no encontrado")
+                    # print(f"DEBUG - stock_actual: Artículo {articulo_id} no encontrado")
         else:
             # Usuario normal, filtrar por empresa
             empresa = getattr(request, 'empresa', None)
@@ -818,13 +817,13 @@ def stock_actual(request):
                     # Obtener stock actual
                     stock_actual = articulo.stock_actual
                     stocks[articulo_id] = stock_actual
-                    print(f"DEBUG - stock_actual: Artículo {articulo_id} stock: {stock_actual}")
+                    # print(f"DEBUG - stock_actual: Artículo {articulo_id} stock: {stock_actual}")
                     
                 except Articulo.DoesNotExist:
                     stocks[articulo_id] = 0
-                    print(f"DEBUG - stock_actual: Artículo {articulo_id} no encontrado")
+                    # print(f"DEBUG - stock_actual: Artículo {articulo_id} no encontrado")
         
-        print(f"DEBUG - stock_actual: Stocks finales: {stocks}")
+        # print(f"DEBUG - stock_actual: Stocks finales: {stocks}")
         
         return JsonResponse({
             'success': True,

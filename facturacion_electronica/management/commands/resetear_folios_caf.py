@@ -27,6 +27,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Confirmación obligatoria para ejecutar el reset'
         )
+        parser.add_argument(
+            '--borrar-dtes',
+            action='store_true',
+            help='Borra los DTEs existentes que coincidan con los filtros (MUY PELIGROSO)'
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.WARNING('=' * 80))
@@ -50,6 +55,33 @@ class Command(BaseCommand):
 
         if options['tipo_documento']:
             filtro['tipo_documento'] = options['tipo_documento']
+
+        # Borrar DTEs si se especifica
+        if options['borrar_dtes']:
+            self.stdout.write(self.style.WARNING('\n--- BORRANDO DTEs EXISTENTES ---'))
+            from facturacion_electronica.models import DocumentoTributarioElectronico
+            
+            dte_filtro = {}
+            if options['empresa']:
+                dte_filtro['empresa_id'] = options['empresa']
+            if options['tipo_documento']:
+                dte_filtro['tipo_dte'] = options['tipo_documento']
+
+            if not dte_filtro:
+                self.stdout.write(self.style.ERROR('Para borrar DTEs, debe especificar al menos --empresa o --tipo_documento.'))
+                return
+
+            dtes_a_borrar = DocumentoTributarioElectronico.objects.filter(**dte_filtro)
+            total_dtes = dtes_a_borrar.count()
+
+            if total_dtes > 0:
+                self.stdout.write(self.style.WARNING(f'Se encontraron {total_dtes} DTEs para borrar.'))
+                dtes_a_borrar.delete()
+                self.stdout.write(self.style.SUCCESS(f'Se borraron {total_dtes} DTEs.'))
+            else:
+                self.stdout.write(self.style.SUCCESS('No se encontraron DTEs para borrar con los filtros especificados.'))
+            
+            self.stdout.write(self.style.WARNING('----------------------------------\n'))
 
         # Obtener CAFs a resetear
         cafs = ArchivoCAF.objects.filter(estado__in=['activo', 'agotado', 'vencido'], **filtro)

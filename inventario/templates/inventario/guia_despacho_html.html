@@ -327,6 +327,17 @@
                         <td class="text-right">${{ detalle.total|format_miles }}</td>
                     </tr>
                     {% endfor %}
+                {% elif detalles %}
+                    {% for detalle in detalles %}
+                    <tr>
+                        <td>{{ detalle.articulo.codigo }}</td>
+                        <td>{{ detalle.articulo.nombre }}</td>
+                        <td class="text-center">{{ detalle.cantidad }}</td>
+                        <td class="text-right">${{ detalle.precio_unitario|format_miles }}</td>
+                        <td class="text-right">$0</td>
+                        <td class="text-right">${{ detalle.precio_total|format_miles }}</td>
+                    </tr>
+                    {% endfor %}
                 {% endif %}
             </tbody>
         </table>
@@ -405,14 +416,31 @@
         </div>
     </div>
 
-    <!-- Botón de impresión (no se imprime) -->
-    <div class="no-print" style="text-align: center; margin-top: 20px;">
-        <button onclick="window.print()" style="padding: 10px 20px; font-size: 14px; cursor: pointer;">
-            🖨️ Imprimir Guía
+    <!-- Botones de acción (no se imprimen) -->
+    <div class="no-print" style="text-align: center; margin-top: 20px; padding: 15px; background-color: #f2f2f2; border-top: 1px solid #ddd;">
+        <button onclick="window.print()" style="padding: 12px 25px; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; margin-right: 10px;">
+            🖨️ Imprimir
         </button>
-        <button onclick="window.close()" style="padding: 10px 20px; font-size: 14px; cursor: pointer; margin-left: 10px;">
+        <button onclick="window.close()" style="padding: 12px 25px; font-size: 16px; cursor: pointer; background-color: #f44336; color: white; border: none; border-radius: 5px;">
             ❌ Cerrar
         </button>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('auto') && urlParams.get('auto') === '1') {
+                // Asignar el evento onafterprint para cerrar la ventana
+                window.onafterprint = function() {
+                    window.close();
+                };
+
+                // Disparar la impresión
+                // Usar un pequeño timeout para asegurar que el DOM está listo
+                setTimeout(function() {
+                    window.print();
+                }, 100);
+            }
+        });
+    </script>
 </body>
 </html>

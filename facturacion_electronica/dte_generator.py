@@ -190,6 +190,33 @@ class DTEXMLGenerator:
         
         return encabezado
     
+    def _generar_transporte(self, encabezado):
+        """Genera la sección de Transporte para Guías de Despacho (52).
+        Se incluyen los campos mínimos para que el XML sea válido. Si no hay datos
+        de transporte disponibles se agregan valores por defecto.
+        """
+        try:
+            from lxml import etree
+            # Contenedor Transporte
+            transporte = etree.SubElement(encabezado, "Transporte")
+
+            # Indicador de tipo de traslado (campo requerido)
+            # 1=Operaciones con cambios de sujeto, 2=Operaciones sin cambios de sujeto, etc.
+            ind_traslado = getattr(self.documento, 'tipo_despacho', None) or '1'
+            etree.SubElement(transporte, "IndTraslado").text = str(ind_traslado)
+
+            # Patente del vehículo (opcional). Si no existe, colocar genérico.
+            patente = getattr(self.documento, 'patente', None) or 'ZZZZ99'
+            etree.SubElement(transporte, "Patente").text = patente
+
+            # RUT del transportista (opcional).
+            rut_transp = getattr(self.documento, 'rut_transportista', None)
+            if rut_transp:
+                etree.SubElement(transporte, "RUTTransp").text = rut_transp
+        except Exception as e:
+            # No romper el flujo si falla: solo loguear.
+            print(f"⚠️  Error al generar sección Transporte: {e}")
+    
     def _generar_emisor(self, encabezado):
         """Genera datos del emisor"""
         emisor = etree.SubElement(encabezado, "Emisor")
