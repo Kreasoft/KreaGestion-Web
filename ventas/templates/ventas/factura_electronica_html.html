@@ -367,7 +367,15 @@
             <div class="header-right">
                 <div class="document-box">
                     <div class="document-rut">RUT: {{ venta.empresa.rut }}</div>
-                    <div class="document-type">FACTURA ELECTRÓNICA</div>
+                    <div class="document-type">
+                        {% if dte and dte.tipo_dte == '39' %}
+                            BOLETA ELECTRÓNICA
+                        {% elif dte and dte.tipo_dte == '34' %}
+                            FACTURA EXENTA ELECTRÓNICA
+                        {% else %}
+                            FACTURA ELECTRÓNICA
+                        {% endif %}
+                    </div>
                     <div class="document-folio">
                         {% if dte and dte.folio %}
                             N° {{ dte.folio }}
@@ -529,9 +537,11 @@
                         Verifique documento en: www.sii.cl
                     </div>
                 </div>
+                {% if dte and dte.tipo_dte == '33' or dte and dte.tipo_dte == '34' %}
                 <div class="disclaimer">
                     El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la Ley N° 19.983, acredita que la entrega de mercadería(s) o servicio(s) prestado(s), ha(n) sido recibido(s)
                 </div>
+                {% endif %}
             </div>
 
             <!-- Totales y Acuse de Recibo -->
@@ -576,6 +586,7 @@
                 </div>
                 {% endif %}
 
+                {% if dte and dte.tipo_dte == '33' or dte and dte.tipo_dte == '34' %}
                 <!-- ACUSE DE RECIBO -->
                 <div class="acuse-box">
                     <div class="acuse-header">ACUSE DE RECIBO</div>
@@ -589,6 +600,7 @@
                 </div>
 
                 <div class="cedible">CEDIBLE</div>
+                {% endif %}
             </div>
         </div>
 
@@ -599,10 +611,51 @@
         <button onclick="window.print()" style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
             🖨️ Imprimir Factura
         </button>
-        <button onclick="if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) { window.history.back(); } else { window.location.href = '/'; }" style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
-            ← Volver
-        </button>
+        <a id="btnBackPOS" href="{% url 'ventas:pos_view' %}" style="display: inline-block; padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px; text-decoration: none;">
+            ← Volver al POS
+        </a>
     </div>
+
+    <script>
+      (function() {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const auto = params.get('auto');
+          const posUrl = "{% url 'ventas:pos_view' %}";
+
+          const notifyParent = () => {
+            try {
+              if (window.opener && window.opener !== window) {
+                window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
+              }
+            } catch (e) { /* noop */ }
+            // Intentar cerrar la ventana del documento; si no se puede, ir al POS
+            try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
+          };
+
+          // Enganchar botón Volver al POS para notificar al padre
+          document.addEventListener('DOMContentLoaded', function() {
+            try {
+              const backBtn = document.getElementById('btnBackPOS');
+              if (backBtn) backBtn.addEventListener('click', function() { try { notifyParent(); } catch (e) {} });
+            } catch (e) { /* noop */ }
+          });
+
+          if (auto === '1') {
+            // Disparar impresión
+            setTimeout(() => { try { window.print(); } catch(e) {} }, 150);
+            // Volver inmediatamente tras afterprint
+            if ('onafterprint' in window) {
+              window.addEventListener('afterprint', () => setTimeout(notifyParent, 100));
+            }
+            // Fallback rápido
+            setTimeout(notifyParent, 1000);
+          }
+        } catch (e) {
+          // noop
+        }
+      })();
+    </script>
 
 </body>
 </html>

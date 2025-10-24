@@ -20,7 +20,7 @@ from reportlab.pdfgen import canvas
 from datetime import datetime
 import os
 from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo, KitOferta, KitOfertaItem
-from inventario.models import Stock
+from inventario.models import Stock, Inventario
 from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm, ListaPrecioForm, PrecioArticuloForm, HomologacionCodigoForm, KitOfertaForm, KitOfertaItemForm
 from empresas.decorators import requiere_empresa
 
@@ -56,13 +56,30 @@ def articulo_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Agregar stock total a cada artículo
+    # Agregar stock total a cada artículo (alineado a Kardex)
     for articulo in page_obj:
         if articulo.control_stock:
-            stock_total = Stock.objects.filter(articulo=articulo).aggregate(
-                total=Sum('cantidad')
-            )['total']
-            articulo.stock_total = stock_total or 0
+            # 1) Calcular por movimientos confirmados (Kardex)
+            movs = Inventario.objects.filter(
+                empresa=request.empresa,
+                articulo=articulo,
+                estado='confirmado'
+            )
+            # Entradas y ajustes suman; salidas restan; transferencias neto 0 en total global
+            entradas = movs.filter(tipo_movimiento__in=['entrada', 'ajuste']).aggregate(s=Sum('cantidad'))['s'] or 0
+            salidas = movs.filter(tipo_movimiento='salida').aggregate(s=Sum('cantidad'))['s'] or 0
+            stock_kardex = (entradas - salidas)
+
+            # 2) Fallback a tabla Stock (filtrando por empresa) si no hay movimientos
+            if stock_kardex is None:
+                stock_kardex = 0
+            if stock_kardex == 0:
+                stock_tabla = Stock.objects.filter(empresa=request.empresa, articulo=articulo).aggregate(
+                    total=Sum('cantidad')
+                )['total'] or 0
+                articulo.stock_total = stock_tabla
+            else:
+                articulo.stock_total = stock_kardex
         else:
             articulo.stock_total = None
     

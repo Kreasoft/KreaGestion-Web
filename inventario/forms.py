@@ -1,5 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from .models import Inventario, Stock, TransferenciaInventario
 from bodegas.models import Bodega
 from articulos.models import Articulo
@@ -356,6 +357,12 @@ class TransferenciaInventarioForm(forms.ModelForm):
             self.fields['bodega_destino'].queryset = Bodega.objects.filter(
                 empresa=self.empresa, activa=True
             )
+        # Inicializar fecha en modo edición para widget datetime-local
+        if getattr(self, 'instance', None) and getattr(self.instance, 'fecha_transferencia', None):
+            try:
+                self.fields['fecha_transferencia'].initial = self.instance.fecha_transferencia.strftime('%Y-%m-%dT%H:%M')
+            except Exception:
+                self.fields['fecha_transferencia'].initial = timezone.now().strftime('%Y-%m-%dT%H:%M')
     
     def clean(self):
         cleaned_data = super().clean()

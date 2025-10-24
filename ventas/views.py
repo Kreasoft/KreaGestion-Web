@@ -867,6 +867,13 @@ def pos_iniciar(request):
             request.session['pos_vendedor_id'] = vendedor.id
             request.session['pos_estacion_nombre'] = estacion.nombre
             request.session['pos_vendedor_nombre'] = vendedor.nombre
+            # Configuración desde Estación de Trabajo
+            # - cierre_directo: activa el modo Cerrar y Emitir
+            # - flujo_cierre_directo: 'rut_inicio' o 'rut_final'
+            # - enviar_sii_directo: si además se envía al SII automáticamente
+            request.session['pos_cierre_directo'] = bool(getattr(estacion, 'cierre_directo', False))
+            request.session['pos_flujo_directo'] = getattr(estacion, 'flujo_cierre_directo', 'rut_final')
+            request.session['pos_enviar_sii_directo'] = bool(getattr(estacion, 'enviar_sii_directo', True))
             
             return JsonResponse({
                 'success': True, 
@@ -1482,6 +1489,39 @@ def estaciontrabajo_edit(request, pk):
                 </div>
             </div>
 
+            <!-- Cierre directo -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" name="cierre_directo" class="form-check-input" id="cierreDirectoEditar" {'checked' if getattr(estacion, 'cierre_directo', False) else ''}>
+                        <label class="form-check-label" for="cierreDirectoEditar">
+                            <i class="fas fa-bolt me-2"></i>Cierre directo (Cerrar y Emitir DTE)
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Flujo para cierre directo</label>
+                        <select name="flujo_cierre_directo" class="form-select">
+                            <option value="rut_inicio" {'selected' if getattr(estacion, 'flujo_cierre_directo', 'rut_final') == 'rut_inicio' else ''}>RUT al inicio</option>
+                            <option value="rut_final" {'selected' if getattr(estacion, 'flujo_cierre_directo', 'rut_final') == 'rut_final' else ''}>RUT al final</option>
+                        </select>
+                        <small class="text-muted d-block mt-1">
+                            <i class="fas fa-info-circle me-1"></i>
+                            RUT al inicio: solicita cliente antes de vender. RUT al final: cliente al cierre.
+                        </small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" name="enviar_sii_directo" class="form-check-input" id="enviarSIIEditar" {'checked' if getattr(estacion, 'enviar_sii_directo', True) else ''}>
+                        <label class="form-check-label" for="enviarSIIEditar">
+                            <i class="fas fa-paper-plane me-2"></i>Enviar al SII automáticamente
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <div class="mb-3">
                 <label class="form-label" style="font-weight: 600;">Correlativo de Ticket</label>
                 <input type="number" name="correlativo_ticket" class="form-control" value="{estacion.correlativo_ticket}" min="1">
@@ -2014,7 +2054,7 @@ def venta_html(request, pk):
     elif venta.tipo_documento == 'boleta':
         # Usar template electrónico si tiene DTE, sino el normal
         if dte:
-            template_name = 'ventas/boleta_electronica_html.html'
+            template_name = 'ventas/factura_electronica_html.html'
         else:
             template_name = 'ventas/boleta_html.html'
     elif venta.tipo_documento == 'guia':
@@ -2055,6 +2095,54 @@ def venta_html(request, pk):
 
     return render(request, template_name, context)
 
+
+@login_required
+def venta_imprimir_y_volver(request, pk):
+    """Wrapper de impresión: abre el documento asociado a la venta, dispara impresión y retorna al POS"""
+    try:
+        venta = Venta.objects.get(pk=pk)
+        # Verificar permisos de empresa, salvo superusuario
+        if not request.user.is_superuser:
+            if hasattr(request, 'empresa') and request.empresa:
+                if venta.empresa != request.empresa:
+                    raise Http404("No tiene permisos para acceder a esta venta")
+            else:
+                raise Http404("No tiene permisos para acceder a esta venta")
+    except Venta.DoesNotExist:
+        raise Http404("Venta no encontrada")
+
+    # Intentar preferir la vista de DTE con timbre si existe
+    dte = None
+    try:
+        if venta.tipo_documento in ['factura', 'boleta', 'guia']:
+            if hasattr(venta, 'dte') and venta.dte:
+                dte = venta.dte
+            else:
+                from caja.models import VentaProcesada
+                venta_proc = VentaProcesada.objects.filter(venta_final=venta).first()
+                if venta_proc and getattr(venta_proc, 'dte_generado', None):
+                    dte = venta_proc.dte_generado
+    except Exception:
+        dte = None
+
+    if dte:
+        try:
+            doc_url = reverse('facturacion_electronica:ver_factura_electronica', args=[dte.id])
+        except Exception:
+            doc_url = reverse('ventas:venta_html', args=[venta.id])
+    else:
+        doc_url = reverse('ventas:venta_html', args=[venta.id])
+
+    # Agregar indicador de auto-impresión para facilitar retorno al POS si se abre en la misma pestaña
+    if '?' in doc_url:
+        doc_url = f"{doc_url}&auto=1"
+    else:
+        doc_url = f"{doc_url}?auto=1"
+
+    return render(request, 'ventas/venta_imprimir_y_volver.html', {
+        'venta': venta,
+        'doc_url': doc_url,
+    })
 
 @login_required
 @requiere_empresa
@@ -2527,11 +2615,61 @@ def precio_cliente_list(request):
     from .models import PrecioClienteArticulo
     from clientes.models import Cliente
     from articulos.models import Articulo
+    from datetime import date
     
+    # Base queryset
     precios = PrecioClienteArticulo.objects.filter(empresa=request.empresa).select_related('cliente', 'articulo').order_by('-fecha_creacion')
     
+    # Filtros GET
+    q = request.GET.get('q', '').strip()
+    cliente_id = request.GET.get('cliente', '').strip()
+    articulo_id = request.GET.get('articulo', '').strip()
+    estado = request.GET.get('estado', '').strip()  # 'activo' | 'inactivo'
+    vigencia = request.GET.get('vigencia', '').strip()  # 'vigente' | 'futura' | 'vencida'
+    
+    if q:
+        precios = precios.filter(
+            Q(cliente__nombre__icontains=q) |
+            Q(articulo__nombre__icontains=q) |
+            Q(articulo__codigo__icontains=q)
+        )
+    if cliente_id:
+        precios = precios.filter(cliente_id=cliente_id)
+    if articulo_id:
+        precios = precios.filter(articulo_id=articulo_id)
+    if estado in ['activo', 'inactivo']:
+        precios = precios.filter(activo=(estado == 'activo'))
+    if vigencia:
+        hoy = date.today()
+        if vigencia == 'vigente':
+            precios = precios.filter(
+                Q(fecha_inicio__isnull=True) | Q(fecha_inicio__lte=hoy),
+                Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=hoy)
+            )
+        elif vigencia == 'futura':
+            precios = precios.filter(fecha_inicio__gt=hoy)
+        elif vigencia == 'vencida':
+            precios = precios.filter(fecha_fin__lt=hoy)
+    
+    # Paginación
+    paginator = Paginator(precios, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Datos para filtros (listas)
+    clientes_list = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')
+    articulos_list = Articulo.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')[:500]
+    
     context = {
-        'precios': precios,
+        'page_obj': page_obj,
+        'precios': page_obj.object_list,
+        'q': q,
+        'cliente_id': cliente_id,
+        'articulo_id': articulo_id,
+        'estado': estado,
+        'vigencia': vigencia,
+        'clientes_list': clientes_list,
+        'articulos_list': articulos_list,
     }
     
     return render(request, 'ventas/precio_cliente_list.html', context)

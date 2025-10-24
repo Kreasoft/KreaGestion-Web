@@ -110,8 +110,19 @@ class FolioService:
             caf.save()
             return None, None
 
-        # Usar siempre el mismo folio para pruebas (el inicial del CAF)
+        # Buscar un folio de prueba ÚNICO no usado aún para evitar colisión al guardar DTE
+        usados = set(DocumentoTributarioElectronico.objects.filter(
+            empresa=empresa,
+            tipo_dte=tipo_documento
+        ).values_list('folio', flat=True))
+
         folio_prueba = caf.folio_desde
+        while folio_prueba in usados and folio_prueba <= caf.folio_hasta:
+            folio_prueba += 1
+
+        if folio_prueba > caf.folio_hasta:
+            print(f"MODO PRUEBA - No hay folios libres dentro del rango del CAF {caf.folio_desde}-{caf.folio_hasta}")
+            return None, None
 
         print(f"MODO PRUEBA - Folio asignado: {folio_prueba} (CAF: {caf.folio_desde}-{caf.folio_hasta})")
         print(f"ADVERTENCIA: Este folio NO consume del CAF real - solo para pruebas")

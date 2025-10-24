@@ -3,11 +3,11 @@ from django.contrib.auth.decorators import login_required
 from usuarios.decorators import requiere_empresa
 from articulos.models import Articulo
 from clientes.models import Cliente
-from inventario.models import Stock
+from inventario.models import Stock, Inventario
 from ventas.models import Venta, VentaDetalle
 from bodegas.models import Bodega
 from empresas.models import Sucursal
-from django.db.models import Sum, Q, F
+from django.db.models import Sum, Q, F, Count
 from django.utils import timezone
 from datetime import datetime, timedelta
 
@@ -49,55 +49,50 @@ def dashboard(request):
     # Clientes activos
     total_clientes = Cliente.objects.filter(empresa=request.empresa, estado='activo').count()
     
-    # Filtrar stock por sucursal si está seleccionada
-    stock_query = Stock.objects.filter(empresa=request.empresa)
+    # --- Cálculo de Estado de Stock Basado en Movimientos (Lógica de Kardex) ---
+    movimientos_query = Inventario.objects.filter(empresa=request.empresa, estado='confirmado')
+
+    # Lógica de cálculo de stock: Suma directa de todos los movimientos (positivos y negativos).
     if sucursal_seleccionada:
-        # Filtrar por bodegas de la sucursal
-        bodegas_sucursal = Bodega.objects.filter(
-            empresa=request.empresa,
-            sucursal=sucursal_seleccionada
-        ).values_list('id', flat=True)
-        stock_query = stock_query.filter(bodega_id__in=bodegas_sucursal)
-    
-    # Estado del stock (por artículo, sumado en todas las bodegas; incluir artículos sin registro=0)
-    # Construir totales por artículo
-    stock_totales = (
-        stock_query
-        .values('articulo_id')
-        .annotate(
-            total_cantidad=Sum('cantidad'),
-            total_min=Sum('stock_minimo'),
-            total_max=Sum('stock_maximo'),
+        bodegas_sucursal_ids = Bodega.objects.filter(empresa=request.empresa, sucursal=sucursal_seleccionada).values_list('id', flat=True)
+        # Se consideran todos los movimientos que entran o salen de las bodegas de la sucursal.
+        movimientos_query = movimientos_query.filter(
+            Q(bodega_origen_id__in=bodegas_sucursal_ids) | Q(bodega_destino_id__in=bodegas_sucursal_ids)
         )
-    )
-    totales_map = {row['articulo_id']: row for row in stock_totales}
-    
-    articulos_activos = Articulo.objects.filter(empresa=request.empresa, activo=True).values_list('id', flat=True)
+
+    # La suma de cantidades (positivas y negativas) da el stock neto.
+    stock_calculado = movimientos_query.values('articulo_id').annotate(stock_neto=Sum('cantidad'))
+    stock_map = {item['articulo_id']: item['stock_neto'] for item in stock_calculado}
+
+    # Obtener todos los artículos activos con sus umbrales de stock
+    articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).values('id', 'stock_minimo', 'stock_maximo')
+
     stock_normal = 0
     stock_bajo = 0
     stock_sin = 0
     stock_sobre = 0
-    
-    for art_id in articulos_activos:
-        row = totales_map.get(art_id, None)
-        total = float(row['total_cantidad']) if row and row['total_cantidad'] is not None else 0.0
-        min_total = float(row['total_min']) if row and row['total_min'] is not None else 0.0
-        max_total = float(row['total_max']) if row and row['total_max'] is not None else 0.0
-        if total <= 0:
+
+    for art in articulos:
+        cantidad_actual = float(stock_map.get(art['id'], 0) or 0)
+        stock_min = float(art['stock_minimo'] or 0)
+        stock_max = float(art['stock_maximo'] or 0)
+
+        if cantidad_actual <= 0:
             stock_sin += 1
-        elif max_total > 0 and total >= max_total:
+        elif stock_max > 0 and cantidad_actual >= stock_max:
             stock_sobre += 1
-        elif total <= min_total:
+        elif cantidad_actual <= stock_min:
             stock_bajo += 1
         else:
             stock_normal += 1
     
-    # Ventas del mes actual (total confirmadas)
-    inicio_mes = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # Ventas de los últimos 30 días: por fecha de venta (DateField) O fecha de creación (DateTime)
+    inicio_periodo = (timezone.now() - timedelta(days=30)).date()
     ventas_query = Venta.objects.filter(
         empresa=request.empresa,
-        fecha__gte=inicio_mes,
-        estado='confirmada'
+        estado__in=['confirmada', 'borrador']
+    ).filter(
+        Q(fecha__gte=inicio_periodo) | Q(fecha_creacion__date__gte=inicio_periodo)
     )
     
     # Filtrar ventas por sucursal si está seleccionada
@@ -107,77 +102,78 @@ def dashboard(request):
     ventas_mes = ventas_query.aggregate(total=Sum('total'))['total'] or 0
     
     # Clientes nuevos este mes
+    # CORRECCIÓN CRÍTICA: Se define inicio_mes aquí para la tarjeta de clientes nuevos.
+    inicio_mes = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     try:
         clientes_nuevos_mes = Cliente.objects.filter(
             empresa=request.empresa,
-            fecha_creacion__gte=inicio_mes
+            # CORRECCIÓN CRÍTICA: Usar inicio_periodo, no inicio_mes que ya no existe.
+        fecha_creacion__gte=inicio_periodo
         ).count()
     except:
         clientes_nuevos_mes = 0
     
-    # Top productos más vendidos del mes (por cantidad)
+    # --- Top 5 productos más vendidos (Lógica Robusta de 2 Pasos) ---
     top_productos_query = VentaDetalle.objects.filter(
         venta__empresa=request.empresa,
-        venta__fecha__gte=inicio_mes,
-        venta__estado='confirmada'
+        venta__estado__in=['confirmada', 'borrador']
+    ).filter(
+        Q(venta__fecha__gte=inicio_periodo) | Q(venta__fecha_creacion__date__gte=inicio_periodo)
     )
-    
-    # Filtrar por sucursal si está seleccionada
     if sucursal_seleccionada:
         top_productos_query = top_productos_query.filter(venta__sucursal=sucursal_seleccionada)
-    
-    top_productos_qs = (
+
+    # 1. Agrupar solo por ID y obtener el ranking
+    top_ids_qs = (
         top_productos_query
-        .values('articulo__codigo', 'articulo__nombre')
+        .values('articulo_id')
         .annotate(cantidad_total=Sum('cantidad'))
-        .order_by('-cantidad_total')[:4]
+        .order_by('-cantidad_total')[:5]
     )
 
-    top_productos = [
-        {
-            'codigo': it['articulo__codigo'],
-            'nombre': it['articulo__nombre'],
-            'cantidad': float(it['cantidad_total']) if it['cantidad_total'] else 0,
-        }
-        for it in top_productos_qs
-    ]
+    # 2. Obtener los detalles de los artículos del Top 5
+    top_ids = [item['articulo_id'] for item in top_ids_qs]
+    cantidad_map = {item['articulo_id']: item['cantidad_total'] for item in top_ids_qs}
 
-    # Serie de ventas de los últimos 6 meses (sumatoria por mes)
+    articulos_top = Articulo.objects.filter(id__in=top_ids).values('id', 'codigo', 'nombre')
+    
+    # 3. Construir la lista final, ordenando según el ranking de ventas
+    articulos_map = {art['id']: art for art in articulos_top}
+    top_productos = []
+    for articulo_id in top_ids:
+        articulo_info = articulos_map.get(articulo_id)
+        if articulo_info:
+            top_productos.append({
+                'codigo': articulo_info['codigo'],
+                'nombre': articulo_info['nombre'],
+                'cantidad': float(cantidad_map.get(articulo_id, 0))
+            })
+
+
+    # Serie de ventas de los últimos 30 días (sumatoria por día)
     labels = []
     data = []
     now = timezone.now()
-    for i in range(5, -1, -1):
-        first_day = (now.replace(day=1) - timedelta(days=now.day - 1))  # inicio del mes actual
-        # retroceder i meses
-        month_ref = (first_day - timedelta(days=first_day.day)) if i == 6 else first_day
-        # Calcular mes objetivo restando i meses
-        ref = (now - timedelta(days=i * 30))
-        month_start = ref.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        # fin de mes: inicio del siguiente mes
-        if month_start.month == 12:
-            month_end = month_start.replace(year=month_start.year + 1, month=1)
-        else:
-            month_end = month_start.replace(month=month_start.month + 1)
-        ventas_mes_query = Venta.objects.filter(
+    for i in range(29, -1, -1):
+        day_date = (now - timedelta(days=i)).date()
+        ventas_dia_query = Venta.objects.filter(
             empresa=request.empresa,
-            fecha__gte=month_start,
-            fecha__lt=month_end,
-            estado='confirmada'
+            estado__in=['confirmada', 'borrador']
+        ).filter(
+            Q(fecha=day_date) | Q(fecha_creacion__date=day_date)
         )
-        
-        # Filtrar por sucursal si está seleccionada
         if sucursal_seleccionada:
-            ventas_mes_query = ventas_mes_query.filter(sucursal=sucursal_seleccionada)
-        
-        monto = ventas_mes_query.aggregate(total=Sum('total'))['total'] or 0
-        labels.append(month_start.strftime('%b %Y'))
+            ventas_dia_query = ventas_dia_query.filter(sucursal=sucursal_seleccionada)
+        monto = ventas_dia_query.aggregate(total=Sum('total'))['total'] or 0
+        labels.append(day_date.strftime('%d %b'))
         data.append(float(monto))
 
     # Ventas por categoría del mes
     ventas_categoria_query = VentaDetalle.objects.filter(
         venta__empresa=request.empresa,
-        venta__fecha__gte=inicio_mes,
-        venta__estado='confirmada'
+        venta__estado__in=['confirmada', 'borrador']
+    ).filter(
+        Q(venta__fecha__gte=inicio_periodo) | Q(venta__fecha_creacion__date__gte=inicio_periodo)
     )
     
     # Filtrar por sucursal si está seleccionada
@@ -198,10 +194,6 @@ def dashboard(request):
         categorias_labels.append(nombre_cat)
         categorias_data.append(float(item['total']) if item['total'] else 0)
     
-    # Si no hay datos, mostrar mensaje
-    if not categorias_labels:
-        categorias_labels = ['Sin datos']
-        categorias_data = [1]
     
     import json
     
@@ -211,10 +203,8 @@ def dashboard(request):
     context = {
         'total_articulos': total_articulos,
         'total_clientes': total_clientes,
-        'stock_bajo': stock_bajo,
-        'stock_normal': stock_normal,
-        'stock_sin': stock_sin,
-        'stock_sobre': stock_sobre,
+        'stock_bajo': stock_bajo, # Se mantiene para la tarjeta de resumen
+        'stock_data': [stock_normal, stock_bajo, stock_sin, stock_sobre],
         'ventas_mes': ventas_mes,
         'clientes_nuevos_mes': clientes_nuevos_mes,
         'top_productos': json.dumps(top_productos),  # Convertir a JSON
@@ -228,5 +218,21 @@ def dashboard(request):
         'sucursal_seleccionada': sucursal_seleccionada,
         'sucursal_id': str(sucursal_seleccionada.id) if sucursal_seleccionada else '',
     }
-    
+    # Logs de diagnóstico (últimos 30 días + sucursal activa)
+    try:
+        ventas_count = ventas_query.count()
+        ventas_total = float(ventas_query.aggregate(total=Sum('total'))['total'] or 0)
+        productos_distintos = top_productos_query.values('articulo_id').distinct().count()
+        categorias_distintas = ventas_categoria_query.values('articulo__categoria_id').distinct().count()
+        print("DBG30 Sucursal activa:", getattr(sucursal_seleccionada, 'id', None), getattr(sucursal_seleccionada, 'nombre', None))
+        sucs = list(Sucursal.objects.filter(empresa=request.empresa).values('id','nombre','estado'))
+        print("DBG30 Sucursales empresa:", sucs)
+        print("DBG30 Ventas count:", ventas_count, " total:", ventas_total, " sucursal:", getattr(sucursal_seleccionada, 'id', None))
+        print("DBG30 Productos distintos:", productos_distintos)
+        print("DBG30 Categorías distintas:", categorias_distintas)
+        print("DBG30 Top productos preview:", top_productos[:5])
+        print("DBG30 Categorías preview:", list(zip(categorias_labels, categorias_data)))
+    except Exception as e:
+        print("DBG30 ERROR:", e)
+
     return render(request, 'dashboard.html', context)

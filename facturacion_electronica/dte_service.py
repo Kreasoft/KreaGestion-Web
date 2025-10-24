@@ -80,37 +80,24 @@ class DTEService:
                 print(f"\nPaso 5: Generando datos PDF417")
                 pdf417_data = firmador.generar_datos_pdf417(ted_xml)
                 
-                # 6. Crear registro del DTE (solo si NO está en modo reutilización)
-                modo_reutilizacion = self.empresa.modo_reutilizacion_folios
-                es_certificacion = self.empresa.ambiente_sii == 'certificacion'
+                # 6. Crear registro del DTE (ahora SIEMPRE guardamos, incluso en modo reutilización)
+                print(f"\nPaso 6: Guardando DTE en base de datos")
+                dte = self._crear_registro_dte(
+                    venta=venta,
+                    tipo_dte=tipo_dte,
+                    folio=folio,
+                    caf=caf,
+                    xml_sin_firmar=xml_sin_firmar,
+                    xml_firmado=xml_firmado,
+                    ted_xml=ted_xml,
+                    pdf417_data=pdf417_data
+                )
 
-                if not (modo_reutilizacion and es_certificacion):
-                    print(f"\nPaso 6: Guardando DTE en base de datos")
-                    dte = self._crear_registro_dte(
-                        venta=venta,
-                        tipo_dte=tipo_dte,
-                        folio=folio,
-                        caf=caf,
-                        xml_sin_firmar=xml_sin_firmar,
-                        xml_firmado=xml_firmado,
-                        ted_xml=ted_xml,
-                        pdf417_data=pdf417_data
-                    )
-
-                    print(f"DTE guardado - ID: {dte.id}")
-                else:
-                    print(f"\nPaso 6: MODO PRUEBA - Saltando guardado en BD")
-                    # Crear un objeto DTE temporal solo para el flujo actual
-                    from .models import DocumentoTributarioElectronico
-                    dte = DocumentoTributarioElectronico()
-                    dte.id = None  # Indicar que no está guardado
+                print(f"DTE guardado - ID: {dte.id}")
 
                 # 7. Generar imagen PDF417 del timbre
-                if not (modo_reutilizacion and es_certificacion):
-                    print(f"\nPaso 7: Generando imagen PDF417")
-                    PDF417Generator.guardar_pdf417_en_dte(dte)
-                else:
-                    print(f"\nPaso 7: MODO PRUEBA - Saltando generación de PDF417")
+                print(f"\nPaso 7: Generando imagen PDF417")
+                PDF417Generator.guardar_pdf417_en_dte(dte)
 
                 print(f"\nDTE generado exitosamente: Tipo {tipo_dte}, Folio {folio}")
                 
@@ -397,11 +384,15 @@ class DTEService:
             razon_social_receptor = venta.cliente.nombre
             direccion_receptor = venta.cliente.direccion or ''
             comuna_receptor = venta.cliente.comuna or ''
+            giro_receptor = getattr(venta.cliente, 'giro', '') or ''
+            ciudad_receptor = getattr(venta.cliente, 'ciudad', '') or ''
         else:
             rut_receptor = '66666666-6'
             razon_social_receptor = 'Cliente Genérico'
             direccion_receptor = ''
             comuna_receptor = ''
+            giro_receptor = ''
+            ciudad_receptor = ''
         
         # Crear el DTE
         dte = DocumentoTributarioElectronico.objects.create(
@@ -425,6 +416,8 @@ class DTEService:
             razon_social_receptor=razon_social_receptor,
             direccion_receptor=direccion_receptor,
             comuna_receptor=comuna_receptor,
+            giro_receptor=giro_receptor,
+            ciudad_receptor=ciudad_receptor,
             
             # Montos
             monto_neto=venta.subtotal,

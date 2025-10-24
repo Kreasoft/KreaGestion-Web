@@ -5,10 +5,12 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.db import transaction
 from django.utils import timezone
+from datetime import timedelta, datetime
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.core.files.base import ContentFile
 from decimal import Decimal
+import re
 from .models import TransferenciaInventario, Inventario, Stock
 from .forms import TransferenciaInventarioForm
 from usuarios.decorators import requiere_empresa
@@ -16,6 +18,7 @@ from bodegas.models import Bodega
 from articulos.models import Articulo
 from facturacion_electronica.models import ArchivoCAF, DocumentoTributarioElectronico
 from facturacion_electronica.services import DTEService
+from django.db import IntegrityError
 import json
 
 
@@ -48,6 +51,27 @@ def transferencia_list(request):
             Q(numero_folio__icontains=search) |
             Q(observaciones__icontains=search)
         )
+
+    # Rango de fechas (por defecto últimos 30 días)
+    fecha_hasta_str = request.GET.get('hasta')
+    fecha_desde_str = request.GET.get('desde')
+    hoy = timezone.now().date()
+    fecha_hasta = hoy
+    fecha_desde = hoy - timedelta(days=30)
+    try:
+        if fecha_desde_str:
+            fecha_desde = datetime.fromisoformat(fecha_desde_str).date()
+        if fecha_hasta_str:
+            fecha_hasta = datetime.fromisoformat(fecha_hasta_str).date()
+    except Exception:
+        # Si el parse falla, mantener defaults
+        pass
+
+    # Aplicar filtro por fecha (incluye ambos extremos)
+    transferencias = transferencias.filter(
+        fecha_transferencia__date__gte=fecha_desde,
+        fecha_transferencia__date__lte=fecha_hasta
+    )
     
     # Paginación
     paginator = Paginator(transferencias, 20)
@@ -70,7 +94,9 @@ def transferencia_list(request):
         'pendientes': pendientes,
         'confirmadas': confirmadas,
         'canceladas': canceladas,
-        'titulo': 'Transferencias de Inventario'
+        'titulo': 'Transferencias de Inventario',
+        'fecha_desde': fecha_desde.isoformat(),
+        'fecha_hasta': fecha_hasta.isoformat(),
     }
     
     return render(request, 'inventario/transferencia_list.html', context)
@@ -80,8 +106,8 @@ def transferencia_list(request):
 @requiere_empresa
 def transferencia_create(request):
     """Crear o editar transferencia de inventario"""
-    # Verificar si es edición
-    edit_id = request.GET.get('edit')
+    # Verificar si es edición (aceptar edit por GET o POST)
+    edit_id = request.GET.get('edit') or request.POST.get('edit')
     transferencia_edit = None
     if edit_id:
         transferencia_edit = get_object_or_404(
@@ -92,7 +118,17 @@ def transferencia_create(request):
         )
     
     if request.method == 'POST':
-        form = TransferenciaInventarioForm(request.POST, empresa=request.empresa)
+        # Sanitizar posibles separadores no numéricos en IDs (e.g., NBSP en "2\xa0023")
+        post = request.POST.copy()
+        for key in ('bodega_origen', 'bodega_destino'):
+            if post.get(key):
+                post[key] = re.sub(r"\D+", "", str(post[key]))
+
+        # Si es edición, pasar la instancia al formulario para actualizar
+        if transferencia_edit:
+            form = TransferenciaInventarioForm(post, instance=transferencia_edit, empresa=request.empresa)
+        else:
+            form = TransferenciaInventarioForm(post, empresa=request.empresa)
         
         # Obtener los artículos del formulario
         articulos_data = request.POST.get('articulos_json', '[]')
@@ -109,37 +145,65 @@ def transferencia_create(request):
             
             if form.is_valid():
                 with transaction.atomic():
-                    # Crear la transferencia
+                    # Crear/actualizar la transferencia sin guardar aún
                     transferencia = form.save(commit=False)
                     transferencia.empresa = request.empresa
                     transferencia.creado_por = request.user
-                    
-                    # Generar número de folio automático
-                    ultimo_folio = TransferenciaInventario.objects.filter(
-                        empresa=request.empresa
-                    ).order_by('-id').first()
-                    
-                    if ultimo_folio and ultimo_folio.numero_folio:
-                        try:
-                            ultimo_numero = int(ultimo_folio.numero_folio.split('-')[-1])
-                            nuevo_numero = ultimo_numero + 1
-                        except:
+
+                    # Si es creación, generar número de folio automático
+                    if not transferencia.pk or not transferencia.numero_folio:
+                        ultimo_folio = TransferenciaInventario.objects.filter(
+                            empresa=request.empresa
+                        ).order_by('-id').first()
+                        if ultimo_folio and ultimo_folio.numero_folio:
+                            try:
+                                ultimo_numero = int(ultimo_folio.numero_folio.split('-')[-1])
+                                nuevo_numero = ultimo_numero + 1
+                            except:
+                                nuevo_numero = 1
+                        else:
                             nuevo_numero = 1
-                    else:
-                        nuevo_numero = 1
-                    
-                    transferencia.numero_folio = f"TRANS-{nuevo_numero:06d}"
-                    
+                        transferencia.numero_folio = f"TRANS-{nuevo_numero:06d}"
+
                     # Si se proporcionó fecha personalizada, usarla
                     fecha_transferencia = form.cleaned_data.get('fecha_transferencia')
                     if fecha_transferencia:
                         transferencia.fecha_transferencia = fecha_transferencia
-                    
+
                     transferencia.save()
-                    
-                    # Crear los detalles de la transferencia
+
+                    # Si es edición: revertir stock y borrar detalles anteriores
+                    if transferencia_edit:
+                        for detalle_ant in transferencia.detalles.all():
+                            # Revertir stock en bodega origen (sumar)
+                            stock_origen = Stock.objects.get(
+                                empresa=request.empresa,
+                                bodega=transferencia.bodega_origen,
+                                articulo=detalle_ant.articulo
+                            )
+                            stock_origen.cantidad += detalle_ant.cantidad
+                            stock_origen.save()
+
+                            # Revertir stock en bodega destino (restar)
+                            stock_destino = Stock.objects.get(
+                                empresa=request.empresa,
+                                bodega=transferencia.bodega_destino,
+                                articulo=detalle_ant.articulo
+                            )
+                            stock_destino.cantidad -= detalle_ant.cantidad
+                            stock_destino.save()
+
+                        # Borrar movimientos anteriores
+                        transferencia.detalles.all().delete()
+
+                    # Crear los detalles de la transferencia (nuevos)
                     for item in articulos:
-                        articulo = Articulo.objects.get(id=item['articulo_id'])
+                        raw_id = item.get('articulo_id')
+                        try:
+                            articulo_id = int(re.sub(r"\D+", "", str(raw_id)))
+                        except Exception:
+                            raise ValueError(f"ID de artículo inválido: {raw_id}")
+                        articulo = Articulo.objects.get(id=articulo_id)
                         cantidad = Decimal(str(item['cantidad']))
                         
                         # Verificar stock disponible en bodega origen
@@ -208,10 +272,17 @@ def transferencia_create(request):
                         stock_destino.cantidad += cantidad
                         stock_destino.save()
                     
-                    messages.success(
-                        request, 
-                        f'Transferencia {transferencia.numero_folio} creada exitosamente.'
-                    )
+                    # Mensaje según operación
+                    if transferencia_edit:
+                        messages.success(
+                            request,
+                            f'Transferencia {transferencia.numero_folio} actualizada exitosamente.'
+                        )
+                    else:
+                        messages.success(
+                            request, 
+                            f'Transferencia {transferencia.numero_folio} creada exitosamente.'
+                        )
                     return redirect('inventario:transferencia_detail', pk=transferencia.pk)
                     
         except ValueError as e:
@@ -464,8 +535,35 @@ def transferencia_generar_guia(request, pk):
             })
         
         with transaction.atomic():
-            # Obtener siguiente folio
-            folio = caf.obtener_siguiente_folio()
+            # Bloquear CAF para evitar condiciones de carrera y folios duplicados
+            caf = ArchivoCAF.objects.select_for_update().get(pk=caf.pk)
+
+            # Asignar folio evitando conflictos existentes
+            MAX_INTENTOS = 5
+            folio = None
+            for _ in range(MAX_INTENTOS):
+                candidato = caf.folio_actual + 1
+                if candidato > caf.folio_hasta:
+                    raise ValueError("Folio fuera de rango")
+                # Si el folio ya existe en DTE, avanzar CAF y continuar
+                existe = DocumentoTributarioElectronico.objects.filter(
+                    empresa=request.empresa,
+                    tipo_dte='52',
+                    folio=candidato
+                ).exists()
+                if existe:
+                    caf.folio_actual = candidato
+                    caf.folios_utilizados += 1
+                    if caf.folios_utilizados >= caf.cantidad_folios:
+                        caf.estado = 'agotado'
+                        caf.fecha_agotamiento = timezone.now()
+                    caf.save()
+                    continue
+                # Reservar folio normalmente
+                folio = caf.obtener_siguiente_folio()
+                break
+            if folio is None:
+                raise ValueError("No fue posible reservar un folio disponible. Intente nuevamente.")
             
             # Calcular totales
             detalles = transferencia.detalles.all()
@@ -484,7 +582,7 @@ def transferencia_generar_guia(request, pk):
                 # Crear objeto temporal tipo venta para el generador
                 class TransferenciaWrapper:
                     def __init__(self, transferencia, subtotal, iva, total):
-                        self.fecha = transferencia.fecha_creacion
+                        self.fecha = getattr(transferencia, 'fecha_transferencia', timezone.now())
                         self.cliente = None
                         self.subtotal = subtotal
                         self.iva = iva
@@ -533,40 +631,53 @@ def transferencia_generar_guia(request, pk):
                 pdf417_data = firmador.generar_datos_pdf417(ted_xml)
                 
                 # 4. Crear DTE en BD
-                dte = DocumentoTributarioElectronico.objects.create(
-                    empresa=request.empresa,
-                    caf_utilizado=caf,
-                    tipo_dte='52',
-                    folio=folio,
-                    fecha_emision=timezone.now().date(),
-                    tipo_traslado='5',  # Traslado interno
-                    usuario_creacion=request.user,
-                    # Emisor
-                    rut_emisor=request.empresa.rut,
-                    razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
-                    giro_emisor=request.empresa.giro_sii or request.empresa.giro or '',
-                    direccion_emisor=request.empresa.direccion_casa_matriz or request.empresa.direccion or '',
-                    comuna_emisor=request.empresa.comuna_casa_matriz or request.empresa.comuna or '',
-                    # Receptor (usar datos de la empresa para traslado interno)
-                    rut_receptor=request.empresa.rut,
-                    razon_social_receptor=request.empresa.nombre,
-                    giro_receptor=request.empresa.giro or '',
-                    direccion_receptor=request.empresa.direccion or '',
-                    comuna_receptor=request.empresa.comuna or '',
-                    ciudad_receptor=request.empresa.ciudad or '',
-                    # Montos
-                    monto_neto=subtotal.quantize(Decimal('1')),
-                    monto_exento=Decimal('0'),
-                    monto_iva=iva.quantize(Decimal('1')),
-                    monto_total=total.quantize(Decimal('1')),
-                    # XML y Timbre
-                    xml_dte=xml_sin_firmar,
-                    xml_firmado=xml_firmado,
-                    timbre_electronico=ted_xml,
-                    datos_pdf417=pdf417_data,
-                    # Estado
-                    estado_sii='generado'
-                )
+                try:
+                    dte = DocumentoTributarioElectronico.objects.create(
+                        empresa=request.empresa,
+                        caf_utilizado=caf,
+                        tipo_dte='52',
+                        folio=folio,
+                        fecha_emision=timezone.now().date(),
+                        tipo_traslado='5',  # Traslado interno
+                        usuario_creacion=request.user,
+                        # Emisor
+                        rut_emisor=request.empresa.rut,
+                        razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
+                        giro_emisor=request.empresa.giro_sii or request.empresa.giro or '',
+                        direccion_emisor=request.empresa.direccion_casa_matriz or request.empresa.direccion or '',
+                        comuna_emisor=request.empresa.comuna_casa_matriz or request.empresa.comuna or '',
+                        # Receptor (usar datos de la empresa para traslado interno)
+                        rut_receptor=request.empresa.rut,
+                        razon_social_receptor=request.empresa.nombre,
+                        giro_receptor=request.empresa.giro or '',
+                        direccion_receptor=request.empresa.direccion or '',
+                        comuna_receptor=request.empresa.comuna or '',
+                        ciudad_receptor=request.empresa.ciudad or '',
+                        # Montos
+                        monto_neto=subtotal.quantize(Decimal('1')),
+                        monto_exento=Decimal('0'),
+                        monto_iva=iva.quantize(Decimal('1')),
+                        monto_total=total.quantize(Decimal('1')),
+                        # XML y Timbre
+                        xml_dte=xml_sin_firmar,
+                        xml_firmado=xml_firmado,
+                        timbre_electronico=ted_xml,
+                        datos_pdf417=pdf417_data,
+                        # Estado
+                        estado_sii='generado'
+                    )
+                except IntegrityError:
+                    # Si el folio ya existe, avanzar CAF y reintentar
+                    caf.folio_actual = folio
+                    caf.folios_utilizados += 1
+                    if caf.folios_utilizados >= caf.cantidad_folios:
+                        caf.estado = 'agotado'
+                        caf.fecha_agotamiento = timezone.now()
+                    caf.save()
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Folio ya utilizado. Por favor, reintente.'
+                    })
                 
                 # 5. Generar imagen PDF417
                 PDF417Generator.guardar_pdf417_en_dte(dte)
@@ -597,6 +708,14 @@ def transferencia_generar_guia(request, pk):
                     monto_total=total.quantize(Decimal('1')),
                     estado_sii='generado'
                 )
+                # Intentar guardar un PDF417 placeholder para visualización
+                try:
+                    dte.timbre_electronico = 'DOCUMENTO SIN TIMBRE - PLACEHOLDER'
+                    dte.save(update_fields=['timbre_electronico'])
+                    from facturacion_electronica.pdf417_generator import PDF417Generator
+                    PDF417Generator.guardar_pdf417_en_dte(dte)
+                except Exception as e2:
+                    print(f"⚠️ No se pudo generar timbre placeholder: {e2}")
             
             # Asociar guía a la transferencia
             transferencia.guia_despacho = dte

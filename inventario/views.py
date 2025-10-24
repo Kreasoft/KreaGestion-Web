@@ -40,7 +40,7 @@ def inventario_list(request):
         fecha_hasta = filter_form.cleaned_data.get('fecha_hasta')
         
         if bodega:
-            inventarios = inventarios.filter(bodega=bodega)
+            inventarios = inventarios.filter(Q(bodega_origen=bodega) | Q(bodega_destino=bodega))
         if articulo:
             inventarios = inventarios.filter(articulo=articulo)
         if tipo_movimiento:
@@ -332,54 +332,97 @@ def dashboard_inventario(request):
 
 
 def actualizar_stock(inventario):
-    """Actualiza el stock después de un movimiento de inventario"""
-    stock, created = Stock.objects.get_or_create(
-        empresa=inventario.empresa,
-        bodega=inventario.bodega,
-        articulo=inventario.articulo,
-        defaults={
-            'cantidad': 0,
-            'precio_promedio': inventario.precio_unitario
-        }
-    )
-    
-    if inventario.tipo_movimiento == 'entrada':
-        # Calcular nuevo precio promedio
-        if stock.cantidad > 0:
-            total_actual = stock.cantidad * stock.precio_promedio
-            total_nuevo = inventario.cantidad * inventario.precio_unitario
-            stock.precio_promedio = (total_actual + total_nuevo) / (stock.cantidad + inventario.cantidad)
-        else:
-            stock.precio_promedio = inventario.precio_unitario
-        
-        stock.cantidad += inventario.cantidad
-    elif inventario.tipo_movimiento == 'salida':
-        stock.cantidad -= inventario.cantidad
-    elif inventario.tipo_movimiento == 'ajuste':
-        stock.cantidad = inventario.cantidad
-        stock.precio_promedio = inventario.precio_unitario
-    
-    stock.save()
+    """Actualiza el stock después de un movimiento de inventario, respetando origen/destino."""
+    empresa = inventario.empresa
+    articulo = inventario.articulo
+    cantidad = inventario.cantidad
+    precio = inventario.precio_unitario
+
+    def get_stock(bodega):
+        s, _ = Stock.objects.get_or_create(
+            empresa=empresa,
+            bodega=bodega,
+            articulo=articulo,
+            defaults={'cantidad': 0, 'precio_promedio': precio}
+        )
+        return s
+
+    t = (inventario.tipo_movimiento or '').lower()
+    if t == 'entrada':
+        if inventario.bodega_destino:
+            s = get_stock(inventario.bodega_destino)
+            if s.cantidad > 0:
+                total_actual = s.cantidad * s.precio_promedio
+                total_nuevo = cantidad * precio
+                s.precio_promedio = (total_actual + total_nuevo) / (s.cantidad + cantidad)
+            else:
+                s.precio_promedio = precio
+            s.cantidad += cantidad
+            s.save()
+    elif t == 'salida':
+        if inventario.bodega_origen:
+            s = get_stock(inventario.bodega_origen)
+            s.cantidad -= cantidad
+            s.save()
+    elif t == 'ajuste':
+        # Se aplica como ajuste sobre la bodega seleccionada (preferir destino)
+        b = inventario.bodega_destino or inventario.bodega_origen
+        if b:
+            s = get_stock(b)
+            s.cantidad = cantidad
+            s.precio_promedio = precio
+            s.save()
+    elif t == 'transferencia':
+        # Restar del origen y sumar al destino
+        if inventario.bodega_origen:
+            so = get_stock(inventario.bodega_origen)
+            so.cantidad -= cantidad
+            so.save()
+        if inventario.bodega_destino:
+            sd = get_stock(inventario.bodega_destino)
+            # Mantener precio promedio; si no hay, usar del origen o precio informado
+            origen_pp = None
+            try:
+                origen_pp = Stock.objects.get(empresa=empresa, bodega=inventario.bodega_origen, articulo=articulo).precio_promedio
+            except Stock.DoesNotExist:
+                origen_pp = precio
+            if sd.cantidad > 0:
+                total_actual = sd.cantidad * sd.precio_promedio
+                total_nuevo = cantidad * (origen_pp or precio)
+                sd.precio_promedio = (total_actual + total_nuevo) / (sd.cantidad + cantidad)
+            else:
+                sd.precio_promedio = origen_pp or precio
+            sd.cantidad += cantidad
+            sd.save()
 
 
 def revertir_stock(inventario):
-    """Revierte el stock después de eliminar o modificar un movimiento"""
+    """Revierte el impacto del movimiento en el stock."""
+    empresa = inventario.empresa
+    articulo = inventario.articulo
+    cantidad = inventario.cantidad
+    t = (inventario.tipo_movimiento or '').lower()
     try:
-        stock = Stock.objects.get(
-            empresa=inventario.empresa,
-            bodega=inventario.bodega,
-            articulo=inventario.articulo
-        )
-        
-        if inventario.tipo_movimiento == 'entrada':
-            stock.cantidad -= inventario.cantidad
-        elif inventario.tipo_movimiento == 'salida':
-            stock.cantidad += inventario.cantidad
-        elif inventario.tipo_movimiento == 'ajuste':
-            # Para ajustes, no revertimos automáticamente
+        if t == 'entrada' and inventario.bodega_destino:
+            s = Stock.objects.get(empresa=empresa, bodega=inventario.bodega_destino, articulo=articulo)
+            s.cantidad -= cantidad
+            s.save()
+        elif t == 'salida' and inventario.bodega_origen:
+            s = Stock.objects.get(empresa=empresa, bodega=inventario.bodega_origen, articulo=articulo)
+            s.cantidad += cantidad
+            s.save()
+        elif t == 'transferencia':
+            if inventario.bodega_origen:
+                so = Stock.objects.get(empresa=empresa, bodega=inventario.bodega_origen, articulo=articulo)
+                so.cantidad += cantidad
+                so.save()
+            if inventario.bodega_destino:
+                sd = Stock.objects.get(empresa=empresa, bodega=inventario.bodega_destino, articulo=articulo)
+                sd.cantidad -= cantidad
+                sd.save()
+        elif t == 'ajuste':
+            # No revertimos ajustes automáticamente
             pass
-        
-        stock.save()
     except Stock.DoesNotExist:
         pass
 from django.contrib import messages
@@ -412,7 +455,7 @@ def inventario_list(request):
         fecha_hasta = filter_form.cleaned_data.get('fecha_hasta')
         
         if bodega:
-            inventarios = inventarios.filter(bodega=bodega)
+            inventarios = inventarios.filter(Q(bodega_origen=bodega) | Q(bodega_destino=bodega))
         if articulo:
             inventarios = inventarios.filter(articulo=articulo)
         if tipo_movimiento:

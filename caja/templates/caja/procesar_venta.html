@@ -211,15 +211,50 @@
                                             <strong>Facturación Electrónica Activa</strong>
                                             {% if disponibilidad_folios %}
                                                 <br>
-                                                {% for tipo, datos in disponibilidad_folios.items %}
-                                                    {% if tipo in 'boleta,factura' %}
+                                                {# Boleta #}
+                                                {% with datos=disponibilidad_folios.boleta %}
+                                                    {% if datos %}
                                                         {% if datos.disponible %}
-                                                            <span class="badge bg-success me-1">{{ tipo|title }}: {{ datos.folios_disponibles }} folios disponibles</span>
+                                                            {% if datos.folios_disponibles <= 10 %}
+                                                                <span class="badge bg-warning text-dark me-1">Boleta: ⚠️ {{ datos.folios_disponibles }} folios</span>
+                                                            {% else %}
+                                                                <span class="badge bg-success me-1">Boleta: {{ datos.folios_disponibles }} folios</span>
+                                                            {% endif %}
                                                         {% else %}
-                                                            <span class="badge bg-danger me-1">{{ tipo|title }}: Sin folios disponibles</span>
+                                                            <span class="badge bg-danger me-1">Boleta: Sin folios</span>
                                                         {% endif %}
                                                     {% endif %}
-                                                {% endfor %}
+                                                {% endwith %}
+
+                                                {# Factura #}
+                                                {% with datos=disponibilidad_folios.factura %}
+                                                    {% if datos %}
+                                                        {% if datos.disponible %}
+                                                            {% if datos.folios_disponibles <= 10 %}
+                                                                <span class="badge bg-warning text-dark me-1">Factura: ⚠️ {{ datos.folios_disponibles }} folios</span>
+                                                            {% else %}
+                                                                <span class="badge bg-success me-1">Factura: {{ datos.folios_disponibles }} folios</span>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            <span class="badge bg-danger me-1">Factura: Sin folios</span>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                {% endwith %}
+
+                                                {# Guía de Despacho #}
+                                                {% with datos=disponibilidad_folios.guia %}
+                                                    {% if datos %}
+                                                        {% if datos.disponible %}
+                                                            {% if datos.folios_disponibles <= 10 %}
+                                                                <span class="badge bg-warning text-dark me-1">Guía: ⚠️ {{ datos.folios_disponibles }} folios</span>
+                                                            {% else %}
+                                                                <span class="badge bg-success me-1">Guía: {{ datos.folios_disponibles }} folios</span>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            <span class="badge bg-danger me-1">Guía: Sin folios</span>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                {% endwith %}
                                             {% endif %}
                                         </div>
                                         <a href="{% url 'facturacion_electronica:caf_list' %}" class="btn btn-sm btn-outline-info" target="_blank">
@@ -282,7 +317,15 @@
                                         <input class="form-check-input" type="radio" name="tipo_documento" id="tipo_guia" value="guia" {% if ticket.tipo_documento_planeado == 'guia' %}checked{% endif %}>
                                         <label class="form-check-label" for="tipo_guia">
                                             Guía
-                                            <span class="badge bg-secondary ms-1">Manual</span>
+                                            {% if empresa.facturacion_electronica and disponibilidad_folios.guia.disponible %}
+                                                {% if disponibilidad_folios.guia.folios_disponibles <= 10 %}
+                                                    <span class="badge bg-warning text-dark ms-1" title="Quedan pocos folios">⚠️ {{ disponibilidad_folios.guia.folios_disponibles }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-success ms-1" title="{{ disponibilidad_folios.guia.folios_disponibles }} folios disponibles">✓</span>
+                                                {% endif %}
+                                            {% elif empresa.facturacion_electronica %}
+                                                <span class="badge bg-danger ms-1" title="Sin folios disponibles">✗</span>
+                                            {% endif %}
                                         </label>
                                     </div>
                                 </div>
@@ -424,9 +467,9 @@ console.log('🔵 Script de procesar venta cargado');
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🟢 DOM Content Loaded - Inicializando...');
     
-    const totalVenta = {{ ticket.total|unlocalize }};
-    const tipoDocumentoPlaneado = '{{ tipo_documento_planeado|default:"" }}';
-    const disponibilidadFolios = {{ disponibilidad_folios_json|safe }};
+    const totalVenta = Number('{{ ticket.total|unlocalize|default:"0" }}');
+    const tipoDocumentoPlaneado = '{{ tipo_documento_planeado|default_if_none:""|escapejs }}';
+    const disponibilidadFolios = JSON.parse('{{ disponibilidad_folios_json|default:"{}"|escapejs }}');
     console.log('💰 Total Venta:', totalVenta);
     console.log('📋 Tipo documento planeado RAW:', '{{ tipo_documento_planeado }}');
     console.log('📋 Tipo documento planeado VAR:', tipoDocumentoPlaneado);
@@ -494,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function toggleFormasPago() {
         // Usar el valor del ticket directamente
-        const tipoDocTicket = '{{ ticket.tipo_documento_planeado|default:"" }}';
+        const tipoDocTicket = '{{ ticket.tipo_documento_planeado|default_if_none:""|escapejs }}';
         const radioMarcado = document.querySelector('input[name="tipo_documento"]:checked');
         const tipoDoc = tipoDocTicket || (radioMarcado ? radioMarcado.value : null);
         const formasPagoSection = document.getElementById('formas-pago-section');
@@ -550,7 +593,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Configurar botón para guía DESPUÉS de todos los toggleFormasPago
     setTimeout(function() {
-        const tipoDocTicket = '{{ ticket.tipo_documento_planeado|default:"" }}';
+        const tipoDocTicket = '{{ ticket.tipo_documento_planeado|default_if_none:""|escapejs }}';
         console.log('🔍 Valor de tipoDocTicket:', tipoDocTicket);
         console.log('🔍 Es guía?', tipoDocTicket === 'guia');
         
@@ -584,8 +627,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const formasPagoOptions = [
         {% for fp in form.forma_pago.field.queryset %}
         {
-            id: '{{ fp.id }}',
-            nombre: '{{ fp.nombre|escapejs }}',
+            id: "{{ fp.id }}",
+            nombre: "{{ fp.nombre|escapejs }}",
             requiereCheque: {% if fp.requiere_cheque %}true{% else %}false{% endif %}
         }{% if not forloop.last %},{% endif %}
         {% endfor %}
@@ -857,34 +900,43 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Actualizar badges de disponibilidad
+                // Actualizar badges de disponibilidad (solo los ubicados dentro de .form-check)
                 const badges = document.querySelectorAll('.badge');
                 badges.forEach(badge => {
-                    if (badge.textContent.includes('folios')) {
-                        // Badge contiene número de folios, actualizar si cambió
-                        const tipo = badge.closest('.form-check').querySelector('input').value;
-                        const nuevosDatos = data.disponibilidad[tipo];
-                        if (nuevosDatos) {
-                            const nuevosFolios = nuevosDatos.folios_disponibles;
-                            const textoActual = badge.textContent;
-                            const nuevoTexto = textoActual.replace(/\d+/, nuevosFolios);
-                            if (nuevoTexto !== textoActual) {
-                                badge.textContent = nuevoTexto;
-                                // Cambiar color si es necesario
-                                if (nuevosFolios <= 10 && nuevosFolios > 0) {
-                                    badge.className = 'badge bg-warning text-dark ms-1';
-                                } else if (nuevosFolios > 10) {
-                                    badge.className = 'badge bg-success ms-1';
-                                } else {
-                                    badge.className = 'badge bg-danger ms-1';
-                                }
+                    if (!badge.textContent.includes('folios')) {
+                        return;
+                    }
+                    const formCheck = badge.closest('.form-check');
+                    if (!formCheck) {
+                        // No pertenece a la sección de radios (p. ej., badges en alertas)
+                        return;
+                    }
+                    const inputEl = formCheck.querySelector('input');
+                    if (!inputEl) {
+                        return;
+                    }
+                    const tipo = inputEl.value;
+                    const nuevosDatos = (data.disponibilidad || {})[tipo];
+                    if (nuevosDatos) {
+                        const nuevosFolios = nuevosDatos.folios_disponibles;
+                        const textoActual = badge.textContent;
+                        const nuevoTexto = textoActual.replace(/\d+/, nuevosFolios);
+                        if (nuevoTexto !== textoActual) {
+                            badge.textContent = nuevoTexto;
+                            // Cambiar color si es necesario
+                            if (nuevosFolios <= 10 && nuevosFolios > 0) {
+                                badge.className = 'badge bg-warning text-dark ms-1';
+                            } else if (nuevosFolios > 10) {
+                                badge.className = 'badge bg-success ms-1';
+                            } else {
+                                badge.className = 'badge bg-danger ms-1';
                             }
                         }
                     }
                 });
 
                 // Actualizar información de CAF en el alert
-                const alertInfo = document.querySelector('.alert-info');
+                const alertInfo = document.querySelector('.alert-info-terroso');
                 if (alertInfo) {
                     const badgesEnAlert = alertInfo.querySelectorAll('.badge');
                     badgesEnAlert.forEach(badge => {

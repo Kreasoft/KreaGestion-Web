@@ -170,7 +170,21 @@
                                     <td style="font-size: 0.7rem; text-align: right;">{{ movimiento.cantidad|format_miles }}</td>
                                     <td style="font-size: 0.7rem; text-align: right;">${{ movimiento.precio_unitario|format_miles }}</td>
                                     <td style="font-size: 0.7rem; text-align: right; font-weight: 600; color: #6F5B44;">${{ movimiento.total|format_miles }}</td>
-                                    <td style="font-size: 0.7rem;">{{ movimiento.bodega.nombre|truncatechars:15 }}</td>
+                                    <td style="font-size: 0.7rem;">
+                                        {% if movimiento.tipo_movimiento == 'entrada' %}
+                                            {{ movimiento.bodega_destino.nombre|default:'-'|truncatechars:15 }}
+                                        {% elif movimiento.tipo_movimiento == 'salida' %}
+                                            {{ movimiento.bodega_origen.nombre|default:'-'|truncatechars:15 }}
+                                        {% elif movimiento.tipo_movimiento == 'transferencia' %}
+                                            {% if movimiento.bodega_origen and movimiento.bodega_destino %}
+                                                {{ movimiento.bodega_origen.nombre|truncatechars:10 }} → {{ movimiento.bodega_destino.nombre|truncatechars:10 }}
+                                            {% else %}
+                                                {{ movimiento.bodega_origen.nombre|default:'-'|truncatechars:15 }}
+                                            {% endif %}
+                                        {% else %}
+                                            {{ movimiento.bodega_destino.nombre|default:'-'|truncatechars:15 }}
+                                        {% endif %}
+                                    </td>
                                     <td style="font-size: 0.7rem;">
                                         {% if movimiento.estado == 'pendiente' %}
                                             <span class="badge bg-warning" style="font-size: 0.6rem;">

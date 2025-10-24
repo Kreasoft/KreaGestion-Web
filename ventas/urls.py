@@ -56,6 +56,8 @@ urlpatterns = [
     
     # Vista genérica de venta (auto-detecta tipo de documento)
     path('ventas/<int:pk>/html/', views.venta_html, name='venta_html'),
+    # Vista wrapper: imprimir y volver al POS
+    path('ventas/<int:pk>/imprimir-y-volver/', views.venta_imprimir_y_volver, name='venta_imprimir_y_volver'),
     
     # API para POS - Historial tickets del día
     path('pos/tickets-hoy/', views.pos_tickets_hoy, name='pos_tickets_hoy'),

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block page_title %}Impresión de Documento - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+  body { background: #f8f9fa; }
+  .center-card {
+    max-width: 720px;
+    margin: 8vh auto;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="card shadow center-card">
+    <div class="card-body text-center">
+      <h5 class="mb-3">Preparando impresión…</h5>
+      <p class="text-muted mb-4">Se abrirá el documento para imprimir. Al finalizar, regresarás automáticamente al POS.</p>
+      <div class="d-flex justify-content-center align-items-center gap-2">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <small class="text-muted">Venta #{{ venta.numero_venta }} · {{ venta.get_tipo_documento_display }}</small>
+      </div>
+      <div class="mt-3 d-flex gap-2 justify-content-center">
+        <a class="btn btn-sm btn-outline-secondary" href="{{ doc_url }}" target="_blank" rel="noopener">Abrir documento manualmente</a>
+        <a id="btnVolverPOS" class="btn btn-sm btn-primary" href="{% url 'ventas:pos_view' %}">Volver al POS</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const posUrl = "{% url 'ventas:pos_view' %}";
+    const irAlPOS = () => { try { window.location.href = posUrl; } catch (e) { /* noop */ } };
+
+    // Escuchar notificación desde la ventana del documento (afterprint)
+    window.addEventListener('message', function (ev) {
+      try {
+        if (ev.origin === window.location.origin && ev.data && ev.data.kind === 'print_done') {
+          irAlPOS();
+        }
+      } catch (e) { /* noop */ }
+    });
+
+    try {
+      const w = window.open("{{ doc_url }}", "_blank");
+      // Si el navegador bloquea popups, fallback: navegar directo
+      if (!w) {
+        window.location.href = "{{ doc_url }}";
+        return;
+      }
+      // Intentar enfocar y disparar impresión en la nueva ventana
+      setTimeout(() => {
+        try { w.focus(); } catch (e) {}
+        try { w.print(); } catch (e) {}
+      }, 400);
+    } catch (e) {
+      console.error('Error abriendo ventana de impresión:', e);
+      window.location.href = "{{ doc_url }}";
+      return;
+    }
+
+    // Volver al POS automáticamente como fallback rápido (por si no hay afterprint)
+    setTimeout(irAlPOS, 1500);
+
+    // Fallback adicional: cuando el usuario cierra la pestaña de impresión y vuelve el foco
+    window.addEventListener('focus', () => {
+      setTimeout(irAlPOS, 200);
+    }, { once: true });
+  });
+</script>
+{% endblock %}

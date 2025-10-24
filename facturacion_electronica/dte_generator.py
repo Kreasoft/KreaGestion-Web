@@ -79,7 +79,7 @@ class DTEXMLGenerator:
         self._generar_detalles(documento)
         
         # Referencia (si aplica)
-        if hasattr(self.venta, 'documento_referencia') and self.venta.documento_referencia:
+        if hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia:
             self._generar_referencia(documento)
         
         # TED (Timbre Electrónico) - se agregará después de firmar
@@ -263,6 +263,21 @@ class DTEXMLGenerator:
             # Ciudad
             if hasattr(cliente, 'ciudad') and cliente.ciudad:
                 etree.SubElement(receptor, "CiudadRecep").text = cliente.ciudad[:20]
+        else:
+            # Fallback: usar datos de la empresa como receptor (traslado interno, guía 52 sin cliente)
+            rut_receptor = self.empresa.rut.replace('.', '')
+            etree.SubElement(receptor, "RUTRecep").text = rut_receptor
+            razon_social = self.empresa.nombre
+            etree.SubElement(receptor, "RznSocRecep").text = razon_social[:100]
+            direccion = self.empresa.direccion or self.empresa.direccion_casa_matriz or ''
+            if direccion:
+                etree.SubElement(receptor, "DirRecep").text = direccion[:70]
+            comuna = self.empresa.comuna or self.empresa.comuna_casa_matriz or ''
+            if comuna:
+                etree.SubElement(receptor, "CmnaRecep").text = comuna[:20]
+            ciudad = self.empresa.ciudad or self.empresa.ciudad_casa_matriz or ''
+            if ciudad:
+                etree.SubElement(receptor, "CiudadRecep").text = ciudad[:20]
     
     def _generar_totales(self, encabezado):
         """Genera los totales del documento"""
@@ -297,7 +312,18 @@ class DTEXMLGenerator:
         elif isinstance(self.documento, NotaCredito):
             items = self.documento.items.all()
         else:
+            # Soportar objetos genéricos (por ejemplo, transferencias con atributo 'items' o 'detalles')
             items = []
+            if hasattr(self.documento, 'items') and self.documento.items is not None:
+                try:
+                    items = self.documento.items.all()
+                except Exception:
+                    items = self.documento.items
+            elif hasattr(self.documento, 'detalles') and self.documento.detalles is not None:
+                try:
+                    items = self.documento.detalles.all()
+                except Exception:
+                    items = self.documento.detalles
 
         for index, item in enumerate(items, start=1):
             detalle = etree.SubElement(documento, "Detalle")
@@ -310,7 +336,7 @@ class DTEXMLGenerator:
                 etree.SubElement(detalle, "IndExe").text = "1"
             
             # Nombre del item
-            nombre_item = item.articulo.nombre if hasattr(item, 'articulo') else item.descripcion
+            nombre_item = item.articulo.nombre if hasattr(item, 'articulo') else getattr(item, 'descripcion', '')
             etree.SubElement(detalle, "NmbItem").text = nombre_item[:80]
             
             # Descripción adicional (opcional)
@@ -327,34 +353,17 @@ class DTEXMLGenerator:
                 if hasattr(item.articulo.unidad_medida, 'codigo_sii') and item.articulo.unidad_medida.codigo_sii:
                     unidad = item.articulo.unidad_medida.codigo_sii
             etree.SubElement(detalle, "UnmdItem").text = unidad
-            
+
             # Precio unitario
             precio_unitario = int(round(float(item.precio_unitario)))
             etree.SubElement(detalle, "PrcItem").text = str(precio_unitario)
-            
-            # Monto total del item
-            monto_item = int(round(float(item.total)))
+
+            # Monto total del ítem: usar precio_total si existe; si no, cantidad * precio_unitario
+            try:
+                monto_item = int(round(float(getattr(item, 'precio_total', item.cantidad * item.precio_unitario))))
+            except Exception:
+                monto_item = int(round(float(item.cantidad * item.precio_unitario)))
             etree.SubElement(detalle, "MontoItem").text = str(monto_item)
-    
-    def _generar_transporte(self, encabezado):
-        """Genera información de transporte (para guías de despacho)"""
-        transporte = etree.SubElement(encabezado, "Transporte")
-        
-        # Patente del vehículo
-        if hasattr(self.venta, 'patente_vehiculo') and self.venta.patente_vehiculo:
-            etree.SubElement(transporte, "Patente").text = self.venta.patente_vehiculo[:8]
-        
-        # RUT del transportista
-        if hasattr(self.venta, 'rut_transportista') and self.venta.rut_transportista:
-            etree.SubElement(transporte, "RUTTrans").text = self.venta.rut_transportista
-        
-        # Dirección de destino
-        if hasattr(self.venta, 'direccion_destino') and self.venta.direccion_destino:
-            etree.SubElement(transporte, "DirDest").text = self.venta.direccion_destino[:70]
-        
-        # Comuna de destino
-        if hasattr(self.venta, 'comuna_destino') and self.venta.comuna_destino:
-            etree.SubElement(transporte, "CmnaDest").text = self.venta.comuna_destino[:20]
     
     def _generar_referencia(self, documento, obligatorio=False):
         """Genera referencias a otros documentos"""

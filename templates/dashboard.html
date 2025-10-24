@@ -304,15 +304,15 @@
             </div>
         </div>
 
-        <!-- Ventas del Mes -->
+        <!-- Ventas Últimos 30 Días -->
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card text-white" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); border: none; box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Ventas del Mes</h6>
+                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Ventas Últ. 30 Días</h6>
                             <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 2rem;">${{ ventas_mes|format_miles }}</h3>
-                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">+12% vs mes anterior</small>
+                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">Período de 30 días</small>
                         </div>
                         <div class="align-self-center">
                             <i class="fas fa-chart-line fa-2x" style="color: rgba(255, 255, 255, 0.6);"></i>
@@ -472,221 +472,161 @@
 </div>
 
 <!-- Scripts para gráficos -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'vendor/chart.js/chart.umd.js' %}"></script>
+
 {{ ventas_series_labels|json_script:"ventas-labels" }}
 {{ ventas_series_data|json_script:"ventas-data" }}
+{{ categorias_labels|json_script:"categorias-labels" }}
+{{ categorias_data|json_script:"categorias-data" }}
+{{ top_productos|json_script:"top-productos" }}
+{{ stock_data|json_script:"stock-data" }}
+
 <script>
-// Paleta de colores terrosa
-const paletaTerrosa = {
-    primary: '#8B7355',
-    secondary: '#A0826D',
-    tertiary: '#D4A574',
-    quaternary: '#B8956A',
-    quinary: '#C19461',
-    senary: '#6F5B44'
-};
+document.addEventListener('DOMContentLoaded', function () {
+    // Paleta de colores terrosa
+    const paletaTerrosa = {
+        primary: '#8B7355',
+        secondary: '#A0826D',
+        tertiary: '#D4A574',
+        quaternary: '#B8956A',
+        quinary: '#C19461',
+        senary: '#6F5B44'
+    };
 
-// Gráfico de ventas (Línea)
-const labels = JSON.parse(document.getElementById('ventas-labels').textContent);
-const dataSeries = JSON.parse(document.getElementById('ventas-data').textContent);
-const ctx1 = document.getElementById('ventasChart').getContext('2d');
-const ventasChart = new Chart(ctx1, {
-    type: 'line',
-    data: {
-        labels: labels,
-        datasets: [{
-            label: 'Ventas ($)',
-            data: dataSeries,
-            borderColor: paletaTerrosa.primary,
-            backgroundColor: 'rgba(139, 115, 85, 0.1)',
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: paletaTerrosa.primary,
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointRadius: 5,
-            pointHoverRadius: 7
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: true, labels: { color: paletaTerrosa.senary, font: { size: 12 } } },
-            tooltip: {
-                backgroundColor: paletaTerrosa.senary,
-                titleColor: '#fff',
-                bodyColor: '#fff',
-                borderColor: paletaTerrosa.primary,
-                borderWidth: 1
+    const coloresTerrosos = [
+        '#6B8E23', '#B8860B', '#8B7355', '#A0826D',
+        '#CD853F', '#D2B48C', '#8B4513', '#BC8F8F'
+    ];
+
+    // Helper para parsear datos de forma segura
+    function parseJsonScript(id) {
+        const element = document.getElementById(id);
+        if (!element) {
+            console.error(`Element with id "${id}" not found.`);
+            return null;
+        }
+        try {
+            let data = JSON.parse(element.textContent);
+            // Manejar doble codificación JSON (si la vista usa json.dumps)
+            if (typeof data === 'string') {
+                data = JSON.parse(data);
             }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                grid: { color: 'rgba(139, 115, 85, 0.1)' },
-                ticks: { color: paletaTerrosa.senary }
-            },
-            x: {
-                grid: { color: 'rgba(139, 115, 85, 0.1)' },
-                ticks: { color: paletaTerrosa.senary }
-            }
+            return data;
+        } catch (e) {
+            console.error(`Error parsing JSON from script id "${id}":`, e);
+            return null;
         }
     }
-});
 
-// Gráfico de categorías (Dona) - DATOS REALES
-const ctx2 = document.getElementById('categoriasChart').getContext('2d');
-const categoriasLabels = {{ categorias_labels|safe }};
-const categoriasData = {{ categorias_data|safe }};
-
-// Colores terrosos para categorías: verde oliva, dorados, cafés
-const coloresTerrosos = [
-    '#6B8E23',  // Verde oliva terroso
-    '#B8860B',  // Dorado oscuro terroso
-    '#8B7355',  // Café claro
-    '#A0826D',  // Café medio
-    '#CD853F',  // Dorado tierra
-    '#D2B48C',  // Beige dorado
-    '#8B4513',  // Café silla de montar
-    '#BC8F8F'   // Rosa café
-];
-
-const categoriasChart = new Chart(ctx2, {
-    type: 'doughnut',
-    data: {
-        labels: categoriasLabels,
-        datasets: [{
-            data: categoriasData,
-            backgroundColor: coloresTerrosos,
-            borderColor: '#fff',
-            borderWidth: 2,
-            hoverOffset: 4
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: { 
-                    color: paletaTerrosa.senary, 
-                    padding: 12, 
-                    font: { size: 11 },
-                    usePointStyle: true,
-                    pointStyle: 'circle'
-                }
+    // --- Gráfico de ventas (Línea) ---
+    const ventasLabels = parseJsonScript('ventas-labels');
+    const ventasData = parseJsonScript('ventas-data');
+    if (ventasLabels && ventasData) {
+        const ctx1 = document.getElementById('ventasChart').getContext('2d');
+        new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: ventasLabels,
+                datasets: [{
+                    label: 'Ventas ($)',
+                    data: ventasData,
+                    borderColor: paletaTerrosa.primary,
+                    backgroundColor: 'rgba(139, 115, 85, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                }]
             },
-            tooltip: {
-                backgroundColor: paletaTerrosa.senary,
-                titleColor: '#fff',
-                bodyColor: '#fff',
-                borderColor: '#fff',
-                borderWidth: 1,
-                padding: 10,
-                displayColors: true,
-                callbacks: {
-                    label: function(context) {
-                        let label = context.label || '';
-                        if (label) {
-                            label += ': ';
-                        }
-                        label += '$' + context.parsed.toLocaleString('es-CL');
-                        return label;
-                    }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
                 }
             }
-        }
+        });
     }
-});
 
-// Gráfico de productos más vendidos (Barra horizontal) - DATOS REALES
-const topProductos = {{ top_productos|safe }};
-const productosLabels = topProductos.length > 0 ? topProductos.map(p => `${p.codigo} - ${p.nombre}`) : ['Sin datos'];
-const productosData = topProductos.length > 0 ? topProductos.map(p => p.cantidad) : [0];
-
-const ctx3 = document.getElementById('productosChart').getContext('2d');
-const productosChart = new Chart(ctx3, {
-    type: 'bar',
-    data: {
-        labels: productosLabels,
-        datasets: [{
-            label: 'Unidades Vendidas',
-            data: productosData,
-            backgroundColor: coloresTerrosos,
-            borderColor: '#fff',
-            borderWidth: 1
-        }]
-    },
-    options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: paletaTerrosa.senary,
-                titleColor: '#fff',
-                bodyColor: '#fff'
-            }
-        },
-        scales: {
-            x: {
-                beginAtZero: true,
-                grid: { color: 'rgba(139, 115, 85, 0.1)' },
-                ticks: { color: paletaTerrosa.senary }
+    // --- Gráfico de categorías (Dona) ---
+    const categoriasLabels = parseJsonScript('categorias-labels');
+    const categoriasData = parseJsonScript('categorias-data');
+    if (categoriasLabels && categoriasData) {
+        const ctx2 = document.getElementById('categoriasChart').getContext('2d');
+        new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: categoriasLabels,
+                datasets: [{
+                    data: categoriasData,
+                    backgroundColor: coloresTerrosos,
+                    borderColor: '#fff',
+                    borderWidth: 2,
+                }]
             },
-            y: {
-                grid: { display: false },
-                ticks: { color: paletaTerrosa.senary }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
             }
-        }
+        });
     }
-});
 
-// Gráfico de estado del stock (Barra)
-const ctx4 = document.getElementById('stockChart').getContext('2d');
-const stockChart = new Chart(ctx4, {
-    type: 'bar',
-    data: {
-        labels: ['Stock Normal', 'Stock Bajo', 'Sin Stock', 'Sobre Stock'],
-        datasets: [{
-            label: 'Cantidad de Productos',
-            data: [{{ stock_normal|default:0 }}, {{ stock_bajo|default:0 }}, {{ stock_sin|default:0 }}, {{ stock_sobre|default:0 }}],
-            backgroundColor: [
-                paletaTerrosa.tertiary,
-                paletaTerrosa.quaternary,
-                paletaTerrosa.quinary,
-                paletaTerrosa.secondary
-            ],
-            borderColor: paletaTerrosa.senary,
-            borderWidth: 1
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: paletaTerrosa.senary,
-                titleColor: '#fff',
-                bodyColor: '#fff'
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                grid: { color: 'rgba(139, 115, 85, 0.1)' },
-                ticks: { color: paletaTerrosa.senary }
+    // --- Gráfico de productos más vendidos (Barra horizontal) ---
+    const topProductos = parseJsonScript('top-productos');
+    if (topProductos) {
+        const productosLabels = topProductos.length > 0 ? topProductos.map(p => `${p.codigo} - ${p.nombre}`) : ['Sin datos'];
+        const productosData = topProductos.length > 0 ? topProductos.map(p => p.cantidad) : [0];
+        const ctx3 = document.getElementById('productosChart').getContext('2d');
+        new Chart(ctx3, {
+            type: 'bar',
+            data: {
+                labels: productosLabels,
+                datasets: [{
+                    label: 'Unidades Vendidas',
+                    data: productosData,
+                    backgroundColor: coloresTerrosos,
+                }]
             },
-            x: {
-                grid: { display: false },
-                ticks: { color: paletaTerrosa.senary }
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                }
             }
-        }
+        });
+    }
+
+    // --- Gráfico de estado del stock (Barra) ---
+    const stockData = parseJsonScript('stock-data');
+    if (stockData) {
+        const ctx4 = document.getElementById('stockChart').getContext('2d');
+        new Chart(ctx4, {
+            type: 'bar',
+            data: {
+                labels: ['Stock Normal', 'Stock Bajo', 'Sin Stock', 'Sobre Stock'],
+                datasets: [{
+                    label: 'Cantidad de Productos',
+                    data: stockData,
+                    backgroundColor: [
+                        paletaTerrosa.tertiary,
+                        paletaTerrosa.quaternary,
+                        paletaTerrosa.quinary,
+                        paletaTerrosa.secondary
+                    ],
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
     }
 });
 </script>

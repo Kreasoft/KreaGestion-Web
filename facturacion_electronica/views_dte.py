@@ -180,13 +180,17 @@ def ver_factura_electronica(request, dte_id):
         messages.error(request, 'Este DTE no tiene una venta asociada.')
         return redirect('facturacion_electronica:dte_detail', pk=dte_id)
     
-    # Obtener detalles de la venta
-    detalles = venta.items.all()
+    # Obtener detalles de la venta (materializar lista y prefetch para template)
+    detalles = list(
+        venta.ventadetalle_set.all()
+        .select_related('articulo', 'articulo__unidad_medida')
+    )
     
     context = {
         'dte': dte,
         'venta': venta,
         'detalles': detalles,
+        'empresa': request.empresa,
     }
     
     # Seleccionar template según tipo de DTE

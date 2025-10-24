@@ -50,17 +50,54 @@ class EstacionTrabajoForm(forms.ModelForm):
     
     class Meta:
         model = EstacionTrabajo
-        fields = ['numero', 'nombre', 'descripcion', 'activo']
+        fields = [
+            'numero', 'nombre', 'descripcion',
+            'modo_pos', 'correlativo_ticket',
+            'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale',
+            'cierre_directo', 'flujo_cierre_directo', 'enviar_sii_directo',
+            'max_items_factura', 'max_items_boleta', 'max_items_guia', 'max_items_cotizacion', 'max_items_vale',
+            'activo'
+        ]
         widgets = {
             'numero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: EST001'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre de la estación'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción opcional'}),
+            'modo_pos': forms.Select(attrs={'class': 'form-select'}),
+            'correlativo_ticket': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'puede_facturar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'puede_boletar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'puede_guia': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'puede_cotizar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'puede_vale': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'cierre_directo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'flujo_cierre_directo': forms.Select(attrs={'class': 'form-select'}),
+            'enviar_sii_directo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'max_items_factura': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'max_items_boleta': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'max_items_guia': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'max_items_cotizacion': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'max_items_vale': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'numero': 'Número',
             'nombre': 'Nombre',
             'descripcion': 'Descripción',
+            'modo_pos': 'Modo de Operación POS',
+            'correlativo_ticket': 'Correlativo de Ticket',
+            'puede_facturar': 'Puede Emitir Facturas',
+            'puede_boletar': 'Puede Emitir Boletas',
+            'puede_guia': 'Puede Emitir Guías',
+            'puede_cotizar': 'Puede Emitir Cotizaciones',
+            'puede_vale': 'Puede Emitir Vales',
+            'cierre_directo': 'Cierre directo (Cerrar y Emitir DTE)',
+            'flujo_cierre_directo': 'Flujo para cierre directo',
+            'enviar_sii_directo': 'Enviar al SII automáticamente',
+            'max_items_factura': 'Máx. Items Factura',
+            'max_items_boleta': 'Máx. Items Boleta',
+            'max_items_guia': 'Máx. Items Guía',
+            'max_items_cotizacion': 'Máx. Items Cotización',
+            'max_items_vale': 'Máx. Items Vale',
             'activo': 'Activa',
         }
 

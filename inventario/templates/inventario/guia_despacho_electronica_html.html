@@ -404,10 +404,16 @@
         <div class="traslado-section">
             <div class="traslado-title">INFORMACIÓN DE TRASLADO</div>
             <div class="traslado-info">
-                <strong>Tipo de Traslado:</strong> {{ dte.get_tipo_traslado_display }}<br>
-                <strong>Origen:</strong> {{ transferencia.bodega_origen.nombre }} ({{ transferencia.bodega_origen.codigo }})<br>
-                <strong>Destino:</strong> {{ transferencia.bodega_destino.nombre }} ({{ transferencia.bodega_destino.codigo }})<br>
-                <strong>Folio Interno:</strong> {{ transferencia.numero_folio }}
+                {% if venta %}
+                    <strong>Tipo de Traslado:</strong> {{ venta.get_tipo_despacho_display|default:"Venta" }}<br>
+                {% else %}
+                    <strong>Tipo de Traslado:</strong> {{ dte.get_tipo_traslado_display|default:"Venta" }}<br>
+                {% endif %}
+                {% if transferencia %}
+                    <strong>Origen:</strong> {{ transferencia.bodega_origen.nombre }} ({{ transferencia.bodega_origen.codigo }})<br>
+                    <strong>Destino:</strong> {{ transferencia.bodega_destino.nombre }} ({{ transferencia.bodega_destino.codigo }})<br>
+                    <strong>Folio Interno:</strong> {{ transferencia.numero_folio }}
+                {% endif %}
             </div>
         </div>
 
@@ -425,17 +431,31 @@
                 </tr>
             </thead>
             <tbody>
-                {% for detalle in detalles %}
-                <tr>
-                    <td style="text-align: center;">{{ detalle.articulo.codigo }}</td>
-                    <td>{{ detalle.articulo.nombre }}</td>
-                    <td style="text-align: center;">{{ detalle.articulo.unidad_medida.nombre|default:"UND" }}</td>
-                    <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
-                    <td style="text-align: right;">${{ detalle.precio_unitario|floatformat:0 }}</td>
-                    <td style="text-align: right;">$0</td>
-                    <td style="text-align: right;">${{ detalle.total|floatformat:0 }}</td>
-                </tr>
-                {% endfor %}
+                {% if detalles %}
+                    {% for detalle in detalles %}
+                    <tr>
+                        <td style="text-align: center;">{{ detalle.articulo.codigo }}</td>
+                        <td>{{ detalle.articulo.nombre }}</td>
+                        <td style="text-align: center;">{{ detalle.articulo.unidad_medida.nombre|default:"UND" }}</td>
+                        <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
+                        <td style="text-align: right;">${{ detalle.precio_unitario|floatformat:0 }}</td>
+                        <td style="text-align: right;">$0</td>
+                        <td style="text-align: right;">${{ detalle.precio_total|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                {% elif venta %}
+                    {% for detalle in venta.ventadetalle_set.all %}
+                    <tr>
+                        <td style="text-align: center;">{{ detalle.articulo.codigo }}</td>
+                        <td>{{ detalle.articulo.nombre }}</td>
+                        <td style="text-align: center;">{{ detalle.articulo.unidad_medida.nombre|default:"UND" }}</td>
+                        <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
+                        <td style="text-align: right;">${{ detalle.precio_unitario|floatformat:0 }}</td>
+                        <td style="text-align: right;">$0</td>
+                        <td style="text-align: right;">${{ detalle.precio_total|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
             </tbody>
         </table>
 
@@ -474,6 +494,20 @@
                 <div class="totales-box">
                     <div class="totales-header">TOTALES</div>
                     <div class="totales-content">
+                        {% if venta %}
+                        <div class="total-row">
+                            <span class="total-label">SUBTOTAL:</span>
+                            <span class="total-value">${{ venta.subtotal|floatformat:0 }}</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">IVA (19%):</span>
+                            <span class="total-value">${{ venta.iva|floatformat:0 }}</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">TOTAL:</span>
+                            <span class="total-value">${{ venta.total|floatformat:0 }}</span>
+                        </div>
+                        {% else %}
                         <div class="total-row">
                             <span class="total-label">SUBTOTAL:</span>
                             <span class="total-value">${{ subtotal|floatformat:0 }}</span>
@@ -486,6 +520,7 @@
                             <span class="total-label">TOTAL:</span>
                             <span class="total-value">${{ total|floatformat:0 }}</span>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
 

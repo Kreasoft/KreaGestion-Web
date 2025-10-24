@@ -155,7 +155,7 @@ class Venta(models.Model):
         verbose_name = "Venta"
         verbose_name_plural = "Ventas"
         ordering = ['-fecha_creacion']
-        unique_together = ['empresa', 'numero_venta']
+        unique_together = ['empresa', 'tipo_documento', 'numero_venta']
     
     def __str__(self):
         return f"Venta {self.numero_venta} - {self.fecha}"
@@ -295,6 +295,25 @@ class EstacionTrabajo(models.Model):
         default='normal',
         verbose_name="Modo de Operación POS",
         help_text="Normal: Cliente opcional al final. Con Cliente: Selección obligatoria al inicio para aplicar precios especiales."
+    )
+    
+    # Cierre directo (Cerrar y emitir DTE automáticamente)
+    cierre_directo = models.BooleanField(
+        default=False,
+        verbose_name="Cierre directo (Cerrar y Emitir DTE)"
+    )
+    flujo_cierre_directo = models.CharField(
+        max_length=20,
+        choices=[
+            ('rut_inicio', 'RUT al inicio'),
+            ('rut_final', 'RUT al final'),
+        ],
+        default='rut_final',
+        verbose_name="Flujo para cierre directo"
+    )
+    enviar_sii_directo = models.BooleanField(
+        default=True,
+        verbose_name="Enviar al SII automáticamente"
     )
     
     activo = models.BooleanField(default=True, verbose_name="Activo")

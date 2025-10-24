@@ -555,9 +555,28 @@ def procesar_venta(request, ticket_id):
             print(f"Tipo documento: {tipo_documento}")
             print(f"Observaciones: {observaciones}")
             
+            # PRECHEQUEOS FE: Para boleta/factura/guía, exigir FE activa y certificado antes de continuar
+            if tipo_documento in ['factura', 'boleta', 'guia']:
+                fe_activa = getattr(request.empresa, 'facturacion_electronica', False)
+                cert_ok = hasattr(request.empresa, 'certificado_digital') and bool(getattr(request.empresa, 'certificado_digital'))
+                if not fe_activa:
+                    messages.error(request, 'La empresa no tiene Facturación Electrónica activada. No se puede emitir DTE.')
+                    return render(request, 'caja/procesar_venta.html', {
+                        'ticket': ticket,
+                        'form': form,
+                        'apertura_activa': apertura_activa,
+                    })
+                if not cert_ok:
+                    messages.error(request, 'No hay certificado digital configurado para la empresa. Configure el certificado para emitir DTE.')
+                    return render(request, 'caja/procesar_venta.html', {
+                        'ticket': ticket,
+                        'form': form,
+                        'apertura_activa': apertura_activa,
+                    })
+
             # VALIDAR FOLIOS DISPONIBLES Y OBTENER FOLIO DEL CAF
             folio_caf = None
-            if request.empresa.facturacion_electronica and tipo_documento in ['factura', 'boleta', 'guia']:
+            if tipo_documento in ['factura', 'boleta', 'guia']:
                 try:
                     from facturacion_electronica.models import ArchivoCAF
                     
@@ -620,10 +639,9 @@ def procesar_venta(request, ticket_id):
                 # Si no hay CAF (documentos no electrónicos), generar correlativo
                 print(f"Generando número correlativo para {tipo_documento}...")
                 
-                # Buscar el número más alto existente para este tipo de documento
+                # Buscar el número más alto existente (a nivel empresa)
                 ventas_existentes = Venta.objects.filter(
-                    empresa=request.empresa,
-                    tipo_documento=tipo_documento
+                    empresa=request.empresa
                 ).order_by('-numero_venta')
                 
                 # Iniciar desde 1
@@ -647,7 +665,6 @@ def procesar_venta(request, ticket_id):
             for intento in range(max_intentos):
                 if not Venta.objects.filter(
                     empresa=request.empresa,
-                    tipo_documento=tipo_documento,
                     numero_venta=numero_venta
                 ).exists():
                     break
@@ -658,7 +675,7 @@ def procesar_venta(request, ticket_id):
             print(f"   Numero generado: {numero_venta}")
             
             # Ahora crear la venta dentro de una transacción con manejo de IntegrityError
-            max_reintentos = 5
+            max_reintentos = 20
             venta_creada_exitosamente = False
             
             for reintento in range(max_reintentos):
@@ -780,7 +797,7 @@ def procesar_venta(request, ticket_id):
                         f"FE_activa={request.empresa.facturacion_electronica}"
                     )
                     cierre_directo_flag = request.session.get('pos_cierre_directo', False)
-                    if (request.empresa.facturacion_electronica or cierre_directo_flag) and tipo_documento in ['factura', 'boleta', 'guia']:
+                    if tipo_documento in ['factura', 'boleta', 'guia']:
                         try:
                             from facturacion_electronica.dte_service import DTEService
                             print(f"Generando DTE para {tipo_documento} #{numero_venta}...")
@@ -821,21 +838,18 @@ def procesar_venta(request, ticket_id):
 
                                 messages.success(request, mensaje_dte)
 
-                                # Envío automático al SII si cierre directo y envío directo están activos
-                                cierre_directo = request.session.get('pos_cierre_directo', False)
-                                enviar_sii_directo = request.session.get('pos_enviar_sii_directo', True)
-                                if cierre_directo and enviar_sii_directo:
-                                    try:
-                                        print("🔄 Enviando DTE al SII por cierre directo...")
-                                        resp_envio = dte_service.enviar_dte_al_sii(dte)
-                                        track_id = resp_envio.get('track_id') if isinstance(resp_envio, dict) else None
-                                        if track_id:
-                                            messages.success(request, f"✅ DTE enviado al SII. Track ID: {track_id}")
-                                        else:
-                                            messages.info(request, "DTE enviado al SII (sin Track ID en respuesta).")
-                                    except Exception as e_envio:
-                                        print(f"⚠️ Error al enviar DTE al SII (cierre directo): {str(e_envio)}")
-                                        messages.warning(request, f"DTE generado pero no enviado al SII: {str(e_envio)}")
+                                # Envío directo al SII (para boleta/factura/guía) cuando FE está activa
+                                try:
+                                    print("🔄 Enviando DTE al SII (envío directo)...")
+                                    resp_envio = dte_service.enviar_dte_al_sii(dte)
+                                    track_id = resp_envio.get('track_id') if isinstance(resp_envio, dict) else None
+                                    if track_id:
+                                        messages.success(request, f"✅ DTE enviado al SII. Track ID: {track_id}")
+                                    else:
+                                        messages.info(request, "DTE enviado al SII (sin Track ID en respuesta).")
+                                except Exception as e_envio:
+                                    print(f"⚠️ Error al enviar DTE al SII (envío directo): {str(e_envio)}")
+                                    messages.warning(request, f"DTE generado pero no enviado al SII: {str(e_envio)}")
 
                         except ValueError as e:
                             print(f"❌ ERROR al generar DTE (ValueError): {str(e)}")
@@ -891,8 +905,8 @@ def procesar_venta(request, ticket_id):
                         print(f"🖨️ Redirigiendo a impresión: /ventas/{venta_final.pk}/html/")
 
                     # Si llegamos aquí, la venta fue creada exitosamente
-                    # Redirigir a impresión del documento
-                    return redirect('ventas:venta_html', pk=venta_final.pk)
+                    # Redirigir a impresión del documento y volver al POS
+                    return redirect('ventas:venta_imprimir_y_volver', pk=venta_final.pk)
                 
                 except IntegrityError as e:
                     if 'UNIQUE constraint failed' in str(e) and 'numero_venta' in str(e):

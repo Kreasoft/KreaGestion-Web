@@ -27,9 +27,73 @@
                             <i class="fas fa-plus me-2"></i> Nuevo Precio Especial
                         </button>
                     </div>
+                    {% if page_obj.paginator.num_pages > 1 %}
+                    <nav aria-label="Paginación" class="mt-2">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                                <a class="page-link" href="?q={{ q }}&cliente={{ cliente_id }}&articulo={{ articulo_id }}&estado={{ estado }}&vigencia={{ vigencia }}&page={% if page_obj.has_previous %}{{ page_obj.previous_page_number }}{% else %}1{% endif %}">«</a>
+                            </li>
+                            <li class="page-item disabled"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+                            <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="?q={{ q }}&cliente={{ cliente_id }}&articulo={{ articulo_id }}&estado={{ estado }}&vigencia={{ vigencia }}&page={% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}{{ page_obj.paginator.num_pages }}{% endif %}">»</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    {% endif %}
                 </div>
                 
                 <div class="card-body" style="padding: 15px;">
+                    <form method="get" class="mb-2">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label" style="font-size: .8rem; color:#6F5B44; font-weight:600;">Buscar</label>
+                                <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Cliente, artículo o código">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" style="font-size: .8rem; color:#6F5B44; font-weight:600;">Cliente</label>
+                                <select class="form-select" name="cliente">
+                                    <option value="">Todos</option>
+                                    {% for c in clientes_list %}
+                                    <option value="{{ c.id }}" {% if cliente_id|default:''|stringformat:'s' == c.id|stringformat:'s' %}selected{% endif %}>{{ c.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" style="font-size: .8rem; color:#6F5B44; font-weight:600;">Artículo</label>
+                                <select class="form-select" name="articulo">
+                                    <option value="">Todos</option>
+                                    {% for a in articulos_list %}
+                                    <option value="{{ a.id }}" {% if articulo_id|default:''|stringformat:'s' == a.id|stringformat:'s' %}selected{% endif %}>{{ a.nombre|truncatewords:5 }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label" style="font-size: .8rem; color:#6F5B44; font-weight:600;">Estado</label>
+                                <select class="form-select" name="estado">
+                                    <option value="">Todos</option>
+                                    <option value="activo" {% if estado == 'activo' %}selected{% endif %}>Activo</option>
+                                    <option value="inactivo" {% if estado == 'inactivo' %}selected{% endif %}>Inactivo</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label" style="font-size: .8rem; color:#6F5B44; font-weight:600;">Vigencia</label>
+                                <select class="form-select" name="vigencia">
+                                    <option value="">Todas</option>
+                                    <option value="vigente" {% if vigencia == 'vigente' %}selected{% endif %}>Vigente</option>
+                                    <option value="futura" {% if vigencia == 'futura' %}selected{% endif %}>Futura</option>
+                                    <option value="vencida" {% if vigencia == 'vencida' %}selected{% endif %}>Vencida</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12 d-flex gap-2">
+                                <button type="submit" class="btn btn-sm" style="background:#8B7355; color:white;">
+                                    <i class="fas fa-filter me-1"></i>Filtrar
+                                </button>
+                                <a href="{% url 'ventas:precio_cliente_list' %}" class="btn btn-sm btn-secondary">
+                                    Limpiar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
                     <!-- Tabla de precios -->
                     <div class="table-responsive">
                         <table class="table table-hover table-sm" style="font-size: 0.75rem; margin-bottom: 0;">
@@ -249,31 +313,22 @@ document.getElementById('btnGuardar').addEventListener('click', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Mostrar mensaje de éxito
+                // Mostrar mensaje de éxito y recargar lista preservando filtros
                 Swal.fire({
                     icon: 'success',
                     title: 'Guardado',
                     text: data.message,
-                    timer: 1000,
+                    timer: 900,
                     showConfirmButton: false
+                }).then(() => {
+                    const modalEl = document.getElementById('modalCrearPrecio');
+                    if (modalEl) {
+                        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                        modal.hide();
+                    }
+                    // Recargar manteniendo querystring actual (filtros)
+                    window.location.href = window.location.pathname + window.location.search;
                 });
-                
-                // Limpiar solo los campos de artículo y precio, MANTENER el cliente
-                const selectArticulo = document.querySelector('select[name="articulo"]');
-                const inputPrecio = document.querySelector('input[name="precio_especial"]');
-                const inputDescuento = document.querySelector('input[name="descuento_porcentaje"]');
-                
-                if (selectArticulo) {
-                    selectArticulo.value = '';
-                    selectArticulo.dispatchEvent(new Event('change')); // Actualizar precio de lista
-                }
-                if (inputPrecio) inputPrecio.value = '';
-                if (inputDescuento) inputDescuento.value = '';
-                
-                // Enfocar en el select de artículo para continuar
-                setTimeout(() => {
-                    if (selectArticulo) selectArticulo.focus();
-                }, 1100);
             } else {
                 Swal.fire('Error', 'Revise los campos del formulario', 'error');
             }

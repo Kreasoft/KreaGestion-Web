@@ -293,6 +293,8 @@
             align-items: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        /* Hacer que el contenedor izquierdo de la top-bar crezca y permita que la tarjeta se alargue */
+        .top-bar > .d-flex.align-items-center { flex: 1 1 auto; min-width: 0; }
         
         /* Ocultar top-bar en páginas que no sean dashboard */
         .hide-top-bar .top-bar {
@@ -518,21 +520,26 @@
             flex: 1;
             min-width: 0;
         }
+        /* Quitar margen que achica la tarjeta dentro del top bar */
+        .top-bar .empresa-info { margin-left: 0 !important; }
+        /* Hacer que el wrapper inmediato ocupe todo el ancho */
+        .top-bar .empresa-info > .d-flex { width: 100%; }
         
         .empresa-badge {
             display: flex;
             align-items: center;
             padding: 0.75rem 1.25rem;
-            background: linear-gradient(135deg, #60A5FA 0%, #93C5FD 100%);
+            background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
             color: white;
             border-radius: 0.75rem;
             font-size: 0.9rem;
             font-weight: 500;
-            box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+            box-shadow: 0 4px 12px rgba(139, 115, 85, 0.25);
             transition: all 0.3s ease;
+            width: 100%;
             max-width: 100%;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(212, 196, 168, 0.5);
             position: relative;
         }
         
@@ -543,14 +550,19 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
             border-radius: 0.75rem;
             pointer-events: none;
         }
+
+        /* Ocultar botón hamburguesa del top bar (desktop) */
+        .top-bar #toggleSidebar { display: none !important; }
+        /* Ocultar botón hamburguesa móvil del sidebar header */
+        .sidebar-header #toggleSidebarMobile { display: none !important; }
         
         .empresa-badge:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(96, 165, 250, 0.4);
+            box-shadow: 0 6px 20px rgba(139, 115, 85, 0.35);
             text-decoration: none !important;
         }
         
@@ -588,7 +600,7 @@
         }
         
         .empresa-details {
-            flex: 1;
+            flex: 1 1 auto;
             min-width: 0;
             position: relative;
             z-index: 1;
@@ -601,7 +613,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 200px;
+            max-width: 100%;
         }
         
         .empresa-rut {
@@ -612,7 +624,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 200px;
+            max-width: 100%;
         }
         
         .sucursal-info {
@@ -622,7 +634,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 200px;
+            max-width: 100%;
         }
         
         .empresa-badge.superusuario {
@@ -638,7 +650,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 200px;
+            max-width: 100%;
         }
         
         .sucursal-nombre {
@@ -648,7 +660,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 150px;
+            max-width: 100%;
         }
         
         .separador {
@@ -676,17 +688,17 @@
             }
             
             .empresa-nombre {
-                max-width: 150px;
+                max-width: 100%;
                 font-size: 0.9rem;
             }
             
             .empresa-rut {
-                max-width: 150px;
+                max-width: 100%;
                 font-size: 0.75rem;
             }
             
             .sucursal-info {
-                max-width: 150px;
+                max-width: 100%;
                 font-size: 0.7rem;
             }
         }
@@ -705,17 +717,17 @@
             }
             
             .empresa-nombre {
-                max-width: 100px;
+                max-width: 100%;
                 font-size: 0.85rem;
             }
             
             .empresa-rut {
-                max-width: 100px;
+                max-width: 100%;
                 font-size: 0.7rem;
             }
             
             .sucursal-info {
-                max-width: 100px;
+                max-width: 100%;
                 font-size: 0.65rem;
             }
         }
@@ -747,12 +759,12 @@
             <!-- Submenú de Artículos -->
             {% if perms.articulos.view_articulo or perms.articulos.view_categoriaarticulo or perms.articulos.view_impuestoespecifico or perms.articulos.view_unidadmedida or user.is_superuser %}
             <div class="nav-item has-submenu">
-                <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#articulosSubmenu" aria-expanded="false">
+                <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#articulosSubmenu" aria-expanded="{% if request.resolver_match.url_name == 'articulo_list' or request.resolver_match.url_name == 'categoria_list' or request.resolver_match.url_name == 'lista_precio_list' or request.resolver_match.url_name == 'lista_precio_create' or request.resolver_match.url_name == 'lista_precio_detail' or request.resolver_match.url_name == 'lista_precio_update' or 'kit_oferta' in request.resolver_match.url_name or request.resolver_match.url_name == 'unidad_medida_list' or request.resolver_match.url_name == 'impuesto_especifico_list' %}true{% else %}false{% endif %}">
                     <i class="nav-icon fas fa-box"></i>
                     <span class="nav-text">Artículos</span>
                     <i class="fas fa-chevron-down submenu-arrow"></i>
                 </a>
-                <div class="collapse submenu" id="articulosSubmenu">
+                <div class="collapse submenu {% if request.resolver_match.url_name == 'articulo_list' or request.resolver_match.url_name == 'categoria_list' or request.resolver_match.url_name == 'lista_precio_list' or request.resolver_match.url_name == 'lista_precio_create' or request.resolver_match.url_name == 'lista_precio_detail' or request.resolver_match.url_name == 'lista_precio_update' or 'kit_oferta' in request.resolver_match.url_name or request.resolver_match.url_name == 'unidad_medida_list' or request.resolver_match.url_name == 'impuesto_especifico_list' %}show{% endif %}" id="articulosSubmenu">
                     <div class="submenu-items">
                         <!-- Gestión Principal -->
                         {% if perms.articulos.view_articulo or user.is_superuser %}
@@ -783,7 +795,7 @@
                         </a>
                         {% endif %}
                         {% if perms.ventas.view_precioclientearticulo or user.is_superuser %}
-                        <a href="{% url 'ventas:precio_cliente_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'precio_cliente_list' %}active{% endif %}">
+                        <a id="link-precios-especiales" href="{% url 'ventas:precio_cliente_list' %}" class="nav-link submenu-link {% if request.resolver_match.url_name == 'precio_cliente_list' %}active{% endif %}">
                             <i class="fas fa-user-tag me-2" style="color: #C8A882;"></i>
                             <span>Precios Especiales Clientes</span>
                         </a>
@@ -808,12 +820,12 @@
             <!-- Submenú de Ventas -->
             {% if perms.ventas.view_venta or perms.ventas.view_cotizacion or perms.ventas.view_vendedor or perms.ventas.view_formapago or perms.ventas.view_estaciontrabajo or perms.clientes.view_cliente or user.is_superuser %}
             <div class="nav-item has-submenu">
-                <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#ventasSubmenu" aria-expanded="false">
+                <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#ventasSubmenu" aria-expanded="{% if request.resolver_match.app_name == 'ventas' %}true{% else %}false{% endif %}">
                     <i class="nav-icon fas fa-cash-register"></i>
                     <span class="nav-text">Ventas</span>
                     <i class="fas fa-chevron-down submenu-arrow"></i>
                 </a>
-                <div class="collapse submenu" id="ventasSubmenu">
+                <div class="collapse submenu {% if request.resolver_match.app_name == 'ventas' %}show{% endif %}" id="ventasSubmenu">
                     <div class="submenu-items">
                         <!-- Operaciones -->
                         {% if perms.ventas.add_venta or user.is_superuser %}
@@ -859,7 +871,7 @@
                         <!-- Configuración -->
                         <div class="submenu-separator"></div>
                         {% if perms.clientes.view_cliente or user.is_superuser %}
-                        <a href="{% url 'clientes:cliente_list' %}" class="nav-link submenu-link {% if 'clientes' in request.path %}active{% endif %}">
+                        <a href="{% url 'clientes:cliente_list' %}" class="nav-link submenu-link {% if request.resolver_match.app_name == 'clientes' %}active{% endif %}">
                             <i class="fas fa-user-friends me-2" style="color: #D4A574;"></i>
                             <span>Clientes</span>
                         </a>
@@ -1571,6 +1583,25 @@
                     }
                 });
             });
+
+            // Forzar transición Artículos -> Ventas al ir a Precios Especiales
+            const linkPrecios = document.getElementById('link-precios-especiales');
+            if (linkPrecios) {
+                linkPrecios.addEventListener('click', function(e) {
+                    try {
+                        const articulosCollapse = document.getElementById('articulosSubmenu');
+                        const ventasCollapse = document.getElementById('ventasSubmenu');
+                        if (articulosCollapse && articulosCollapse.classList.contains('show')) {
+                            const c1 = bootstrap.Collapse.getOrCreateInstance(articulosCollapse);
+                            c1.hide();
+                        }
+                        if (ventasCollapse && !ventasCollapse.classList.contains('show')) {
+                            const c2 = bootstrap.Collapse.getOrCreateInstance(ventasCollapse, {toggle:false});
+                            c2.show();
+                        }
+                    } catch(err) { console.warn(err); }
+                });
+            }
         });
     </script>
     

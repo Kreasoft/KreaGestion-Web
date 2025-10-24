@@ -375,9 +375,9 @@
         <button onclick="window.print()" class="btn btn-success">
             <i class="fas fa-print me-2"></i>Imprimir Boleta
         </button>
-        <button onclick="if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) { window.history.back(); } else { window.location.href = '/'; }" class="btn btn-secondary ms-2">
-            <i class="fas fa-arrow-left me-2"></i>Volver
-        </button>
+        <a id="btnBackPOS" href="{% url 'ventas:pos_view' %}" class="btn btn-secondary ms-2">
+            <i class="fas fa-arrow-left me-2"></i>Volver al POS
+        </a>
     </div>
     
     <script>
@@ -397,11 +397,43 @@
             }
         });
         
-        // Auto-imprimir al cargar
+        // Auto-impresión y retorno rápido al POS cuando la URL trae ?auto=1
         window.addEventListener('load', function() {
-            setTimeout(function() {
-                window.print();
-            }, 500);
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const auto = params.get('auto');
+                const posUrl = "{% url 'ventas:pos_view' %}";
+
+                const notifyParent = () => {
+                    try {
+                        if (window.opener && window.opener !== window) {
+                            window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
+                        }
+                    } catch (e) {}
+                    try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
+                };
+
+                // Botón volver notifica al padre
+                try {
+                    const backBtn = document.getElementById('btnBackPOS');
+                    if (backBtn) backBtn.addEventListener('click', function() { try { notifyParent(); } catch (e) {} });
+                } catch (e) {}
+
+                if (auto === '1') {
+                    setTimeout(function() { try { window.print(); } catch (e) {} }, 150);
+                    if ('onafterprint' in window) {
+                        window.addEventListener('afterprint', function() { setTimeout(notifyParent, 100); }, { once: true });
+                    }
+                    // Fallback rápido por si afterprint no dispara
+                    setTimeout(notifyParent, 1000);
+                } else {
+                    // Comportamiento original: auto-imprimir sin redirigir
+                    setTimeout(function() { try { window.print(); } catch (e) {} }, 300);
+                }
+            } catch (e) {
+                // fallback mínimo
+                setTimeout(function() { try { window.print(); } catch (e) {} }, 300);
+            }
         });
     </script>
 </body>

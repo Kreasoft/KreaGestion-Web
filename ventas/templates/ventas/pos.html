@@ -232,8 +232,9 @@
         
         .category-btn {
             padding: 6px 14px;
-            border: 1px solid #dee2e6;
-            background: white;
+            border: 1px solid #D4C4A8;
+            background: #F5F0EB;
+            color: #6F5B44;
             border-radius: 15px;
             font-size: 0.8rem;
             cursor: pointer;
@@ -242,17 +243,17 @@
         }
         
         .category-btn:hover {
-            background: #e9ecef;
-            border-color: #17a2b8;
+            background: #E8DED5;
+            border-color: #C8B79A;
             transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(23, 162, 184, 0.2);
+            box-shadow: 0 2px 4px rgba(139, 115, 85, 0.2);
         }
         
         .category-btn.active {
-            background: #17a2b8;
-            color: white;
-            border-color: #17a2b8;
-            box-shadow: 0 2px 6px rgba(23, 162, 184, 0.3);
+            background: #D4C4A8;
+            color: #2c3e50;
+            border-color: #D4C4A8;
+            box-shadow: 0 2px 6px rgba(139, 115, 85, 0.25);
         }
         
         /* Grid de productos compacto */
@@ -702,7 +703,7 @@
                         <div class="pos-search flex-grow-1">
                             <input type="text" id="pos-search" class="form-control" placeholder="Buscar productos...">
                         </div>
-                        <button type="button" class="btn btn-sm" id="btnToggleCategorias" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; padding: 6px 12px;" title="Mostrar/Ocultar Categorías">
+                        <button type="button" class="btn btn-sm" id="btnToggleCategorias" style="background: #F5F0EB; color: #6F5B44; border: 1px solid #D4C4A8; padding: 6px 12px;" title="Mostrar/Ocultar Categorías">
                             <i class="fas fa-folder me-1"></i>Categorías <i class="fas fa-chevron-down ms-1" id="iconoCategorias"></i>
                         </button>
                         <div class="btn-group" role="group">
@@ -748,7 +749,7 @@
                      data-precio="{{ articulo.precio_final_calculado|unlocalize }}"
                      data-precio-neto="{{ articulo.precio_venta|unlocalize }}"
                      data-stock="{{ articulo.stock_actual|default:0 }}"
-                     data-categoria="{{ articulo.categoria|default:'sin-categoria' }}"
+                     data-categoria="{% if articulo.categoria %}{{ articulo.categoria.nombre }}{% else %}sin-categoria{% endif %}"
                      data-categoria-exenta-iva="{% if articulo.categoria.exenta_iva %}true{% else %}false{% endif %}"
                      data-impuesto-especifico="{% if articulo.categoria.impuesto_especifico %}{{ articulo.categoria.impuesto_especifico.get_porcentaje_decimal|unlocalize }}{% else %}0{% endif %}">
                     <div class="pos-product-name">{{ articulo.nombre }}</div>
@@ -2845,6 +2846,7 @@ function clearCart() {
                         cart = [];
                         updateCartDisplay();
                         updateTotals();
+                        limpiarClientePOS();
                         
                         // Actualizar stock después de la venta
                         updateStockFromServer();
@@ -2874,6 +2876,7 @@ function clearCart() {
                         cart = [];
                         updateCartDisplay();
                         updateTotals();
+                        limpiarClientePOS();
                         
                         // Actualizar stock después de la venta
                         updateStockFromServer();
@@ -2890,43 +2893,23 @@ function clearCart() {
                         }
                     });
                 } else if (data.tipo_documento === 'factura' || data.tipo_documento === 'boleta' || data.tipo_documento === 'guia') {
-                    // Para factura, boleta o guía, mostrar mensaje y abrir el ticket facturable generado automáticamente
+                    // Para factura, boleta o guía, redirigir a procesar venta (selección de pago y emisión DTE)
                     const nombreDocumento = data.tipo_documento === 'factura' ? 'Factura' : 
                                           data.tipo_documento === 'boleta' ? 'Boleta' : 'Guía de Despacho';
                     
-                    Swal.fire({
-                        icon: 'success',
-                        title: `¡${nombreDocumento} Procesada!`,
-                        html: `
-                            <p>Preventa ${nombreDocumento} #${data.numero_preventa} generada exitosamente</p>
-                            ${data.ticket_vale_numero ? `<p><strong>Ticket Facturable generado: #${data.ticket_vale_numero}</strong></p>` : ''}
-                        `,
-                        timer: 3000
-                    }).then(() => {
-                        // Si se generó un ticket facturable, abrirlo automáticamente
-                        if (data.ticket_vale_id) {
-                            window.open(`/ventas/vales/${data.ticket_vale_id}/html/`, '_blank');
-                        }
-                        
-                        // Limpiar carrito y recargar
-                        cart = [];
-                        updateCartDisplay();
-                        updateTotals();
-                        
-                        // Actualizar stock después de la venta
-                        updateStockFromServer();
-                        
-                        // Restaurar modo escaneo si estaba activo
-                        if (wasScanningMode) {
-                            setTimeout(() => {
-                                barcodeMode = true;
-                                const barcodeInput = document.getElementById('barcode-input');
-                                if (barcodeInput) {
-                                    barcodeInput.focus();
-                                }
-                            }, 2000);
-                        }
-                    });
+                    if (data.ticket_vale_id) {
+                        // Redirigir a Caja para procesar el ticket facturable
+                        window.location.href = `/caja/procesar-venta/${data.ticket_vale_id}/`;
+                        return;
+                    } else {
+                        // Si por algún motivo no hay ticket, mostrar alerta informativa
+                        Swal.fire({
+                            icon: 'warning',
+                            title: `Preventa ${nombreDocumento} #${data.numero_preventa} generada`,
+                            text: 'No se recibió el identificador del ticket facturable. Por favor procese desde Caja > Procesar Venta.',
+                            timer: 3000
+                        });
+                    }
                 } else {
                     Swal.fire({
                         icon: 'success',
@@ -2938,6 +2921,7 @@ function clearCart() {
                         cart = [];
                         updateCartDisplay();
                         updateTotals();
+                        limpiarClientePOS();
                         
                         // Actualizar stock después de la venta
                         updateStockFromServer();
@@ -2990,6 +2974,22 @@ console.log('*** DOMContentLoaded FINALIZADO ***');
 });
 
 // ===== FUNCIONES AUXILIARES =====
+
+function limpiarClientePOS() {
+    try {
+        const rutInput = document.getElementById('busqueda-cliente');
+        if (rutInput) { rutInput.value = ''; }
+        window.clienteSeleccionado = null;
+        const resultados = document.getElementById('resultados-busqueda');
+        if (resultados) { resultados.style.display = 'none'; }
+        const info = document.getElementById('cliente-info');
+        if (info) { info.style.display = 'none'; }
+        const noEncontrado = document.getElementById('cliente-no-encontrado');
+        if (noEncontrado) { noEncontrado.style.display = 'none'; }
+        const header = document.getElementById('clienteEnHeader');
+        if (header) { header.innerHTML = ''; }
+    } catch (e) { console.error(e); }
+}
 
 // Cargar artículos desde el DOM
 function loadArticulosFromDOM() {

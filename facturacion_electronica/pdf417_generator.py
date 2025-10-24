@@ -127,17 +127,17 @@ class PDF417Generator:
             bool: True si se guardó exitosamente
         """
         try:
-            if not dte.timbre_electronico:
-                print("⚠️ DTE no tiene TED generado")
-                return False
-            
-            # Generar imagen PDF417
-            imagen_bytes = PDF417Generator.generar_imagen_pdf417(
-                dte.timbre_electronico,
-                ancho=280,
-                alto=100
-            )
-            
+            # Generar imagen PDF417 (si no hay TED, usar placeholder igualmente)
+            if dte.timbre_electronico:
+                imagen_bytes = PDF417Generator.generar_imagen_pdf417(
+                    dte.timbre_electronico,
+                    ancho=280,
+                    alto=100
+                )
+            else:
+                print("⚠️ DTE no tiene TED generado. Se usará placeholder de timbre.")
+                imagen_bytes = PDF417Generator._generar_placeholder(ancho=280, alto=100)
+
             # Guardar en el campo del modelo
             from django.core.files.base import ContentFile
             dte.timbre_pdf417.save(
@@ -145,10 +145,10 @@ class PDF417Generator:
                 ContentFile(imagen_bytes),
                 save=True
             )
-            
+
             print(f"PDF417 generado y guardado para DTE {dte.tipo_dte}-{dte.folio}")
             return True
-            
+
         except Exception as e:
             print(f"ERROR al guardar PDF417: {str(e)}")
             return False
