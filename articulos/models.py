@@ -35,7 +35,7 @@ class CategoriaArticulo(models.Model):
     """Categorías para clasificar los artículos"""
     
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
-    codigo = models.CharField(max_length=50, blank=True, verbose_name="Código")
+    codigo = models.CharField(max_length=50, verbose_name="Código")
     nombre = models.CharField(max_length=100, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     

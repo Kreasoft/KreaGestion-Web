@@ -5,6 +5,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
+from django.http import JsonResponse
 from usuarios.decorators import requiere_empresa, solo_superusuario, filtrar_por_empresa
 from .models import Empresa, Sucursal, ConfiguracionEmpresa
 from .forms import EmpresaForm, SucursalForm, ConfiguracionEmpresaForm, FacturacionElectronicaForm
@@ -93,20 +94,55 @@ def empresa_create(request):
 	"""Crea una nueva empresa - solo superusuario"""
 	if request.method == 'POST':
 		form = EmpresaForm(request.POST, request.FILES)
-		if form.is_valid():
-			empresa = form.save(commit=False)
-			empresa.creado_por = request.user
-			empresa.save()
-			
-			# Crear configuración por defecto
-			ConfiguracionEmpresa.objects.create(empresa=empresa)
-			
-			messages.success(request, 'Empresa creada exitosamente.')
-			return redirect('dashboard')
+		config_form = ConfiguracionEmpresaForm(request.POST)
+		fe_form = FacturacionElectronicaForm(request.POST, request.FILES)
+
+		if form.is_valid() and config_form.is_valid() and fe_form.is_valid():
+			try:
+				empresa = form.save(commit=False)
+				empresa.creado_por = request.user
+				empresa.save()
+
+				# Guardar configuración
+				configuracion = config_form.save(commit=False)
+				configuracion.empresa = empresa
+				configuracion.save()
+
+				# Guardar configuración de FE
+				fe_config = fe_form.save(commit=False)
+				# Como el form de FE es un ModelForm de Empresa, hay que transferir los datos
+				empresa.facturacion_electronica = fe_config.facturacion_electronica
+				empresa.ambiente_sii = fe_config.ambiente_sii
+				empresa.certificado_digital = fe_config.certificado_digital
+				empresa.password_certificado = fe_config.password_certificado
+				empresa.save()
+
+				messages.success(request, f'Empresa "{empresa.nombre}" creada exitosamente.')
+				return redirect('empresas:empresa_list')
+			except Exception as e:
+				messages.error(request, f'Error al crear la empresa: {str(e)}')
+		else:
+			errors = {**form.errors, **config_form.errors, **fe_form.errors}
+			for field, error_list in errors.items():
+				for error in error_list:
+					messages.error(request, f'{field.replace("__all__", "Error general")}: {error}')
 	else:
 		form = EmpresaForm()
-	
-	return render(request, 'empresas/editar_empresa_activa.html', {'form': form, 'empresa': None, 'titulo': 'Nueva Empresa'})
+		config_form = ConfiguracionEmpresaForm()
+		fe_form = FacturacionElectronicaForm()
+
+	context = {
+		'form': form,
+		'config_form': config_form,
+		'fe_form': fe_form,
+		'empresa': None,
+		'configuracion': None,
+		'sucursales': None,
+		'titulo': 'Nueva Empresa',
+		'is_create': True
+	}
+
+	return render(request, 'empresas/editar_empresa_activa.html', context)
 
 
 @solo_superusuario
@@ -321,8 +357,9 @@ def seleccionar_empresa(request):
 	empresas = Empresa.objects.all()
 	empresa_actual = request.empresa
 	
-	if request.method == 'POST':
-		empresa_id = request.POST.get('empresa_id')
+	empresa_id_get = request.GET.get('empresa_id')
+	if request.method == 'POST' or empresa_id_get:
+		empresa_id = request.POST.get('empresa_id') or empresa_id_get
 		if empresa_id:
 			try:
 				empresa = Empresa.objects.get(id=empresa_id)

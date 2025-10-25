@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-building"></i>
+                        {{ titulo }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        <div class="messages mb-4">
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data" id="empresaForm">
+                        {% csrf_token %}
+
+                        <!-- Información Básica -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">
+                                    <i class="fas fa-info-circle"></i> Información Básica
+                                </h5>
+
+                                <div class="mb-3">
+                                    {{ form.nombre.label_tag }}
+                                    {{ form.nombre }}
+                                    {% if form.nombre.errors %}
+                                        <div class="text-danger small">{{ form.nombre.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    {{ form.razon_social.label_tag }}
+                                    {{ form.razon_social }}
+                                    {% if form.razon_social.errors %}
+                                        <div class="text-danger small">{{ form.razon_social.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    {{ form.rut.label_tag }}
+                                    {{ form.rut }}
+                                    {% if form.rut.errors %}
+                                        <div class="text-danger small">{{ form.rut.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    {{ form.giro.label_tag }}
+                                    {{ form.giro }}
+                                    {% if form.giro.errors %}
+                                        <div class="text-danger small">{{ form.giro.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">
+                                    <i class="fas fa-map-marker-alt"></i> Ubicación
+                                </h5>
+
+                                <div class="mb-3">
+                                    {{ form.direccion.label_tag }}
+                                    {{ form.direccion }}
+                                    {% if form.direccion.errors %}
+                                        <div class="text-danger small">{{ form.direccion.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            {{ form.region.label_tag }}
+                                            {{ form.region }}
+                                            {% if form.region.errors %}
+                                                <div class="text-danger small">{{ form.region.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            {{ form.ciudad.label_tag }}
+                                            {{ form.ciudad }}
+                                            {% if form.ciudad.errors %}
+                                                <div class="text-danger small">{{ form.ciudad.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            {{ form.comuna.label_tag }}
+                                            {{ form.comuna }}
+                                            {% if form.comuna.errors %}
+                                                <div class="text-danger small">{{ form.comuna.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    {{ form.telefono.label_tag }}
+                                    {{ form.telefono }}
+                                    {% if form.telefono.errors %}
+                                        <div class="text-danger small">{{ form.telefono.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    {{ form.email.label_tag }}
+                                    {{ form.email }}
+                                    {% if form.email.errors %}
+                                        <div class="text-danger small">{{ form.email.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración de Impresoras -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h5 class="text-primary mb-3">
+                                    <i class="fas fa-print"></i> Configuración de Impresoras
+                                </h5>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            {% for field in form %}
+                                {% if 'impresora' in field.name %}
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ field.label_tag }}
+                                            {{ field }}
+                                            {% if field.errors %}
+                                                <div class="text-danger small">{{ field.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+
+                        <!-- Configuración SII -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h5 class="text-primary mb-3">
+                                    <i class="fas fa-file-invoice-dollar"></i> Configuración SII
+                                </h5>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.facturacion_electronica }}
+                                        <label class="form-check-label" for="{{ form.facturacion_electronica.id_for_label }}">
+                                            {{ form.facturacion_electronica.label }}
+                                        </label>
+                                    </div>
+                                    {% if form.facturacion_electronica.errors %}
+                                        <div class="text-danger small">{{ form.facturacion_electronica.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    {{ form.ambiente_sii.label_tag }}
+                                    {{ form.ambiente_sii }}
+                                    {% if form.ambiente_sii.errors %}
+                                        <div class="text-danger small">{{ form.ambiente_sii.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.alerta_folios_minimos.label_tag }}
+                                    {{ form.alerta_folios_minimos }}
+                                    {% if form.alerta_folios_minimos.errors %}
+                                        <div class="text-danger small">{{ form.alerta_folios_minimos.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    {{ form.codigo_actividad_economica.label_tag }}
+                                    {{ form.codigo_actividad_economica }}
+                                    {% if form.codigo_actividad_economica.errors %}
+                                        <div class="text-danger small">{{ form.codigo_actividad_economica.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Estado -->
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.regimen_tributario.label_tag }}
+                                    {{ form.regimen_tributario }}
+                                    {% if form.regimen_tributario.errors %}
+                                        <div class="text-danger small">{{ form.regimen_tributario.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.estado.label_tag }}
+                                    {{ form.estado }}
+                                    {% if form.estado.errors %}
+                                        <div class="text-danger small">{{ form.estado.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'empresas:empresa_list' %}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Volver
+                                    </a>
+                                    <div>
+                                        <button type="reset" class="btn btn-outline-secondary me-2">
+                                            <i class="fas fa-undo"></i> Limpiar
+                                        </button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i> Guardar Empresa
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('empresaForm');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // Mostrar loading
+        showLoading('Guardando empresa...', 'Por favor espere mientras se procesa la información');
+
+        // Crear FormData para enviar el formulario
+        const formData = new FormData(form);
+
+        // Enviar el formulario
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            hideLoading();
+            if (response.ok) {
+                return response.json().then(data => ({status: response.status, data: data}));
+            } else {
+                return response.text().then(text => ({status: response.status, text: text}));
+            }
+        })
+        .then(result => {
+            if (result.status === 200) {
+                // Verificar si hay errores de Django en la respuesta
+                if (result.data && result.data.error) {
+                    showError(result.data.error);
+                } else if (result.text && result.text.includes('alert-danger')) {
+                    showError('Hubo un error al guardar la empresa. Verifique los datos e intente nuevamente.');
+                } else {
+                    showSuccess('La empresa se guardó correctamente.').then(() => {
+                        window.location.href = '{% url "empresas:empresa_list" %}';
+                    });
+                }
+            } else {
+                showError('Error del servidor. Intente nuevamente.');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showError('Hubo un error al procesar la solicitud. Intente nuevamente.');
+        });
+    });
+
+    // Agregar validación en tiempo real para campos requeridos
+    const requiredFields = form.querySelectorAll('[required]');
+    requiredFields.forEach(field => {
+        field.addEventListener('blur', function() {
+            if (this.value.trim() === '') {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

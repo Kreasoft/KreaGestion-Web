@@ -315,7 +315,7 @@ class Empresa(models.Model):
     def _crear_sucursal_principal(self):
         """Crea automáticamente la sucursal principal y bodega principal"""
         from inventario.models import Bodega
-        
+
         # Crear sucursal principal
         sucursal = Sucursal.objects.create(
             empresa=self,
@@ -328,6 +328,8 @@ class Empresa(models.Model):
             telefono=self.telefono,
             email=self.email,
             es_principal=True,
+            horario_apertura='08:00:00',
+            horario_cierre='18:00:00',
             estado='activa'
         )
         
@@ -337,10 +339,7 @@ class Empresa(models.Model):
             sucursal=sucursal,
             nombre='Bodega Principal',
             codigo='BOD-001',
-            descripcion='Bodega principal de la casa matriz',
-            direccion=self.direccion,
-            es_principal=True,
-            activo=True
+            activa=True
         )
         
         return sucursal

@@ -431,12 +431,17 @@ function continuarMapeo() {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
         }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            console.log('Datos recibidos del servidor:', data);
+            console.log('Campos destino:', data.campos_destino);
             mostrarMapeo(data);
             irAPaso(3);
         } else {
@@ -453,13 +458,17 @@ function continuarMapeo() {
 function mostrarMapeo(data) {
     const container = document.getElementById('mapeo-container');
     
+    console.log('=== MOSTRANDO MAPEO ===');
+    console.log('Total campos destino:', data.campos_destino.length);
+    
     let html = '<table class="table table-bordered mapeo-table"><thead><tr>';
     html += '<th>Campo Destino</th>';
     html += '<th>Campo Origen (MySQL)</th>';
     html += '<th>Requerido</th>';
     html += '</tr></thead><tbody>';
     
-    data.campos_destino.forEach(campo => {
+    data.campos_destino.forEach((campo, index) => {
+        console.log(`Campo ${index + 1}:`, campo);
         html += '<tr>';
         html += `<td><strong>${campo.nombre}</strong></td>`;
         html += '<td><select class="form-select campo-mapeo" data-destino="' + campo.campo + '">';
@@ -474,6 +483,9 @@ function mostrarMapeo(data) {
     
     html += '</tbody></table>';
     container.innerHTML = html;
+    
+    console.log('=== HTML GENERADO ===');
+    console.log(html.substring(0, 500) + '...');
     
     // Mostrar preview
     mostrarPreview(data.muestra_datos);

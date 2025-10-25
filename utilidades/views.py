@@ -154,6 +154,13 @@ def mapear_campos(request):
             # Definir campos destino según tipo
             campos_destino = get_campos_destino(tipo_importacion)
             
+            # DEBUG: Imprimir campos destino
+            print(f"\n=== MAPEAR CAMPOS DEBUG ===")
+            print(f"Tipo importación: {tipo_importacion}")
+            print(f"Campos destino: {campos_destino}")
+            print(f"Total campos: {len(campos_destino)}")
+            print("===========================\n")
+            
             return JsonResponse({
                 'success': True,
                 'campos_origen': campos_origen,
@@ -192,14 +199,15 @@ def get_campos_destino(tipo_importacion):
             {'campo': 'email', 'nombre': 'Email', 'requerido': False},
         ],
         'familias': [
-            {'campo': 'nombre', 'nombre': 'Nombre', 'requerido': True},
-            {'campo': 'descripcion', 'nombre': 'Descripción', 'requerido': False},
+            {'campo': 'codigo', 'nombre': '🔑 Código de Familia (OBLIGATORIO)', 'requerido': True},
+            {'campo': 'nombre', 'nombre': '📝 Nombre de la Familia', 'requerido': False},
+            {'campo': 'descripcion', 'nombre': '📄 Descripción', 'requerido': False},
         ],
         'articulos': [
             {'campo': 'codigo', 'nombre': 'Código', 'requerido': True},
             {'campo': 'nombre', 'nombre': 'Nombre', 'requerido': True},
             {'campo': 'descripcion', 'nombre': 'Descripción', 'requerido': False},
-            {'campo': 'categoria_nombre', 'nombre': 'Nombre Categoría', 'requerido': False},
+            {'campo': 'categoria_codigo', 'nombre': 'Código Familia/Categoría', 'requerido': False},
             {'campo': 'precio_costo', 'nombre': 'Precio Costo', 'requerido': False},
             {'campo': 'precio_final', 'nombre': 'Precio Final (con todos los impuestos)', 'requerido': False},
             {'campo': 'codigo_barras', 'nombre': 'Código de Barras', 'requerido': False},
@@ -379,40 +387,101 @@ def importar_familias(datos, mapeo, empresa):
     importados = 0
     errores = []
     omitidos = 0
+    omitidos_duplicados = 0
+    
+    # Primero, extraer y deduplicar nombres del archivo
+    nombres_unicos = {}  # {nombre_lower: datos_categoria}
     
     for fila in datos:
+        datos_categoria = {}
+        for campo_destino, campo_origen in mapeo.items():
+            if campo_origen and campo_origen in fila:
+                valor = fila[campo_origen]
+                datos_categoria[campo_destino] = str(valor) if valor is not None else ''
+        
+        nombre = datos_categoria.get('nombre', '').strip()
+        codigo = datos_categoria.get('codigo', '').strip()
+        descripcion = datos_categoria.get('descripcion', '').strip()
+        
+        if not codigo and not nombre:
+            omitidos += 1
+            continue
+            
+        nombre_lower = nombre.lower() if nombre else f"cod_{codigo.lower()}"
+        
+        # Solo guardar la primera ocurrencia de cada nombre
+        if nombre_lower not in nombres_unicos:
+            nombres_unicos[nombre_lower] = {
+                'codigo': codigo,
+                'nombre': nombre,
+                'descripcion': descripcion
+            }
+        else:
+            omitidos_duplicados += 1
+    
+    # Cache de códigos ya usados en este lote
+    codigos_usados = set()
+    
+    # Ahora procesar solo los nombres únicos
+    for nombre_lower, datos_categoria in nombres_unicos.items():
         try:
-            datos_categoria = {}
-            for campo_destino, campo_origen in mapeo.items():
-                if campo_origen and campo_origen in fila:
-                    valor = fila[campo_origen]
-                    datos_categoria[campo_destino] = str(valor) if valor is not None else ''
+            codigo = datos_categoria['codigo']
+            nombre = datos_categoria['nombre']
+            descripcion = datos_categoria['descripcion']
             
-            nombre = datos_categoria.get('nombre', '').strip()
+            # Buscar si ya existe una categoría con este nombre en la BD
+            categoria_existente = CategoriaArticulo.objects.filter(
+                empresa=empresa,
+                nombre__iexact=nombre
+            ).first()
             
-            # Validar que tenga nombre y que no esté vacío
-            if not nombre or nombre == '':
+            if categoria_existente:
                 omitidos += 1
                 continue
             
-            # Crear o actualizar categoría por nombre (único por empresa)
-            categoria, created = CategoriaArticulo.objects.update_or_create(
-                nombre=nombre,
+            # Si no hay código, generar uno único basado en el nombre
+            if not codigo:
+                # Generar código desde el nombre: primeras letras + número
+                if len(nombre) >= 3:
+                    base_codigo = nombre[:3].upper()
+                else:
+                    base_codigo = nombre.upper().ljust(3, 'X')
+                
+                # Generar código único
+                contador = 1
+                codigo_generado = f"{base_codigo}{contador:03d}"
+                
+                # Verificar tanto en BD como en los códigos ya usados en este lote
+                while (codigo_generado in codigos_usados or 
+                       CategoriaArticulo.objects.filter(empresa=empresa, codigo=codigo_generado).exists()):
+                    contador += 1
+                    codigo_generado = f"{base_codigo}{contador:03d}"
+                
+                codigo = codigo_generado
+            
+            # Si no hay nombre, usar el código como nombre
+            if not nombre:
+                nombre = f"Familia {codigo}"
+            
+            # Crear la categoría
+            categoria = CategoriaArticulo.objects.create(
+                codigo=codigo,
                 empresa=empresa,
-                defaults={
-                    'descripcion': datos_categoria.get('descripcion', ''),
-                }
+                nombre=nombre,
+                descripcion=descripcion
             )
             
+            codigos_usados.add(codigo)
             importados += 1
             
         except Exception as e:
-            errores.append(f"Error en fila {fila.get('FAMILIA', 'N/A')}: {str(e)}")
+            nombre_para_error = datos_categoria.get('nombre', datos_categoria.get('codigo', 'N/A'))
+            errores.append(f"Error en fila {nombre_para_error}: {str(e)}")
     
     return {
         'success': True,
         'importados': importados,
-        'omitidos': omitidos,
+        'omitidos': omitidos + omitidos_duplicados,
         'errores': errores,
         'total': len(datos)
     }
@@ -434,8 +503,11 @@ def importar_articulos(datos, mapeo, empresa):
     # Obtener o crear categoría por defecto
     categoria_default, _ = CategoriaArticulo.objects.get_or_create(
         empresa=empresa,
-        nombre='Sin Categoría',
-        defaults={'descripcion': 'Categoría por defecto para artículos importados'}
+        codigo='000',
+        defaults={
+            'nombre': 'Sin Categoría',
+            'descripcion': 'Categoría por defecto para artículos importados'
+        }
     )
     
     for fila in datos:
@@ -454,16 +526,20 @@ def importar_articulos(datos, mapeo, empresa):
                 omitidos += 1
                 continue
             
-            # Buscar categoría si existe
+            # Buscar o crear categoría por código
             categoria = categoria_default
-            if datos_articulo.get('categoria_nombre'):
-                try:
-                    categoria = CategoriaArticulo.objects.get(
-                        nombre=datos_articulo['categoria_nombre'],
-                        empresa=empresa
-                    )
-                except CategoriaArticulo.DoesNotExist:
-                    pass
+            categoria_codigo = datos_articulo.get('categoria_codigo', '').strip()
+            
+            if categoria_codigo:
+                # Usar get_or_create directamente para evitar race conditions
+                categoria, created = CategoriaArticulo.objects.get_or_create(
+                    codigo=categoria_codigo,
+                    empresa=empresa,
+                    defaults={
+                        'nombre': f'Familia {categoria_codigo}',
+                        'descripcion': 'Categoría creada automáticamente durante la importación'
+                    }
+                )
             
             # Limpiar y validar precios
             precio_costo_raw = datos_articulo.get('precio_costo', '0.00')
