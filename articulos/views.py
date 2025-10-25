@@ -1615,7 +1615,6 @@ def kit_oferta_items_json(request, pk):
                     precio = int(float(item.articulo.precio_venta))
                 except:
                     precio = 0
-            
             items_data.append({
                 'articulo_id': item.articulo.id,
                 'articulo_nombre': item.articulo.nombre,

@@ -224,15 +224,8 @@ def dashboard(request):
         ventas_total = float(ventas_query.aggregate(total=Sum('total'))['total'] or 0)
         productos_distintos = top_productos_query.values('articulo_id').distinct().count()
         categorias_distintas = ventas_categoria_query.values('articulo__categoria_id').distinct().count()
-        print("DBG30 Sucursal activa:", getattr(sucursal_seleccionada, 'id', None), getattr(sucursal_seleccionada, 'nombre', None))
         sucs = list(Sucursal.objects.filter(empresa=request.empresa).values('id','nombre','estado'))
-        print("DBG30 Sucursales empresa:", sucs)
-        print("DBG30 Ventas count:", ventas_count, " total:", ventas_total, " sucursal:", getattr(sucursal_seleccionada, 'id', None))
-        print("DBG30 Productos distintos:", productos_distintos)
-        print("DBG30 Categorías distintas:", categorias_distintas)
-        print("DBG30 Top productos preview:", top_productos[:5])
-        print("DBG30 Categorías preview:", list(zip(categorias_labels, categorias_data)))
     except Exception as e:
-        print("DBG30 ERROR:", e)
+        pass
 
     return render(request, 'dashboard.html', context)

@@ -21,7 +21,7 @@ class TransferenciaInventario(models.Model):
     empresa = models.ForeignKey('empresas.Empresa', on_delete=models.CASCADE, related_name='transferencias')
     numero_folio = models.CharField(max_length=20, unique=True, verbose_name="Número de Folio")
     bodega_origen = models.ForeignKey('bodegas.Bodega', on_delete=models.CASCADE, related_name='transferencias_origen')
-    bodega_destino = models.ForeignKey('bodegas.Bodega', on_delete=models.CASCADE, related_name='transferencias_destino')
+    bodega_destino = models.ForeignKey('bodegas.Bodega', on_delete=models.CASCADE, related_name='transferencias_destino', null=True, blank=True)
     
     fecha_transferencia = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Transferencia")
     observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")

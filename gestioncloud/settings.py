@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from decouple import config
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -16,7 +17,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-producti
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+ALLOWED_HOSTS = ['*']  # Temporalmente permitir todos los hosts para desarrollo
 
 # Application definition
 DJANGO_APPS = [
@@ -92,6 +93,7 @@ TEMPLATES = [
 				'django.contrib.auth.context_processors.auth',
 				'django.contrib.messages.context_processors.messages',
 				'gestioncloud.context_processors.global_context',
+				'empresas.context_processors.empresa_context',
 			],
 		},
 	},
@@ -101,14 +103,10 @@ WSGI_APPLICATION = 'gestioncloud.wsgi.application'
 
 # Database
 DATABASES = {
-	'default': {
-		'ENGINE': config('DB_ENGINE', default='django.db.backends.sqlite3'),
-		'NAME': config('DB_NAME', default=BASE_DIR / 'db.sqlite3'),
-		'USER': config('DB_USER', default=''),
-		'PASSWORD': config('DB_PASSWORD', default=''),
-		'HOST': config('DB_HOST', default=''),
-		'PORT': config('DB_PORT', default=''),
-	}
+    'default': {
+        'ENGINE': config('DB_ENGINE', default='django.db.backends.sqlite3'),
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
 # Password validation

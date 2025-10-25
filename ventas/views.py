@@ -1043,24 +1043,17 @@ def pos_crear_cliente_boleta(request):
 @permission_required('clientes.add_cliente', raise_exception=True)
 def pos_crear_cliente(request):
     """Crear nuevo cliente"""
-    print(f"DEBUG: pos_crear_cliente llamado - Método: {request.method}")
-    
     if request.method == 'POST':
         try:
             import json
             from clientes.models import Cliente
-            
-            print(f"DEBUG: Request body: {request.body}")
+
             data = json.loads(request.body)
-            print(f"DEBUG: Data parseada: {data}")
-            
+
             # Validar datos requeridos
             if not data.get('rut') or not data.get('nombre'):
-                print("DEBUG: Validación falló - falta RUT o nombre")
                 return JsonResponse({'success': False, 'message': 'RUT y nombre son requeridos'})
-            
-            print(f"DEBUG: Creando cliente con empresa: {request.empresa}")
-            
+
             # Crear cliente con todos los campos requeridos
             cliente = Cliente.objects.create(
                 empresa=request.empresa,
@@ -1076,8 +1069,6 @@ def pos_crear_cliente(request):
                 estado='activo'
             )
             
-            print(f"DEBUG: Cliente creado exitosamente - ID: {cliente.id}")
-            
             return JsonResponse({
                 'success': True,
                 'cliente': {
@@ -1092,14 +1083,10 @@ def pos_crear_cliente(request):
                     'email': cliente.email
                 }
             })
-            
+
         except Exception as e:
-            print(f"DEBUG: Error al crear cliente: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return JsonResponse({'success': False, 'message': f'Error al crear cliente: {str(e)}'})
-    
-    print("DEBUG: Método no permitido")
+
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
 
@@ -1107,33 +1094,18 @@ def pos_crear_cliente(request):
 @requiere_empresa
 def pos_procesar_preventa(request):
     """Procesar preventa"""
-    print("=== INICIANDO PROCESAMIENTO DE PREVENTA ===")
-    print(f"DEBUG - Método: {request.method}")
-    print(f"DEBUG - Usuario: {request.user}")
-    print(f"DEBUG - Empresa: {request.empresa}")
-    
     if request.method == 'POST':
         try:
             import json
             from clientes.models import Cliente
             from articulos.models import Articulo
-            
-            print("DEBUG - Parseando JSON...")
+
             data = json.loads(request.body)
-            print("DEBUG - JSON parseado correctamente")
-            
+
             # Obtener estación y vendedor
-            print("DEBUG - Buscando estación...")
             estacion = EstacionTrabajo.objects.get(id=data['estacion_id'], empresa=request.empresa)
-            print(f"DEBUG - Estación encontrada: {estacion.nombre}")
-            
-            print("DEBUG - Buscando vendedor...")
             vendedor = Vendedor.objects.get(id=data['vendedor_id'], empresa=request.empresa)
-            print(f"DEBUG - Vendedor encontrado: {vendedor.nombre}")
-            
-            print("DEBUG - Buscando cliente...")
             cliente = Cliente.objects.get(id=data['cliente_id'], empresa=request.empresa)
-            print(f"DEBUG - Cliente encontrado: {cliente.nombre}")
             
             # Generar número de preventa único
             # Buscar el último número de venta de la empresa

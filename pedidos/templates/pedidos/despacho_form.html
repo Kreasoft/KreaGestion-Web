@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+{% load static %}
+{% load currency_filters %}
+
+{% block title %}
+    {% if despacho %}
+        Editar Despacho - GestionCloud
+    {% else %}
+        Crear Despacho - GestionCloud
+    {% endif %}
+{% endblock %}
+
+{% block body_class %}
+hide-top-bar{% if despacho %} edit-mode{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-despacho {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        transition: all 0.3s ease;
+        font-weight: 600;
+    }
+
+    .btn-despacho:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .form-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid #e3e6f0;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Etiquetas destacadas */
+    .form-label {
+        font-weight: 700 !important;
+        color: #6F5B44 !important;
+        font-size: 0.9rem !important;
+        margin-bottom: 0.5rem !important;
+        letter-spacing: 0.5px;
+    }
+
+    .form-label i {
+        color: #8B7355;
+        margin-right: 0.5rem;
+    }
+
+    /* Tabla más compacta */
+    .table th {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        font-size: 0.8rem !important;
+        padding: 0.5rem !important;
+        border: none !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .table td {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.8rem !important;
+        vertical-align: middle !important;
+        border-bottom: 1px solid #f0f0f0 !important;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f8f9fa !important;
+    }
+
+    /* Alertas más compactas */
+    .alert {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.85rem !important;
+        border-radius: 8px !important;
+    }
+
+    /* Badges más pequeños */
+    .badge {
+        font-size: 0.7rem !important;
+        padding: 0.3rem 0.6rem !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+    }
+
+    /* Inputs más compactos */
+    .form-control-sm {
+        padding: 0.4rem 0.6rem !important;
+        font-size: 0.85rem !important;
+        border-radius: 6px !important;
+    }
+
+    /* Botones más compactos */
+    .btn-sm {
+        padding: 0.4rem 0.8rem !important;
+        font-size: 0.8rem !important;
+        border-radius: 6px !important;
+    }
+
+    /* Items container más compacto */
+    .items-container {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.75rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .item-row {
+        background: white;
+        border-radius: 6px;
+        padding: 0.5rem;
+        margin-bottom: 0.3rem;
+        border: 1px solid #dee2e6;
+    }
+
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+
+            <!-- Debug Information -->
+            {% if debug %}
+            <div class="alert alert-info">
+                <h6><i class="fas fa-bug me-2"></i>Debug Information</h6>
+                <small>
+                    <strong>Form ID:</strong> {{ form.instance.pk|default:"Nuevo" }}<br>
+                    <strong>Empresa:</strong> {{ empresa.nombre }}<br>
+                    <strong>Pedidos disponibles:</strong> {{ pedidos_disponibles|length }}<br>
+                    <strong>Debug info:</strong> {{ debug_info|safe }}<br>
+                    <strong>Estado del formulario:</strong> Formulario cargado correctamente
+                </small>
+            </div>
+            {% endif %}
+
+            <!-- Instrucciones para el usuario -->
+            <div class="alert alert-warning">
+                <h6><i class="fas fa-info-circle me-2"></i>Instrucciones</h6>
+                <small>
+                    1. Selecciona un pedido disponible<br>
+                    2. Marca los artículos que deseas despachar<br>
+                    3. Ajusta las cantidades (deben ser mayor a 0)<br>
+                    4. Haz clic en "Crear Despacho" o "Crear (Directo)"<br>
+                    <strong>Si no funciona:</strong> Haz clic en "Debug" para ver información del formulario
+                </small>
+            </div>
+            <!-- Header -->
+            <div class="card shadow-sm mb-4" style="border: none; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 15px 20px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-truck fa-2x text-white me-3"></i>
+                            <div>
+                                <h4 class="mb-0 text-white" style="font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    {% if despacho %}
+                                        Editar Despacho
+                                    {% else %}
+                                        Crear Despacho
+                                    {% endif %}
+                                </h4>
+                                <small class="text-white-50" style="font-family: 'Poppins', sans-serif;">
+                                    {% if despacho %}
+                                        Despacho del pedido {{ despacho.pedido.numero_pedido }}
+                                    {% else %}
+                                        Gestiona el despacho de pedidos de clientes
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'pedidos:despacho_list' %}" class="btn btn-light">
+                                <i class="fas fa-arrow-left me-2"></i> Volver
+                            </a>
+                            {% if despacho %}
+                            <a href="{% url 'pedidos:despacho_detail' despacho.pk %}" class="btn btn-info">
+                                <i class="fas fa-eye me-2"></i> Ver
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post" id="despacho-form" novalidate>
+                {% csrf_token %}
+
+                <div class="form-container">
+                    {% if not despacho %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold" style="color: #6F5B44;"><i class="fas fa-clipboard-list me-1"></i>Seleccionar Pedido</label>
+                                {{ form.pedido }}
+                                {% if form.pedido.help_text %}
+                                <div class="form-text">{{ form.pedido.help_text }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold" style="color: #6F5B44;"><i class="fas fa-cog me-1"></i>Tipo de Despacho</label>
+                                {{ form.tipo_despacho }}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if not pedidos_disponibles %}
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>No hay pedidos disponibles</h6>
+                        <p>No se encontraron pedidos en estado "confirmada", "en_proceso" o "preparando_despacho".</p>
+                        <p>Para crear un despacho necesitas:</p>
+                        <ul>
+                            <li>Crear una orden de pedido</li>
+                            <li>Cambiar su estado a "Confirmada" o "En Proceso"</li>
+                            <li>Volver a esta página</li>
+                        </ul>
+                        <a href="{% url 'pedidos:orden_pedido_create' %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus me-1"></i> Crear Orden de Pedido
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+
+                    {% if despacho or form.instance.pedido %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold" style="color: #6F5B44;"><i class="fas fa-map-marker-alt me-1"></i>Entrega</label>
+                            <div class="row">
+                                <div class="col-12 mb-2">{{ form.direccion_entrega }}</div>
+                                <div class="col-md-6 mb-2">{{ form.contacto_entrega }}</div>
+                                <div class="col-md-6 mb-2">{{ form.telefono_entrega }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold" style="color: #6F5B44;"><i class="fas fa-truck me-1"></i>Transporte</label>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">{{ form.transportista }}</div>
+                                <div class="col-md-6 mb-2">{{ form.patente_vehiculo }}</div>
+                                <div class="col-12 mb-2">{{ form.fecha_entrega_estimada }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Observaciones -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" style="color: #6F5B44;"><i class="fas fa-sticky-note me-1"></i>Observaciones</label>
+                        {{ form.observaciones }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Items del Pedido -->
+                {% if form.instance.pedido %}
+                <div class="form-container" id="items-despacho-container">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0" style="color: #6F5B44;"><i class="fas fa-box me-2"></i>Items a Despachar</h5>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="seleccionarTodo()">Todo</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="limpiarSeleccion()">Limpiar</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Artículo</th>
+                                    <th class="text-center">Pedida</th>
+                                    <th class="text-center">A Despachar</th>
+                                    <th class="text-end">Precio</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-center">Desp.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in form.instance.pedido.items.all %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.articulo.codigo }}</strong>
+                                        <small class="text-muted ms-2">{{ item.articulo.nombre }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary">{{ item.cantidad }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="number" name="item_{{ item.id }}" class="form-control form-control-sm text-center" min="0" max="{{ item.cantidad }}" step="0.01" value="0" style="width: 60px;" data-item-id="{{ item.id }}">
+                                    </td>
+                                    <td class="text-end">${{ item.precio_unitario|floatformat:0 }}</td>
+                                    <td class="text-end"><span id="total_{{ item.id }}">$0</span></td>
+                                    <td class="text-center">
+                                        <input type="checkbox" name="despachar_{{ item.id }}" class="form-check-input" onchange="toggleCantidad({{ item.id }}, {{ item.cantidad }})">
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <a href="{% url 'pedidos:despacho_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="button" onclick="mostrarDebug()" class="btn btn-info btn-sm">
+                        <i class="fas fa-bug me-1"></i> Debug
+                    </button>
+
+                    <!-- Botón simple que funciona sin JavaScript -->
+                    <button type="submit" class="btn btn-success btn-lg" name="submit_despacho" value="1">
+                        <i class="fas fa-truck me-2"></i> 🚀 CREAR DESPACHO
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// JavaScript mínimo para el formulario de despacho
+document.addEventListener('DOMContentLoaded', function() {
+    // Función debug
+    window.mostrarDebug = function() {
+        const checkboxes = document.querySelectorAll('[name^="despachar_"]:checked');
+        const totalCheckboxes = document.querySelectorAll('[name^="despachar_"]');
+
+        let info = '=== DEBUG FORMULARIO ===\n\n';
+        info += 'Items seleccionados: ' + checkboxes.length + '/' + totalCheckboxes.length + '\n\n';
+
+        checkboxes.forEach(function(cb) {
+            const itemId = cb.name.split('_')[1];
+            const inputCantidad = document.querySelector('[name="item_' + itemId + '"]');
+            info += 'Item ' + itemId + ': ' + (inputCantidad ? inputCantidad.value : 'ERROR') + '\n';
+        });
+
+        info += '\nEl formulario debería funcionar correctamente.\n';
+        info += 'Si no funciona, revise los logs del servidor.';
+
+        alert(info);
+    };
+});
+</script>
+{% endblock extra_js %}
+
+{% endblock content %}
