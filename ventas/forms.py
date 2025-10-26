@@ -1,6 +1,9 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import Vendedor, FormaPago, EstacionTrabajo, PrecioClienteArticulo, NotaCredito, NotaCreditoDetalle
+from .models import (
+    Vendedor, FormaPago, EstacionTrabajo, PrecioClienteArticulo, 
+    NotaCredito, NotaCreditoDetalle, NotaDebito, NotaDebitoDetalle
+)
 
 
 class VendedorForm(forms.ModelForm):
@@ -247,6 +250,132 @@ NotaCreditoDetalleFormSet = inlineformset_factory(
     NotaCredito,
     NotaCreditoDetalle,
     form=NotaCreditoDetalleForm,
+    extra=1,
+    can_delete=True,
+    min_num=1,
+    validate_min=True,
+)
+
+
+# ===== FORMULARIOS PARA NOTAS DE DÉBITO =====
+
+class NotaDebitoForm(forms.ModelForm):
+    """Formulario para crear/editar Notas de Débito con diseño terroso"""
+    
+    class Meta:
+        model = NotaDebito
+        fields = [
+            'cliente', 'vendedor', 'bodega', 'fecha',
+            'tipo_nd', 'tipo_doc_afectado', 'numero_doc_afectado',
+            'fecha_doc_afectado', 'motivo'
+        ]
+        widgets = {
+            'numero': forms.TextInput(attrs={
+                'class': ESTILO_TERROSO['input'],
+                'placeholder': 'N° Nota de Débito',
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'fecha': forms.DateInput(attrs={
+                'class': ESTILO_TERROSO['date'],
+                'type': 'date',
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'cliente': forms.Select(attrs={
+                'class': ESTILO_TERROSO['select'],
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'vendedor': forms.Select(attrs={
+                'class': ESTILO_TERROSO['select'],
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'bodega': forms.Select(attrs={
+                'class': ESTILO_TERROSO['select'],
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'tipo_nd': forms.RadioSelect(attrs={
+                'class': 'form-check-input',
+                'style': 'border-color: #8B7355;'
+            }),
+            'tipo_doc_afectado': forms.Select(attrs={
+                'class': ESTILO_TERROSO['select'],
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'numero_doc_afectado': forms.TextInput(attrs={
+                'class': ESTILO_TERROSO['input'],
+                'placeholder': 'N° Documento',
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'fecha_doc_afectado': forms.DateInput(attrs={
+                'class': ESTILO_TERROSO['date'],
+                'type': 'date',
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+            'motivo': forms.Textarea(attrs={
+                'class': ESTILO_TERROSO['textarea'],
+                'rows': 3,
+                'placeholder': 'Describa el motivo de la nota de débito...',
+                'style': 'border-color: #8B7355; background-color: #FAF8F3;'
+            }),
+        }
+        labels = {
+            'numero': 'N° ND',
+            'fecha': 'Fecha Emisión',
+            'cliente': 'Cliente (RUT - Nombre)',
+            'vendedor': 'Vendedor',
+            'bodega': 'Bodega',
+            'tipo_nd': 'Tipo de Nota de Débito',
+            'tipo_doc_afectado': 'Tipo Documento Afectado',
+            'numero_doc_afectado': 'N° Documento Afectado',
+            'fecha_doc_afectado': 'Fecha Emisión Doc.',
+            'motivo': 'Motivo',
+        }
+
+
+class NotaDebitoDetalleForm(forms.ModelForm):
+    """Formulario para items de Nota de Débito"""
+    cantidad = forms.DecimalField(localize=True, widget=forms.TextInput)
+    precio_unitario = forms.DecimalField(localize=True, widget=forms.TextInput)
+    
+    class Meta:
+        model = NotaDebitoDetalle
+        fields = ['articulo', 'cantidad', 'precio_unitario', 'descuento']
+        widgets = {
+            'articulo': forms.Select(attrs={
+                'class': 'form-select form-select-sm',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
+            }),
+            'codigo': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'readonly': 'readonly',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem; background-color: #FAF8F3;'
+            }),
+            'descripcion': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
+            }),
+            'cantidad': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm text-end',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
+            }),
+            'precio_unitario': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm text-end',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
+            }),
+            'descuento': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-end',
+                'min': '0',
+                'max': '100',
+                'step': '0.01',
+                'style': 'border-color: #D4C4A8; font-size: 0.875rem;'
+            }),
+        }
+
+
+# Formset para los detalles de Nota de Débito
+NotaDebitoDetalleFormSet = inlineformset_factory(
+    NotaDebito,
+    NotaDebitoDetalle,
+    form=NotaDebitoDetalleForm,
     extra=1,
     can_delete=True,
     min_num=1,

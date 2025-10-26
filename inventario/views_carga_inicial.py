@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -96,7 +97,6 @@ def exportar_plantilla_excel(request):
 
 @login_required
 @requiere_empresa
-@csrf_exempt
 def importar_inventario_excel(request):
     """
     Importa inventario inicial desde Excel
@@ -108,8 +108,8 @@ def importar_inventario_excel(request):
         return JsonResponse({'success': False, 'message': 'Método no permitido.'})
     
     try:
-        excel_file = request.FILES.get('excel_file')
-        bodega_id = request.POST.get('bodega_id')
+        excel_file = request.FILES.get('archivo')
+        bodega_id = request.POST.get('bodega')
         
         print(f"DEBUG - FILES: {request.FILES}")
         print(f"DEBUG - POST: {request.POST}")
@@ -297,7 +297,7 @@ def obtener_articulos_para_inventario(request):
     if not request.user.is_superuser:
         return JsonResponse({'error': 'No tiene permisos'}, status=403)
     
-    bodega_id = request.GET.get('bodega_id')
+    bodega_id = clean_id(request.GET.get('bodega_id'))
     if not bodega_id:
         return JsonResponse({'error': 'Bodega requerida'}, status=400)
     

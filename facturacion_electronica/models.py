@@ -159,27 +159,24 @@ class ArchivoCAF(models.Model):
         Verifica si el CAF está vigente (dentro de los 6 meses desde la autorización)
         Los CAF del SII tienen vigencia de 6 meses desde la fecha de autorización
         """
-        from datetime import timedelta
-        from django.utils import timezone
+        from datetime import date, timedelta
         
         if not self.fecha_autorizacion:
             return False
         
-        fecha_vencimiento = self.fecha_autorizacion + timedelta(days=180)  # 6 meses = 180 días
-        hoy = timezone.now().date()
-        
-        return hoy <= fecha_vencimiento
+        fecha_vencimiento = self.fecha_autorizacion + timedelta(days=180)
+        # Usar date.today() para comparar fechas 'naive' y evitar problemas de zona horaria
+        return date.today() <= fecha_vencimiento
     
     def dias_para_vencer(self):
         """Retorna la cantidad de días que faltan para que venza el CAF"""
-        from datetime import timedelta
-        from django.utils import timezone
+        from datetime import date, timedelta
         
         if not self.fecha_autorizacion:
             return 0
         
         fecha_vencimiento = self.fecha_autorizacion + timedelta(days=180)
-        hoy = timezone.now().date()
+        hoy = date.today() # Usar fecha local para evitar problemas de zona horaria
         
         if hoy > fecha_vencimiento:
             return 0  # Ya venció

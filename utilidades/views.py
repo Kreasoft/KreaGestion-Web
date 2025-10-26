@@ -199,7 +199,7 @@ def get_campos_destino(tipo_importacion):
             {'campo': 'email', 'nombre': 'Email', 'requerido': False},
         ],
         'familias': [
-            {'campo': 'codigo', 'nombre': '🔑 Código de Familia (OBLIGATORIO)', 'requerido': True},
+            {'campo': 'codigo', 'nombre': '🔑 Código de Familia (será el nuevo código de categoría)', 'requerido': True},
             {'campo': 'nombre', 'nombre': '📝 Nombre de la Familia', 'requerido': False},
             {'campo': 'descripcion', 'nombre': '📄 Descripción', 'requerido': False},
         ],

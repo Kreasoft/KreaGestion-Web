@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
@@ -181,7 +182,7 @@ def documento_compra_create(request):
                 documento.creado_por = request.user
                 
                 # Vincular con Orden de Compra si se proporcionó
-                orden_compra_id = request.POST.get('orden_compra_id')
+                orden_compra_id = clean_id(request.POST.get('orden_compra_id'))
                 if orden_compra_id:
                     from compras.models import OrdenCompra
                     try:
@@ -495,7 +496,7 @@ def ordenes_compra_disponibles(request):
     """Listar órdenes de compra disponibles para un proveedor via AJAX"""
     from compras.models import OrdenCompra
     
-    proveedor_id = request.GET.get('proveedor_id')
+    proveedor_id = clean_id(request.GET.get('proveedor_id'))
     
     if not proveedor_id:
         return JsonResponse({'success': False, 'message': 'ID de proveedor no proporcionado'})

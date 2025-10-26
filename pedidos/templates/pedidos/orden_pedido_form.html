@@ -429,6 +429,81 @@
 <script>
 $(document).ready(function() {
     console.log('🔧 Inicializando Select2 para Pedidos...');
+    console.log('✅ jQuery cargado correctamente');
+    console.log('Formulario encontrado:', $('#pedidoForm').length);
+    console.log('Botón submit encontrado:', $('#pedidoForm button[type="submit"]').length);
+    
+    // Test visual: Agregar borde al formulario para confirmar que jQuery funciona
+    $('#pedidoForm').css('border', '3px solid red');
+    console.log('🔴 BORDE ROJO AGREGADO AL FORMULARIO PARA TEST');
+    
+    // Test: Verificar que el botón submit dispara el evento
+    $('#pedidoForm button[type="submit"]').on('click', function(e) {
+        console.log('🔴 CLICK EN BOTÓN SUBMIT DETECTADO');
+        console.log('Botón:', this);
+        console.log('Tipo de botón:', $(this).attr('type'));
+    });
+    
+    // Test adicional: Capturar CUALQUIER click en el formulario
+    $('#pedidoForm').on('click', function(e) {
+        console.log('⚪ Click detectado en formulario:', e.target.tagName);
+    });
+    
+    // Función auxiliar para convertir precio de formato chileno a número
+    function precioChilenoANumero(precio) {
+        if (!precio) return 0;
+        
+        // Convertir a string y limpiar espacios
+        let precioStr = String(precio).trim();
+        
+        // Si ya es un número puro sin formato, retornarlo
+        if (/^\d+$/.test(precioStr)) {
+            return parseInt(precioStr);
+        }
+        
+        // Contar puntos y comas para determinar el formato
+        const puntos = (precioStr.match(/\./g) || []).length;
+        const comas = (precioStr.match(/,/g) || []).length;
+        
+        // Si tiene coma, es formato chileno: 15.000,00 o 15000,00
+        if (comas > 0) {
+            // Remover puntos (miles) y convertir coma a punto (decimal)
+            precioStr = precioStr.replace(/\./g, '').replace(',', '.');
+        }
+        // Si tiene múltiples puntos, es formato con miles: 1.000.000
+        else if (puntos > 1) {
+            // Remover todos los puntos
+            precioStr = precioStr.replace(/\./g, '');
+        }
+        // Si tiene un solo punto, verificar si es decimal o miles
+        else if (puntos === 1) {
+            const partes = precioStr.split('.');
+            const parteDecimal = partes[1] || '';
+            
+            // Si la parte decimal tiene 2 dígitos exactos y la parte entera > 999, es formato decimal
+            // Ejemplo: 15000.00 o 1234.50
+            if (parteDecimal.length <= 2 && partes[0].length > 3) {
+                // Es formato decimal, dejar como está
+            }
+            // Si la parte después del punto tiene 3 dígitos, es separador de miles
+            // Ejemplo: 15.000
+            else if (parteDecimal.length === 3) {
+                // Es separador de miles, remover el punto
+                precioStr = precioStr.replace(/\./g, '');
+            }
+            // Casos ambiguos: si tiene 1-2 decimales, asumir que es decimal
+            else {
+                // Dejar como está (formato decimal)
+            }
+        }
+        
+        const resultado = Math.round(parseFloat(precioStr) || 0);
+        console.log(`Conversión precio: "${precio}" -> "${precioStr}" -> ${resultado}`);
+        return resultado;
+    }
+    
+    // Hacer la función global dentro del scope del documento
+    window.precioChilenoANumero = precioChilenoANumero;
     
     // Inicializar Select2 para el selector de cliente
     $('#{{ form.cliente.id_for_label }}').select2({
@@ -589,7 +664,7 @@ $(document).ready(function() {
                     const $row = $('.item-form-compact').eq(index);
                     $row.find('.articulo-select').val(item.articulo_id).trigger('change');
                     $row.find('input[name*="cantidad"]').val(item.cantidad);
-                    $row.find('input[name*="precio_unitario"]').val(item.precio_unitario);
+                    $row.find('input[name*="precio_unitario"]').val(precioChilenoANumero(item.precio_unitario));
                     $row.find('input[name*="descuento_porcentaje"]').val(item.descuento_porcentaje);
                 });
                 
@@ -655,7 +730,8 @@ $(document).ready(function() {
     // Actualizar precio cuando se selecciona artículo
     $(document).on('change', '.articulo-select', function() {
         const selected = $(this).find(':selected');
-        const precio = selected.data('precio') || 0;
+        const precioRaw = selected.data('precio');
+        const precio = precioChilenoANumero(precioRaw);
         const row = $(this).closest('.item-form-compact');
         row.find('input[name*="precio_unitario"]').val(precio);
         calculateTotals();
@@ -666,9 +742,19 @@ $(document).ready(function() {
         calculateTotals();
     });
     
+    // Prevenir decimales en precio unitario
+    $(document).on('blur', 'input[name*="precio_unitario"]', function() {
+        const valor = parseFloat($(this).val()) || 0;
+        $(this).val(Math.round(valor));
+        calculateTotals();
+    });
+    
     // Agregar item
-    let formIdx = $('.item-form-compact').length;
+    let formIdx = parseInt($('#id_items-TOTAL_FORMS').val()) || 0;
+    
     $('#addItemBtn').click(function() {
+        console.log('📝 Agregando item. formIdx actual:', formIdx);
+        
         const newForm = $('.item-form-compact:first').clone();
         
         // Destruir Select2 del elemento clonado si existe
@@ -677,18 +763,33 @@ $(document).ready(function() {
             clonedSelect.select2('destroy');
         }
         
-        newForm.find('input, select').each(function() {
+        // Actualizar todos los atributos name e id
+        newForm.find('input, select, textarea').each(function() {
             const name = $(this).attr('name');
+            const id = $(this).attr('id');
+            
             if (name) {
-                $(this).attr('name', name.replace('-0-', '-' + formIdx + '-'));
-                $(this).attr('id', 'id_' + name.replace('-0-', '-' + formIdx + '-'));
+                // Reemplazar el índice en el nombre
+                const newName = name.replace(/items-\d+-/, 'items-' + formIdx + '-');
+                $(this).attr('name', newName);
+                console.log('Name actualizado:', name, '->', newName);
             }
+            
+            if (id) {
+                // Reemplazar el índice en el id
+                const newId = id.replace(/items-\d+-/, 'items-' + formIdx + '-');
+                $(this).attr('id', newId);
+            }
+            
+            // Resetear valores
             if ($(this).is('select')) {
                 $(this).val('');
             } else if ($(this).attr('type') === 'hidden') {
                 // Mantener valores por defecto de campos ocultos
                 if (name && name.includes('impuesto_porcentaje')) {
                     $(this).val('19');
+                } else if (name && name.includes('DELETE')) {
+                    $(this).val('');
                 }
             } else {
                 // Resetear valores de inputs visibles
@@ -703,8 +804,8 @@ $(document).ready(function() {
                 }
             }
         });
+        
         newForm.attr('data-form-index', formIdx);
-        newForm.find('.delete-item-btn').attr('data-form-index', formIdx);
         $('.items-container').append(newForm);
         
         // Reinicializar Select2 en el nuevo formulario
@@ -724,8 +825,13 @@ $(document).ready(function() {
             minimumResultsForSearch: 0
         });
         
-        $('#id_items-TOTAL_FORMS').val(formIdx + 1);
+        // Incrementar formIdx primero
         formIdx++;
+        
+        // Actualizar TOTAL_FORMS
+        $('#id_items-TOTAL_FORMS').val(formIdx);
+        console.log('✅ Item agregado. Nuevo TOTAL_FORMS:', formIdx);
+        
         calculateTotals();
     });
     
@@ -734,20 +840,27 @@ $(document).ready(function() {
     
     // Validar formulario antes de enviar
     $('#pedidoForm').on('submit', function(e) {
+        console.log('🔵 SUBMIT EVENTO DISPARADO');
         let errores = [];
         
         // Validar cliente
-        if (!$('#{{ form.cliente.id_for_label }}').val()) {
+        const clienteVal = $('#{{ form.cliente.id_for_label }}').val();
+        console.log('Cliente seleccionado:', clienteVal);
+        if (!clienteVal) {
             errores.push('Debe seleccionar un cliente');
         }
         
         // Validar bodega
-        if (!$('#{{ form.bodega.id_for_label }}').val()) {
+        const bodegaVal = $('#{{ form.bodega.id_for_label }}').val();
+        console.log('Bodega seleccionada:', bodegaVal);
+        if (!bodegaVal) {
             errores.push('Debe seleccionar una bodega');
         }
         
         // Validar fecha
-        if (!$('input[name="fecha_pedido"]').val()) {
+        const fechaVal = $('input[name="fecha_pedido"]').val();
+        console.log('Fecha:', fechaVal);
+        if (!fechaVal) {
             errores.push('Debe ingresar la fecha del pedido');
         }
         
@@ -758,14 +871,39 @@ $(document).ready(function() {
             const cantidad = $(this).find('input[name*="cantidad"]').val();
             const precio = $(this).find('input[name*="precio_unitario"]').val();
             
+            console.log('Item:', {articulo, cantidad, precio});
+            
             if (articulo && cantidad && precio) {
                 itemsValidos++;
             }
         });
         
+        console.log('Items válidos:', itemsValidos);
+        
         if (itemsValidos === 0) {
             errores.push('Debe agregar al menos un artículo con cantidad y precio');
         }
+        
+        console.log('Total errores:', errores.length, errores);
+        
+        // Debug: Mostrar info del formset
+        console.log('📊 TOTAL_FORMS:', $('#id_items-TOTAL_FORMS').val());
+        console.log('📊 INITIAL_FORMS:', $('#id_items-INITIAL_FORMS').val());
+        console.log('📊 Items visibles:', $('.item-form-compact:visible').length);
+        
+        // Listar todos los inputs de items
+        $('input[name^="items-"], select[name^="items-"]').each(function() {
+            if ($(this).attr('name')) {
+                console.log('Campo:', $(this).attr('name'), '=', $(this).val());
+            }
+        });
+        
+        // Antes de validar errores, asegurar que todos los precios sean enteros sin decimales
+        $('.item-form-compact:visible').each(function() {
+            const $precioInput = $(this).find('input[name*="precio_unitario"]');
+            const precioActual = parseFloat($precioInput.val()) || 0;
+            $precioInput.val(Math.round(precioActual));
+        });
         
         // Mostrar errores si hay
         if (errores.length > 0) {
@@ -786,16 +924,25 @@ $(document).ready(function() {
             return false;
         }
         
-        // Mostrar loading
-        Swal.fire({
-            title: 'Guardando pedido...',
-            html: 'Por favor espere',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
+        // Si no hay errores, permitir el envío y mostrar loading
+        console.log('✅ NO HAY ERRORES - ENVIANDO FORMULARIO');
+        
+        // Mostrar loading (pero permitir que el form se envíe)
+        setTimeout(function() {
+            Swal.fire({
+                title: 'Guardando pedido...',
+                html: 'Por favor espere',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+        }, 100);
+        
+        // Permitir que el formulario se envíe
+        console.log('🚀 RETURN TRUE - FORMULARIO DEBE ENVIARSE');
+        return true;
     });
 });
 

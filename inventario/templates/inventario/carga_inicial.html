@@ -102,6 +102,20 @@
                             <div class="col-12">
                                 <form method="post" enctype="multipart/form-data" action="{% url 'inventario:importar_excel' %}" id="uploadForm">
                                     {% csrf_token %}
+
+                                    <div class="row justify-content-center mb-4">
+                                        <div class="col-md-8">
+                                            <label for="bodega" class="form-label" style="color: #6F5B44; font-weight: 600;">Bodega de Destino *</label>
+                                            <select name="bodega" id="bodega" class="form-select" required>
+                                                <option value="">Seleccione una bodega...</option>
+                                                {% for bodega in bodegas %}
+                                                <option value="{{ bodega.id }}">{{ bodega.nombre }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <small class="form-text text-muted">El stock se cargará en la bodega que selecciones aquí.</small>
+                                        </div>
+                                    </div>
+
                                     <div class="upload-area" id="uploadArea" style="border: 2px dashed #D4C4A8; border-radius: 12px; padding: 3rem; text-align: center; background: white; transition: all 0.3s ease;">
                                         <i class="fas fa-cloud-upload-alt" style="font-size: 4rem; color: #8B7355; margin-bottom: 1rem;"></i>
                                         <h5 style="color: #6F5B44; font-weight: 600; margin-bottom: 0.5rem;">Arrastra tu archivo aquí</h5>
@@ -201,45 +215,103 @@ function selectOption(option) {
     }
 }
 
-// Manejo de archivo
-const fileInput = document.getElementById('fileInput');
-const uploadArea = document.getElementById('uploadArea');
-const fileName = document.getElementById('fileName');
-const btnUpload = document.getElementById('btnUpload');
+document.addEventListener('DOMContentLoaded', function() {
 
-fileInput.addEventListener('change', function(e) {
-    if (this.files.length > 0) {
-        fileName.innerHTML = `<i class="fas fa-file-excel me-2"></i>${this.files[0].name}`;
-        btnUpload.style.display = 'inline-block';
+    const uploadForm = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const fileName = document.getElementById('fileName');
+    const btnUpload = document.getElementById('btnUpload');
+    const bodegaSelect = document.getElementById('bodega');
+
+    function handleFileSelection() {
+        if (fileInput.files.length > 0) {
+            fileName.innerHTML = `<i class="fas fa-file-excel me-2"></i>${fileInput.files[0].name}`;
+            btnUpload.style.display = 'inline-block';
+        } else {
+            fileName.innerHTML = '';
+            btnUpload.style.display = 'none';
+        }
     }
-});
 
-// Drag and drop
-uploadArea.addEventListener('dragover', function(e) {
-    e.preventDefault();
-    this.classList.add('dragover');
-});
+    fileInput.addEventListener('change', handleFileSelection);
 
-uploadArea.addEventListener('dragleave', function(e) {
-    e.preventDefault();
-    this.classList.remove('dragover');
-});
+    uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea.addEventListener('dragleave', (e) => { e.preventDefault(); uploadArea.classList.remove('dragover'); });
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelection();
+        }
+    });
+    uploadArea.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+            fileInput.click();
+        }
+    });
 
-uploadArea.addEventListener('drop', function(e) {
-    e.preventDefault();
-    this.classList.remove('dragover');
-    
-    if (e.dataTransfer.files.length > 0) {
-        fileInput.files = e.dataTransfer.files;
-        fileName.innerHTML = `<i class="fas fa-file-excel me-2"></i>${e.dataTransfer.files[0].name}`;
-        btnUpload.style.display = 'inline-block';
-    }
-});
+    uploadForm.addEventListener('submit', function(e) {
+        e.preventDefault();
 
-uploadArea.addEventListener('click', function(e) {
-    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
-        fileInput.click();
-    }
+        if (!bodegaSelect.value) {
+            Swal.fire('Error', 'Debe seleccionar una bodega de destino.', 'error');
+            return;
+        }
+
+        if (fileInput.files.length === 0) {
+            Swal.fire('Error', 'Debe seleccionar un archivo Excel.', 'error');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Importando...',
+            text: 'Procesando el archivo, por favor espere.',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const formData = new FormData(uploadForm);
+
+        fetch(uploadForm.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Importación Completada',
+                    text: data.message,
+                });
+            } else {
+                let errorHtml = data.message;
+                if (data.detalle_errores && data.detalle_errores.length > 0) {
+                    errorHtml += '<ul class="text-start mt-2">';
+                    data.detalle_errores.forEach(err => {
+                        errorHtml += `<li>${err}</li>`;
+                    });
+                    errorHtml += '</ul>';
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error en la Importación',
+                    html: errorHtml,
+                });
+            }
+        })
+        .catch(error => {
+            Swal.fire('Error', 'Ocurrió un error inesperado al contactar al servidor.', 'error');
+            console.error('Error:', error);
+        });
+    });
 });
 </script>
 

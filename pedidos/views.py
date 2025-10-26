@@ -112,8 +112,21 @@ def orden_pedido_create(request):
             return redirect('dashboard')
     
     if request.method == 'POST':
+        print("=== DEBUG PEDIDO POST ===")
+        print(f"POST data: {request.POST}")
+        
         form = OrdenPedidoForm(request.POST)
-        formset = ItemOrdenPedidoFormSet(request.POST)
+        formset = ItemOrdenPedidoFormSet(request.POST, empresa=empresa)
+        
+        print(f"Form valid: {form.is_valid()}")
+        print(f"Formset valid: {formset.is_valid()}")
+        
+        if not form.is_valid():
+            print(f"Form errors: {form.errors}")
+        
+        if not formset.is_valid():
+            print(f"Formset errors: {formset.errors}")
+            print(f"Formset non_form_errors: {formset.non_form_errors()}")
         
         if form.is_valid() and formset.is_valid():
             try:
@@ -123,34 +136,44 @@ def orden_pedido_create(request):
                 
                 # Generar número de pedido
                 pedido.generar_numero_pedido()
+                print(f"Numero de pedido generado: {pedido.numero_pedido}")
                 pedido.save()
+                print(f"Pedido guardado con ID: {pedido.id}")
                 
                 # Guardar items
                 formset.instance = pedido
-                formset.save()
+                items = formset.save()
+                print(f"Items guardados: {len(items)}")
                 
                 # Calcular totales
                 pedido.calcular_totales()
+                print(f"Totales calculados - Total: {pedido.total_pedido}")
                 
                 messages.success(request, f'Orden de pedido {pedido.numero_pedido} creada exitosamente.')
                 return redirect('pedidos:orden_pedido_detail', pk=pedido.pk)
             except Exception as e:
+                import traceback
+                print(f"Error al guardar: {str(e)}")
+                print(traceback.format_exc())
                 messages.error(request, f'Error al guardar el pedido: {str(e)}')
         else:
             # Mostrar errores del formulario
             if form.errors:
                 for field, errors in form.errors.items():
                     for error in errors:
-                        messages.error(request, f'{field}: {error}')
+                        messages.error(request, f'Campo {field}: {error}')
             if formset.errors:
                 for i, form_errors in enumerate(formset.errors):
                     if form_errors:
                         for field, errors in form_errors.items():
                             for error in errors:
                                 messages.error(request, f'Item {i+1} - {field}: {error}')
+                if formset.non_form_errors():
+                    for error in formset.non_form_errors():
+                        messages.error(request, f'Error general: {error}')
     else:
         form = OrdenPedidoForm()
-        formset = ItemOrdenPedidoFormSet()
+        formset = ItemOrdenPedidoFormSet(empresa=empresa)
     
     # Obtener artículos de la empresa
     articulos_empresa = Articulo.objects.filter(empresa=empresa).order_by('nombre')
@@ -188,9 +211,13 @@ def orden_pedido_detail(request, pk):
     
     items = pedido.items.select_related('articulo').all()
     
+    # Obtener despachos asociados
+    despachos = pedido.despachos.select_related('creado_por').prefetch_related('items').all()
+    
     context = {
         'pedido': pedido,
         'items': items,
+        'despachos': despachos,
     }
     
     return render(request, 'pedidos/orden_pedido_detail.html', context)
@@ -219,7 +246,7 @@ def orden_pedido_update(request, pk):
     
     if request.method == 'POST':
         form = OrdenPedidoForm(request.POST, instance=pedido)
-        formset = ItemOrdenPedidoFormSet(request.POST, instance=pedido)
+        formset = ItemOrdenPedidoFormSet(request.POST, instance=pedido, empresa=pedido.empresa)
         
         if form.is_valid() and formset.is_valid():
             pedido = form.save()
@@ -232,7 +259,7 @@ def orden_pedido_update(request, pk):
             return redirect('pedidos:orden_pedido_detail', pk=pedido.pk)
     else:
         form = OrdenPedidoForm(instance=pedido)
-        formset = ItemOrdenPedidoFormSet(instance=pedido)
+        formset = ItemOrdenPedidoFormSet(instance=pedido, empresa=pedido.empresa)
     
     # Obtener artículos de la empresa
     articulos_empresa = Articulo.objects.filter(empresa=pedido.empresa).order_by('nombre')

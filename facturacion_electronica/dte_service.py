@@ -174,6 +174,73 @@ class DTEService:
             print(f"\nError al generar DTE de Nota de Crédito: {str(e)}")
             raise
     
+    def generar_dte_desde_nota_debito(self, nota_debito, items):
+        """
+        Genera un DTE de Nota de Débito (tipo 56)
+        """
+        TIPO_DTE_ND = '56'
+        try:
+            with transaction.atomic():
+                # 1. Obtener folio y asignarlo como número de la nota de débito
+                folio, caf = FolioService.obtener_siguiente_folio(self.empresa, TIPO_DTE_ND)
+                if folio is None:
+                    raise ValueError("No hay folios disponibles para Notas de Débito (56)")
+                
+                nota_debito.numero = folio
+                nota_debito.save() # Guardar la nota de débito para obtener un ID
+
+                # 2. Guardar los items y asociarlos a la nota de débito
+                for item in items:
+                    item.nota_debito = nota_debito
+                    # Completar datos del artículo si no están
+                    if not item.codigo and item.articulo:
+                        item.codigo = item.articulo.codigo
+                    if not item.descripcion and item.articulo:
+                        item.descripcion = item.articulo.nombre
+                    item.save()
+                
+                # 3. Calcular totales ahora que los items están guardados
+                nota_debito.calcular_totales()
+                nota_debito.save()
+
+                # 4. Generar XML
+                generator = DTEXMLGenerator(self.empresa, nota_debito, TIPO_DTE_ND, folio, caf)
+                xml_sin_firmar = generator.generar_xml()
+
+                # 5. Firmar el XML
+                firmador = self._obtener_firmador()
+                xml_firmado = firmador.firmar_xml(xml_sin_firmar)
+
+                # 6. Generar TED
+                ted_xml = self._generar_ted_nd(nota_debito, TIPO_DTE_ND, folio, caf, firmador)
+
+                # 7. Generar datos para PDF417
+                pdf417_data = firmador.generar_datos_pdf417(ted_xml)
+
+                # 8. Crear registro del DTE
+                dte = self._crear_registro_dte_nd(
+                    nota_debito=nota_debito,
+                    tipo_dte=TIPO_DTE_ND,
+                    folio=folio,
+                    caf=caf,
+                    xml_sin_firmar=xml_sin_firmar,
+                    xml_firmado=xml_firmado,
+                    ted_xml=ted_xml,
+                    pdf417_data=pdf417_data
+                )
+
+                # 9. Generar imagen PDF417 del timbre
+                PDF417Generator.guardar_pdf417_en_dte(dte)
+
+                # 10. Asociar DTE a la Nota de Débito
+                nota_debito.dte = dte
+                nota_debito.save(update_fields=['dte'])
+
+                return dte
+        except Exception as e:
+            print(f"\nError al generar DTE de Nota de Débito: {str(e)}")
+            raise
+    
     def enviar_dte_al_sii(self, dte):
         """
         Envía un DTE al SII
@@ -464,6 +531,72 @@ class DTEService:
             monto_neto=nota_credito.subtotal, # Asumiendo que subtotal es neto
             monto_iva=nota_credito.iva,
             monto_total=nota_credito.total,
+            
+            # XML y Timbre
+            xml_dte=xml_sin_firmar,
+            xml_firmado=xml_firmado,
+            timbre_electronico=ted_xml,
+            datos_pdf417=pdf417_data,
+            
+            estado_sii='generado',
+        )
+        return dte
+    
+    def _generar_ted_nd(self, nota, tipo_dte, folio, caf, firmador):
+        """Genera el TED para una Nota de Débito"""
+        dte_data = {
+            'rut_emisor': self.empresa.rut,
+            'tipo_dte': tipo_dte,
+            'folio': folio,
+            'fecha_emision': nota.fecha.strftime('%Y-%m-%d'),
+            'rut_receptor': nota.cliente.rut,
+            'razon_social_receptor': nota.cliente.nombre,
+            'monto_total': nota.total,
+            'item_1': 'Nota de Débito Electrónica',
+        }
+        
+        caf_data = {
+            'rut_emisor': self.empresa.rut,
+            'razon_social': self.empresa.razon_social_sii or self.empresa.razon_social,
+            'tipo_documento': tipo_dte,
+            'folio_desde': caf.folio_desde,
+            'folio_hasta': caf.folio_hasta,
+            'fecha_autorizacion': caf.fecha_autorizacion.strftime('%Y-%m-%d'),
+            'modulo': 'MODULO_RSA',
+            'exponente': 'EXPONENTE_RSA',
+            'firma': caf.firma_electronica,
+        }
+        
+        return firmador.generar_ted(dte_data, caf_data)
+    
+    def _crear_registro_dte_nd(self, nota_debito, tipo_dte, folio, caf, xml_sin_firmar, 
+                               xml_firmado, ted_xml, pdf417_data):
+        """Crea el registro del DTE para una Nota de Débito"""
+        dte = DocumentoTributarioElectronico.objects.create(
+            empresa=self.empresa,
+            caf_utilizado=caf,
+            tipo_dte=tipo_dte,
+            folio=folio,
+            fecha_emision=nota_debito.fecha,
+            usuario_creacion=nota_debito.usuario_creacion,
+            
+            # Emisor
+            rut_emisor=self.empresa.rut,
+            razon_social_emisor=self.empresa.razon_social_sii or self.empresa.razon_social,
+            giro_emisor=self.empresa.giro_sii or self.empresa.giro,
+            direccion_emisor=self.empresa.direccion_casa_matriz or self.empresa.direccion,
+            comuna_emisor=self.empresa.comuna_casa_matriz or self.empresa.comuna,
+            
+            # Receptor
+            rut_receptor=nota_debito.cliente.rut,
+            razon_social_receptor=nota_debito.cliente.nombre,
+            direccion_receptor=nota_debito.cliente.direccion or '',
+            comuna_receptor=nota_debito.cliente.comuna or '',
+            
+            # Montos
+            monto_neto=nota_debito.subtotal,
+            monto_iva=nota_debito.iva,
+            monto_total=nota_debito.total,
             
             # XML y Timbre
             xml_dte=xml_sin_firmar,

@@ -37,6 +37,16 @@ class OrdenPedidoForm(forms.ModelForm):
 class ItemOrdenPedidoForm(forms.ModelForm):
     """Formulario para items de orden de pedido"""
     
+    def __init__(self, *args, **kwargs):
+        empresa = kwargs.pop('empresa', None)
+        super().__init__(*args, **kwargs)
+        
+        # NO filtrar el queryset aquí porque el template maneja los artículos
+        # El template usa articulos_empresa del contexto para generar las opciones
+        # Si filtramos aquí, puede haber desajuste entre las opciones HTML y la validación
+        from articulos.models import Articulo
+        self.fields['articulo'].queryset = Articulo.objects.all()
+    
     class Meta:
         model = ItemOrdenPedido
         fields = ['articulo', 'cantidad', 'precio_unitario', 'descuento_porcentaje', 'impuesto_porcentaje', 'observaciones']
@@ -50,11 +60,23 @@ class ItemOrdenPedidoForm(forms.ModelForm):
         }
 
 
+# Formset personalizado para pasar la empresa
+class BaseItemOrdenPedidoFormSet(forms.BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        self.empresa = kwargs.pop('empresa', None)
+        super().__init__(*args, **kwargs)
+    
+    def get_form_kwargs(self, index):
+        kwargs = super().get_form_kwargs(index)
+        kwargs['empresa'] = self.empresa
+        return kwargs
+
 # Formset para items
 ItemOrdenPedidoFormSet = inlineformset_factory(
     OrdenPedido,
     ItemOrdenPedido,
     form=ItemOrdenPedidoForm,
+    formset=BaseItemOrdenPedidoFormSet,
     extra=1,
     can_delete=True,
     min_num=1,

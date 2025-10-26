@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
@@ -422,7 +423,7 @@ def cambiar_empresa_activa(request):
     
     if request.method == 'POST':
         try:
-            empresa_id = request.POST.get('empresa_id')
+            empresa_id = clean_id(request.POST.get('empresa_id'))
             if not empresa_id:
                 return JsonResponse({'error': 'ID de empresa requerido'}, status=400)
             

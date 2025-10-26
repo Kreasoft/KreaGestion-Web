@@ -3,6 +3,25 @@ from .models import Empresa, Sucursal, ConfiguracionEmpresa
 
 
 class EmpresaForm(forms.ModelForm):
+    # Hacer password_certificado opcional y no requerido
+    password_certificado = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        help_text='Solo completar si desea cambiar la contraseña'
+    )
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Si no se proporcionó password, mantener el existente
+        if not self.cleaned_data.get('password_certificado'):
+            if self.instance.pk:  # Si es edición
+                # Recuperar el password anterior de la BD
+                original = Empresa.objects.get(pk=self.instance.pk)
+                instance.password_certificado = original.password_certificado
+        if commit:
+            instance.save()
+        return instance
+    
     class Meta:
         model = Empresa
         fields = [

@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 """
 Vistas para el módulo de empresas
 """
@@ -357,9 +358,9 @@ def seleccionar_empresa(request):
 	empresas = Empresa.objects.all()
 	empresa_actual = request.empresa
 	
-	empresa_id_get = request.GET.get('empresa_id')
+	empresa_id_get = clean_id(request.GET.get('empresa_id'))
 	if request.method == 'POST' or empresa_id_get:
-		empresa_id = request.POST.get('empresa_id') or empresa_id_get
+		empresa_id = clean_id(request.POST.get('empresa_id')) or empresa_id_get
 		if empresa_id:
 			try:
 				empresa = Empresa.objects.get(id=empresa_id)
@@ -419,8 +420,8 @@ def editar_empresa_activa(request):
 		print(f"DEBUG - FILES recibidos: {request.FILES}")
 		
 		# Determinar qué formulario se está enviando
-		# Si tiene facturacion_electronica o ambiente_sii, es el formulario FE
-		if 'ambiente_sii' in request.POST or 'certificado_digital' in request.FILES:
+		# Si tiene certificado_digital o resolucion_fecha, es el formulario FE específico
+		if 'certificado_digital' in request.FILES or 'resolucion_fecha' in request.POST or 'resolucion_numero' in request.POST:
 			fe_form = FacturacionElectronicaForm(request.POST, request.FILES, instance=empresa_activa)
 			if fe_form.is_valid():
 				fe_form.save()
@@ -428,8 +429,8 @@ def editar_empresa_activa(request):
 				return redirect('empresas:editar_empresa_activa')
 			else:
 				messages.error(request, 'Hubo errores en el formulario de Facturación Electrónica.')
-		# Si solo tiene campos de configuración, es el formulario de folios
-		elif 'prefijo_ajustes' in request.POST:
+		# Si tiene prefijo_ajustes pero NO tiene nombre/rut, es el formulario de folios
+		elif 'prefijo_ajustes' in request.POST and 'nombre' not in request.POST:
 			# Solo actualizar configuración, mantener datos de empresa
 			configuracion.prefijo_ajustes = request.POST.get('prefijo_ajustes', 'Aju')
 			configuracion.siguiente_ajuste = int(request.POST.get('siguiente_ajuste', 1))
@@ -460,17 +461,24 @@ def editar_empresa_activa(request):
 				configuracion.formato_orden_compra = request.POST.get('formato_orden_compra', configuracion.formato_orden_compra)
 			
 			print(f"DEBUG - Form válido: {form.is_valid()}")
+			print(f"DEBUG - Logo en FILES: {'logo' in request.FILES}")
+			if 'logo' in request.FILES:
+				print(f"DEBUG - Archivo logo: {request.FILES['logo'].name}, tamaño: {request.FILES['logo'].size}")
 			print(f"DEBUG - Configuración: {configuracion.prefijo_ajustes}, {configuracion.siguiente_ajuste}, {configuracion.formato_ajustes}")
 			
 			if form.is_valid():
 				empresa_guardada = form.save()
 				configuracion.save()
 				print(f"DEBUG - Empresa guardada: {empresa_guardada}")
+				print(f"DEBUG - Logo guardado: {empresa_guardada.logo}")
 				print(f"DEBUG - Configuración guardada: {configuracion}")
 				messages.success(request, f'Empresa "{empresa_activa.nombre}" actualizada correctamente.')
 				return redirect('dashboard')
 			else:
 				print(f"DEBUG - Errores del formulario: {form.errors}")
+				for field, errors in form.errors.items():
+					for error in errors:
+						messages.error(request, f'{field}: {error}')
 				messages.error(request, 'Hubo errores en el formulario.')
 
 	# Obtener sucursales de la empresa

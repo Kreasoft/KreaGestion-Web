@@ -145,3 +145,8 @@ class ItemOrdenPedido(models.Model):
     def get_total(self):
         """Calcula el total del item"""
         return self.get_base_imponible() + self.get_impuesto_monto()
+
+
+# Importar modelos de despacho y transporte
+from .models_despacho import OrdenDespacho, DetalleOrdenDespacho
+from .models_transporte import Chofer, Vehiculo

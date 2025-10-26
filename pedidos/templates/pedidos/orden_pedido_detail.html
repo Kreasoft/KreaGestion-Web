@@ -139,6 +139,60 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Despachos Asociados -->
+                            {% if despachos %}
+                            <div class="card mt-3" style="border: 1px solid #e3e6f0; border-radius: 10px;">
+                                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); border: none; padding: 10px 15px;">
+                                    <h6 class="mb-0 text-white" style="font-weight: 600;">
+                                        <i class="fas fa-truck me-2"></i>Despachos Asociados ({{ despachos.count }})
+                                    </h6>
+                                </div>
+                                <div class="card-body" style="padding: 10px;">
+                                    <div class="row">
+                                        {% for despacho in despachos %}
+                                        <div class="col-md-6 mb-2">
+                                            <div class="card" style="border-left: 3px solid #17a2b8;">
+                                                <div class="card-body py-2 px-3">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 600;">
+                                                                {{ despacho.numero_despacho }}
+                                                            </h6>
+                                                            <p class="mb-0" style="font-size: 0.75rem;">
+                                                                <i class="fas fa-calendar me-1"></i>{{ despacho.fecha_despacho|date:"d/m/Y" }}
+                                                            </p>
+                                                            <p class="mb-0" style="font-size: 0.75rem;">
+                                                                {% if despacho.estado == 'pendiente' %}
+                                                                <span class="badge" style="background: #6c757d; font-size: 0.7rem;">PENDIENTE</span>
+                                                                {% elif despacho.estado == 'en_preparacion' %}
+                                                                <span class="badge" style="background: #ffc107; font-size: 0.7rem;">EN PREPARACIÓN</span>
+                                                                {% elif despacho.estado == 'despachado' %}
+                                                                <span class="badge" style="background: #17a2b8; font-size: 0.7rem;">DESPACHADO</span>
+                                                                {% elif despacho.estado == 'en_transito' %}
+                                                                <span class="badge" style="background: #007bff; font-size: 0.7rem;">EN TRÁNSITO</span>
+                                                                {% elif despacho.estado == 'entregado' %}
+                                                                <span class="badge" style="background: #28a745; font-size: 0.7rem;">ENTREGADO</span>
+                                                                {% elif despacho.estado == 'cancelado' %}
+                                                                <span class="badge" style="background: #dc3545; font-size: 0.7rem;">CANCELADO</span>
+                                                                {% endif %}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <a href="{% url 'pedidos:orden_despacho_detail' despacho.pk %}" 
+                                                               class="btn btn-sm" style="background: #17a2b8; color: white;">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
 
                         <!-- Panel Lateral -->
@@ -225,6 +279,11 @@
                             <!-- Acciones -->
                             <div class="card mt-3" style="border: 1px solid #e3e6f0; border-radius: 10px;">
                                 <div class="card-body" style="padding: 15px;">
+                                    {% if perms.pedidos.add_ordendespacho or user.is_superuser %}
+                                    <a href="{% url 'pedidos:orden_despacho_create' %}?pedido={{ pedido.pk }}" class="btn btn-sm w-100 mb-2" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border: none; text-decoration: none;">
+                                        <i class="fas fa-truck me-1"></i> Crear Despacho
+                                    </a>
+                                    {% endif %}
                                     <a href="{% url 'pedidos:orden_pedido_update' pedido.pk %}" class="btn btn-sm w-100 mb-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; text-decoration: none;">
                                         <i class="fas fa-edit me-1"></i> Editar Pedido
                                     </a>

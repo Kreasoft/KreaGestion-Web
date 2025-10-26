@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Eliminar Orden de Despacho - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden; margin-top: 50px;">
+                <!-- Header -->
+                <div class="card-header text-center" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border: none; padding: 20px;">
+                    <i class="fas fa-exclamation-triangle fa-3x text-white mb-3"></i>
+                    <h5 class="mb-0 text-white" style="font-size: 1.3rem; font-weight: 600;">
+                        Eliminar Orden de Despacho
+                    </h5>
+                </div>
+
+                <div class="card-body" style="padding: 30px;">
+                    <div class="alert alert-warning" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            ¿Está seguro que desea eliminar esta orden de despacho?
+                        </h6>
+                        <hr>
+                        <p class="mb-0">Esta acción no se puede deshacer.</p>
+                    </div>
+
+                    <!-- Información de la orden -->
+                    <div class="card mb-3" style="background: #f8f9fa; border: none;">
+                        <div class="card-body">
+                            <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 15px;">
+                                Información del Despacho
+                            </h6>
+                            <p><strong>N° Despacho:</strong> {{ orden.numero_despacho }}</p>
+                            <p><strong>Pedido:</strong> {{ orden.orden_pedido.numero_pedido }}</p>
+                            <p><strong>Cliente:</strong> {{ orden.orden_pedido.cliente.nombre }}</p>
+                            <p><strong>Fecha Despacho:</strong> {{ orden.fecha_despacho|date:"d/m/Y" }}</p>
+                            <p class="mb-0">
+                                <strong>Estado:</strong> 
+                                <span class="badge bg-secondary">{{ orden.get_estado_display|upper }}</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Botones -->
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="fas fa-trash-alt me-2"></i>
+                                Sí, Eliminar Orden de Despacho
+                            </button>
+                            <a href="{% url 'pedidos:orden_despacho_detail' orden.pk %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times me-2"></i>
+                                No, Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

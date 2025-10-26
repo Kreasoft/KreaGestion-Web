@@ -48,13 +48,12 @@ def kardex_articulo(request):
         except (Articulo.DoesNotExist, ValueError):
             pass
     
-    # Obtener bodega seleccionada (o filtrar por sucursal)
+    # Obtener bodega seleccionada - MOSTRAR TODAS LAS BODEGAS DE LA EMPRESA
     bodega = None
-    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
+    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True).select_related('sucursal')
     
-    # Filtrar bodegas por sucursal activa
-    if hasattr(request, 'sucursal_activa') and request.sucursal_activa:
-        bodegas = bodegas.filter(sucursal=request.sucursal_activa)
+    # NO filtrar por sucursal - el kardex debe mostrar TODAS las bodegas de la empresa
+    # para permitir consultas completas de movimientos entre sucursales
     
     if bodega_id:
         try:
@@ -100,6 +99,14 @@ def kardex_articulo(request):
             elif tipo_mov == 'ajuste':
                 if not bodega or inv.bodega_destino == bodega:
                     saldo_inicial += inv.cantidad
+            elif tipo_mov == 'transferencia':
+                # En saldo inicial también considerar transferencias
+                if bodega:
+                    if inv.bodega_origen == bodega:
+                        saldo_inicial -= inv.cantidad
+                    elif inv.bodega_destino == bodega:
+                        saldo_inicial += inv.cantidad
+                # Sin bodega: las transferencias no afectan el saldo global
         
         # Obtener movimientos del período
         inventarios = Inventario.objects.filter(
@@ -151,8 +158,10 @@ def kardex_articulo(request):
                         entrada = inv.cantidad
                         saldo += entrada
                 else:
-                    # Sin bodega específica, mostrar ambos movimientos
-                    pass
+                    # Sin bodega específica: mostrar transferencia sin afectar saldo global
+                    # (es movimiento interno, no cambia stock total de la empresa)
+                    entrada = inv.cantidad  # Mostrar la cantidad transferida
+                    salida = inv.cantidad   # En ambas columnas para indicar movimiento
             
             if entrada > 0 or salida > 0:
                 movimientos.append({

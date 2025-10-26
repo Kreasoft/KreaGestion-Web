@@ -131,9 +131,14 @@
                             {% endif %}
                         </div>
 
-                        <div class="alert alert-info py-2 px-2 mb-0" style="background: rgba(139, 115, 85, 0.1); border-color: #8B7355;">
+                        <div class="alert alert-info py-2 px-2 mb-2" style="background: rgba(139, 115, 85, 0.1); border-color: #8B7355;">
                             <i class="fas fa-info-circle me-1" style="color: #8B7355;"></i>
                             <small style="font-size: 0.75rem;">El número de folio se generará automáticamente.</small>
+                        </div>
+                        
+                        <div class="alert alert-warning py-2 px-2 mb-0" style="background: rgba(255, 193, 7, 0.1); border-color: #ffc107;">
+                            <i class="fas fa-exclamation-triangle me-1" style="color: #ffc107;"></i>
+                            <small style="font-size: 0.75rem;"><strong>Complete estos datos antes de agregar artículos.</strong></small>
                         </div>
                     </div>
                 </div>
@@ -251,8 +256,79 @@ document.addEventListener('DOMContentLoaded', function() {
     const agregarBtn = document.getElementById('agregarArticuloBtn');
     const articulosContainer = document.getElementById('articulosContainer');
     const bodegaOrigenSelect = document.getElementById('{{ form.bodega_origen.id_for_label }}');
+    const bodegaDestinoSelect = document.getElementById('{{ form.bodega_destino.id_for_label }}');
     const stockInfo = document.getElementById('stockInfo');
     const stockInfoText = document.getElementById('stockInfoText');
+    
+    // VALIDACIÓN CRÍTICA: Bodegas deben ser diferentes
+    function validarBodegasDiferentes() {
+        const origenId = bodegaOrigenSelect.value;
+        const destinoId = bodegaDestinoSelect.value;
+        
+        if (origenId && destinoId && origenId === destinoId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error Crítico',
+                html: '<strong>La bodega de origen y destino no pueden ser la misma.</strong><br><br>Una transferencia debe realizarse entre bodegas <strong>diferentes</strong>.',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Entendido',
+                allowOutsideClick: false
+            });
+            bodegaDestinoSelect.value = '';
+            return false;
+        }
+        return true;
+    }
+    
+    // Función para validar datos básicos y habilitar/deshabilitar botón de agregar
+    function validarDatosBasicosParaAgregar() {
+        const origenId = bodegaOrigenSelect.value;
+        const destinoId = bodegaDestinoSelect.value;
+        const fechaInput = document.getElementById('{{ form.fecha_transferencia.id_for_label }}');
+        const fechaValue = fechaInput ? fechaInput.value : null;
+        
+        const datosCompletos = origenId && destinoId && fechaValue && (origenId !== destinoId);
+        
+        if (datosCompletos) {
+            agregarBtn.disabled = false;
+            agregarBtn.style.opacity = '1';
+            agregarBtn.style.cursor = 'pointer';
+            agregarBtn.title = 'Agregar artículo a la transferencia';
+        } else {
+            agregarBtn.disabled = true;
+            agregarBtn.style.opacity = '0.5';
+            agregarBtn.style.cursor = 'not-allowed';
+            let motivo = [];
+            if (!origenId) motivo.push('bodega origen');
+            if (!destinoId) motivo.push('bodega destino');
+            if (!fechaValue) motivo.push('fecha');
+            if (origenId && destinoId && origenId === destinoId) motivo.push('bodegas deben ser diferentes');
+            agregarBtn.title = 'Complete primero: ' + motivo.join(', ');
+        }
+    }
+    
+    // Validar cuando cambia bodega origen
+    bodegaOrigenSelect.addEventListener('change', function() {
+        validarBodegasDiferentes();
+        validarDatosBasicosParaAgregar();
+    });
+    
+    // Validar cuando cambia bodega destino
+    bodegaDestinoSelect.addEventListener('change', function() {
+        validarBodegasDiferentes();
+        validarDatosBasicosParaAgregar();
+    });
+    
+    // Validar cuando cambia fecha
+    const fechaTransferenciaInput = document.getElementById('{{ form.fecha_transferencia.id_for_label }}');
+    if (fechaTransferenciaInput) {
+        fechaTransferenciaInput.addEventListener('change', function() {
+            validarDatosBasicosParaAgregar();
+        });
+    }
+    
+    // Validar al cargar la página
+    validarDatosBasicosParaAgregar();
     
     // Verificar stock disponible cuando se selecciona un artículo
     articuloSelect.addEventListener('change', function() {
@@ -287,16 +363,95 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Agregar artículo
     agregarBtn.addEventListener('click', function() {
+        // VALIDACIONES PREVIAS OBLIGATORIAS
+        const origenId = bodegaOrigenSelect.value;
+        const destinoId = bodegaDestinoSelect.value;
+        const fechaInput = document.getElementById('{{ form.fecha_transferencia.id_for_label }}');
+        const fechaValue = fechaInput ? fechaInput.value : null;
+        
+        // 1. Validar bodega origen
+        if (!origenId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Datos Incompletos',
+                text: 'Debe seleccionar la BODEGA ORIGEN antes de agregar artículos',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Entendido',
+                allowOutsideClick: false
+            });
+            bodegaOrigenSelect.focus();
+            return;
+        }
+        
+        // 2. Validar bodega destino
+        if (!destinoId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Datos Incompletos',
+                text: 'Debe seleccionar la BODEGA DESTINO antes de agregar artículos',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Entendido',
+                allowOutsideClick: false
+            });
+            bodegaDestinoSelect.focus();
+            return;
+        }
+        
+        // 3. Validar que las bodegas sean diferentes
+        if (origenId === destinoId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error Crítico',
+                html: '<strong>La bodega de origen y destino no pueden ser la misma.</strong><br><br>Seleccione bodegas diferentes.',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Entendido',
+                allowOutsideClick: false
+            });
+            bodegaDestinoSelect.value = '';
+            bodegaDestinoSelect.focus();
+            return;
+        }
+        
+        // 4. Validar fecha
+        if (!fechaValue) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Datos Incompletos',
+                text: 'Debe especificar la FECHA DE TRANSFERENCIA antes de agregar artículos',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Entendido',
+                allowOutsideClick: false
+            });
+            fechaInput.focus();
+            return;
+        }
+        
+        // 5. Validar artículo seleccionado
         const articuloId = articuloSelect.value;
         const cantidad = parseFloat(cantidadInput.value);
         
         if (!articuloId) {
-            alert('Debe seleccionar un artículo');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Atención',
+                text: 'Debe seleccionar un artículo',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Aceptar'
+            });
+            articuloSelect.focus();
             return;
         }
         
+        // 6. Validar cantidad
         if (!cantidad || cantidad <= 0) {
-            alert('Debe ingresar una cantidad válida');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Atención',
+                text: 'Debe ingresar una cantidad válida mayor a 0',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Aceptar'
+            });
+            cantidadInput.focus();
             return;
         }
         
@@ -308,7 +463,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Verificar si el artículo ya está agregado
         const existe = articulos.find(a => a.articulo_id === articuloId);
         if (existe) {
-            alert('Este artículo ya está agregado');
+            Swal.fire({
+                icon: 'info',
+                title: 'Artículo Duplicado',
+                text: 'Este artículo ya está agregado a la transferencia',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Aceptar'
+            });
             return;
         }
         
@@ -346,6 +507,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const totalLinea = art.cantidad * art.precio_venta;
                 subtotal += totalLinea;
                 
+                // Formatear sin decimales
+                const precioFormateado = Math.round(art.precio_venta).toLocaleString('es-CL');
+                const totalLineaFormateado = Math.round(totalLinea).toLocaleString('es-CL');
+                
                 html += `
                     <div class="articulo-item">
                         <div class="d-flex justify-content-between align-items-center">
@@ -353,8 +518,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <strong style="color: #8B7355;">${art.codigo}</strong> - ${art.nombre}
                                 <div class="stock-info">
                                     Cantidad: <strong style="color: #6B8E23;">${art.cantidad}</strong> | 
-                                    Precio: <strong style="color: #8B7355;">$${art.precio_venta.toLocaleString('es-CL')}</strong> | 
-                                    Total: <strong style="color: #6B8E23;">$${totalLinea.toLocaleString('es-CL')}</strong>
+                                    Precio: <strong style="color: #8B7355;">$${precioFormateado}</strong> | 
+                                    Total: <strong style="color: #6B8E23;">$${totalLineaFormateado}</strong>
                                 </div>
                             </div>
                             <button type="button" class="btn btn-sm" style="background: #C19461; color: white; border: none; padding: 0.25rem 0.5rem;" onclick="eliminarArticulo(${index})">
@@ -367,13 +532,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             articulosContainer.innerHTML = html;
             
-            // Calcular IVA y total
-            const iva = subtotal * 0.19;
-            const totalConIva = subtotal + iva;
+            // Calcular IVA y total (sin decimales)
+            const iva = Math.round(subtotal * 0.19);
+            const totalConIva = Math.round(subtotal + iva);
             
             document.getElementById('totalArticulos').textContent = articulos.length;
-            document.getElementById('totalUnidades').textContent = totalUnidades.toFixed(2);
-            document.getElementById('subtotalValor').textContent = '$' + subtotal.toLocaleString('es-CL');
+            document.getElementById('totalUnidades').textContent = Math.round(totalUnidades);
+            document.getElementById('subtotalValor').textContent = '$' + Math.round(subtotal).toLocaleString('es-CL');
             document.getElementById('ivaValor').textContent = '$' + iva.toLocaleString('es-CL');
             document.getElementById('totalValor').textContent = '$' + totalConIva.toLocaleString('es-CL');
         }
@@ -389,12 +554,55 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Validar antes de enviar
     document.getElementById('transferenciaForm').addEventListener('submit', function(e) {
+        // Validar artículos
         if (articulos.length === 0) {
             e.preventDefault();
             Swal.fire({
                 icon: 'warning',
                 title: 'Atención',
                 text: 'Debe agregar al menos un artículo a la transferencia',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Aceptar'
+            });
+            return false;
+        }
+        
+        // Validar bodegas diferentes
+        const origenId = bodegaOrigenSelect.value;
+        const destinoId = bodegaDestinoSelect.value;
+        
+        if (!origenId || !destinoId) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Debe seleccionar bodega de origen y destino',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Aceptar'
+            });
+            return false;
+        }
+        
+        if (origenId === destinoId) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Error Crítico',
+                html: '<strong>La bodega de origen y destino no pueden ser la misma.</strong><br><br>Una transferencia debe realizarse entre bodegas diferentes.',
+                confirmButtonColor: '#8B7355',
+                confirmButtonText: 'Aceptar'
+            });
+            return false;
+        }
+        
+        // Validar fecha
+        const fechaInput = document.getElementById('{{ form.fecha_transferencia.id_for_label }}');
+        if (fechaInput && !fechaInput.value) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Debe especificar una fecha de transferencia',
                 confirmButtonColor: '#8B7355',
                 confirmButtonText: 'Aceptar'
             });

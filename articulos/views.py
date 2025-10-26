@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
@@ -579,7 +580,7 @@ def calcular_precios_articulo(request):
         modo = request.POST.get('modo', 'margen')  # 'margen', 'precio_venta', 'precio_final'
         
         # Obtener información de la categoría para determinar si está exenta de IVA
-        categoria_id = request.POST.get('categoria_id')
+        categoria_id = clean_id(request.POST.get('categoria_id'))
         exenta_iva = False
         
         if categoria_id:
@@ -765,9 +766,20 @@ def stock_actual(request):
         
         # Parsear JSON
         data = json.loads(request.body)
-        articulo_ids = data.get('articulo_ids', [])
+        raw_articulo_ids = data.get('articulo_ids', [])
+        cliente_id_raw = data.get('cliente_id', None)
         
-        # print(f"DEBUG - stock_actual: IDs recibidos: {articulo_ids}")
+        # Función de limpieza para IDs
+        def clean_id(dirty_id):
+            if isinstance(dirty_id, str):
+                return ''.join(filter(str.isdigit, dirty_id))
+            return dirty_id
+
+        # Limpiar todos los IDs recibidos
+        articulo_ids = [clean_id(id) for id in raw_articulo_ids]
+        cliente_id = clean_id(cliente_id_raw) if cliente_id_raw else None
+        
+        # print(f"DEBUG - stock_actual: IDs limpios: {articulo_ids}, Cliente ID: {cliente_id}")
         
         if not articulo_ids:
             return JsonResponse({
@@ -997,10 +1009,16 @@ def lista_precio_gestionar_precios(request, pk):
         
         for key, value in request.POST.items():
             if key.startswith('precio_'):
-                articulo_id = key.replace('precio_', '')
                 try:
-                    articulo = Articulo.objects.get(id=articulo_id, empresa=request.empresa)
+                    def clean_id(dirty_id):
+                        if isinstance(dirty_id, str):
+                            return ''.join(filter(str.isdigit, dirty_id))
+                        return dirty_id
                     
+                    articulo_id_raw = key.replace('precio_', '')
+                    articulo_id = clean_id(articulo_id_raw)
+                    articulo = Articulo.objects.get(id=articulo_id, empresa=request.empresa)
+                        
                     # Limpiar el valor: eliminar puntos (separadores de miles) y espacios
                     if value and value.strip():
                         value_clean = value.replace('.', '').replace(' ', '').replace(',', '.')
@@ -1018,13 +1036,15 @@ def lista_precio_gestionar_precios(request, pk):
                         guardados += 1
                     else:
                         # Eliminar precio si está vacío o es 0
-                        deleted_count = PrecioArticulo.objects.filter(
+                        deleted_count, _ = PrecioArticulo.objects.filter(
                             articulo=articulo,
                             lista_precio=lista
-                        ).delete()[0]
+                        ).delete()
                         if deleted_count > 0:
                             eliminados += 1
+                            
                 except (Articulo.DoesNotExist, ValueError, InvalidOperation):
+                    print(f"ADVERTENCIA: Error al procesar precio para la clave '{key}'. Saltando...")
                     continue
         
         # Actualizar fecha de modificación de la lista
@@ -1308,7 +1328,13 @@ def api_listas_precios(request):
 @permission_required('articulos.view_articulo', raise_exception=True)
 def homologacion_list(request, articulo_id):
     """Lista de homologaciones de un artículo"""
-    articulo = get_object_or_404(Articulo, pk=articulo_id, empresa=request.empresa)
+    def clean_id(dirty_id):
+        if isinstance(dirty_id, str):
+            return ''.join(filter(str.isdigit, dirty_id))
+        return dirty_id
+    
+    articulo_id_clean = clean_id(articulo_id)
+    articulo = get_object_or_404(Articulo, pk=articulo_id_clean, empresa=request.empresa)
     homologaciones = HomologacionCodigo.objects.filter(articulo=articulo).select_related('proveedor')
     
     return render(request, 'articulos/homologacion_list.html', {
@@ -1322,7 +1348,13 @@ def homologacion_list(request, articulo_id):
 @permission_required('articulos.add_articulo', raise_exception=True)
 def homologacion_create(request, articulo_id):
     """Crear homologación de código"""
-    articulo = get_object_or_404(Articulo, pk=articulo_id, empresa=request.empresa)
+    def clean_id(dirty_id):
+        if isinstance(dirty_id, str):
+            return ''.join(filter(str.isdigit, dirty_id))
+        return dirty_id
+    
+    articulo_id_clean = clean_id(articulo_id)
+    articulo = get_object_or_404(Articulo, pk=articulo_id_clean, empresa=request.empresa)
     
     if request.method == 'POST':
         form = HomologacionCodigoForm(request.POST, empresa=request.empresa)
@@ -1409,17 +1441,26 @@ def kit_oferta_list(request):
     kits = KitOferta.objects.filter(empresa=request.empresa).prefetch_related('items__articulo')
     
     # Filtros
-    search = request.GET.get('search', '')
-    activo = request.GET.get('activo', '')
+    search_term = request.GET.get('search', '')
+    articulo_id_raw = clean_id(request.GET.get('articulo_id'))
+    lista_id = request.GET.get('lista_id')
+
+    def clean_id(dirty_id):
+        if isinstance(dirty_id, str):
+            return ''.join(filter(str.isdigit, dirty_id))
+        return dirty_id
+
+    articulo_id = clean_id(articulo_id_raw) if articulo_id_raw else None
     destacado = request.GET.get('destacado', '')
     
-    if search:
+    if search_term:
         kits = kits.filter(
-            Q(codigo__icontains=search) |
-            Q(nombre__icontains=search) |
-            Q(descripcion__icontains=search)
+            Q(codigo__icontains=search_term) |
+            Q(nombre__icontains=search_term) |
+            Q(descripcion__icontains=search_term)
         )
-    
+
+    activo = request.GET.get('activo', '')
     if activo:
         kits = kits.filter(activo=(activo == 'true'))
     

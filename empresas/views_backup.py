@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 """
 Vistas para el módulo de empresas
 """
@@ -318,7 +319,7 @@ def seleccionar_empresa(request):
 	empresa_actual = request.empresa
 	
 	if request.method == 'POST':
-		empresa_id = request.POST.get('empresa_id')
+		empresa_id = clean_id(clean_id(request.POST.get('empresa_id')))
 		if empresa_id:
 			try:
 				empresa = Empresa.objects.get(id=empresa_id)
@@ -464,7 +465,7 @@ def seleccionar_empresa(request):
 	empresa_actual = request.empresa
 	
 	if request.method == 'POST':
-		empresa_id = request.POST.get('empresa_id')
+		empresa_id = clean_id(clean_id(request.POST.get('empresa_id')))
 		if empresa_id:
 			try:
 				empresa = Empresa.objects.get(id=empresa_id)

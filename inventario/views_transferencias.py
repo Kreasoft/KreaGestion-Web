@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -144,6 +145,28 @@ def transferencia_create(request):
                 })
             
             if form.is_valid():
+                # VALIDACIÓN CRÍTICA: Bodegas diferentes
+                bodega_origen = form.cleaned_data.get('bodega_origen')
+                bodega_destino = form.cleaned_data.get('bodega_destino')
+                
+                if bodega_origen == bodega_destino:
+                    messages.error(request, '❌ ERROR: La bodega de origen y destino no pueden ser la misma. Una transferencia debe ser entre bodegas diferentes.')
+                    return render(request, 'inventario/transferencia_form.html', {
+                        'form': form,
+                        'titulo': 'Nueva Transferencia de Inventario',
+                        'transferencia_edit': transferencia_edit
+                    })
+                
+                # VALIDACIÓN: Fecha obligatoria
+                fecha_transferencia = form.cleaned_data.get('fecha_transferencia')
+                if not fecha_transferencia:
+                    messages.error(request, '❌ ERROR: Debe especificar una fecha de transferencia válida.')
+                    return render(request, 'inventario/transferencia_form.html', {
+                        'form': form,
+                        'titulo': 'Nueva Transferencia de Inventario',
+                        'transferencia_edit': transferencia_edit
+                    })
+                
                 with transaction.atomic():
                     # Crear/actualizar la transferencia sin guardar aún
                     transferencia = form.save(commit=False)
@@ -196,6 +219,18 @@ def transferencia_create(request):
                         # Borrar movimientos anteriores
                         transferencia.detalles.all().delete()
 
+                    # VALIDAR ARTÍCULOS: Cada artículo debe tener datos completos
+                    for idx, item in enumerate(articulos, 1):
+                        # Validar ID de artículo
+                        raw_id = item.get('articulo_id')
+                        if not raw_id:
+                            raise ValueError(f"❌ Item #{idx}: Debe seleccionar un artículo válido.")
+                        
+                        # Validar cantidad
+                        cantidad_str = item.get('cantidad')
+                        if not cantidad_str or cantidad_str == '0':
+                            raise ValueError(f"❌ Item #{idx}: Debe especificar una cantidad mayor a 0.")
+                    
                     # Crear los detalles de la transferencia (nuevos)
                     for item in articulos:
                         raw_id = item.get('articulo_id')
@@ -203,7 +238,12 @@ def transferencia_create(request):
                             articulo_id = int(re.sub(r"\D+", "", str(raw_id)))
                         except Exception:
                             raise ValueError(f"ID de artículo inválido: {raw_id}")
-                        articulo = Articulo.objects.get(id=articulo_id)
+                        
+                        try:
+                            articulo = Articulo.objects.get(id=articulo_id, empresa=request.empresa, activo=True)
+                        except Articulo.DoesNotExist:
+                            raise ValueError(f"El artículo con ID {articulo_id} no existe o no está activo.")
+                        
                         cantidad = Decimal(str(item['cantidad']))
                         
                         # Verificar stock disponible en bodega origen
@@ -432,8 +472,8 @@ def transferencia_cancelar(request, pk):
 @requiere_empresa
 def api_stock_disponible(request):
     """API para obtener el stock disponible de un artículo en una bodega"""
-    articulo_id = request.GET.get('articulo_id')
-    bodega_id = request.GET.get('bodega_id')
+    articulo_id = clean_id(request.GET.get('articulo_id'))
+    bodega_id = clean_id(request.GET.get('bodega_id'))
     
     if not articulo_id or not bodega_id:
         return JsonResponse({'error': 'Parámetros faltantes'}, status=400)

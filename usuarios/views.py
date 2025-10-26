@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User, Group
@@ -161,7 +162,7 @@ def usuario_asignar_grupo(request, user_id):
     """Asignar grupo a usuario"""
     try:
         usuario = get_object_or_404(User, id=user_id)
-        grupo_id = request.POST.get('grupo_id')
+        grupo_id = clean_id(request.POST.get('grupo_id'))
         
         # Verificar que el usuario pertenece a la misma empresa
         empresa, error = obtener_empresa_usuario(request)

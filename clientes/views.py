@@ -61,12 +61,18 @@ def cliente_list(request):
     
     # Aplicar filtros
     if search:
-        clientes = clientes.filter(
-            Q(nombre__icontains=search) |
-            Q(rut__icontains=search) |
-            Q(email__icontains=search) |
-            Q(telefono__icontains=search)
-        )
+        # Crear un objeto Q para la búsqueda
+        query = Q()
+        
+        # Añadir condiciones de búsqueda solo para campos de texto
+        query |= Q(nombre__icontains=search)
+        query |= Q(rut__icontains=search)
+        query |= Q(email__icontains=search)
+        query |= Q(telefono__icontains=search)
+        query |= Q(direccion__icontains=search)
+        
+        # Aplicar el filtro
+        clientes = clientes.filter(query)
     
     if estado:
         clientes = clientes.filter(estado=estado)
@@ -257,58 +263,17 @@ def cliente_delete(request, pk):
     cliente = get_object_or_404(Cliente, pk=pk, empresa=empresa)
     
     if request.method == 'POST':
-        from django.db import connection, transaction
-        
+        from django.db.models import ProtectedError
         nombre = cliente.nombre
-        cliente_id = cliente.id
-        
         try:
-            with transaction.atomic():
-                # Deshabilitar foreign keys
-                with connection.cursor() as cursor:
-                    cursor.execute('PRAGMA foreign_keys = OFF;')
-                
-                # Verificar ventas
-                from ventas.models import Venta
-                ventas_count = Venta.objects.filter(cliente_id=cliente_id).count()
-                
-                if ventas_count > 0:
-                    messages.error(request, f'No se puede eliminar el cliente "{nombre}" porque tiene {ventas_count} venta(s) asociada(s).')
-                    with connection.cursor() as cursor:
-                        cursor.execute('PRAGMA foreign_keys = ON;')
-                    return redirect('clientes:cliente_list')
-                
-                # Eliminar registros relacionados manualmente
-                with connection.cursor() as cursor:
-                    # Eliminar contactos
-                    cursor.execute('DELETE FROM clientes_contactocliente WHERE cliente_id = ?', [cliente_id])
-                    
-                    # Eliminar movimientos de cuenta corriente
-                    cursor.execute('DELETE FROM clientes_cuentacorrientecliente WHERE cliente_id = ?', [cliente_id])
-                    
-                    # Eliminar historial de precios
-                    cursor.execute('DELETE FROM clientes_historialprecioscliente WHERE cliente_id = ?', [cliente_id])
-                    
-                    # Eliminar el cliente
-                    cursor.execute('DELETE FROM clientes_cliente WHERE id = ?', [cliente_id])
-                
-                # Reactivar foreign keys
-                with connection.cursor() as cursor:
-                    cursor.execute('PRAGMA foreign_keys = ON;')
-            
+            cliente.delete()
             messages.success(request, f'Cliente "{nombre}" eliminado exitosamente.')
-            return redirect('clientes:cliente_list')
-            
+        except ProtectedError:
+            messages.error(request, f'No se puede eliminar el cliente "{nombre}" porque tiene registros asociados (como ventas, facturas, etc.).')
         except Exception as e:
-            # Reactivar foreign keys
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute('PRAGMA foreign_keys = ON;')
-            except:
-                pass
-            
-            messages.error(request, f'Error al eliminar el cliente: {str(e)}')
-            return redirect('clientes:cliente_list')
+            messages.error(request, f'Ocurrió un error inesperado al intentar eliminar el cliente: {str(e)}')
+        
+        return redirect('clientes:cliente_list')
     
     context = {
         'cliente': cliente,

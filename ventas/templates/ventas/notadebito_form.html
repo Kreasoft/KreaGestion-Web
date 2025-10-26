@@ -1,0 +1,2004 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if nota %}
+        Editar Nota de Crédito - GestionCloud
+    {% else %}
+        Crear Nota de Crédito - GestionCloud
+    {% endif %}
+{% endblock %}
+
+{% block body_class %}hide-top-bar{% if nota %} edit-mode{% endif %}{% endblock %}
+
+{% block extra_css %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* TARJETA ÚNICA BLANCA - SIN FONDOS DE COLORES */
+    .form-container {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+        border: 1px solid #e3e6f0;
+        margin-bottom: 1rem;
+    }
+
+    .panel-documento {
+        background: white;
+        border-radius: 10px;
+        border: 1px solid #d5d8e1;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+        margin-bottom: 1rem;
+        padding: 1rem 1.25rem;
+        transition: all 0.3s ease;
+    }
+
+    .panel-documento.collapsed .panel-documento-body {
+        display: none;
+    }
+
+    .panel-documento-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        margin-bottom: 0.75rem;
+    }
+
+    .panel-documento-title {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: #495057;
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    .panel-documento-button {
+        background: rgba(139, 115, 85, 0.1);
+        border: none;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8B7355;
+        transition: all 0.3s ease;
+    }
+
+    .panel-documento-button:hover {
+        background: rgba(139, 115, 85, 0.2);
+    }
+
+    .panel-documento.collapsed .panel-documento-button i {
+        transform: rotate(180deg);
+    }
+
+    .panel-documento-body {
+        transition: all 0.3s ease;
+    }
+
+    .documento-resumen {
+        border: 1px dashed #8B7355;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        background: rgba(139, 115, 85, 0.05);
+        margin-top: 0.75rem;
+    }
+
+    .documento-resumen-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        padding: 0.2rem 0;
+        color: #495057;
+    }
+
+    .documento-resumen-item + .documento-resumen-item {
+        border-top: 1px solid rgba(139, 115, 85, 0.2);
+        margin-top: 0.2rem;
+        padding-top: 0.4rem;
+    }
+
+    .documento-label {
+        font-weight: 600;
+    }
+
+    .documento-value {
+        font-family: 'Courier New', monospace;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    .form-section h5 {
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        font-size: 1rem;
+    }
+
+    .form-section h5 i {
+        margin-right: 0.5rem;
+        color: #4e73df;
+        font-size: 0.9rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+        border: none;
+        border-radius: 20px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(78, 115, 223, 0.3);
+    }
+
+    .btn-secondary {
+        border-radius: 20px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+
+    .items-container {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 3px;
+        padding: 0;
+        margin-bottom: 0.5rem;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .item-form {
+        background: #f8f9fc;
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .item-form:last-child {
+        margin-bottom: 0;
+    }
+
+    .add-item-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        border-radius: 4px;
+        color: white;
+        padding: 0.4rem 0.7rem;
+        font-weight: 600;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 1px 4px rgba(40, 167, 69, 0.3);
+        height: 28px;
+    }
+
+    .add-item-btn:hover {
+        background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(40, 167, 69, 0.4);
+        color: white;
+    }
+
+    .add-item-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 4px rgba(40, 167, 69, 0.3);
+    }
+
+    .remove-item-btn {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border: none;
+        border-radius: 20px;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+    }
+
+    .remove-item-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(220, 53, 69, 0.4);
+        color: white;
+    }
+
+    .total-section {
+        background: linear-gradient(135deg, #6f42c1 0%, #563d7c 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .total-row:last-child {
+        margin-bottom: 0;
+        font-weight: bold;
+        font-size: 1.1rem;
+        border-top: 1px solid rgba(255,255,255,0.2);
+        padding-top: 0.5rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    }
+
+    /* Estilos adicionales para controles de edición como en compras */
+    .input-group .form-control,
+    .input-group .form-select {
+        border: 1px solid #ced4da;
+        border-radius: 8px;
+        padding: 0.2rem 0.5rem;
+        font-family: 'Poppins', sans-serif;
+        transition: all 0.3s ease;
+        height: 35px;
+        font-size: 0.8rem;
+    }
+
+    .input-group .form-control:focus,
+    .input-group .form-select:focus {
+        border-color: #17a2b8;
+        box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+    }
+
+    /* Íconos en input-group más pequeños */
+    .input-group-text {
+        padding: 0.2rem 0.5rem;
+        height: 35px;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Campos de fecha también más pequeños */
+    input[type="date"].form-control {
+        height: 35px;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    /* Radio buttons específicos */
+    .form-check-input[type="radio"] {
+        margin-top: 0.25rem;
+    }
+
+    .form-check-label {
+        font-size: 0.75rem !important;
+        margin-left: 0.5rem;
+    }
+
+    /* Etiquetas también más pequeñas */
+    .form-label {
+        font-size: 0.75rem !important;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.2rem;
+    }
+
+    /* Espaciado más compacto entre filas */
+    .row.g-2 {
+        margin-bottom: 0.5rem !important;
+    }
+
+    .mb-3 {
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Campo de motivo más compacto */
+    textarea.form-control {
+        height: 35px !important;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.8rem;
+        resize: vertical;
+        min-height: 35px;
+    }
+
+     /* Estilos para el resumen de valores - Tarjeta Elegante */
+     .summary-card {
+         background: linear-gradient(135deg, #ffffff 0%, #f8f9fc 100%);
+         border-radius: 16px;
+         border: 1px solid rgba(255, 255, 255, 0.2);
+         overflow: hidden;
+         margin-top: 2rem;
+         padding: 0;
+         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.1);
+         min-height: 220px;
+         position: relative;
+         backdrop-filter: blur(10px);
+     }
+
+     .summary-card::before {
+         content: '';
+         position: absolute;
+         top: 0;
+         left: 0;
+         right: 0;
+         height: 4px;
+         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+     }
+
+     .summary-header {
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         padding: 1.2rem 1.5rem;
+         border-bottom: none;
+         position: relative;
+     }
+
+     .summary-header::after {
+         content: '';
+         position: absolute;
+         bottom: 0;
+         left: 0;
+         right: 0;
+         height: 1px;
+         background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+     }
+
+     .summary-title {
+         color: white;
+         font-weight: 700;
+         margin: 0;
+         font-size: 1.1rem;
+         text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+         letter-spacing: 0.5px;
+     }
+
+     .summary-title i {
+         color: rgba(255, 255, 255, 0.9);
+         margin-right: 0.7rem;
+         font-size: 1.2rem;
+     }
+
+     .summary-body {
+         padding: 1.2rem 1.5rem;
+         background: rgba(255, 255, 255, 0.5);
+     }
+
+     .summary-row-compact {
+         display: flex;
+         justify-content: space-between;
+         align-items: center;
+         margin-bottom: 0;
+         padding: 0.8rem 0;
+         font-size: 0.95rem;
+         border-bottom: 1px solid rgba(108, 117, 125, 0.1);
+         transition: all 0.3s ease;
+         position: relative;
+     }
+
+     .summary-row-compact:hover {
+         background: rgba(102, 126, 234, 0.05);
+         border-radius: 8px;
+         margin: 0 -0.5rem;
+         padding-left: 0.5rem;
+         padding-right: 0.5rem;
+     }
+
+     .summary-row-compact:last-child {
+         border-bottom: none;
+         background: linear-gradient(135deg, #f8f9fc 0%, #e9ecef 100%);
+         border-radius: 12px;
+         margin: 0.5rem -0.5rem -0.5rem -0.5rem;
+         padding: 1rem 0.5rem;
+         box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+     }
+
+     .summary-label {
+         font-weight: 600;
+         color: #495057;
+         font-size: 0.9rem;
+         letter-spacing: 0.3px;
+     }
+
+     .summary-value {
+         font-weight: 700;
+         color: #2c3e50;
+         font-size: 0.95rem;
+         text-align: right;
+         font-family: 'Courier New', monospace;
+     }
+
+     .summary-row-compact:last-child .summary-label,
+     .summary-row-compact:last-child .summary-value {
+         font-size: 1.1rem;
+         color: #667eea;
+         font-weight: 800;
+     }
+
+    .summary-line {
+        margin: 0;
+        border: none;
+        border-top: 1px solid #e9ecef;
+        opacity: 0.5;
+    }
+
+    .summary-divider {
+        margin: 0.5rem 0;
+        border: none;
+        border-top: 2px solid #6b8e23;
+        opacity: 0.8;
+    }
+
+    .summary-divider-compact {
+        margin: 0.3rem 0;
+        border: none;
+        border-top: 1px solid #6b8e23;
+        opacity: 0.6;
+    }
+
+    .total-row {
+        background: linear-gradient(135deg, #f8f9fc 0%, #e9ecef 100%);
+        margin: 0 -1.5rem -1.5rem -1.5rem;
+        padding: 1rem 1.5rem;
+        border-top: 2px solid #6b8e23;
+    }
+
+    .total-row .summary-label,
+    .total-row .summary-value {
+        font-size: 1.2rem;
+        color: #6b8e23;
+        font-weight: 700;
+    }
+
+    .section-divider {
+        border: none;
+        border-top: 2px solid #e9ecef;
+        margin: 1rem 0;
+        opacity: 0.6;
+    }
+
+    /* Estilos para lista compacta de items */
+    .item-form-compact {
+        transition: background-color 0.2s ease;
+    }
+
+    .item-form-compact:hover {
+        background-color: #f0f8ff !important;
+    }
+
+    .item-form-compact:nth-child(even) {
+        background-color: #f8f9fc;
+    }
+
+    .item-form-compact:nth-child(odd) {
+        background-color: #ffffff;
+    }
+
+    /* Campos ULTRA compactos para items */
+    .item-form-compact .form-control-sm,
+    .item-form-compact .form-select-sm {
+        padding: 0.15rem 0.3rem;
+        font-size: 0.7rem;
+        line-height: 1;
+        height: 24px;
+    }
+
+    /* TODOS los campos de items - mismo tamaño compacto */
+    .item-form-compact input[name*="cantidad"],
+    .item-form-compact input[name*="precio_unitario"],
+    .item-form-compact input[name*="descuento"],
+    .item-form-compact select {
+        height: 24px !important;
+        padding: 0.15rem 0.3rem !important;
+        font-size: 0.7rem !important;
+        line-height: 1 !important;
+    }
+
+    .item-form-compact .form-control-sm:focus,
+    .item-form-compact .form-select-sm:focus {
+        box-shadow: 0 0 0 0.2rem rgba(107, 142, 35, 0.25);
+        border-color: #6b8e23;
+    }
+
+    .item-total {
+        font-weight: 600 !important;
+        background-color: #f8f9fc !important;
+        color: #495057 !important;
+        text-align: right !important;
+    }
+
+    .alert {
+        border-radius: 10px;
+        border: none;
+    }
+
+    .alert-success {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        color: #155724;
+    }
+
+    .alert-danger {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        color: #721c24;
+    }
+
+    .alert-info {
+        background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+        color: #0c5460;
+    }
+
+    /* === ESTILOS SELECT2 PERSONALIZADOS === */
+    .select2-container--default .select2-selection--single {
+        border: 1px solid #ced4da !important;
+        border-radius: 0 8px 8px 0 !important; /* Ajustar radios para el grupo */
+        height: 35px !important;
+        background-color: #fff !important;
+        /* Forzar alineación con Flexbox */
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 !important; /* Reset padding */
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        font-size: 0.8rem !important;
+        color: #495057 !important;
+        padding-left: 0.5rem !important; /* Añadir padding aquí */
+        padding-right: 20px !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 33px !important;
+        right: 5px !important;
+        top: 1px !important;
+    }
+
+    /* Alineación del input-group con Select2 e icono */
+    .input-group.input-group-sm { align-items: stretch; }
+    .input-group.input-group-sm .input-group-text {
+        height: 35px !important;
+        display: flex;
+        align-items: center;
+    }
+    .input-group.input-group-sm .select2-container { flex: 1 1 auto !important; }
+    .input-group.input-group-sm .form-select,
+    .input-group.input-group-sm .form-control {
+        height: 35px !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow b {
+        margin-top: 0 !important;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #4e73df !important;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25) !important;
+    }
+
+    .select2-dropdown {
+        border: 1px solid #e3e6f0 !important;
+        border-radius: 6px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }
+
+    .select2-search--dropdown .select2-search__field {
+        border: 1px solid #e3e6f0 !important;
+        border-radius: 4px !important;
+        padding: 6px 12px !important;
+        font-size: 0.875rem !important;
+    }
+
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #4e73df !important;
+        outline: none !important;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25) !important;
+    }
+
+    .select2-results__option {
+        font-size: 0.875rem !important;
+        padding: 8px 12px !important;
+        border-bottom: 1px solid #f8f9fc !important;
+    }
+
+    .select2-results__option--highlighted {
+        background-color: #4e73df !important;
+        color: white !important;
+    }
+
+    .select2-results__option--selected {
+        background-color: #e9ecef !important;
+        color: #495057 !important;
+    }
+
+    .select2-container {
+        width: 100% !important;
+    }
+
+    /* SOLUCIÓN DEFINITIVA PARA ALINEACIÓN DE CLIENTE */
+    .input-group span[aria-labelledby*="select2-id_cliente"] {
+        height: 35px !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 12px 16px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-excel text-white me-2" style="font-size: 1.2rem;"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                    {% if nota %}
+                                        Editar Nota de Crédito
+                                    {% else %}
+                                        Crear Nota de Crédito
+                                    {% endif %}
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">
+                                    {% if nota %}
+                                        {{ nota.numero }}
+                                    {% else %}
+                                        🔥 TEMPLATE ACTUALIZADO CON PANEL AUTOEXPANDIBLE 🔥
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'ventas:notadebito_list' %}" class="btn btn-sm" style="background: rgba(255,255,255,0.2); border: none; color: white; font-family: 'Poppins', sans-serif;">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido del formulario -->
+                <div class="card-body" style="padding: 12px;">
+
+    <!-- Mensajes -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" id="notaCreditoForm" autocomplete="off">
+        {% csrf_token %}
+
+        <!-- Campos ocultos para datos del documento afectado -->
+        <input type="hidden" id="id_fecha_doc_afectado_hidden" name="fecha_doc_afectado_hidden" value="">
+        <input type="hidden" id="id_cliente_hidden" name="cliente_hidden" value="">
+        <input type="hidden" id="id_rut_cliente_hidden" name="rut_cliente_hidden" value="">
+
+                <!-- PANEL DOCUMENTO AFECTADO -->
+        <div class="panel-documento" id="panelDocumento">
+            <div class="panel-documento-header" id="panelDocumentoHeader">
+                <div class="panel-documento-title">
+                    <i class="fas fa-link"></i>
+                    <span>Documento afectado</span>
+                </div>
+                <button type="button" class="panel-documento-button" id="panelDocumentoToggle">
+                    <i class="fas fa-chevron-up"></i>
+                </button>
+            </div>
+            <div class="panel-documento-body" id="panelDocumentoBody">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-4">
+                        <label class="form-label">Tipo NC *</label>
+                        <div class="row">
+                            {% for radio in form.tipo_nc %}
+                                <div class="col-4">
+                                    <div class="form-check">
+                                        {{ radio.tag }}
+                                        <label class="form-check-label" for="{{ radio.id_for_label }}" style="font-size: 0.75rem;">
+                                            {{ radio.choice_label }}
+                                        </label>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Tipo Documento *</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="fas fa-file-contract"></i></span>
+                            {{ form.tipo_doc_afectado }}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">N° Documento *</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+                            {{ form.numero_doc_afectado }}
+                        </div>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-sm btn-primary w-100" id="buscarDocumentoBtn">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="documento-resumen" id="documentoResumen" style="display: none;">
+                    <div class="documento-resumen-item">
+                        <span class="documento-label">Cliente:</span>
+                        <span class="documento-value" id="resumenCliente">-</span>
+                    </div>
+                    <div class="documento-resumen-item">
+                        <span class="documento-label">RUT:</span>
+                        <span class="documento-value" id="resumenRut">-</span>
+                    </div>
+                    <div class="documento-resumen-item">
+                        <span class="documento-label">Fecha emisión:</span>
+                        <span class="documento-value" id="resumenFecha">-</span>
+                    </div>
+                    <div class="documento-resumen-item">
+                        <span class="documento-label">Total documento:</span>
+                        <span class="documento-value" id="resumenTotal">-</span>
+                    </div>
+                    <div class="documento-resumen-item">
+                        <span class="documento-label">Bodega:</span>
+                        <span class="documento-value" id="resumenBodega">-</span>
+                    </div>
+                    <div class="documento-resumen-item">
+                        <span class="documento-label">Vendedor:</span>
+                        <span class="documento-value" id="resumenVendedor">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- UNA SOLA TARJETA BLANCA CON TODO EL CONTENIDO -->
+        <div class="form-container">
+                <h5 style="font-weight: 700; color: #495057; font-size: 0.9rem; margin-bottom: 0.5rem;">
+                    <i class="fas fa-file-alt me-1"></i>Información de la Nota de Crédito
+                </h5>
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-4">
+                        <label for="{{ form.cliente.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">
+                            Cliente *
+                        </label>
+                        <div class="input-group input-group-sm" style="display: flex; align-items: stretch;">
+                            <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-user"></i></span>
+                            {{ form.cliente }}
+                        </div>
+                        {% if form.cliente.errors %}
+                            <div class="text-danger small">{{ form.cliente.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2">
+                        <label for="{{ form.fecha.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">Fecha *</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-calendar-alt"></i></span>
+                            <input type="date" name="{{ form.fecha.name }}" id="{{ form.fecha.id_for_label }}" class="form-control form-control-sm"
+                                   value="{% if nota.fecha %}{{ nota.fecha|date:'Y-m-d' }}{% elif form.fecha.value %}{{ form.fecha.value|date:'Y-m-d' }}{% elif form.initial.fecha %}{{ form.initial.fecha|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
+                                   required>
+                        </div>
+                        {% if form.fecha.errors %}
+                            <div class="text-danger small">{{ form.fecha.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2">
+                        <label for="{{ form.bodega.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">Bodega *</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-warehouse"></i></span>
+                            {{ form.bodega }}
+                        </div>
+                        {% if form.bodega.errors %}
+                            <div class="text-danger small">{{ form.bodega.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2">
+                        <label for="{{ form.vendedor.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">Vendedor</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-user-tie"></i></span>
+                            {{ form.vendedor }}
+                        </div>
+                        {% if form.vendedor.errors %}
+                            <div class="text-danger small">{{ form.vendedor.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Panel colapsable para items de la factura afectada -->
+                <div class="panel-documento" id="panelItemsAfectados" style="display: none; margin-top: 1rem;">
+                    <div class="panel-documento-header" style="cursor: pointer;" id="panelItemsHeader">
+                        <div class="panel-documento-title">
+                            <i class="fas fa-list"></i>
+                            <span>Items de la Factura Afectada</span>
+                            <span class="badge bg-primary ms-2" id="badgeItemsCount">0</span>
+                        </div>
+                        <button type="button" class="panel-documento-button" id="panelItemsToggle">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div class="panel-documento-body" id="panelItemsBody">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover" style="font-size: 0.8rem;">
+                                <thead style="background: #F5F1E8; color: #6F5B44;">
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Artículo</th>
+                                        <th class="text-center">Cantidad</th>
+                                        <th class="text-end">Precio Unit.</th>
+                                        <th class="text-center">Desc. %</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbodyItemsAfectados">
+                                    <!-- Se llenará dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-2 mt-1">
+                    <div class="col-md-3">
+                        <label for="{{ form.fecha_doc_afectado.id_for_label }}" class="form-label">Fecha Doc. Afectado *</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                            {{ form.fecha_doc_afectado }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Divisor sutil -->
+                <hr style="border: none; border-top: 1px solid #dee2e6; margin: 1rem 0; opacity: 0.5;">
+
+                <!-- Items del Documento - ULTRA COMPACTO -->
+                <h5 style="font-weight: 700; color: #495057; font-size: 0.85rem; margin-bottom: 0.3rem;">
+                    <i class="fas fa-list me-1"></i>Items de la Nota de Débito
+                    <button type="button" class="btn btn-success btn-sm float-end" id="addItemBtn" style="padding: 0.2rem 0.6rem; font-size: 0.7rem; font-weight: 600; border-radius: 3px;">
+                        <i class="fas fa-plus me-1"></i>Agregar
+                    </button>
+                </h5>
+                
+                <!-- Cabeceras de columnas -->
+                <div style="background: #f8f9fa; padding: 0.15rem 0.5rem; margin-bottom: 0; border: 1px solid #dee2e6; border-radius: 3px 3px 0 0;">
+                    <div class="row align-items-center" style="font-size: 0.7rem; font-weight: 600; color: #6c757d;">
+                        <div class="col-md-5">Artículo</div>
+                        <div class="col-md-2">Cant.</div>
+                        <div class="col-md-2">P. Unit.</div>
+                        <div class="col-md-1">Desc.</div>
+                        <div class="col-md-1">Total</div>
+                        <div class="col-md-1 text-center">-</div>
+                    </div>
+                </div>
+                
+                <div class="items-container" style="border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 3px 3px; max-height: 300px; overflow-y: auto;">
+                    {{ formset.management_form }}
+                    {% for item_form in formset %}
+                        <div class="item-form-compact" data-form-index="{{ forloop.counter0 }}" style="margin: 0; padding: 0.15rem 0.5rem; border-bottom: 1px solid #e9ecef; line-height: 1; {% cycle 'background: #ffffff;' 'background: #f8f9fc;' %}">
+                            <div class="row align-items-center g-1" style="margin: 0;">
+                                <div class="col-md-5" style="padding: 0.1rem;">
+                                    {{ item_form.articulo }}
+                                </div>
+                                <div class="col-md-2" style="padding: 0.1rem;">
+                                    {{ item_form.cantidad }}
+                                </div>
+                                <div class="col-md-2" style="padding: 0.1rem;">
+                                    {{ item_form.precio_unitario }}
+                                </div>
+                                <div class="col-md-1" style="padding: 0.1rem;">
+                                    {{ item_form.descuento }}
+                                </div>
+                                <div class="col-md-1" style="padding: 0.1rem;">
+                                    <input type="text" class="form-control form-control-sm item-total" readonly style="font-size: 0.7rem; padding: 0.15rem 0.3rem; height: 24px;">
+                                </div>
+                                <div class="col-md-1 text-center" style="padding: 0.1rem;">
+                                    {% if item_form.instance.pk %}
+                                        {{ item_form.DELETE }}
+                                    {% else %}
+                                        <button type="button" class="btn btn-danger btn-sm remove-item-btn" style="padding: 0.1rem 0.3rem; font-size: 0.65rem; line-height: 1;" onclick="eliminarItem(this)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="alert alert-info" role="alert" style="margin: 0.5rem; font-size: 0.8rem; padding: 0.5rem;">
+                            No se han agregado items a la nota de débito.
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Divisor sutil -->
+                <hr style="border: none; border-top: 1px solid #dee2e6; margin: 1rem 0; opacity: 0.5;">
+
+        <!-- Resumen de Valores y Botones -->
+        <div class="row g-2">
+            <div class="col-lg-8">
+                <!-- Motivo -->
+                <div class="mb-3">
+                    <label class="form-label" style="font-weight: 600; color: #495057; font-size: 0.85rem;">
+                        <i class="fas fa-comment-alt me-2"></i>Motivo *
+                    </label>
+                    {{ form.motivo }}
+                    {% if form.motivo.errors %}
+                        <div class="text-danger small">{{ form.motivo.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                <!-- Botones -->
+                <div class="d-flex justify-content-end gap-2 mt-2">
+                  <a href="{% url 'ventas:notadebito_list' %}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-times me-1"></i>
+                    Cancelar
+                  </a>
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>
+                    Emitir Nota de Crédito
+                  </button>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div style="background: #f8f9fa !important; border: 1px solid #dee2e6 !important; border-radius: 8px !important; padding: 10px !important; box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;">
+                    <div style="background: #6c757d !important; color: white !important; padding: 6px !important; margin: -10px -10px 8px -10px !important; border-radius: 6px 6px 0 0 !important; font-weight: bold !important; text-align: center !important; font-size: 0.8rem;">
+                        <i class="fas fa-calculator"></i> RESUMEN (Editable)
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #dee2e6; font-size: 0.75rem;">
+                        <span style="font-weight: 600;">Subtotal:</span>
+                        <input type="number" id="subtotal-total-input" class="form-control form-control-sm text-end"
+                               style="width: 120px; font-weight: 700; font-size: 0.75rem; padding: 0.15rem 0.3rem; height: 26px;"
+                               value="0" step="1" min="0">
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #dee2e6; font-size: 0.75rem;">
+                        <span style="font-weight: 600;">IVA (19%):</span>
+                        <input type="number" id="iva-total-input" class="form-control form-control-sm text-end"
+                               style="width: 120px; font-weight: 700; font-size: 0.75rem; padding: 0.15rem 0.3rem; height: 26px;"
+                               value="0" step="1" min="0">
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; background: #e9ecef; margin: 6px -10px -10px -10px; border-radius: 0 0 6px 6px; font-size: 0.8rem;">
+                        <span style="font-weight: 800; color: #3c7e06;">TOTAL:</span>
+                        <input type="number" id="total-documento-input" class="form-control form-control-sm text-end"
+                               style="width: 120px; font-weight: 800; color: #197916; font-size: 0.8rem; padding: 0.2rem 0.3rem; height: 28px; background: white;"
+                               value="0" step="1" min="0">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- FIN DE LA TARJETA ÚNICA -->
+    </form>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Función global para eliminar items -->
+<script>
+function eliminarItem(button) {
+    console.log('*** ELIMINANDO ITEM - FUNCIÓN GLOBAL ***');
+    console.log('Botón:', button);
+
+    const itemForm = button.closest('.item-form-compact');
+    console.log('Form encontrado:', itemForm);
+
+    if (!itemForm) {
+        console.error('No se encontró el formulario del item');
+        return;
+    }
+
+    // Verificar si es un item existente (tiene checkbox DELETE)
+    const deleteCheckbox = itemForm.querySelector('input[name$="-DELETE"]');
+    if (deleteCheckbox) {
+        deleteCheckbox.checked = true;
+        console.log('Checkbox DELETE marcado para item existente');
+    } else {
+        // Si no tiene checkbox DELETE, es un item nuevo - crear uno
+        const formIndex = button.getAttribute('data-form-index');
+        const deleteInput = document.createElement('input');
+        deleteInput.type = 'hidden';
+        deleteInput.name = `items-${formIndex}-DELETE`;
+        deleteInput.value = 'on';
+        itemForm.appendChild(deleteInput);
+        console.log('Checkbox DELETE creado para item nuevo');
+    }
+
+    // Ocultar el formulario
+    itemForm.style.display = 'none';
+    console.log('Item ocultado');
+
+    // Recalcular totales usando la función global
+    setTimeout(function() {
+        if (typeof calculateTotals === 'function') {
+            calculateTotals();
+        } else {
+            console.log('Función calculateTotals no disponible');
+        }
+    }, 100);
+}
+</script>
+
+<script>
+// Variables globales
+let formCount = {{ formset.total_form_count }};
+const maxForms = 1000;
+
+// Función para agregar nuevo item - GLOBAL
+window.addItemForm = function() {
+        console.log('addItemForm ejecutándose, formCount:', formCount);
+        if (formCount < maxForms) {
+            // Buscar la primera forma visible para usar como template
+            const existingForms = document.querySelectorAll('.item-form-compact');
+            let templateForm = null;
+
+            // Buscar una forma visible para usar como template
+            for (let form of existingForms) {
+                if (form.style.display !== 'none') {
+                    templateForm = form;
+                    break;
+                }
+            }
+
+            if (!templateForm) {
+                console.error('No se encontró template para clonar');
+                return;
+            }
+
+            // Clonar el formulario
+            const emptyForm = templateForm.cloneNode(true);
+            const formIndex = formCount;
+
+            console.log('Clonando formulario, nuevo índice:', formIndex);
+
+            // Destruir Select2 del elemento clonado si existe
+            const clonedSelect = emptyForm.querySelector('.articulo-select');
+            if (clonedSelect && $(clonedSelect).data('select2')) {
+                $(clonedSelect).select2('destroy');
+            }
+
+            // Actualizar nombres e IDs de campos
+            emptyForm.querySelectorAll('input, select, textarea').forEach(function(element) {
+                if (element.name) {
+                    const oldName = element.name;
+                    element.name = element.name.replace(/-\d+-/, '-' + formIndex + '-');
+                    console.log('Actualizando name:', oldName, '->', element.name);
+                }
+                if (element.id) {
+                    element.id = element.id.replace(/-\d+-/, '-' + formIndex + '-');
+                }
+                if (element.classList.contains('articulo-select')) {
+                    element.setAttribute('data-index', formIndex);
+                }
+            });
+
+            // Limpiar valores de todos los campos excepto hidden
+            emptyForm.querySelectorAll('input:not([type="hidden"]), textarea').forEach(function(element) {
+                if (element.classList.contains('item-total')) {
+                    element.value = '$0';
+                } else {
+                    element.value = '';
+                }
+            });
+
+            // Limpiar select y establecer opción por defecto
+            emptyForm.querySelectorAll('select').forEach(function(element) {
+                element.selectedIndex = 0;
+            });
+
+            // Limpiar campos hidden de DELETE
+            const deleteInput = emptyForm.querySelector('input[name*="DELETE"]');
+            if (deleteInput) {
+                deleteInput.value = '';
+            }
+
+            // Actualizar el botón de eliminar para el nuevo índice
+            const deleteBtn = emptyForm.querySelector('.delete-item-btn');
+            if (deleteBtn) {
+                deleteBtn.setAttribute('data-form-index', formIndex);
+            }
+
+            // Insertar en el contenedor de items
+            const container = document.querySelector('.items-container');
+            container.appendChild(emptyForm);
+
+            console.log('Nuevo item agregado, reinicializando Select2...');
+
+            // Reinicializar Select2 en el nuevo formulario después de un breve delay
+            setTimeout(function() {
+                inicializarSelect2Articulos();
+            }, 150);
+
+            // Actualizar contador
+            formCount++;
+            document.getElementById('id_items-TOTAL_FORMS').value = formCount;
+
+            console.log('Item agregado exitosamente. Total forms:', formCount);
+
+            // Recalcular totales
+            if (typeof calculateTotals === 'function') {
+                calculateTotals();
+            }
+        } else {
+            console.warn('Se alcanzó el máximo de formularios permitidos');
+        }
+    };
+
+     // Función para calcular totales
+     window.calculateTotals = function() {
+         console.log('Calculando totales...');
+         let subtotal = 0;
+
+         document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
+             // Buscar campos por name attribute
+             const cantidadInput = form.querySelector('input[name*="cantidad"]');
+             const precioInput = form.querySelector('input[name*="precio_unitario"]');
+
+             const cantidad = parseInt(cantidadInput?.value) || 0;
+             const precioUnitario = parseInt(precioInput?.value) || 0;
+
+             console.log('Item:', {cantidad: cantidad, precioUnitario: precioUnitario});
+
+             const subtotalItem = cantidad * precioUnitario;
+
+             // Actualizar total del item
+             const totalField = form.querySelector('.item-total');
+             if (totalField && subtotalItem > 0) {
+                 totalField.value = '$' + subtotalItem.toLocaleString();
+             }
+
+             subtotal += subtotalItem;
+         });
+
+         // Calcular IVA del documento (19% sobre el neto)
+         const ivaDocumento = Math.round(subtotal * 0.19);
+
+         console.log('Totales calculados:', {
+             subtotal: subtotal,
+             ivaDocumento: ivaDocumento
+         });
+
+         // Actualizar campos editables en la interfaz
+         const subtotalInput = document.getElementById('subtotal-total-input');
+         const ivaInput = document.getElementById('iva-total-input');
+         const totalInput = document.getElementById('total-documento-input');
+
+         if (subtotalInput) subtotalInput.value = subtotal;
+         if (ivaInput) ivaInput.value = ivaDocumento;
+
+         // Calcular total final
+         recalcularTotalFinal();
+     };
+
+     // Función para recalcular total final cuando se editan los campos manualmente
+     window.recalcularTotalFinal = function() {
+         const subtotal = parseInt(document.getElementById('subtotal-total-input')?.value) || 0;
+         const iva = parseInt(document.getElementById('iva-total-input')?.value) || 0;
+
+         const total = subtotal + iva;
+
+         const totalInput = document.getElementById('total-documento-input');
+         if (totalInput) {
+             totalInput.value = total;
+         }
+
+         console.log('Total final recalculado:', total);
+     };
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado, inicializando...');
+
+    // Listeners seguros para el panel de items
+    const headerItems = document.getElementById('panelItemsHeader');
+    const btnItems = document.getElementById('panelItemsToggle');
+    if (headerItems) headerItems.addEventListener('click', togglePanelItems);
+    if (btnItems) btnItems.addEventListener('click', togglePanelItems);
+
+     // Función para actualizar campos cuando se selecciona un artículo
+     function updateArticleFields(selectElement) {
+         const selectedOption = selectElement.options[selectElement.selectedIndex];
+         const form = selectElement.closest('.item-form-compact');
+
+         if (selectedOption.value) {
+             // Auto-calcular total de línea basado en cantidad * precio + descuentos + impuestos
+             const cantidadInput = form.querySelector('input[name*="cantidad"]');
+             const precioInput = form.querySelector('input[name*="precio_unitario"]');
+             const descuentoInput = form.querySelector('input[name*="descuento"]');
+
+             const cantidad = parseInt(cantidadInput?.value) || 1;
+             const precioUnitario = parseInt(precioInput?.value) || 0;
+             const descuentoPorcentaje = parseInt(descuentoInput?.value) || 0;
+
+             // Calcular total de línea con descuentos e impuestos
+             const subtotalItem = cantidad * precioUnitario;
+             const descuentoItem = Math.round(subtotalItem * (descuentoPorcentaje / 100));
+             const totalItem = subtotalItem - descuentoItem;
+
+             // Actualizar el campo de total del item
+             const totalField = form.querySelector('.item-total');
+             if (totalField) {
+                 totalField.value = '$' + totalItem.toLocaleString();
+             }
+
+             // Recalcular totales generales
+             calculateTotals();
+         }
+     }
+
+     // Función para auto-calcular cuando cambia cantidad o precio
+     function autoCalculateItem(quantityInput) {
+         const form = quantityInput.closest('.item-form-compact');
+         const cantidad = parseInt(quantityInput.value) || 1;
+         const precioInput = form.querySelector('input[name*="precio_unitario"]');
+         const precioUnitario = parseInt(precioInput?.value) || 0;
+         const descuentoInput = form.querySelector('input[name*="descuento"]');
+         const descuentoPorcentaje = parseInt(descuentoInput?.value) || 0;
+
+         // Calcular total de línea (solo cantidad * precio, sin descuentos ni impuestos por ahora)
+         const subtotalItem = cantidad * precioUnitario;
+         const descuentoItem = Math.round(subtotalItem * (descuentoPorcentaje / 100));
+         const totalItem = subtotalItem - descuentoItem;
+
+         const totalField = form.querySelector('.item-total');
+         if (totalField) {
+             totalField.value = '$' + totalItem.toLocaleString();
+         }
+         calculateTotals();
+     }
+
+     // Función para auto-calcular cuando cambia precio
+     function autoCalculatePrice(priceInput) {
+         const form = priceInput.closest('.item-form-compact');
+         const precioUnitario = parseInt(priceInput.value) || 0;
+         const cantidadInput = form.querySelector('input[name*="cantidad"]');
+         const cantidad = parseInt(cantidadInput?.value) || 1;
+         const descuentoInput = form.querySelector('input[name*="descuento"]');
+         const descuentoPorcentaje = parseInt(descuentoInput?.value) || 0;
+
+         // Calcular total de línea (solo cantidad * precio, sin descuentos ni impuestos por ahora)
+         const subtotalItem = cantidad * precioUnitario;
+         const descuentoItem = Math.round(subtotalItem * (descuentoPorcentaje / 100));
+         const totalItem = subtotalItem - descuentoItem;
+
+         const totalField = form.querySelector('.item-total');
+         if (totalField) {
+             totalField.value = '$' + totalItem.toLocaleString();
+         }
+         calculateTotals();
+     }
+
+    // Función para eliminar item directamente
+    function deleteItem(button) {
+        console.log('Eliminando item...');
+        const formIndex = button.getAttribute('data-form-index');
+        const itemForm = button.closest('.item-form-compact');
+
+        console.log('Form index:', formIndex);
+        console.log('Item form:', itemForm);
+
+        // Verificar si es un item existente (tiene ID)
+        const deleteCheckbox = itemForm.querySelector('input[name$="-DELETE"]');
+        if (deleteCheckbox) {
+            // Es un item existente, marcarlo para eliminación
+            deleteCheckbox.checked = true;
+            console.log('Checkbox DELETE marcado para item existente');
+        }
+
+        // Ocultar el formulario
+        itemForm.style.display = 'none';
+        console.log('Item ocultado');
+
+        // Recalcular totales si la función está disponible
+        if (typeof calculateTotals === 'function') {
+            calculateTotals();
+        } else {
+            console.log('Función calculateTotals no disponible, recalculando manualmente...');
+            // Recalcular manualmente
+            setTimeout(function() {
+                let subtotal = 0;
+                document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
+                    const cantidadInput = form.querySelector('input[name*="cantidad"]');
+                    const precioInput = form.querySelector('input[name*="precio_unitario"]');
+                    const cantidad = parseInt(cantidadInput?.value) || 0;
+                    const precioUnitario = parseInt(precioInput?.value) || 0;
+                    subtotal += cantidad * precioUnitario;
+                });
+
+                const iva = Math.round(subtotal * 0.19);
+                const total = subtotal + iva;
+
+                const subtotalElement = document.getElementById('subtotal-total');
+                const ivaElement = document.getElementById('iva-total');
+                const totalElement = document.getElementById('total-documento');
+
+                if (subtotalElement) subtotalElement.textContent = '$' + subtotal.toLocaleString();
+                if (ivaElement) ivaElement.textContent = '$' + iva.toLocaleString();
+                if (totalElement) totalElement.textContent = '$' + total.toLocaleString();
+
+                console.log('Totales recalculados manualmente:', {subtotal: subtotal, iva: iva, total: total});
+            }, 100);
+        }
+    }
+
+    // Configurar botón agregar
+    console.log('DOM cargado, configurando botón...');
+    const addBtn = document.getElementById('addItemBtn');
+    console.log('Botón encontrado:', addBtn);
+    if (addBtn) {
+        addBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Botón clickeado!');
+            console.log('addItemForm existe?', typeof window.addItemForm);
+            if (typeof window.addItemForm === 'function') {
+                console.log('Llamando addItemForm...');
+                window.addItemForm();
+            } else {
+                console.error('addItemForm no está disponible');
+            }
+            isSearching = false;
+        });
+        console.log('Event listener agregado al botón');
+    } else {
+        console.error('NO SE ENCONTRÓ EL BOTÓN addItemBtn');
+    }
+
+     // Calcular totales cuando cambien los valores
+     document.addEventListener('input', function(e) {
+         if (e.target.name && e.target.name.includes('cantidad')) {
+             autoCalculateItem(e.target);
+         } else if (e.target.name && e.target.name.includes('precio_unitario')) {
+             autoCalculatePrice(e.target);
+         } else if (e.target.name && e.target.name.includes('descuento')) {
+             calculateTotals();
+         }
+
+         // Recalcular total cuando se editen manualmente los campos de resumen
+         if (e.target.id === 'subtotal-total-input' ||
+             e.target.id === 'iva-total-input') {
+             recalcularTotalFinal();
+         }
+     });
+
+    // Función para cargar totales existentes en modo edición
+    function loadExistingTotals() {
+        console.log('Cargando totales existentes...');
+
+        // Verificar si estamos en modo edición
+        const isEditMode = document.body.classList.contains('edit-mode') ||
+                          document.querySelector('input[name="numero"]')?.value !== '';
+
+        if (isEditMode) {
+            // Los totales se cargarán desde el servidor
+            console.log('Modo edición detectado, cargando totales...');
+        }
+    }
+
+     // Función para configurar botones de eliminar
+     function setupDeleteButtons() {
+         console.log('Configurando botones de eliminar...');
+         const deleteButtons = document.querySelectorAll('.delete-item-btn');
+         console.log('Botones encontrados:', deleteButtons.length);
+
+         deleteButtons.forEach(function(button, index) {
+             console.log(`Configurando botón ${index}:`, button);
+
+             // Agregar evento directo
+             button.addEventListener('click', function(e) {
+                 e.preventDefault();
+                 e.stopPropagation();
+                 console.log('Botón de eliminar clickeado directamente:', button);
+                 deleteItem(button);
+             });
+         });
+     }
+
+     // Calcular totales iniciales al cargar la página - INMEDIATO
+     document.addEventListener('DOMContentLoaded', function() {
+         console.log('Calculando totales iniciales...');
+
+         // Cargar totales existentes si estamos en modo edición
+         loadExistingTotals();
+
+         setTimeout(function() {
+             calculateTotals();
+             console.log('Totales calculados');
+
+             // Configurar botones de eliminar
+             setupDeleteButtons();
+         }, 500);
+     });
+
+    // Actualizar campos cuando se selecciona un artículo
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('articulo-select')) {
+            updateArticleFields(e.target);
+        }
+    });
+
+    // Calcular totales iniciales
+    calculateTotals();
+
+    // ========================================
+    // BÚSQUEDA AUTOMÁTICA DE DOCUMENTOS AFECTADOS
+    // ========================================
+
+    let isSearching = false;
+    // Función para buscar documento afectado
+      function buscarDocumentoAfectado() {
+        const tipoDoc = document.querySelector('select[name="tipo_doc_afectado"]').value;
+        const numeroDoc = document.querySelector('input[name="numero_doc_afectado"]').value.trim();
+
+        console.log('🔍 Buscando documento:', {tipoDoc, numeroDoc});
+
+        if (!tipoDoc || !numeroDoc) {
+            console.log('⚠️ Faltan datos');
+            return;
+        }
+        if (isSearching) {
+            console.log('⏳ Búsqueda en curso, se omite llamada duplicada');
+            return;
+        }
+        isSearching = true;
+
+        fetch('{% url "ventas:ajax_buscar_documento_afectado" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: new URLSearchParams({
+                'tipo_doc_afectado': tipoDoc,
+                'numero_doc_afectado': numeroDoc
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('✅ Respuesta completa:', data);
+            console.log('📦 Items recibidos:', data.items);
+            console.log('🏪 Bodega ID:', data.bodega_id);
+            console.log('🏪 Bodega Nombre:', data.bodega_nombre);
+
+            if (data.success) {
+                // 1. Fecha documento afectado
+                const fechaDocInput = document.querySelector('input[name="fecha_doc_afectado"]');
+                if (fechaDocInput && data.fecha) {
+                    fechaDocInput.value = data.fecha;
+                    console.log('✅ Fecha actualizada:', data.fecha);
+                }
+
+                // 2. Cliente
+                if (data.cliente_id) {
+                    const clienteSelect = document.querySelector('select[name="cliente"]');
+                    if (clienteSelect) {
+                        clienteSelect.value = data.cliente_id;
+                        if ($(clienteSelect).hasClass('select2-hidden-accessible')) {
+                            $(clienteSelect).trigger('change');
+                        }
+                        console.log('✅ Cliente actualizado:', data.cliente_id);
+                    }
+                } else {
+                    console.warn('⚠️ No se recibió cliente_id');
+                }
+
+                // 3. Bodega
+                if (data.bodega_id) {
+                    const bodegaSelect = document.querySelector('select[name="bodega"]');
+                    console.log('🔍 Selector bodega encontrado:', bodegaSelect);
+                    if (bodegaSelect) {
+                        if ($(bodegaSelect).hasClass('select2-hidden-accessible')) {
+                            $(bodegaSelect).val(String(data.bodega_id)).trigger('change');
+                        } else {
+                            bodegaSelect.value = data.bodega_id;
+                        }
+                        const resumenBodega = document.getElementById('resumenBodega');
+                        if (resumenBodega) resumenBodega.textContent = data.bodega_nombre || '-';
+                        console.log('✅ Bodega actualizada a ID:', data.bodega_id);
+                    } else {
+                        console.error('❌ No se encontró el selector de bodega');
+                    }
+                } else {
+                    console.warn('⚠️ No se recibió bodega_id del servidor');
+                    // Fallback frontend: elegir la primera bodega disponible
+                    const bodegaSelect = document.querySelector('select[name="bodega"]');
+                    if (bodegaSelect && bodegaSelect.options.length > 0) {
+                        const firstVal = bodegaSelect.options[0].value || '';
+                        if (firstVal) {
+                            if ($(bodegaSelect).hasClass('select2-hidden-accessible')) {
+                                $(bodegaSelect).val(String(firstVal)).trigger('change');
+                            } else {
+                                bodegaSelect.value = firstVal;
+                            }
+                            const resumenBodega = document.getElementById('resumenBodega');
+                            if (resumenBodega) {
+                                const txt = bodegaSelect.options[bodegaSelect.selectedIndex]?.text || '-';
+                                resumenBodega.textContent = txt;
+                            }
+                            console.log('✅ Bodega asignada por fallback (frontend):', firstVal);
+                        }
+                    }
+                }
+
+                // 4. Vendedor
+                if (data.vendedor_id) {
+                    const vendedorSelect = document.querySelector('select[name="vendedor"]');
+                    if (vendedorSelect) {
+                        vendedorSelect.value = data.vendedor_id;
+                        console.log('✅ Vendedor actualizado:', data.vendedor_id);
+                    }
+                } else {
+                    console.warn('⚠️ No se recibió vendedor_id');
+                }
+
+                // 5. Resumen
+                document.getElementById('resumenCliente').textContent = data.cliente || '-';
+                document.getElementById('resumenRut').textContent = data.rut_cliente || '-';
+                document.getElementById('resumenFecha').textContent = data.fecha || '-';
+                document.getElementById('resumenTotal').textContent = data.monto_total ? '$' + parseFloat(data.monto_total).toLocaleString('es-CL') : '-';
+                document.getElementById('resumenBodega').textContent = data.bodega_nombre || '-';
+                document.getElementById('resumenVendedor').textContent = data.vendedor_nombre || '-';
+                document.getElementById('documentoResumen').style.display = 'block';
+
+                // 6. Campos ocultos
+                document.getElementById('id_fecha_doc_afectado_hidden').value = data.fecha;
+                document.getElementById('id_cliente_hidden').value = data.cliente;
+                document.getElementById('id_rut_cliente_hidden').value = data.rut_cliente;
+
+                // 7. Mostrar items de la factura afectada
+                if (data.items && data.items.length > 0) {
+                    console.log('📦 Mostrando items de la factura afectada:', data.items.length);
+                    console.log('📦 Items completos:', data.items);
+                    mostrarItemsFacturaAfectada(data.items);
+                    
+                    // Si es ANULA, cargar items automáticamente
+                    const tipoNC = document.querySelector('input[name="tipo_nc"]:checked');
+                    if (tipoNC && tipoNC.value === 'ANULA') {
+                        console.log('📦 Cargando items para NC ANULA...');
+                        cargarItemsAutomaticamente(data.items);
+                    }
+                } else {
+                    console.warn('⚠️ No se recibieron items del servidor');
+                    console.log('data.items:', data.items);
+                    console.log('data.items es array?', Array.isArray(data.items));
+                    console.log('data.items.length:', data.items ? data.items.length : 'undefined');
+                }
+
+                // 8. Cerrar panel
+                document.getElementById('panelDocumento').classList.add('collapsed');
+
+                mostrarMensaje('✅ Documento cargado: ' + data.cliente, 'success');
+
+            } else {
+                document.getElementById('id_fecha_doc_afectado_hidden').value = '';
+                document.getElementById('id_cliente_hidden').value = '';
+                document.getElementById('id_rut_cliente_hidden').value = '';
+                document.getElementById('documentoResumen').style.display = 'none';
+                mostrarMensaje(data.message || 'Documento no encontrado', 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error:', error);
+            mostrarMensaje('Error al buscar documento', 'error');
+            document.getElementById('id_fecha_doc_afectado_hidden').value = '';
+            document.getElementById('id_cliente_hidden').value = '';
+            document.getElementById('id_rut_cliente_hidden').value = '';
+            document.getElementById('documentoResumen').style.display = 'none';
+            isSearching = false;
+        });
+    }
+    // Función para mostrar items de la factura afectada
+    function mostrarItemsFacturaAfectada(items) {
+        console.log('📋 Mostrando items de factura afectada:', items);
+        
+        const panel = document.getElementById('panelItemsAfectados');
+        const tbody = document.getElementById('tbodyItemsAfectados');
+        const badge = document.getElementById('badgeItemsCount');
+        
+        if (!panel || !tbody || !badge) {
+            console.error('❌ No se encontraron elementos del panel de items');
+            return;
+        }
+        
+        // Limpiar tabla
+        tbody.innerHTML = '';
+        
+        // Agregar items
+        items.forEach(item => {
+            const row = document.createElement('tr');
+            const total = item.cantidad * item.precio_unitario * (1 - item.descuento / 100);
+            
+            row.innerHTML = `
+                <td>${item.codigo || '-'}</td>
+                <td>${item.nombre || '-'}</td>
+                <td class="text-center">${parseFloat(item.cantidad).toFixed(2)}</td>
+                <td class="text-end">$${parseFloat(item.precio_unitario).toLocaleString('es-CL')}</td>
+                <td class="text-center">${parseFloat(item.descuento).toFixed(2)}%</td>
+                <td class="text-end"><strong>$${total.toLocaleString('es-CL', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</strong></td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+        // Actualizar badge y preparar panel (visible pero colapsado)
+        badge.textContent = items.length;
+        panel.style.display = 'block';
+        if (!panel.classList.contains('collapsed')) {
+            panel.classList.add('collapsed');
+            const btn = document.getElementById('panelItemsToggle');
+            if (btn) {
+                const icon = btn.querySelector('i');
+                if (icon) { icon.classList.remove('fa-chevron-up'); icon.classList.add('fa-chevron-down'); }
+            }
+        }
+        console.log('✅ Items de factura afectada preparados (panel colapsado)');
+    }
+    
+    // Función para toggle del panel de items
+    function togglePanelItems() {
+        const panel = document.getElementById('panelItemsAfectados');
+        if (!panel) return;
+        panel.classList.toggle('collapsed');
+    }
+
+    // Función para cargar items automáticamente
+    function cargarItemsAutomaticamente(items) {
+        console.log('Cargando items automáticamente:', items);
+
+        // Limpiar items existentes
+        const container = document.querySelector('.items-container');
+        const existingItems = container.querySelectorAll('.item-form-compact');
+        existingItems.forEach(item => item.remove());
+
+        // Agregar nuevos items
+        items.forEach((itemData, index) => {
+            const newForm = createItemFormFromData(index, itemData);
+            container.insertAdjacentHTML('beforeend', newForm);
+        });
+
+        // Actualizar contador de formularios
+        const totalFormsInput = document.querySelector('input[name="items-TOTAL_FORMS"]');
+        totalFormsInput.value = items.length;
+
+        // Reinicializar Select2 con fallback si la función no está disponible (scope)
+        if (typeof inicializarSelect2Articulos === 'function') {
+            inicializarSelect2Articulos();
+        } else {
+            console.warn('⚠️ inicializarSelect2Articulos no está definida. Inicializando fallback...');
+            $('.articulo-select').each(function() {
+                const $select = $(this);
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    try { $select.select2('destroy'); } catch (e) {}
+                }
+                $select.select2({
+                    placeholder: 'Buscar artículo por código o nombre...',
+                    allowClear: true,
+                    language: {
+                        noResults: function() { return 'No se encontraron resultados'; },
+                        searching: function() { return 'Buscando...'; }
+                    },
+                    width: '100%',
+                    dropdownParent: $select.closest('.item-form-compact'),
+                    minimumInputLength: 0,
+                    escapeMarkup: function(markup) { return markup; }
+                });
+            });
+        }
+
+        // Recalcular totales
+        calculateTotals();
+    }
+
+    // Función para cargar items desde el servidor (para ANULA)
+    function cargarItemsAutomaticamenteDesdeServidor(tipoDoc, numeroDoc) {
+        console.log('Cargando items desde servidor para ANULA:', {tipoDoc, numeroDoc});
+
+        // Mostrar indicador de carga
+        mostrarMensaje('Cargando items del documento...', 'info');
+
+        fetch('{% url "ventas:ajax_buscar_documento_afectado" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: new URLSearchParams({
+                'tipo_doc_afectado': tipoDoc,
+                'numero_doc_afectado': numeroDoc
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.items && data.items.length > 0) {
+                console.log('Items obtenidos del servidor:', data.items);
+                cargarItemsAutomaticamente(data.items);
+                mostrarMensaje(`Items del documento cargados automáticamente (${data.items.length} items)`, 'success');
+            } else {
+                mostrarMensaje(data.message || 'No se pudieron cargar los items del documento', 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando items:', error);
+            mostrarMensaje('Error al cargar items del documento. Verifique que el documento exista.', 'error');
+        });
+    }
+
+    // Función auxiliar para crear formulario de item
+    function createItemFormFromData(index, item) {
+        return `
+            <div class="item-form-compact" data-form-index="${index}">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <select name="items-${index}-articulo" class="form-select form-select-sm articulo-select" data-index="${index}" style="font-size: 0.8rem; padding: 0.25rem 0.5rem; height: 32px;">
+                            <option value="${item.articulo_id}" selected>${item.codigo} - ${item.nombre}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" name="items-${index}-cantidad" class="form-control form-control-sm text-center item-cantidad"
+                               value="${item.cantidad}" min="0.01" step="0.01" required style="font-size: 0.75rem; padding: 0.25rem 0.5rem; height: 32px;">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" name="items-${index}-precio_unitario" class="form-control form-control-sm text-end item-precio"
+                               value="${item.precio_unitario}" min="0" step="1" required style="font-size: 0.75rem; padding: 0.25rem 0.5rem; height: 32px;">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" name="items-${index}-descuento" class="form-control form-control-sm text-center item-descuento"
+                               value="${item.descuento}" min="0" max="100" step="0.01" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; height: 32px;">
+                    </div>
+                    <div class="col-md-1">
+                        <input type="text" class="form-control form-control-sm item-total" readonly placeholder="0" style="font-weight: 600; background-color: #f8f9fc; font-size: 0.75rem; padding: 0.25rem 0.5rem; height: 32px;">
+                    </div>
+                    <div class="col-md-1">
+                        <div class="d-flex gap-1 justify-content-center">
+                            <button type="button" class="btn btn-sm btn-outline-danger delete-item-btn"
+                                    data-form-index="${index}" title="Eliminar item"
+                                    style="padding: 0.25rem 0.5rem; font-size: 0.75rem; height: 32px;"
+                                    onclick="deleteItem(this)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Campos requeridos por el formset para que la validación no falle -->
+                <input type="hidden" name="items-${index}-codigo" value="${item.codigo || ''}">
+                <input type="hidden" name="items-${index}-descripcion" value="${item.nombre || ''}">
+
+                <input type="hidden" name="items-${index}-id" value="">
+                <input type="hidden" name="items-${index}-DELETE" value="false">
+            </div>
+        `;
+    }
+
+    // Función para mostrar mensajes
+    function mostrarMensaje(mensaje, tipo) {
+        // Crear elemento de alerta
+        const alertDiv = document.createElement('div');
+        let alertClass = 'alert-danger'; // default
+        if (tipo === 'success') alertClass = 'alert-success';
+        else if (tipo === 'warning') alertClass = 'alert-warning';
+        else if (tipo === 'info') alertClass = 'alert-info';
+
+        alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${mensaje}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+
+        // Insertar al inicio del formulario
+        const form = document.getElementById('notaCreditoForm');
+        form.insertBefore(alertDiv, form.firstChild);
+
+        // Auto-remover después de 3 segundos
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
+    }
+
+    // Eventos para búsqueda automática
+     
+    ( function() {
+        // Panel colapsar/expandir
+        const panelHeader = document.getElementById('panelDocumentoHeader');
+        const panel = document.getElementById('panelDocumento');
+        
+        if (panelHeader) {
+            panelHeader.addEventListener('click', function() {
+                panel.classList.toggle('collapsed');
+            });
+        }
+
+        // Botón buscar
+        const buscarBtn = document.getElementById('buscarDocumentoBtn');
+        if (buscarBtn) {
+            buscarBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                buscarDocumentoAfectado();
+            });
+        }
+
+        // Buscar al escribir
+        const numeroDocInput = document.querySelector('input[name="numero_doc_afectado"]');
+        if (numeroDocInput) {
+            numeroDocInput.addEventListener('input', function() {
+                clearTimeout(this.searchTimeout);
+                this.searchTimeout = setTimeout(buscarDocumentoAfectado, 1500);
+            });
+            
+            numeroDocInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    buscarDocumentoAfectado();
+                }
+            });
+        }
+
+        // Buscar al cambiar tipo
+        const tipoDocSelect = document.querySelector('select[name="tipo_doc_afectado"]');
+        if (tipoDocSelect) {
+            tipoDocSelect.addEventListener('change', function() {
+                const numeroDoc = document.querySelector('input[name="numero_doc_afectado"]').value.trim();
+                if (numeroDoc) {
+                    buscarDocumentoAfectado();
+                } else {
+                    document.getElementById('id_fecha_doc_afectado_hidden').value = '';
+                    document.getElementById('id_cliente_hidden').value = '';
+                    document.getElementById('id_rut_cliente_hidden').value = '';
+                    document.getElementById('documentoResumen').style.display = 'none';
+                }
+            });
+        }
+
+        // Buscar automáticamente cuando se selecciona "ANULA"
+        const tipoNcRadios = document.querySelectorAll('input[name="tipo_nc"]');
+        tipoNcRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'ANULA') {
+                    // Si hay datos de documento afectado, cargar items automáticamente
+                    const fechaHidden = document.getElementById('id_fecha_doc_afectado_hidden').value;
+                    const clienteHidden = document.getElementById('id_cliente_hidden').value;
+
+                    if (fechaHidden && clienteHidden) {
+                        const tipoDoc = document.querySelector('select[name="tipo_doc_afectado"]').value;
+                        const numeroDoc = document.querySelector('input[name="numero_doc_afectado"]').value;
+
+                        if (tipoDoc && numeroDoc) {
+                            cargarItemsAutomaticamenteDesdeServidor(tipoDoc, numeroDoc);
+                        }
+                    } else {
+                        mostrarMensaje('Ingrese el tipo y número de documento afectado para cargar items automáticamente', 'info');
+                    }
+                }
+            });
+        });
+    })();
+
+    // Validación del formulario antes de enviar
+    document.getElementById('notaCreditoForm').addEventListener('submit', function(e) {
+        console.log('=== ENVIANDO FORMULARIO ===');
+
+        // Verificar que los campos ocultos estén actualizados
+        console.log('Campos ocultos:');
+        console.log('- fecha_doc_afectado_hidden:', document.getElementById('id_fecha_doc_afectado_hidden').value);
+        console.log('- cliente_hidden:', document.getElementById('id_cliente_hidden').value);
+        console.log('- rut_cliente_hidden:', document.getElementById('id_rut_cliente_hidden').value);
+
+        // Verificar campos del formulario
+        const tipoDoc = document.querySelector('select[name="tipo_doc_afectado"]').value;
+        const numeroDoc = document.querySelector('input[name="numero_doc_afectado"]').value;
+        const fechaDoc = document.querySelector('input[name="fecha_doc_afectado"]').value;
+
+        console.log('Campos del formulario:');
+        console.log('- tipo_doc_afectado:', tipoDoc);
+        console.log('- numero_doc_afectado:', numeroDoc);
+        console.log('- fecha_doc_afectado:', fechaDoc);
+
+        // Verificar si hay items
+        const items = document.querySelectorAll('.item-form-compact:not([style*="display: none"])');
+        console.log('Items encontrados:', items.length);
+
+        console.log('ENVIANDO FORMULARIO...');
+        // NO hacer preventDefault() - dejar que Django maneje la validación
+    });
+
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) {
+            window.location.reload();
+        }
+    });
+
+    // ========================================
+    // INICIALIZACIÓN DE SELECT2
+    // ========================================
+    $(document).ready(function() {
+        console.log('🔧 Inicializando Select2...');
+
+        // Inicializar Select2 para el selector de cliente
+        $('#{{ form.cliente.id_for_label }}').select2({
+            placeholder: 'Buscar cliente por RUT, razón social o nombre...',
+            allowClear: true,
+            language: {
+                noResults: function() {
+                    return "No se encontraron resultados";
+                },
+                searching: function() {
+                    return "Buscando...";
+                }
+            },
+            width: '100%'
+        });
+
+        // Función para inicializar Select2 en artículos
+        function inicializarSelect2Articulos() {
+            console.log('Inicializando Select2 en artículos...');
+            console.log('Número de selectores de artículos encontrados:', $('.articulo-select').length);
+
+            $('.articulo-select').each(function() {
+                const $select = $(this);
+                console.log('Procesando selector:', $select.attr('name'));
+
+                // Destruir instancia previa si existe
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                    console.log('Select2 destruido');
+                }
+
+                // Inicializar Select2
+                $select.select2({
+                    placeholder: 'Buscar artículo por código o nombre...',
+                    allowClear: true,
+                    language: {
+                        noResults: function() {
+                            return "No se encontraron resultados";
+                        },
+                        searching: function() {
+                            return "Buscando...";
+                        }
+                    },
+                    width: '100%',
+                    dropdownParent: $select.closest('.item-form-compact'),
+                    minimumInputLength: 0,
+                    escapeMarkup: function(markup) {
+                        return markup;
+                    }
+                });
+
+                console.log('Select2 inicializado para:', $select.attr('name'));
+            });
+        }
+
+        // Inicializar Select2 para artículos existentes
+        inicializarSelect2Articulos();
+
+        // Re-inicializar cuando se agreguen nuevos items
+        $(document).on('DOMNodeInserted', '.item-form-compact', function() {
+            inicializarSelect2Articulos();
+        });
+
+        console.log('✅ Select2 inicializado correctamente');
+    });
+});
+</script>
+{% endblock %}

@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
@@ -183,7 +184,7 @@ def informe_productos_vendidos(request):
 @requiere_empresa
 def informe_stock_actual(request):
     """Informe de stock actual por bodega"""
-    bodega_id = request.GET.get('bodega_id')
+    bodega_id = clean_id(clean_id(request.GET.get('bodega_id')))
     
     stocks = Stock.objects.filter(
         bodega__empresa=request.empresa
@@ -573,7 +574,7 @@ def exportar_productos_excel(request):
 @requiere_empresa
 def exportar_stock_excel(request):
     """Exportar stock actual a Excel"""
-    bodega_id = request.GET.get('bodega_id')
+    bodega_id = clean_id(clean_id(request.GET.get('bodega_id')))
     
     stocks = Stock.objects.filter(
         bodega__empresa=request.empresa

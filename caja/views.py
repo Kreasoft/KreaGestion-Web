@@ -341,12 +341,18 @@ def estado_caf_pos(request):
             from facturacion_electronica.services import DTEService
             disponibilidad = DTEService.verificar_disponibilidad_folios(request.empresa)
 
-            # Obtener detalles de CAFs activos
+            # Obtener detalles de CAFs que estén activos, vigentes y con folios disponibles
             from facturacion_electronica.models import ArchivoCAF
+            from django.db.models import F
+            
             cafs = ArchivoCAF.objects.filter(
                 empresa=request.empresa,
-                estado='activo'
+                estado='activo',
+                folios_utilizados__lt=F('cantidad_folios')
             ).select_related()
+
+            # Filtrar por vigencia en Python para asegurar la lógica correcta
+            cafs = [caf for caf in cafs if caf.esta_vigente()]
 
             caf_info = {}
             for caf in cafs:
@@ -590,12 +596,45 @@ def procesar_venta(request, ticket_id):
                     
                     print(f"Buscando CAF para {tipo_documento} (tipo DTE: {tipo_dte})...")
                     
-                    # Buscar CAF disponible
+                    # Buscar CAF disponible y con folios (la vigencia se valida después para debug)
                     caf = ArchivoCAF.objects.filter(
                         empresa=request.empresa,
                         tipo_documento=tipo_dte,
-                        estado='activo'
-                    ).first()
+                        estado='activo',
+                        folios_utilizados__lt=models.F('cantidad_folios')  # Folios disponibles
+                    ).order_by('fecha_autorizacion').first() # Usar el más antiguo primero
+
+                    # --- DEBUG VIGENCIA ---
+                    if caf:
+                        print(f"DEBUG - CAF encontrado (ID: {caf.id}). Verificando vigencia en Python...")
+                        esta_vigente = caf.esta_vigente()
+                        print(f"DEBUG - caf.esta_vigente() retorna: {esta_vigente}")
+                        if not esta_vigente:
+                            print("DEBUG - El CAF encontrado NO está vigente según el método del modelo. Se descarta.")
+                            caf = None # Descartar CAF si no está vigente
+                    # --- FIN DEBUG ---
+                    
+                    # --- INICIO DEBUG FOLIOS ---
+                    print("="*80)
+                    print("DEBUG: Verificación de Folios CAF")
+                    print(f"  - Empresa: {request.empresa.nombre} (ID: {request.empresa.id})")
+                    print(f"  - Sucursal Activa: {getattr(request, 'sucursal_activa', 'N/A')}")
+                    print(f"  - Tipo Documento Buscado (DTE): {tipo_dte}")
+
+                    # Listar TODOS los CAFs para esta EMPRESA para ver qué hay en la BD
+                    todos_caf_empresa = ArchivoCAF.objects.filter(empresa=request.empresa)
+                    print(f"  - Total CAFs en esta EMPRESA: {todos_caf_empresa.count()}")
+                    for c in todos_caf_empresa:
+                        print(f"    -> CAF ID {c.id}: Tipo {c.tipo_documento}, Estado '{c.estado}', Folios Disp: {c.folios_disponibles()}, Vigente: {c.esta_vigente()}")
+
+                    # Resultado de la búsqueda específica
+                    print(f"  - Búsqueda específica: empresa={request.empresa.id}, tipo_documento='{tipo_dte}', estado='activo'")
+                    if caf:
+                        print(f"  - RESULTADO: ENCONTRADO -> CAF ID {caf.id} con {caf.folios_disponibles()} folios disponibles.")
+                    else:
+                        print("  - RESULTADO: NO ENCONTRADO.")
+                    print("="*80)
+                    # --- FIN DEBUG FOLIOS ---
                     
                     if not caf:
                         tipo_doc_nombre = {'factura': 'Factura', 'boleta': 'Boleta', 'guia': 'Guía de Despacho'}[tipo_documento]
@@ -911,7 +950,7 @@ def procesar_venta(request, ticket_id):
                         doc_url = reverse('facturacion_electronica:ver_factura_electronica', args=[dte_generado.pk])
                         doc_url += "?auto=1"
                     else:
-                        doc_url = reverse('ventas:venta_imprimir', args=[venta_final.pk]) + "?auto=1"
+                        doc_url = reverse('ventas:venta_html', args=[venta_final.pk]) + "?auto=1"
 
                     return render(request, 'ventas/venta_imprimir_y_volver.html', {
                         'venta': venta_final,
@@ -949,22 +988,28 @@ def procesar_venta(request, ticket_id):
     
     # Verificar disponibilidad de folios si FE está activa
     disponibilidad_folios = None
+    disponibilidad_folios_json = '{}'
     if empresa.facturacion_electronica:
         try:
             from facturacion_electronica.services import DTEService
             disponibilidad_folios = DTEService.verificar_disponibilidad_folios(empresa)
+            disponibilidad_folios_json = json.dumps(disponibilidad_folios)
+            print(f"DEBUG - Disponibilidad de folios: {disponibilidad_folios}")
         except Exception as e:
             print(f"Error al verificar folios: {e}")
             disponibilidad_folios = {}
+            disponibilidad_folios_json = '{}'
 
     context = {
         'form': form,
         'ticket': ticket,
-        'form': form,
         'apertura_activa': apertura_activa,
         'mostrar_modal_apertura': mostrar_modal_apertura,
         'form_apertura': form_apertura,
-        'tipo_documento_planeado': ticket.tipo_documento_planeado
+        'tipo_documento_planeado': ticket.tipo_documento_planeado,
+        'disponibilidad_folios': disponibilidad_folios,
+        'disponibilidad_folios_json': disponibilidad_folios_json,
+        'empresa': empresa
     }
     
     return render(request, 'caja/procesar_venta.html', context)

@@ -147,7 +147,8 @@ class FolioService:
             estado='activo'
         )
         
-        total_disponibles = sum([caf.folios_disponibles() for caf in cafs_activos])
+        # Filtrar por vigencia en Python para asegurar la lógica correcta
+        total_disponibles = sum([caf.folios_disponibles() for caf in cafs_activos if caf.esta_vigente()])
         return total_disponibles
     
     @staticmethod

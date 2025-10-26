@@ -1,47 +1,90 @@
 {% load widget_tweaks %}
 
-<div class="p-3">
-  <form id="inventarioFormModal" action="{{ action_url }}" method="post">
-    {% csrf_token %}
-    
-    <!-- Tipo de Movimiento -->
-    <div class="mb-3">
+<form id="inventarioFormModal" action="{{ action_url }}" method="post" class="p-3">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+      {% for error in form.non_field_errors %}
+        {{ error }}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="row">
+    <div class="col-md-6 mb-3">
       <label class="form-label fw-bold">Tipo de Movimiento *</label>
-      {{ form.tipo_movimiento|add_class:"form-select" }}
+      {% render_field form.tipo_movimiento class="form-select" id="id_tipo_movimiento_modal" %}
+      {% for error in form.tipo_movimiento.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
     </div>
-    
-    <!-- Artículo -->
-    <div class="mb-3">
+    <div class="col-md-6 mb-3">
       <label class="form-label fw-bold">Artículo *</label>
-      {{ form.articulo|add_class:"form-select" }}
+      {% render_field form.articulo class="form-select" %}
+      {% for error in form.articulo.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
     </div>
-    
-    <!-- Cantidad y Bodega -->
-    <div class="row mb-3">
-      <div class="col-md-6">
-        <label class="form-label fw-bold">Cantidad *</label>
-        {{ form.cantidad|add_class:"form-control" }}
-      </div>
-      <div class="col-md-6">
-        <label class="form-label fw-bold">Bodega</label>
-        {{ form.bodega_destino|add_class:"form-select" }}
-      </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6 mb-3" id="bodega_origen_wrapper_modal" style="display: none;">
+      <label class="form-label fw-bold">Bodega Origen *</label>
+      {% render_field form.bodega_origen class="form-select" %}
+      {% for error in form.bodega_origen.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
     </div>
-    
-    <!-- Motivo -->
-    <div class="mb-3">
-      <label class="form-label fw-bold">Motivo</label>
-      {{ form.motivo|add_class:"form-control"|attr:"rows:2" }}
+    <div class="col-md-6 mb-3" id="bodega_destino_wrapper_modal" style="display: none;">
+      <label class="form-label fw-bold">Bodega Destino *</label>
+      {% render_field form.bodega_destino class="form-select" %}
+      {% for error in form.bodega_destino.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
     </div>
-    
-    <!-- Botones -->
-    <div class="d-flex justify-content-between mt-4">
-      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-        Cancelar
-      </button>
-      <button type="submit" class="btn btn-primary">
-        {{ submit_text|default:"Guardar" }}
-      </button>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label fw-bold">Cantidad *</label>
+      {% render_field form.cantidad class="form-control" %}
+      {% for error in form.cantidad.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
     </div>
-  </form>
-</div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label fw-bold">Precio Unitario</label>
+      {% render_field form.precio_unitario class="form-control" %}
+      {% for error in form.precio_unitario.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label fw-bold">Descripción / Motivo</label>
+    {% render_field form.descripcion class="form-control" rows="2" %}
+    {% for error in form.descripcion.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+  </div>
+
+  <div class="d-flex justify-content-between mt-4">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button type="submit" class="btn btn-primary">{{ submit_text|default:"Guardar" }}</button>
+  </div>
+</form>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const tipoMovimientoSelect = document.getElementById('id_tipo_movimiento_modal');
+    const bodegaOrigenWrapper = document.getElementById('bodega_origen_wrapper_modal');
+    const bodegaDestinoWrapper = document.getElementById('bodega_destino_wrapper_modal');
+
+    function toggleBodegaFields() {
+      const tipo = tipoMovimientoSelect.value;
+      bodegaOrigenWrapper.style.display = 'none';
+      bodegaDestinoWrapper.style.display = 'none';
+
+      if (tipo === 'entrada') {
+        bodegaDestinoWrapper.style.display = 'block';
+      } else if (tipo === 'salida') {
+        bodegaOrigenWrapper.style.display = 'block';
+      } else if (tipo === 'transferencia') {
+        bodegaOrigenWrapper.style.display = 'block';
+        bodegaDestinoWrapper.style.display = 'block';
+      }
+    }
+
+    tipoMovimientoSelect.addEventListener('change', toggleBodegaFields);
+    // Ejecutar al inicio por si hay un valor preseleccionado
+    toggleBodegaFields();
+  });
+</script>

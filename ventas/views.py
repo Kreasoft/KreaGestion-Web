@@ -1101,11 +1101,34 @@ def pos_procesar_preventa(request):
             from articulos.models import Articulo
 
             data = json.loads(request.body)
+            
+            # Función de limpieza para IDs (elimina espacios, caracteres especiales, etc)
+            def clean_id(value):
+                """Limpia un ID eliminando espacios no separables y otros caracteres"""
+                if value is None:
+                    return None
+                if isinstance(value, int):
+                    return value
+                if isinstance(value, str):
+                    # Eliminar espacios normales, espacios no separables (\xa0), y otros caracteres raros
+                    cleaned = ''.join(filter(str.isdigit, value))
+                    return int(cleaned) if cleaned else None
+                return value
+            
+            # Limpiar y obtener IDs
+            estacion_id = clean_id(data.get('estacion_id'))
+            vendedor_id = clean_id(data.get('vendedor_id'))
+            cliente_id = clean_id(data.get('cliente_id'))
+            
+            print(f"🔍 DEBUG - IDs limpiados:")
+            print(f"  Estacion ID: {data.get('estacion_id')} → {estacion_id}")
+            print(f"  Vendedor ID: {data.get('vendedor_id')} → {vendedor_id}")
+            print(f"  Cliente ID: {data.get('cliente_id')} → {cliente_id}")
 
-            # Obtener estación y vendedor
-            estacion = EstacionTrabajo.objects.get(id=data['estacion_id'], empresa=request.empresa)
-            vendedor = Vendedor.objects.get(id=data['vendedor_id'], empresa=request.empresa)
-            cliente = Cliente.objects.get(id=data['cliente_id'], empresa=request.empresa)
+            # Obtener objetos con IDs limpios
+            estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa)
+            vendedor = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa)
+            cliente = Cliente.objects.get(id=cliente_id, empresa=request.empresa)
             
             # Generar número de preventa único
             # Buscar el último número de venta de la empresa
@@ -1188,8 +1211,9 @@ def pos_procesar_preventa(request):
             print("DEBUG - Creando detalles de venta...")
             for i, item in enumerate(data['items']):
                 print(f"DEBUG - Procesando item {i}: {item}")
-                print(f"DEBUG - Buscando artículo ID: {item['articuloId']}")
-                articulo = Articulo.objects.get(id=item['articuloId'], empresa=request.empresa)
+                articulo_id_limpio = clean_id(item.get('articuloId'))
+                print(f"DEBUG - Buscando artículo ID: {item.get('articuloId')} → {articulo_id_limpio}")
+                articulo = Articulo.objects.get(id=articulo_id_limpio, empresa=request.empresa)
                 print(f"DEBUG - Artículo encontrado: {articulo.nombre}")
                 
                 print(f"DEBUG - Creando VentaDetalle...")
@@ -1282,7 +1306,8 @@ def pos_procesar_preventa(request):
 
                 # Crear detalles del vale
                 for item in data['items']:
-                    articulo = Articulo.objects.get(id=item['articuloId'], empresa=request.empresa)
+                    articulo_id_limpio = clean_id(item.get('articuloId'))
+                    articulo = Articulo.objects.get(id=articulo_id_limpio, empresa=request.empresa)
                     
                     # Obtener impuesto específico del item (viene del carrito del POS)
                     impuesto_esp_item = Decimal(str(item.get('impuesto_especifico', 0)))
@@ -1304,7 +1329,26 @@ def pos_procesar_preventa(request):
                 ticket_vale_id = ticket_vale.id
                 ticket_vale_numero = numero_vale
                 print(f"DEBUG - Ticket facturable (vale) #{numero_vale} generado exitosamente")
+                
+                # CIERRE DIRECTO: Redirigir a pantalla de forma de pago pero marcar para generación automática de DTE
+                if estacion.cierre_directo:
+                    print(f"🔥 CIERRE DIRECTO ACTIVO - Redirigiendo a pantalla de forma de pago")
+                    print(f"   (El DTE se generará automáticamente después de procesar)")
+                    
+                    # Simplemente retornar el ticket/vale para que vaya a la pantalla de caja
+                    # donde el usuario podrá elegir forma de pago, pero el DTE se generará automáticamente
+                    return JsonResponse({
+                        'success': True,
+                        'numero_preventa': proximo_numero,
+                        'tipo_documento': data['tipo_documento'],
+                        'preventa_id': preventa.id,
+                        'ticket_vale_id': ticket_vale_id,
+                        'ticket_vale_numero': ticket_vale_numero,
+                        'cierre_directo': False,  # No procesar automáticamente
+                        'tiene_cierre_directo': True  # Pero marcar que la estación tiene cierre directo
+                    })
             
+            # Retorno normal (sin cierre directo)
             return JsonResponse({
                 'success': True,
                 'numero_preventa': proximo_numero,
@@ -2000,23 +2044,37 @@ def venta_html(request, pk):
     
     detalles = VentaDetalle.objects.filter(venta=venta).select_related('articulo')
     
-    # Verificar si existe DTE asociado (para facturas/boletas electrónicas)
+    # Verificar si existe DTE asociado (para facturas/boletas/guías electrónicas)
     dte = None
-    if venta.tipo_documento in ['factura', 'boleta']:
+    if venta.tipo_documento in ['factura', 'boleta', 'guia']:
         try:
             from facturacion_electronica.models import DocumentoTributarioElectronico
             
             # Buscar DTE directamente asociado a la venta
             if hasattr(venta, 'dte'):
                 dte = venta.dte
+                print(f"✅ DTE encontrado directamente en venta: Tipo {dte.tipo_dte}, Folio {dte.folio}")
             else:
                 # Buscar por relación en VentaProcesada
                 from caja.models import VentaProcesada
                 venta_procesada = VentaProcesada.objects.filter(venta_final=venta).first()
                 if venta_procesada and hasattr(venta_procesada, 'dte_generado'):
                     dte = venta_procesada.dte_generado
+                    print(f"✅ DTE encontrado en VentaProcesada: Tipo {dte.tipo_dte}, Folio {dte.folio}")
+                    print(f"   Timbre PDF417: {'SI' if dte.timbre_pdf417 else 'NO'}")
+            
+            # Si no se encontró DTE, buscar directamente en DocumentoTributarioElectronico
+            if not dte:
+                tipo_dte_map = {'factura': '33', 'boleta': '39', 'guia': '52'}
+                tipo_dte_codigo = tipo_dte_map.get(venta.tipo_documento)
+                dte = DocumentoTributarioElectronico.objects.filter(
+                    venta=venta,
+                    tipo_dte=tipo_dte_codigo
+                ).first()
+                if dte:
+                    print(f"✅ DTE encontrado por búsqueda directa: Tipo {dte.tipo_dte}, Folio {dte.folio}")
         except Exception as e:
-            print(f"Error al buscar DTE: {str(e)}")
+            print(f"⚠️ Error al buscar DTE: {str(e)}")
             pass
     
     # Determinar el template según el tipo de documento
@@ -2414,16 +2472,18 @@ def libro_ventas(request):
     estado = request.GET.get('estado', '')
     search = request.GET.get('search', '')
     
-    # Consulta base: ventas confirmadas
+    # Consulta base: ventas confirmadas SIN DTE asociado
+    # (para evitar duplicación: si una venta tiene DTE, se muestra solo el DTE)
     ventas = Venta.objects.filter(
         empresa=request.empresa,
-        estado='confirmada'
+        estado='confirmada',
+        dte__isnull=True  # SOLO ventas sin DTE (vales, cotizaciones, etc.)
     ).select_related('cliente', 'vendedor', 'forma_pago', 'estacion_trabajo')
     
     # Consulta DTEs (Documentos Tributarios Electrónicos)
     dtes = DocumentoTributarioElectronico.objects.filter(
         empresa=request.empresa
-    ).select_related('caf_utilizado', 'usuario_creacion').prefetch_related('usuario_creacion', 'notas_credito')
+    ).select_related('caf_utilizado', 'usuario_creacion', 'venta').prefetch_related('usuario_creacion', 'notas_credito')
     
     # Aplicar filtros de fecha
     try:
@@ -2445,7 +2505,7 @@ def libro_ventas(request):
             ventas = ventas.filter(tipo_documento=tipo_documento)
             dtes = dtes.none()
     
-    # Filtros adicionales solo para ventas (no aplicar si ventas está vacío)
+    # Filtros adicionales para ventas y DTEs
     if ventas.exists():
         if cliente_id:
             ventas = ventas.filter(cliente_id=cliente_id)
@@ -2458,6 +2518,20 @@ def libro_ventas(request):
         
         if estado:
             ventas = ventas.filter(estado=estado)
+    
+    # Filtros para DTEs (usar venta asociada si existe)
+    if dtes.exists():
+        if cliente_id:
+            dtes = dtes.filter(
+                Q(venta__cliente_id=cliente_id) |
+                Q(rut_receptor__icontains=cliente_id)
+            )
+        
+        if vendedor_id:
+            dtes = dtes.filter(venta__vendedor_id=vendedor_id)
+        
+        if forma_pago_id:
+            dtes = dtes.filter(venta__forma_pago_id=forma_pago_id)
     
     # Búsqueda en ambos tipos
     if search:

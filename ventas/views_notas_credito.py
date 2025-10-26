@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 """
 Vistas para el CRUD de Notas de Crédito
 """
@@ -160,7 +161,7 @@ def notacredito_create(request):
         formset = NotaCreditoDetalleFormSet()
 
         # Prellenar campos si vienen parámetros
-        venta_id = request.GET.get('venta_id')
+        venta_id = clean_id(clean_id(request.GET.get('venta_id')))
         if venta_id:
             try:
                 venta = Venta.objects.get(pk=venta_id, empresa=request.empresa)
@@ -635,7 +636,7 @@ def ajax_cargar_items_venta(request):
     Vista AJAX para cargar los items de una venta
     Se usa cuando tipo_nc = 'ANULA'
     """
-    venta_id = request.GET.get('venta_id')
+    venta_id = clean_id(clean_id(request.GET.get('venta_id')))
     tipo_doc = request.GET.get('tipo_doc')
     numero_doc = request.GET.get('numero_doc')
     

@@ -359,22 +359,30 @@
                                         <td style="font-size: 0.7rem;">{{ documento.razon_social_receptor|truncatechars:30 }}</td>
                                         <td style="font-size: 0.65rem; color: #A67C52;">{{ documento.rut_receptor }}</td>
                                         <td style="font-size: 0.7rem;">
-                                            {% if documento.usuario_creacion %}
+                                            {% if documento.venta and documento.venta.vendedor %}
+                                                {{ documento.venta.vendedor.nombre|truncatechars:20 }}
+                                            {% elif documento.usuario_creacion %}
                                                 {% if documento.usuario_creacion.get_full_name %}
                                                     {{ documento.usuario_creacion.get_full_name|truncatechars:20 }}
                                                 {% else %}
                                                     {{ documento.usuario_creacion.username|truncatechars:20 }}
                                                 {% endif %}
                                             {% else %}
-                                                Sistema
+                                                -
                                             {% endif %}
                                         </td>
-                                        <td style="font-size: 0.7rem;">-</td>
+                                        <td style="font-size: 0.7rem;">
+                                            {% if documento.venta and documento.venta.forma_pago %}
+                                                {{ documento.venta.forma_pago.nombre|truncatechars:18 }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
                                         <td class="text-end" style="font-size: 0.7rem; color: #6F5B44;">${{ documento.monto_neto|format_miles }}</td>
                                         <td class="text-end" style="font-size: 0.7rem; color: #A67C52;">${{ documento.monto_iva|format_miles }}</td>
                                         <td class="text-end"><strong style="color: #8B7355; font-size: 0.75rem;">${{ documento.monto_total|format_miles }}</strong></td>
                                         <td class="text-center">
-                                            {% if documento.tipo_dte == '52' %}
+                                            {% if documento.tipo_dte == '52' and documento.transferencias.first %}
                                                 <a href="{% url 'inventario:transferencia_imprimir_guia' documento.transferencias.first.pk %}"
                                                    class="btn btn-sm btn-action btn-outline-primary"
                                                    target="_blank"

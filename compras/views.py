@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
@@ -364,7 +365,7 @@ def orden_compra_aprobar(request, pk):
 @requiere_empresa
 def get_articulo_info(request):
     """Obtener información de un artículo via AJAX"""
-    articulo_id = request.GET.get('articulo_id')
+    articulo_id = clean_id(request.GET.get('articulo_id'))
     
     try:
         articulo = Articulo.objects.get(pk=articulo_id)

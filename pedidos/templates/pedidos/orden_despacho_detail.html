@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Detalle Orden de Despacho - {{ orden.numero_despacho }}{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 15px 20px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0 text-white" style="font-size: 1.3rem; font-weight: 600;">
+                                <i class="fas fa-truck me-2"></i>
+                                Orden de Despacho: {{ orden.numero_despacho }}
+                            </h5>
+                            <small class="text-white-50">Pedido: {{ orden.orden_pedido.numero_pedido }}</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'pedidos:orden_despacho_list' %}" class="btn btn-light btn-sm">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
+                            </a>
+                            {% if orden.estado not in 'entregado,cancelado' %}
+                            <a href="{% url 'pedidos:orden_despacho_edit' orden.pk %}" class="btn btn-warning btn-sm">
+                                <i class="fas fa-edit me-1"></i> Editar
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body" style="padding: 20px;">
+                    <!-- Estado y acciones -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card" style="border: 2px solid #8B7355; border-radius: 10px;">
+                                <div class="card-body">
+                                    <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 15px;">
+                                        <i class="fas fa-info-circle me-2"></i>Estado del Despacho
+                                    </h6>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            {% if orden.estado == 'pendiente' %}
+                                            <span class="badge" style="background: #6c757d; font-size: 1rem; padding: 8px 15px;">PENDIENTE</span>
+                                            {% elif orden.estado == 'en_preparacion' %}
+                                            <span class="badge" style="background: #ffc107; font-size: 1rem; padding: 8px 15px;">EN PREPARACIÓN</span>
+                                            {% elif orden.estado == 'despachado' %}
+                                            <span class="badge" style="background: #17a2b8; font-size: 1rem; padding: 8px 15px;">DESPACHADO</span>
+                                            {% elif orden.estado == 'en_transito' %}
+                                            <span class="badge" style="background: #007bff; font-size: 1rem; padding: 8px 15px;">EN TRÁNSITO</span>
+                                            {% elif orden.estado == 'entregado' %}
+                                            <span class="badge" style="background: #28a745; font-size: 1rem; padding: 8px 15px;">ENTREGADO</span>
+                                            {% elif orden.estado == 'cancelado' %}
+                                            <span class="badge" style="background: #dc3545; font-size: 1rem; padding: 8px 15px;">CANCELADO</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if orden.estado not in 'entregado,cancelado' %}
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm" style="background: #8B7355; color: white;" 
+                                                    type="button" data-bs-toggle="dropdown">
+                                                <i class="fas fa-sync-alt me-1"></i> Cambiar Estado
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <form method="post" action="{% url 'pedidos:orden_despacho_cambiar_estado' orden.pk %}">
+                                                    {% csrf_token %}
+                                                    {% if orden.estado == 'pendiente' %}
+                                                    <li>
+                                                        <button type="submit" name="estado" value="en_preparacion" class="dropdown-item">
+                                                            <i class="fas fa-box me-2"></i>En Preparación
+                                                        </button>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if orden.estado in 'pendiente,en_preparacion' %}
+                                                    <li>
+                                                        <button type="submit" name="estado" value="despachado" class="dropdown-item">
+                                                            <i class="fas fa-shipping-fast me-2"></i>Despachado
+                                                        </button>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if orden.estado == 'despachado' %}
+                                                    <li>
+                                                        <button type="submit" name="estado" value="en_transito" class="dropdown-item">
+                                                            <i class="fas fa-route me-2"></i>En Tránsito
+                                                        </button>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if orden.estado in 'despachado,en_transito' %}
+                                                    <li>
+                                                        <button type="submit" name="estado" value="entregado" class="dropdown-item">
+                                                            <i class="fas fa-check-circle me-2"></i>Entregado
+                                                        </button>
+                                                    </li>
+                                                    {% endif %}
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <button type="submit" name="estado" value="cancelado" class="dropdown-item text-danger"
+                                                                onclick="return confirm('¿Está seguro de cancelar este despacho?')">
+                                                            <i class="fas fa-times-circle me-2"></i>Cancelar Despacho
+                                                        </button>
+                                                    </li>
+                                                </form>
+                                            </ul>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card" style="background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%); border: none; border-radius: 10px;">
+                                <div class="card-body">
+                                    <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 10px;">
+                                        <i class="fas fa-calendar me-2"></i>Fechas
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted">Fecha Despacho:</small>
+                                            <p class="mb-2"><strong>{{ orden.fecha_despacho|date:"d/m/Y" }}</strong></p>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Entrega Estimada:</small>
+                                            <p class="mb-2"><strong>{{ orden.fecha_entrega_estimada|date:"d/m/Y"|default:"-" }}</strong></p>
+                                        </div>
+                                        {% if orden.fecha_entrega_real %}
+                                        <div class="col-6">
+                                            <small class="text-muted">Entrega Real:</small>
+                                            <p class="mb-0"><strong style="color: #28a745;">{{ orden.fecha_entrega_real|date:"d/m/Y" }}</strong></p>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Información del pedido y cliente -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card" style="border: 1px solid #e3e6f0; border-radius: 10px;">
+                                <div class="card-header" style="background: #8B7355; color: white; font-weight: 600;">
+                                    <i class="fas fa-file-invoice me-2"></i>Información del Pedido
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>N° Pedido:</strong> <a href="{% url 'pedidos:orden_pedido_detail' orden.orden_pedido.pk %}">{{ orden.orden_pedido.numero_pedido }}</a></p>
+                                    <p><strong>Cliente:</strong> {{ orden.orden_pedido.cliente.nombre }}</p>
+                                    <p><strong>RUT:</strong> {{ orden.orden_pedido.cliente.rut }}</p>
+                                    <p class="mb-0"><strong>Estado Pedido:</strong> 
+                                        <span class="badge bg-info">{{ orden.orden_pedido.get_estado_display|upper }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card" style="border: 1px solid #e3e6f0; border-radius: 10px;">
+                                <div class="card-header" style="background: #6F5B44; color: white; font-weight: 600;">
+                                    <i class="fas fa-shipping-fast me-2"></i>Información de Transporte
+                                </div>
+                                <div class="card-body">
+                                    {% if orden.chofer %}
+                                    <div class="mb-3">
+                                        <p class="mb-1"><strong><i class="fas fa-user me-1"></i>Chofer:</strong></p>
+                                        <p class="mb-0 ms-3">{{ orden.chofer.nombre }}</p>
+                                        <p class="mb-0 ms-3"><small class="text-muted">RUT: {{ orden.chofer.rut }}</small></p>
+                                        {% if orden.chofer.telefono %}
+                                        <p class="mb-0 ms-3"><small class="text-muted">Tel: {{ orden.chofer.telefono }}</small></p>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if orden.vehiculo %}
+                                    <div class="mb-3">
+                                        <p class="mb-1"><strong><i class="fas fa-truck me-1"></i>Vehículo:</strong></p>
+                                        <p class="mb-0 ms-3">{{ orden.vehiculo.patente }} - {{ orden.vehiculo.get_tipo_vehiculo_display }}</p>
+                                        {% if orden.vehiculo.marca %}
+                                        <p class="mb-0 ms-3"><small class="text-muted">{{ orden.vehiculo.marca }} {{ orden.vehiculo.modelo|default:"" }}</small></p>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if orden.transportista_externo %}
+                                    <div>
+                                        <p class="mb-1"><strong><i class="fas fa-building me-1"></i>Transportista Externo:</strong></p>
+                                        <p class="mb-0 ms-3">{{ orden.transportista_externo }}</p>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if not orden.chofer and not orden.vehiculo and not orden.transportista_externo %}
+                                    <p class="text-muted mb-0"><em>Sin información de transporte asignada</em></p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dirección de entrega -->
+                    {% if orden.direccion_entrega %}
+                    <div class="card mb-4" style="border-left: 4px solid #8B7355;">
+                        <div class="card-body">
+                            <h6 style="color: #6F5B44; font-weight: 600;">
+                                <i class="fas fa-map-marker-alt me-2"></i>Dirección de Entrega
+                            </h6>
+                            <p class="mb-0">{{ orden.direccion_entrega }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Items del despacho -->
+                    <div class="card mb-4" style="border: none; border-radius: 10px; overflow: hidden;">
+                        <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; font-weight: 600;">
+                            <i class="fas fa-boxes me-2"></i>Items del Despacho ({{ total_items }} unidades)
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-striped mb-0" style="font-size: 0.9rem;">
+                                    <thead style="background: #f8f9fa;">
+                                        <tr>
+                                            <th style="padding: 10px;">Código</th>
+                                            <th style="padding: 10px;">Artículo</th>
+                                            <th style="padding: 10px; text-align: center;">Cantidad</th>
+                                            <th style="padding: 10px;">Lote</th>
+                                            <th style="padding: 10px;">Vencimiento</th>
+                                            <th style="padding: 10px;">Guía</th>
+                                            <th style="padding: 10px;">Factura</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in orden.items.all %}
+                                        <tr>
+                                            <td style="padding: 10px;">{{ item.item_pedido.articulo.codigo }}</td>
+                                            <td style="padding: 10px; font-weight: 500;">{{ item.item_pedido.articulo.nombre }}</td>
+                                            <td style="padding: 10px; text-align: center; font-weight: 600;">{{ item.cantidad }}</td>
+                                            <td style="padding: 10px;">{{ item.lote|default:"-" }}</td>
+                                            <td style="padding: 10px;">{{ item.fecha_vencimiento|date:"d/m/Y"|default:"-" }}</td>
+                                            <td style="padding: 10px;">
+                                                {% if item.guia_despacho %}
+                                                <span class="badge bg-warning">N° {{ item.guia_despacho.folio }}</span>
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="padding: 10px;">
+                                                {% if item.factura %}
+                                                <span class="badge bg-success">N° {{ item.factura.folio }}</span>
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% if item.observaciones %}
+                                        <tr>
+                                            <td colspan="7" style="padding: 5px 10px; background: #f8f9fa; font-size: 0.85rem;">
+                                                <em>Obs: {{ item.observaciones }}</em>
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Documentos tributarios asociados -->
+                    {% if documentos %}
+                    <div class="card mb-4" style="border: 1px solid #e3e6f0; border-radius: 10px;">
+                        <div class="card-header" style="background: #8B7355; color: white; font-weight: 600;">
+                            <i class="fas fa-file-alt me-2"></i>Documentos Tributarios Asociados
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for doc in documentos %}
+                                <div class="col-md-4">
+                                    <div class="card mb-2" style="border-left: 3px solid {% if doc.tipo == 'Guía' %}#ffc107{% else %}#28a745{% endif %};">
+                                        <div class="card-body py-2">
+                                            <h6 class="mb-1" style="font-size: 0.9rem;">{{ doc.tipo }}</h6>
+                                            <p class="mb-0"><strong>N°:</strong> {{ doc.numero }}</p>
+                                            <small class="text-muted">{{ doc.fecha|date:"d/m/Y" }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Observaciones -->
+                    {% if orden.observaciones %}
+                    <div class="card" style="border-left: 4px solid #ffc107;">
+                        <div class="card-body">
+                            <h6 style="color: #6F5B44; font-weight: 600;">
+                                <i class="fas fa-comment-alt me-2"></i>Observaciones
+                            </h6>
+                            <p class="mb-0">{{ orden.observaciones }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Información de auditoría -->
+                    <div class="card mt-4" style="background: #f8f9fa; border: none;">
+                        <div class="card-body py-2">
+                            <small class="text-muted">
+                                <i class="fas fa-user me-1"></i>Creado por: {{ orden.creado_por.get_full_name|default:orden.creado_por.username }} | 
+                                <i class="fas fa-clock me-1"></i>{{ orden.fecha_creacion|date:"d/m/Y H:i" }}
+                                {% if orden.fecha_modificacion %}
+                                | Última modificación: {{ orden.fecha_modificacion|date:"d/m/Y H:i" }}
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

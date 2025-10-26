@@ -325,12 +325,14 @@ class TransferenciaInventarioForm(forms.ModelForm):
     """Formulario para crear transferencias de inventario"""
     
     fecha_transferencia = forms.DateTimeField(
-        required=False,
+        required=True,
         widget=forms.DateTimeInput(attrs={
             'class': 'form-control form-control-sm',
-            'type': 'datetime-local'
+            'type': 'datetime-local',
+            'required': 'required'
         }),
-        label='Fecha de Transferencia'
+        label='Fecha de Transferencia *',
+        help_text='La fecha de transferencia es obligatoria'
     )
     
     class Meta:

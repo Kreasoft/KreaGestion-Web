@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+{% load articulo_filters %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Encabezado -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-0" style="color: #8B7355;">
+                        <i class="fas fa-file-excel me-2"></i>{{ titulo }}
+                    </h2>
+                    <p class="text-muted mb-0">{{ nota.cliente.nombre }}</p>
+                </div>
+                <div>
+                    {% if nota.estado == 'borrador' %}
+                    <span class="badge bg-secondary fs-6 px-3 py-2">BORRADOR</span>
+                    {% elif nota.estado == 'emitida' %}
+                    <span class="badge fs-6 px-3 py-2" style="background-color: #6B8E23;">EMITIDA</span>
+                    {% elif nota.estado == 'enviada_sii' %}
+                    <span class="badge bg-info fs-6 px-3 py-2">ENVIADA AL SII</span>
+                    {% elif nota.estado == 'aceptada_sii' %}
+                    <span class="badge bg-success fs-6 px-3 py-2">ACEPTADA POR SII</span>
+                    {% elif nota.estado == 'anulada' %}
+                    <span class="badge bg-danger fs-6 px-3 py-2">ANULADA</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Información principal -->
+            <div class="card mb-4" style="border-color: #8B7355; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2);">
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #A0826D 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información General</h5>
+                </div>
+                <div class="card-body" style="background-color: #FAF8F3;">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="small text-muted">N° Nota de Crédito</label>
+                            <div class="fw-bold" style="color: #8B7355; font-size: 1.1rem;">{{ nota.numero }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small text-muted">Fecha Emisión</label>
+                            <div class="fw-bold">{{ nota.fecha|date:"d/m/Y" }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small text-muted">Vendedor</label>
+                            <div>{{ nota.vendedor|default:"No asignado" }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small text-muted">Bodega</label>
+                            <div>{{ nota.bodega|default:"No asignada" }}</div>
+                        </div>
+                    </div>
+                    
+                    <hr style="border-color: #D4C4A8;">
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="small text-muted">Cliente</label>
+                            <div class="fw-bold">{{ nota.cliente.nombre }}</div>
+                            <div class="text-muted">{{ nota.cliente.rut }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small text-muted">Tipo NC</label>
+                            <div>
+                                <span class="badge" style="background-color: #D4A574;">
+                                    {{ nota.get_tipo_nc_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Documento afectado -->
+            <div class="card mb-4" style="border-color: #D4C4A8;">
+                <div class="card-header" style="background-color: #D4C4A8; color: #5A4A3A;">
+                    <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>Documento Afectado</h6>
+                </div>
+                <div class="card-body" style="background-color: #FAF8F3;">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="small text-muted">Tipo Documento</label>
+                            <div class="fw-bold">{{ nota.get_tipo_doc_afectado_display }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="small text-muted">N° Documento</label>
+                            <div class="fw-bold" style="color: #8B4513;">{{ nota.numero_doc_afectado }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="small text-muted">Fecha Emisión</label>
+                            <div>{{ nota.fecha_doc_afectado|date:"d/m/Y" }}</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small text-muted">Motivo</label>
+                            <div class="p-2" style="background-color: white; border: 1px solid #E8DCC8; border-radius: 4px;">
+                                {{ nota.motivo }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Detalle de items (comprimido) -->
+            <div class="card mb-4" style="border-color: #D4C4A8;">
+                <div class="card-header" style="background-color: #D4C4A8; color: #5A4A3A;">
+                    <h6 class="mb-0"><i class="fas fa-list me-2"></i>Detalle de Items</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0" style="font-size: 0.875rem;">
+                            <thead style="background: linear-gradient(135deg, #D4C4A8 0%, #E8DCC8 100%); color: #5A4A3A;">
+                                <tr>
+                                    <th class="py-2">Código</th>
+                                    <th>Descripción</th>
+                                    <th class="text-center">Cantidad</th>
+                                    <th class="text-end">P. Unitario</th>
+                                    <th class="text-end">Desc.%</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody style="background-color: #FAF8F3;">
+                                {% for item in nota.items.all %}
+                                <tr style="border-bottom: 1px solid #E8DCC8;">
+                                    <td class="py-2">{{ item.codigo }}</td>
+                                    <td>{{ item.descripcion }}</td>
+                                    <td class="text-center">{{ item.cantidad }}</td>
+                                    <td class="text-end">${{ item.precio_unitario|format_price }}</td>
+                                    <td class="text-end">{{ item.descuento|floatformat:"2" }}%</td>
+                                    <td class="text-end fw-bold">${{ item.total|format_price }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot style="background-color: white;">
+                                <tr>
+                                    <td colspan="5" class="text-end fw-bold py-2" style="color: #8B7355;">SUBTOTAL:</td>
+                                    <td class="text-end fw-bold py-2">${{ nota.subtotal|format_price }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5" class="text-end fw-bold py-2" style="color: #8B7355;">IVA (19%):</td>
+                                    <td class="text-end fw-bold py-2">${{ nota.iva|format_price }}</td>
+                                </tr>
+                                <tr style="background: linear-gradient(135deg, #8B7355 0%, #A0826D 100%); color: white;">
+                                    <td colspan="5" class="text-end fw-bold py-2">TOTAL:</td>
+                                    <td class="text-end fw-bold py-2" style="font-size: 1.1rem;">${{ nota.total|format_price }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Acciones -->
+            <div class="card" style="border-color: #D4C4A8;">
+                <div class="card-body" style="background-color: #FAF8F3;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Creada por {{ nota.usuario_creacion }} el {{ nota.fecha_creacion|date:"d/m/Y H:i" }}
+                        </div>
+                        <div class="btn-group">
+                            <a href="{% url 'ventas:notadebito_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Volver al Listado
+                            </a>
+                            
+                            {% if nota.estado == 'borrador' %}
+                            <a href="{% url 'ventas:notadebito_update' nota.pk %}" class="btn" style="background-color: #B8860B; color: white; border: none;">
+                                <i class="fas fa-edit me-2"></i>Editar
+                            </a>
+                            <a href="{% url 'ventas:notadebito_emitir' nota.pk %}" class="btn" style="background: linear-gradient(135deg, #6B8E23 0%, #7BA428 100%); color: white; border: none;">
+                                <i class="fas fa-check me-2"></i>Emitir
+                            </a>
+                            <a href="{% url 'ventas:notadebito_delete' nota.pk %}" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Eliminar
+                            </a>
+                            {% endif %}
+
+                            {% if nota.estado == 'borrador' and not nota.dte %}
+                            <a href="{% url 'facturacion_electronica:generar_dte_notadebito' nota.pk %}" class="btn btn-info">
+                                <i class="fas fa-bolt me-2"></i>Generar DTE
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

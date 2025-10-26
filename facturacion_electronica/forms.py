@@ -43,7 +43,8 @@ class ArchivoCAFForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Hacer que los campos sean obligatorios
-        for field in self.fields:
-            self.fields[field].required = True
+        # Hacer que los campos sean obligatorios, excepto el folio inicial
+        for field_name, field_object in self.fields.items():
+            if field_name != 'folio_inicial':
+                field_object.required = True
 

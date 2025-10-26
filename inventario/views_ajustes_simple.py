@@ -1,3 +1,4 @@
+from utilidades.utils import clean_id
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -180,7 +181,7 @@ def ajuste_create_simple(request):
 @requiere_empresa
 def api_articulos_ajuste_simple(request):
     """API para obtener artículos para ajustes"""
-    bodega_id = request.GET.get('bodega_id')
+    bodega_id = clean_id(request.GET.get('bodega_id'))
     
     if not bodega_id:
         return JsonResponse({'error': 'Bodega requerida'}, status=400)

@@ -2893,10 +2893,48 @@ function clearCart() {
                         }
                     });
                 } else if (data.tipo_documento === 'factura' || data.tipo_documento === 'boleta' || data.tipo_documento === 'guia') {
-                    // Para factura, boleta o guía, redirigir a procesar venta (selección de pago y emisión DTE)
+                    // Para factura, boleta o guía
                     const nombreDocumento = data.tipo_documento === 'factura' ? 'Factura' : 
                                           data.tipo_documento === 'boleta' ? 'Boleta' : 'Guía de Despacho';
                     
+                    // CIERRE DIRECTO: Si se procesó automáticamente, abrir documento directamente
+                    if (data.cierre_directo) {
+                        console.log('🔥 CIERRE DIRECTO - Abriendo documento automáticamente');
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Documento Procesado!',
+                            html: `<strong>${nombreDocumento} #${data.numero_venta}</strong><br>procesada automáticamente con cierre directo`,
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            // Abrir documento para impresión
+                            window.open(data.doc_url + '?auto=1', '_blank');
+                            
+                            // Limpiar carrito
+                            cart = [];
+                            updateCartDisplay();
+                            updateTotals();
+                            limpiarClientePOS();
+                            
+                            // Actualizar stock
+                            updateStockFromServer();
+                            
+                            // Restaurar modo escaneo si estaba activo
+                            if (wasScanningMode) {
+                                setTimeout(() => {
+                                    barcodeMode = true;
+                                    const barcodeInput = document.getElementById('barcode-input');
+                                    if (barcodeInput) {
+                                        barcodeInput.focus();
+                                    }
+                                }, 2000);
+                            }
+                        });
+                        return;
+                    }
+                    
+                    // Sin cierre directo: redirigir a procesar venta normal
                     if (data.ticket_vale_id) {
                         // Redirigir a Caja para procesar el ticket facturable
                         window.location.href = `/caja/procesar-venta/${data.ticket_vale_id}/`;
