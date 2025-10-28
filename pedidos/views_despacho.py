@@ -111,8 +111,7 @@ def orden_despacho_create(request):
                             dte = generar_factura_desde_orden_despacho(orden, request.user)
                             messages.info(request, f'Factura {dte.folio} generada.')
                         
-                        # Vincular el DTE a los items del despacho
-                        orden.items.update(guia_despacho=dte if tipo_documento == 'guia' else None, factura=dte if tipo_documento == 'factura' else None)
+                        # La vinculación del DTE con los items se hace dentro de las funciones de utilidad
 
                     except Exception as e:
                         messages.error(request, f'Error al generar documento: {str(e)}')
@@ -292,16 +291,37 @@ def orden_despacho_cambiar_estado(request, pk):
 
 
 @login_required
-@requiere_empresa
 def ajax_items_pedido(request):
     """AJAX: Obtener items de un pedido para el formset"""
+    import traceback
+    
     pedido_id = request.GET.get('pedido_id')
     
     if not pedido_id:
         return JsonResponse({'error': 'ID de pedido requerido'}, status=400)
     
     try:
-        pedido = OrdenPedido.objects.get(id=pedido_id, empresa=request.empresa)
+        # Obtener empresa de diferentes fuentes
+        empresa = getattr(request, 'empresa', None)
+        empresa_id = None
+        
+        if empresa:
+            empresa_id = empresa.id
+        else:
+            # Intentar obtener de la sesión
+            empresa_id = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
+        
+        if not empresa_id:
+            return JsonResponse({
+                'error': 'Debe seleccionar una empresa',
+                'debug': {
+                    'has_empresa_attr': hasattr(request, 'empresa'),
+                    'empresa_value': str(empresa),
+                    'session_keys': list(request.session.keys()),
+                }
+            }, status=400)
+            
+        pedido = OrdenPedido.objects.get(id=pedido_id, empresa_id=empresa_id)
         items = pedido.items.select_related('articulo').annotate(
             total_despachado=Sum('despachos__cantidad', filter=Q(despachos__orden_despacho__estado__in=['en_preparacion', 'despachado', 'en_transito', 'entregado']))
         ).all()
@@ -327,20 +347,33 @@ def ajax_items_pedido(request):
                 })
 
         # Información adicional sobre el cliente y el pedido
+        cliente = pedido.cliente
         cliente_data = {
-            'nombre': pedido.cliente.nombre,
-            'rut': pedido.cliente.rut,
-            'direccion': pedido.cliente.direccion,
-            'comuna': pedido.cliente.comuna.nombre if pedido.cliente.comuna else '',
-            'region': pedido.cliente.comuna.region.nombre if pedido.cliente.comuna and pedido.cliente.comuna.region else ''
+            'nombre': cliente.nombre,
+            'rut': cliente.rut,
+            'direccion': cliente.direccion or '',
+            'comuna': cliente.comuna if isinstance(cliente.comuna, str) else (cliente.comuna.nombre if cliente.comuna else ''),
+            'region': ''  # La región se puede obtener de otra manera si es necesario
         }
+        
+        # Si comuna es un objeto con región, obtenerla
+        if hasattr(cliente, 'comuna') and cliente.comuna and hasattr(cliente.comuna, 'region'):
+            if cliente.comuna.region:
+                cliente_data['region'] = cliente.comuna.region.nombre if hasattr(cliente.comuna.region, 'nombre') else str(cliente.comuna.region)
 
         return JsonResponse({'success': True, 'items': items_data, 'cliente': cliente_data})
     
     except OrdenPedido.DoesNotExist:
-        return JsonResponse({'error': 'Pedido no encontrado'}, status=404)
+        return JsonResponse({'error': 'Pedido no encontrado', 'pedido_id': pedido_id, 'empresa_id': empresa_id}, status=404)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        # Log detallado del error
+        error_trace = traceback.format_exc()
+        print(f"ERROR en ajax_items_pedido: {error_trace}")
+        return JsonResponse({
+            'error': str(e),
+            'type': type(e).__name__,
+            'traceback': error_trace
+        }, status=500)
 
 
 @login_required

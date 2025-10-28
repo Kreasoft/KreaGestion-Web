@@ -23,7 +23,7 @@ def vehiculo_list(request):
     """
     Lista todos los vehículos de la empresa activa
     """
-    empresa = request.session.get('empresa_activa')
+    empresa = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
     if not empresa:
         messages.error(request, 'Debe seleccionar una empresa para continuar.')
         return redirect('empresas:seleccionar_empresa')
@@ -69,7 +69,7 @@ def vehiculo_detail(request, pk):
     """
     Muestra el detalle de un vehículo
     """
-    empresa = request.session.get('empresa_activa')
+    empresa = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
     if not empresa:
         messages.error(request, 'Debe seleccionar una empresa para continuar.')
         return redirect('empresas:seleccionar_empresa')
@@ -88,7 +88,7 @@ def vehiculo_create(request):
     """
     Crea un nuevo vehículo
     """
-    empresa_id = request.session.get('empresa_activa')
+    empresa_id = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
     if not empresa_id:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'error': 'Debe seleccionar una empresa'}, status=400)
@@ -144,7 +144,7 @@ def vehiculo_update(request, pk):
     """
     Actualiza un vehículo existente
     """
-    empresa_id = request.session.get('empresa_activa')
+    empresa_id = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
     if not empresa_id:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'error': 'Debe seleccionar una empresa'}, status=400)
@@ -203,7 +203,7 @@ def vehiculo_delete(request, pk):
     """
     Elimina un vehículo
     """
-    empresa = request.session.get('empresa_activa')
+    empresa = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
     if not empresa:
         messages.error(request, 'Debe seleccionar una empresa para continuar.')
         return redirect('empresas:seleccionar_empresa')
@@ -236,7 +236,7 @@ def chofer_list(request):
     """
     Lista todos los choferes de la empresa activa
     """
-    empresa = request.session.get('empresa_activa')
+    empresa = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
     if not empresa:
         messages.error(request, 'Debe seleccionar una empresa para continuar.')
         return redirect('empresas:seleccionar_empresa')
@@ -283,7 +283,7 @@ def chofer_detail(request, pk):
     """
     Muestra el detalle de un chofer
     """
-    empresa = request.session.get('empresa_activa')
+    empresa = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
     if not empresa:
         messages.error(request, 'Debe seleccionar una empresa para continuar.')
         return redirect('empresas:seleccionar_empresa')
@@ -302,7 +302,7 @@ def chofer_create(request):
     """
     Crea un nuevo chofer
     """
-    empresa_id = request.session.get('empresa_activa')
+    empresa_id = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
     if not empresa_id:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'error': 'Debe seleccionar una empresa'}, status=400)
@@ -358,7 +358,7 @@ def chofer_update(request, pk):
     """
     Actualiza un chofer existente
     """
-    empresa_id = request.session.get('empresa_activa')
+    empresa_id = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
     if not empresa_id:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'error': 'Debe seleccionar una empresa'}, status=400)
@@ -417,7 +417,7 @@ def chofer_delete(request, pk):
     """
     Elimina un chofer
     """
-    empresa = request.session.get('empresa_activa')
+    empresa = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
     if not empresa:
         messages.error(request, 'Debe seleccionar una empresa para continuar.')
         return redirect('empresas:seleccionar_empresa')

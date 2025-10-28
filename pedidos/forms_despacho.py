@@ -80,6 +80,11 @@ class OrdenDespachoForm(forms.ModelForm):
 
         self.fields['estado'].widget = forms.HiddenInput()
         self.fields['estado'].required = False
+        
+        # Si estamos editando, el campo tipo_documento no es necesario
+        if self.instance and self.instance.pk:
+            self.fields['tipo_documento'].required = False
+            self.fields['tipo_documento'].widget = forms.HiddenInput()
 
         # Si se está creando desde un pedido específico, ocultar el campo
         if self.initial.get('orden_pedido'):
