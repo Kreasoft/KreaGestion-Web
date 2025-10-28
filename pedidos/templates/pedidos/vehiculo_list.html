@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Vehículos - {{ block.super }}{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
+
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+
+    .table-compact thead th {
+        padding: 8px 5px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+
+    .table-compact tbody td {
+        padding: 5px 5px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.75rem;
+    }
+
+    .btn-principal {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+    .btn-principal:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+
+    .btn-secundario {
+        background-color: rgba(111, 91, 68, 0.15);
+        border: 1px solid rgba(111, 91, 68, 0.25);
+        color: #6F5B44;
+    }
+
+    .btn-secundario:hover {
+        background-color: rgba(111, 91, 68, 0.25);
+        color: #6F5B44;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid" style="margin-top: 60px;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-truck fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Gestión de Vehículos
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Administra la flota de vehículos de la empresa.
+                                </small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-principal btn-sm" id="btnNuevoVehiculo">
+                            <i class="fas fa-plus"></i> Nuevo Vehículo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-body p-3">
+                    <!-- Filtros y búsqueda -->
+                    <div class="filter-section" style="background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%); border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <form method="get" class="row g-2 align-items-end">
+                            <div class="col-md-5">
+                                <label for="q" class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                    <i class="fas fa-search me-1"></i> Buscar Vehículo
+                                </label>
+                                <input type="text" name="q" id="q" class="form-control form-control-sm" 
+                                       placeholder="Buscar por patente o descripción..." 
+                                       value="{{ query }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="estado" class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
+                                    <i class="fas fa-filter me-1"></i> Estado
+                                </label>
+                                <select name="estado" id="estado" class="form-select form-select-sm">
+                                    <option value="">Todos</option>
+                                    <option value="activo" {% if estado == 'activo' %}selected{% endif %}>Activos</option>
+                                    <option value="inactivo" {% if estado == 'inactivo' %}selected{% endif %}>Inactivos</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-principal btn-sm me-2">
+                                    <i class="fas fa-search"></i> Buscar
+                                </button>
+                                <a href="{% url 'pedidos:vehiculo_list' %}" class="btn btn-secundario btn-sm">
+                                    <i class="fas fa-times"></i> Limpiar
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Tabla de vehículos -->
+                    {% if page_obj %}
+                        <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                            <table class="table table-hover table-compact mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Patente</th>
+                                        <th>Descripción</th>
+                                        <th>Capacidad</th>
+                                        <th>Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vehiculos-tbody">
+                                    {% for vehiculo in page_obj %}
+                                    <tr data-vehiculo-id="{{ vehiculo.pk }}">
+                                        <td>
+                                            <strong style="color: #6F5B44; font-size: 0.8rem;">{{ vehiculo.patente }}</strong>
+                                        </td>
+                                        <td>{{ vehiculo.descripcion }}</td>
+                                        <td>
+                                            {% if vehiculo.capacidad %}
+                                                <span class="badge" style="background-color: #A0826D; color: white; font-size: 0.65rem;">{{ vehiculo.capacidad|floatformat:0 }} kg</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if vehiculo.activo %}
+                                                <span class="badge bg-success" style="font-size: 0.65rem;"><i class="fas fa-check-circle"></i> Activo</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary" style="font-size: 0.65rem;"><i class="fas fa-times-circle"></i> Inactivo</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <a href="{% url 'pedidos:vehiculo_detail' vehiculo.pk %}" class="btn btn-secundario btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="Ver detalle"><i class="fas fa-eye"></i></a>
+                                            <button type="button" class="btn btn-secundario btn-sm btn-editar-vehiculo" data-id="{{ vehiculo.pk }}" style="padding: 2px 6px; font-size: 0.7rem;" title="Editar"><i class="fas fa-edit"></i></button>
+                                            <a href="{% url 'pedidos:vehiculo_delete' vehiculo.pk %}" class="btn btn-danger btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="Eliminar"><i class="fas fa-trash"></i></a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Paginación -->
+                        {% if page_obj.has_other_pages %}
+                        <nav aria-label="Paginación" class="mt-3">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item"><a class="page-link btn-secundario" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-double-left"></i></a></li>
+                                    <li class="page-item"><a class="page-link btn-secundario" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-left"></i></a></li>
+                                {% endif %}
+
+                                <li class="page-item active"><span class="page-link btn-principal">{{ page_obj.number }}</span></li>
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item"><a class="page-link btn-secundario" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-right"></i></a></li>
+                                    <li class="page-item"><a class="page-link btn-secundario" href="?page={{ page_obj.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-double-right"></i></a></li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-light text-center" style="background-color: #F5F1E8; border: 1px solid #E8DCC8; color: #8B7355;">
+                            <i class="fas fa-info-circle fa-lg me-2"></i>No se encontraron vehículos. Utilice el botón <strong>"Nuevo Vehículo"</strong> para agregar uno.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Crear/Editar Vehículo -->
+<div class="modal fade" id="vehiculoModal" tabindex="-1" aria-labelledby="vehiculoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border: 2px solid #E8DCC8; border-radius: 15px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-bottom: 2px solid #D4C4A8;">
+                <h5 class="modal-title" id="vehiculoModalLabel" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                    <i class="fas fa-truck"></i> <span id="modal-action">Nuevo</span> Vehículo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4" id="vehiculo-modal-body">
+                <!-- Contenido del formulario se cargará aquí -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    const confirmButtonColor = '#6F5B44';
+
+    // Botón Nuevo Vehículo
+    $('#btnNuevoVehiculo').click(function() {
+        $.ajax({
+            url: '{% url "pedidos:vehiculo_create" %}',
+            type: 'GET',
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            success: function(response) {
+                $('#modal-action').text('Nuevo');
+                $('#vehiculo-modal-body').html(response.html);
+                $('#vehiculoModal').modal('show');
+            },
+            error: function(xhr) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el formulario', confirmButtonColor: confirmButtonColor });
+            }
+        });
+    });
+
+    // Botón Editar Vehículo
+    $(document).on('click', '.btn-editar-vehiculo', function() {
+        var vehiculoId = $(this).data('id');
+        $.ajax({
+            url: '/pedidos/vehiculos/' + vehiculoId + '/editar/',
+            type: 'GET',
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            success: function(response) {
+                $('#modal-action').text('Editar');
+                $('#vehiculo-modal-body').html(response.html);
+                $('#vehiculoModal').modal('show');
+            },
+            error: function(xhr) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el formulario', confirmButtonColor: confirmButtonColor });
+            }
+        });
+    });
+
+    // Submit del formulario dentro del modal
+    $(document).on('submit', '#vehiculo-form', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: new FormData(this),
+            processData: false,
+            contentType: false,
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            success: function(response) {
+                if (response.success) {
+                    $('#vehiculoModal').modal('hide');
+                    Swal.fire({ icon: 'success', title: '¡Éxito!', text: response.message, confirmButtonColor: confirmButtonColor, timer: 2000 })
+                    .then(() => { location.reload(); });
+                }
+            },
+            error: function(xhr) {
+                if (xhr.status === 400 && xhr.responseJSON.errors) {
+                    $('.invalid-feedback').remove();
+                    $('.is-invalid').removeClass('is-invalid');
+                    for (var field in xhr.responseJSON.errors) {
+                        var input = $('[name="' + field + '"]');
+                        input.addClass('is-invalid');
+                        input.after('<div class="invalid-feedback d-block">' + xhr.responseJSON.errors[field][0] + '</div>');
+                    }
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'Ocurrió un error al guardar', confirmButtonColor: confirmButtonColor });
+                }
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

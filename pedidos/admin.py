@@ -9,20 +9,14 @@ from .models import (
 # ===== CHOFERES =====
 @admin.register(Chofer)
 class ChoferAdmin(admin.ModelAdmin):
-    list_display = (
-        'nombre', 'rut', 'telefono', 'licencia_clase', 
-        'licencia_vencimiento', 'activo', 'empresa'
-    )
-    list_filter = ('activo', 'empresa', 'licencia_clase')
-    search_fields = ('nombre', 'rut', 'telefono', 'email')
-    ordering = ['nombre']
+    list_display = ('codigo', 'nombre', 'rut', 'activo', 'empresa')
+    list_filter = ('activo', 'empresa')
+    search_fields = ('codigo', 'nombre', 'rut')
+    ordering = ['codigo']
     
     fieldsets = (
-        ('Información Personal', {
-            'fields': ('empresa', 'rut', 'nombre', 'telefono', 'email')
-        }),
-        ('Licencia de Conducir', {
-            'fields': ('licencia_clase', 'licencia_numero', 'licencia_vencimiento')
+        ('Información Básica', {
+            'fields': ('empresa', 'codigo', 'nombre', 'rut')
         }),
         ('Estado', {
             'fields': ('activo',)
@@ -33,34 +27,17 @@ class ChoferAdmin(admin.ModelAdmin):
 # ===== VEHÍCULOS =====
 @admin.register(Vehiculo)
 class VehiculoAdmin(admin.ModelAdmin):
-    list_display = (
-        'patente', 'tipo_vehiculo', 'marca', 'modelo', 'año',
-        'capacidad_carga', 'activo', 'empresa'
-    )
-    list_filter = ('activo', 'empresa', 'tipo_vehiculo')
-    search_fields = ('patente', 'marca', 'modelo', 'numero_motor', 'numero_chasis')
+    list_display = ('patente', 'descripcion', 'capacidad', 'activo', 'empresa')
+    list_filter = ('activo', 'empresa')
+    search_fields = ('patente', 'descripcion')
     ordering = ['patente']
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('empresa', 'patente', 'tipo_vehiculo', 'marca', 'modelo', 'año', 'color')
+            'fields': ('empresa', 'patente', 'descripcion', 'capacidad')
         }),
-        ('Capacidad', {
-            'fields': ('capacidad_carga', 'capacidad_volumen')
-        }),
-        ('Identificación Técnica', {
-            'fields': ('numero_motor', 'numero_chasis'),
-            'classes': ('collapse',)
-        }),
-        ('Documentación', {
-            'fields': (
-                'revision_tecnica_vencimiento',
-                'permiso_circulacion_vencimiento',
-                'seguro_vencimiento'
-            )
-        }),
-        ('Estado y Observaciones', {
-            'fields': ('activo', 'observaciones')
+        ('Estado', {
+            'fields': ('activo',)
         }),
     )
 

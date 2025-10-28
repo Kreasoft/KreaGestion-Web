@@ -86,51 +86,63 @@ def orden_despacho_create(request):
                     orden = form.save(commit=False)
                     orden.empresa = request.empresa
                     orden.creado_por = request.user
+                    orden.estado = 'pendiente'  # Forzar estado inicial
                     
                     # Generar número de despacho
                     if not orden.numero_despacho:
                         orden.generar_numero_despacho()
                     
+                    orden.estado = 'despachado' # Se genera el documento, se marca como despachado
                     orden.save()
-                    
+
                     # Guardar items
                     formset.instance = orden
                     formset.save()
-                    
+
+                    # Generar el documento seleccionado
+                    tipo_documento = form.cleaned_data.get('tipo_documento')
+                    try:
+                        if tipo_documento == 'guia':
+                            from .utils_despacho import generar_guia_desde_orden_despacho
+                            dte = generar_guia_desde_orden_despacho(orden, request.user)
+                            messages.info(request, f'Guía de Despacho {dte.folio} generada.')
+                        elif tipo_documento == 'factura':
+                            from .utils_despacho import generar_factura_desde_orden_despacho
+                            dte = generar_factura_desde_orden_despacho(orden, request.user)
+                            messages.info(request, f'Factura {dte.folio} generada.')
+                        
+                        # Vincular el DTE a los items del despacho
+                        orden.items.update(guia_despacho=dte if tipo_documento == 'guia' else None, factura=dte if tipo_documento == 'factura' else None)
+
+                    except Exception as e:
+                        messages.error(request, f'Error al generar documento: {str(e)}')
+                        # La transacción se revertirá, no es necesario eliminar la orden manualmente
+                        raise # Levantar la excepción para que transaction.atomic() haga rollback
+
                     messages.success(
                         request,
-                        f'Orden de Despacho {orden.numero_despacho} creada exitosamente.'
+                        f'Orden de Despacho {orden.numero_despacho} creada y documento generado exitosamente.'
                     )
                     return redirect('pedidos:orden_despacho_detail', pk=orden.pk)
             
             except Exception as e:
                 messages.error(request, f'Error al crear orden de despacho: {str(e)}')
         else:
-            # Mostrar errores del formulario
-            if not form.is_valid():
-                for field, errors in form.errors.items():
-                    for error in errors:
-                        messages.error(request, f'{field}: {error}')
+            # Si la validación falla, mostrar errores específicos
+            if form.errors:
+                for field, error_list in form.errors.items():
+                    for error in error_list:
+                        messages.error(request, f'Error en {form.fields[field].label or field}: {error}')
             
-            if not formset.is_valid():
+            if formset.errors:
                 for i, form_errors in enumerate(formset.errors):
                     if form_errors:
-                        messages.error(request, f'Item {i+1}: {form_errors}')
+                        for field, error_list in form_errors.items():
+                            for error in error_list:
+                                messages.error(request, f'Error en Artículo {i+1} ({field}): {error}')
     
     else:
-        # Precargar pedido si se pasa como parámetro
-        pedido_id = request.GET.get('pedido')
-        initial = {}
-        
-        if pedido_id:
-            try:
-                pedido = OrdenPedido.objects.get(id=pedido_id, empresa=request.empresa)
-                initial['orden_pedido'] = pedido
-                initial['direccion_entrega'] = pedido.cliente.direccion if pedido.cliente else ''
-            except OrdenPedido.DoesNotExist:
-                messages.error(request, 'Pedido no encontrado.')
-        
-        form = OrdenDespachoForm(initial=initial, empresa=request.empresa)
+        form = OrdenDespachoForm(empresa=request.empresa)
         formset = DetalleOrdenDespachoFormSet()
     
     context = {
@@ -290,24 +302,86 @@ def ajax_items_pedido(request):
     
     try:
         pedido = OrdenPedido.objects.get(id=pedido_id, empresa=request.empresa)
-        items = pedido.items.select_related('articulo').all()
-        
+        items = pedido.items.select_related('articulo').annotate(
+            total_despachado=Sum('despachos__cantidad', filter=Q(despachos__orden_despacho__estado__in=['en_preparacion', 'despachado', 'en_transito', 'entregado']))
+        ).all()
+
         items_data = []
         for item in items:
-            items_data.append({
-                'id': item.id,
-                'articulo': item.articulo.nombre,
-                'codigo': item.articulo.codigo,
-                'cantidad_pedido': float(item.cantidad),
-                'cantidad_despachada': 0,  # TODO: Calcular cantidad ya despachada
-                'cantidad_pendiente': float(item.cantidad)
-            })
-        
-        return JsonResponse({'items': items_data})
+            total_despachado = item.total_despachado or 0
+            cantidad_pendiente = item.cantidad - total_despachado
+            
+            if cantidad_pendiente > 0:
+                items_data.append({
+                    'id': item.id,
+                    'articulo': item.articulo.nombre,
+                    'codigo': item.articulo.codigo,
+                    'cantidad_pedido': float(item.cantidad),
+                    'cantidad_despachada': float(total_despachado),
+                    'cantidad_pendiente': float(cantidad_pendiente),
+                    'precio_neto': float(item.get_base_imponible()),
+                    'iva': float(item.get_impuesto_monto()),
+                    'impuesto_especifico': 0, # Modelo no tiene impuestos adicionales
+                    'total': float(item.get_total()),
+                    'item_pedido_id': item.id
+                })
+
+        # Información adicional sobre el cliente y el pedido
+        cliente_data = {
+            'nombre': pedido.cliente.nombre,
+            'rut': pedido.cliente.rut,
+            'direccion': pedido.cliente.direccion,
+            'comuna': pedido.cliente.comuna.nombre if pedido.cliente.comuna else '',
+            'region': pedido.cliente.comuna.region.nombre if pedido.cliente.comuna and pedido.cliente.comuna.region else ''
+        }
+
+        return JsonResponse({'success': True, 'items': items_data, 'cliente': cliente_data})
     
     except OrdenPedido.DoesNotExist:
         return JsonResponse({'error': 'Pedido no encontrado'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@requiere_empresa
+@permission_required('facturacion_electronica.add_documentotributarioelectronico', raise_exception=True)
+def generar_guia_despacho(request, pk):
+    """Genera una Guía de Despacho para una orden de despacho específica."""
+    orden = get_object_or_404(OrdenDespacho, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        try:
+            from .utils_despacho import generar_guia_desde_orden_despacho
+            dte = generar_guia_desde_orden_despacho(orden, request.user)
+            messages.success(request, f'Guía de Despacho Electrónica {dte.folio} generada exitosamente.')
+            orden.estado = 'despachado'
+            orden.save()
+        except Exception as e:
+            messages.error(request, f'Error al generar Guía de Despacho: {str(e)}')
+            
+    return redirect('pedidos:orden_despacho_detail', pk=pk)
+
+
+@login_required
+@requiere_empresa
+@permission_required('facturacion_electronica.add_documentotributarioelectronico', raise_exception=True)
+def generar_factura_despacho(request, pk):
+    """Genera una Factura para una orden de despacho específica."""
+    orden = get_object_or_404(OrdenDespacho, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        try:
+            from .utils_despacho import generar_factura_desde_orden_despacho
+            dte = generar_factura_desde_orden_despacho(orden, request.user)
+            messages.success(request, f'Factura Electrónica {dte.folio} generada exitosamente.')
+            orden.estado = 'despachado'
+            orden.save()
+        except Exception as e:
+            messages.error(request, f'Error al generar Factura: {str(e)}')
+            
+    return redirect('pedidos:orden_despacho_detail', pk=pk)
+
+
 
 

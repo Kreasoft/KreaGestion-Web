@@ -34,7 +34,7 @@ def orden_pedido_list(request):
             empresa = request.user.perfil.empresa
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
     
     # Obtener pedidos
     pedidos = OrdenPedido.objects.filter(empresa=empresa).select_related(
@@ -109,7 +109,7 @@ def orden_pedido_create(request):
             empresa = request.user.perfil.empresa
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
     
     if request.method == 'POST':
         print("=== DEBUG PEDIDO POST ===")
@@ -207,7 +207,7 @@ def orden_pedido_detail(request, pk):
                 return redirect('pedidos:orden_pedido_list')
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
     
     items = pedido.items.select_related('articulo').all()
     
@@ -242,7 +242,7 @@ def orden_pedido_update(request, pk):
                 return redirect('pedidos:orden_pedido_list')
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
     
     if request.method == 'POST':
         form = OrdenPedidoForm(request.POST, instance=pedido)
@@ -294,7 +294,7 @@ def orden_pedido_delete(request, pk):
                 return redirect('pedidos:orden_pedido_list')
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
     
     if request.method == 'POST':
         numero_pedido = pedido.numero_pedido
@@ -349,7 +349,7 @@ def despacho_list(request):
             empresa = request.user.perfil.empresa
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
 
     # Obtener despachos
     despachos = DespachoPedido.objects.filter(
@@ -432,7 +432,7 @@ def despacho_create(request):
             empresa = request.user.perfil.empresa
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
 
     # Debug: verificar empresa y pedidos disponibles
     debug_info = {
@@ -618,7 +618,7 @@ def despacho_detail(request, pk):
                 return redirect('pedidos:despacho_list')
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
 
     # Items del pedido y del despacho
     items_pedido = despacho.pedido.items.select_related('articulo').all()
@@ -655,7 +655,7 @@ def despacho_update(request, pk):
                 return redirect('pedidos:despacho_list')
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
 
     if request.method == 'POST':
         form = DespachoPedidoForm(request.POST, instance=despacho, empresa=despacho.empresa)
@@ -699,7 +699,7 @@ def despacho_cambiar_estado(request, pk):
                 return redirect('pedidos:despacho_list')
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
 
     if request.method == 'POST':
         form = DespachoEstadoForm(request.POST, instance=despacho)
@@ -746,7 +746,7 @@ def despacho_delete(request, pk):
                 return redirect('pedidos:despacho_list')
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
 
     if request.method == 'POST':
         numero_pedido = despacho.pedido.numero_pedido
@@ -784,7 +784,7 @@ def despacho_imprimir_guia(request, pk):
                 return redirect('pedidos:despacho_list')
         except:
             messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+            return redirect('/')
 
     # Verificar que el despacho tenga documento DTE
     if not despacho.get_documento_asociado():
