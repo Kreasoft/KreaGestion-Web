@@ -101,27 +101,41 @@ def orden_despacho_create(request):
 
                     # Generar el documento seleccionado
                     tipo_documento = form.cleaned_data.get('tipo_documento')
-                    try:
-                        if tipo_documento == 'guia':
-                            from .utils_despacho import generar_guia_desde_orden_despacho
-                            dte = generar_guia_desde_orden_despacho(orden, request.user)
-                            messages.info(request, f'Guía de Despacho {dte.folio} generada.')
-                        elif tipo_documento == 'factura':
-                            from .utils_despacho import generar_factura_desde_orden_despacho
-                            dte = generar_factura_desde_orden_despacho(orden, request.user)
-                            messages.info(request, f'Factura {dte.folio} generada.')
-                        
-                        # La vinculación del DTE con los items se hace dentro de las funciones de utilidad
+                    dte_generado = False
+                    
+                    if tipo_documento:
+                        try:
+                            if tipo_documento == 'guia':
+                                from .utils_despacho import generar_guia_desde_orden_despacho
+                                dte = generar_guia_desde_orden_despacho(orden, request.user)
+                                messages.success(request, f'✓ Guía de Despacho N° {dte.folio} generada exitosamente.')
+                                dte_generado = True
+                            elif tipo_documento == 'factura':
+                                from .utils_despacho import generar_factura_desde_orden_despacho
+                                dte = generar_factura_desde_orden_despacho(orden, request.user)
+                                messages.success(request, f'✓ Factura N° {dte.folio} generada exitosamente.')
+                                dte_generado = True
+                            else:
+                                messages.warning(request, 'No se especificó un tipo de documento válido.')
 
-                    except Exception as e:
-                        messages.error(request, f'Error al generar documento: {str(e)}')
-                        # La transacción se revertirá, no es necesario eliminar la orden manualmente
-                        raise # Levantar la excepción para que transaction.atomic() haga rollback
+                        except Exception as e:
+                            error_msg = str(e)
+                            messages.error(request, f'⚠ Error al generar documento: {error_msg}')
+                            
+                            # Sugerencias basadas en el error
+                            if 'No hay folios CAF disponibles' in error_msg:
+                                messages.warning(request, 'Debe cargar archivos CAF en Facturación Electrónica → Folios CAF')
+                            
+                            # La transacción se revertirá, no es necesario eliminar la orden manualmente
+                            raise # Levantar la excepción para que transaction.atomic() haga rollback
+                    else:
+                        messages.warning(request, 'No se seleccionó ningún tipo de documento para generar.')
 
-                    messages.success(
-                        request,
-                        f'Orden de Despacho {orden.numero_despacho} creada y documento generado exitosamente.'
-                    )
+                    # Mensaje final según si se generó o no el documento
+                    if dte_generado:
+                        messages.success(request, f'✓ Orden de Despacho {orden.numero_despacho} creada y documento generado exitosamente.')
+                    else:
+                        messages.success(request, f'✓ Orden de Despacho {orden.numero_despacho} creada. No se generó documento.')
                     return redirect('pedidos:orden_despacho_detail', pk=orden.pk)
             
             except Exception as e:
