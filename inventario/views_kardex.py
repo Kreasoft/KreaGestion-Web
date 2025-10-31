@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import Q, Sum, F
 from django.utils import timezone
 from datetime import datetime, timedelta
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from articulos.models import Articulo
 from bodegas.models import Bodega
 from .models import Inventario, Stock

@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db import transaction
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from .models import ArchivoCAF, DocumentoTributarioElectronico, EnvioDTE, ConfiguracionAlertaFolios
 from .forms import ArchivoCAFForm
 import xml.etree.ElementTree as ET

@@ -23,7 +23,7 @@ import os
 from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo, KitOferta, KitOfertaItem
 from inventario.models import Stock, Inventario
 from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm, ListaPrecioForm, PrecioArticuloForm, HomologacionCodigoForm, KitOfertaForm, KitOfertaItemForm
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 
 
 @requiere_empresa

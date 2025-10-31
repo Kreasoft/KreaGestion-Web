@@ -6,7 +6,7 @@ from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.db import connection
 from django.core.management import call_command
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from datetime import datetime, timedelta
 import os
 import subprocess

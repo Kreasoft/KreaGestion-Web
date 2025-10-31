@@ -7,7 +7,7 @@ from django.forms import inlineformset_factory
 from .models import Proveedor, ContactoProveedor
 from .forms import ProveedorForm, ContactoProveedorForm, ContactoProveedorInlineFormSet
 from empresas.models import Empresa
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 
 
 @login_required

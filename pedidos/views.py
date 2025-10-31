@@ -12,7 +12,7 @@ from .models import OrdenPedido, ItemOrdenPedido #, DespachoPedido
 from .forms import OrdenPedidoForm, ItemOrdenPedidoFormSet, BusquedaPedidoForm #, DespachoPedidoForm, DespachoEstadoForm, BusquedaDespachoForm, ItemDespachoPedidoFormSet
 from empresas.models import Empresa
 from articulos.models import Articulo
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 
 
 @login_required

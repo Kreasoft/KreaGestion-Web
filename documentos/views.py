@@ -20,7 +20,7 @@ from .forms import (
 
 from empresas.models import Empresa
 from articulos.models import Articulo
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 
 
 @login_required

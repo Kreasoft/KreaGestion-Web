@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from articulos.models import Articulo
 from clientes.models import Cliente
 from inventario.models import Stock, Inventario

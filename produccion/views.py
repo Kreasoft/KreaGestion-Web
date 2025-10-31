@@ -18,7 +18,7 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from io import BytesIO
 
 from articulos.models import RecetaProduccion, InsumoReceta, OrdenProduccion, Articulo, StockArticulo
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 
 
 # ==================== RECETAS DE PRODUCCIÓN ====================

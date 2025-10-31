@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from .models import NotaDebito, NotaDebitoDetalle, Venta, VentaDetalle
 from .forms import NotaDebitoForm, NotaDebitoDetalleFormSet
 from clientes.models import Cliente

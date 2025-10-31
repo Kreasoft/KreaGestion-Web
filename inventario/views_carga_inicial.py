@@ -10,7 +10,7 @@ import pandas as pd
 import io
 import json
 from .models import Inventario, Stock
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from articulos.models import Articulo
 from bodegas.models import Bodega
 

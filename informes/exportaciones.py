@@ -7,7 +7,7 @@ from django.db.models import Sum, Count, Avg, F, Q
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 

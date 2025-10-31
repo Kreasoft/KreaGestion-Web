@@ -16,7 +16,7 @@ from documentos.models import DocumentoCompra
 from proveedores.models import Proveedor
 from empresas.models import Empresa
 from bodegas.models import Bodega
-from .decorators import requiere_empresa
+from core.decorators import requiere_empresa
 
 
 @login_required

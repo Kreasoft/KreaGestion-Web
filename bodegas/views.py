@@ -5,7 +5,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from .models import Bodega
 from .forms import BodegaForm, BodegaFilterForm
 

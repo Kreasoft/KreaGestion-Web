@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.db import transaction
 from django.http import JsonResponse
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 import pymysql
 import json
 

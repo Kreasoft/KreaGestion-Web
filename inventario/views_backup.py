@@ -12,7 +12,7 @@ import io
 import json
 from .models import Inventario, Stock
 from .forms import InventarioForm, StockForm, InventarioFilterForm
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from articulos.models import Articulo
 from empresas.models import Sucursal
 
@@ -386,7 +386,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from .models import Inventario, Stock
 from .forms import InventarioForm, StockForm, InventarioFilterForm
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 
 
 @login_required

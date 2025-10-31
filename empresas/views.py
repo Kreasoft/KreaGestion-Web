@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.http import JsonResponse
-from usuarios.decorators import requiere_empresa, solo_superusuario, filtrar_por_empresa
+from core.decorators import requiere_empresa, solo_superusuario, filtrar_por_empresa
 from .models import Empresa, Sucursal, ConfiguracionEmpresa
 from .forms import EmpresaForm, SucursalForm, ConfiguracionEmpresaForm, FacturacionElectronicaForm
 

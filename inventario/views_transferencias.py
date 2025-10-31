@@ -14,7 +14,7 @@ from decimal import Decimal
 import re
 from .models import TransferenciaInventario, Inventario, Stock
 from .forms import TransferenciaInventarioForm
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from bodegas.models import Bodega
 from articulos.models import Articulo
 from facturacion_electronica.models import ArchivoCAF, DocumentoTributarioElectronico

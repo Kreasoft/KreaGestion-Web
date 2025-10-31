@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST, require_http_methods
 from .models import PerfilUsuario
 from .forms import UsuarioCreateForm, UsuarioUpdateForm, GrupoForm
 from empresas.models import Empresa
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 
 
 def obtener_empresa_usuario(request):

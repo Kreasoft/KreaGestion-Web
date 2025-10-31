@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from bodegas.models import Bodega
 from articulos.models import Articulo
 from .models import Stock, Inventario

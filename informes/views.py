@@ -14,7 +14,7 @@ from inventario.models import Stock
 from tesoreria.models import DocumentoCliente, PagoDocumentoCliente, MovimientoCuentaCorrienteCliente
 from caja.models import AperturaCaja
 from documentos.models import DocumentoCompra
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from reportlab.lib import colors

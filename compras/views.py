@@ -17,7 +17,7 @@ from .forms import (
 from empresas.models import Empresa
 from articulos.models import Articulo
 from proveedores.models import Proveedor
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 import json
 
 

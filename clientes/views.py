@@ -7,7 +7,7 @@ from django.forms import inlineformset_factory
 from .models import Cliente, ContactoCliente
 from .forms import ClienteForm, ContactoClienteForm, ContactoClienteInlineFormSet
 from empresas.models import Empresa
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 
 
 def obtener_empresa_usuario(request):

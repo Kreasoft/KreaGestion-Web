@@ -45,15 +45,27 @@ class EmpresaMiddleware:
 						request.session['empresa_activa_id'] = request.empresa.id
 						# Marcar sesión como modificada para forzar guardado
 						request.session.modified = True
+						# CRÍTICO: Forzar guardado inmediato
+						request.session.save()
 					except Empresa.DoesNotExist:
 						empresa_id = None
 				
 				# 4. Si no se encontró, asignar la primera disponible
 				if not empresa_id:
-					request.empresa = Empresa.objects.first()
+					# Buscar Kreasoft primero
+					request.empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+					# Si no existe, buscar cualquier empresa con nombre
+					if not request.empresa:
+						request.empresa = Empresa.objects.exclude(nombre='').first()
+					# Como último recurso, la primera empresa
+					if not request.empresa:
+						request.empresa = Empresa.objects.first()
+					
 					if request.empresa:
 						request.session['empresa_activa_id'] = request.empresa.id
 						request.session.modified = True
+						# CRÍTICO: Forzar guardado inmediato
+						request.session.save()
 			else:
 				# Usuario normal debe tener un perfil con empresa
 				try:

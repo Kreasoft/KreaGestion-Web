@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.template.loader import get_template
 from decimal import Decimal
 from datetime import datetime, timedelta
-from usuarios.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TIPO_DOCUMENTO_CHOICES
 from .forms import VendedorForm, FormaPagoForm, EstacionTrabajoForm
 from articulos.models import Articulo, KitOferta

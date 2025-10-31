@@ -9,7 +9,7 @@ from django.db.models import Q, Sum, Count
 from django.http import JsonResponse
 from django.utils import timezone
 
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from .models_despacho import OrdenDespacho, DetalleOrdenDespacho
 from .models import OrdenPedido, ItemOrdenPedido
 from .forms_despacho import OrdenDespachoForm, DetalleOrdenDespachoFormSet

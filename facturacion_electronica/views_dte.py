@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from .models import DocumentoTributarioElectronico
 from .dte_service import DTEService
 from ventas.models import Venta, NotaCredito

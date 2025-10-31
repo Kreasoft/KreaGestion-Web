@@ -8,7 +8,7 @@ from decimal import Decimal
 from datetime import datetime
 import json
 
-from empresas.decorators import requiere_empresa
+from core.decorators import requiere_empresa
 from .models import Caja, AperturaCaja, MovimientoCaja, VentaProcesada
 from .forms import CajaForm, AperturaCajaForm, CierreCajaForm, ProcesarVentaForm, MovimientoCajaForm
 from ventas.models import Venta, VentaDetalle, FormaPago

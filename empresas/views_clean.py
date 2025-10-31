@@ -6,7 +6,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
-from usuarios.decorators import requiere_empresa, solo_superusuario, filtrar_por_empresa
+from core.decorators import requiere_empresa, solo_superusuario, filtrar_por_empresa
 from .models import Empresa, Sucursal, ConfiguracionEmpresa
 from .forms import EmpresaForm, SucursalForm, ConfiguracionEmpresaForm
 
