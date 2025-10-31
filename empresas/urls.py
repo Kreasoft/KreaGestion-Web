@@ -28,6 +28,7 @@ urlpatterns = [
 	path('configuraciones/', views.empresa_configuraciones, name='empresa_configuraciones'),
 	# Configuración de impresoras
 	path('configuracion/impresoras/', views.configurar_impresoras, name='configurar_impresoras'),
+	path('api/obtener-impresoras/', views.obtener_impresoras_sistema, name='obtener_impresoras_sistema'),
 	# Paleta de colores
 	path('paleta-colores/', views.paleta_colores, name='paleta_colores'),
 	# Seleccionar empresa (solo superusuarios)

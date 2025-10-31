@@ -702,7 +702,7 @@ def configurar_impresoras(request):
 	empresa = request.empresa
 	
 	if request.method == 'POST':
-		# Actualizar configuración de impresoras
+		# Actualizar configuración de impresoras (tipos)
 		empresa.impresora_factura = request.POST.get('impresora_factura', 'laser')
 		empresa.impresora_boleta = request.POST.get('impresora_boleta', 'laser')
 		empresa.impresora_guia = request.POST.get('impresora_guia', 'laser')
@@ -710,6 +710,15 @@ def configurar_impresoras(request):
 		empresa.impresora_nota_debito = request.POST.get('impresora_nota_debito', 'laser')
 		empresa.impresora_vale = request.POST.get('impresora_vale', 'termica')
 		empresa.impresora_cotizacion = request.POST.get('impresora_cotizacion', 'laser')
+		
+		# Actualizar nombres físicos de impresoras
+		empresa.impresora_factura_nombre = request.POST.get('impresora_factura_nombre', '')
+		empresa.impresora_boleta_nombre = request.POST.get('impresora_boleta_nombre', '')
+		empresa.impresora_guia_nombre = request.POST.get('impresora_guia_nombre', '')
+		empresa.impresora_nota_credito_nombre = request.POST.get('impresora_nota_credito_nombre', '')
+		empresa.impresora_nota_debito_nombre = request.POST.get('impresora_nota_debito_nombre', '')
+		empresa.impresora_vale_nombre = request.POST.get('impresora_vale_nombre', '')
+		empresa.impresora_cotizacion_nombre = request.POST.get('impresora_cotizacion_nombre', '')
 		
 		empresa.save()
 		
@@ -781,3 +790,62 @@ def configurar_impresoras(request):
 	}
 	
 	return render(request, 'empresas/configurar_impresoras.html', context)
+
+
+@login_required
+@requiere_empresa
+def obtener_impresoras_sistema(request):
+	"""API para obtener las impresoras instaladas en el sistema Windows"""
+	import subprocess
+	import json
+	
+	try:
+		# Ejecutar comando PowerShell para listar impresoras
+		comando = 'powershell -Command "Get-Printer | Select-Object -Property Name, DriverName, PortName | ConvertTo-Json"'
+		resultado = subprocess.run(comando, capture_output=True, text=True, shell=True, timeout=10)
+		
+		if resultado.returncode == 0:
+			# Parsear JSON de PowerShell
+			impresoras_raw = json.loads(resultado.stdout) if resultado.stdout else []
+			
+			# Si es un solo objeto, convertirlo a lista
+			if isinstance(impresoras_raw, dict):
+				impresoras_raw = [impresoras_raw]
+			
+			# Formatear datos
+			impresoras = []
+			for imp in impresoras_raw:
+				impresoras.append({
+					'nombre': imp.get('Name', ''),
+					'driver': imp.get('DriverName', ''),
+					'puerto': imp.get('PortName', '')
+				})
+			
+			return JsonResponse({
+				'success': True,
+				'impresoras': impresoras,
+				'total': len(impresoras)
+			})
+		else:
+			return JsonResponse({
+				'success': False,
+				'error': 'No se pudo ejecutar el comando de PowerShell',
+				'detalles': resultado.stderr
+			}, status=500)
+			
+	except subprocess.TimeoutExpired:
+		return JsonResponse({
+			'success': False,
+			'error': 'Timeout al ejecutar comando de PowerShell'
+		}, status=500)
+	except json.JSONDecodeError as e:
+		return JsonResponse({
+			'success': False,
+			'error': 'Error al parsear respuesta de PowerShell',
+			'detalles': str(e)
+		}, status=500)
+	except Exception as e:
+		return JsonResponse({
+			'success': False,
+			'error': f'Error al obtener impresoras: {str(e)}'
+		}, status=500)

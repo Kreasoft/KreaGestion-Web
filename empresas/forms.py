@@ -38,7 +38,10 @@ class EmpresaForm(forms.ModelForm):
             'oficina_sii', 'email_intercambio', 'email_contacto_sii',
             'alerta_folios_minimos', 'impresora_factura', 'impresora_boleta',
             'impresora_guia', 'impresora_nota_credito', 'impresora_nota_debito',
-            'impresora_vale', 'impresora_cotizacion', 'estado'
+            'impresora_vale', 'impresora_cotizacion', 
+            'impresora_factura_nombre', 'impresora_boleta_nombre', 'impresora_guia_nombre',
+            'impresora_nota_credito_nombre', 'impresora_nota_debito_nombre',
+            'impresora_vale_nombre', 'impresora_cotizacion_nombre', 'estado'
         ]
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
@@ -80,6 +83,13 @@ class EmpresaForm(forms.ModelForm):
             'impresora_nota_debito': forms.Select(attrs={'class': 'form-select'}),
             'impresora_vale': forms.Select(attrs={'class': 'form-select'}),
             'impresora_cotizacion': forms.Select(attrs={'class': 'form-select'}),
+            'impresora_factura_nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'impresora_boleta_nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'impresora_guia_nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'impresora_nota_credito_nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'impresora_nota_debito_nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'impresora_vale_nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'impresora_cotizacion_nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'estado': forms.Select(attrs={'class': 'form-select'}),
         }
 

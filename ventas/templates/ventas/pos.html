@@ -2015,11 +2015,45 @@ function clearCart() {
             };
             
             const info = config[tipo];
+            const sinFolios = info.disponibles === 0;
             const iconoEstado = info.disponibles > 10 ? '✓' : (info.disponibles > 0 ? '⚠️' : '✗');
             const colorBadge = info.disponibles > 10 ? '#28a745' : (info.disponibles > 0 ? '#ffc107' : '#dc3545');
             
+            // Estilos diferentes si no hay folios (deshabilitado)
+            const estiloDeshabilitado = sinFolios ? `
+                opacity: 0.5;
+                cursor: not-allowed;
+                background: #f5f5f5 !important;
+                position: relative;
+            ` : '';
+            
+            const bannerSinFolios = sinFolios ? `
+                <div style="
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%) rotate(-15deg);
+                    background: #dc3545;
+                    color: white;
+                    padding: 8px 24px;
+                    font-weight: bold;
+                    font-size: 1.1rem;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+                    z-index: 10;
+                    pointer-events: none;
+                ">
+                    SIN FOLIOS
+                </div>
+            ` : '';
+            
             return `
-                <button type="button" class="btn-tipo-documento" data-tipo="${tipo}" style="
+                <button type="button" 
+                        class="btn-tipo-documento ${sinFolios ? 'btn-sin-folios' : ''}" 
+                        data-tipo="${tipo}" 
+                        data-disponibles="${info.disponibles}"
+                        ${sinFolios ? 'disabled' : ''}
+                        style="
                     width: 100%;
                     padding: 16px;
                     margin-bottom: 12px;
@@ -2029,11 +2063,13 @@ function clearCart() {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    cursor: pointer;
+                    cursor: ${sinFolios ? 'not-allowed' : 'pointer'};
                     transition: all 0.3s ease;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                " onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 16px rgba(0,0,0,0.15)';" 
-                   onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)';">
+                    ${estiloDeshabilitado}
+                " onmouseover="if(!this.disabled) { this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 16px rgba(0,0,0,0.15)'; }" 
+                   onmouseout="if(!this.disabled) { this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'; }">
+                    ${bannerSinFolios}
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <i class="fas ${info.icono}" style="font-size: 2rem; color: ${info.color};"></i>
                         <div style="text-align: left;">
@@ -2291,13 +2327,65 @@ function clearCart() {
                 
                 // Manejar clics en botones de tipo de documento
                 document.querySelectorAll('.btn-tipo-documento').forEach(btn => {
-                    btn.addEventListener('click', function() {
+                    btn.addEventListener('click', function(e) {
+                        // Validar si tiene folios disponibles
+                        const disponibles = parseInt(this.getAttribute('data-disponibles') || '0');
+                        const tipo = this.getAttribute('data-tipo');
+                        
+                        // Bloquear si no hay folios (para facturas, boletas, guías)
+                        if (disponibles === 0 && ['factura', 'boleta', 'guia'].includes(tipo)) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            const nombresTipo = {
+                                'factura': 'Facturas',
+                                'boleta': 'Boletas',
+                                'guia': 'Guías de Despacho'
+                            };
+                            
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Sin Folios Disponibles',
+                                html: `
+                                    <div style="text-align: left; padding: 0 20px;">
+                                        <p style="font-size: 1.1rem; margin-bottom: 15px;">
+                                            <strong>No hay folios disponibles para emitir ${nombresTipo[tipo]}.</strong>
+                                        </p>
+                                        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin-bottom: 15px; border-radius: 4px;">
+                                            <p style="margin: 0; color: #856404;">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                Los folios de este tipo de documento están <strong>AGOTADOS</strong>.
+                                            </p>
+                                        </div>
+                                        <p style="margin-bottom: 10px;"><strong>Para continuar:</strong></p>
+                                        <ol style="margin-left: 20px; line-height: 1.8;">
+                                            <li>Ve a <strong>Facturación Electrónica → Gestión de CAF</strong></li>
+                                            <li>Carga un nuevo archivo CAF para ${nombresTipo[tipo]}</li>
+                                            <li>Verifica que el CAF esté <span style="color: #28a745; font-weight: bold;">ACTIVO</span></li>
+                                        </ol>
+                                        <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 12px; margin-top: 15px; border-radius: 4px;">
+                                            <p style="margin: 0; color: #004085; font-size: 0.9rem;">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                <strong>Alternativa:</strong> Puedes usar otro tipo de documento que tenga folios disponibles.
+                                            </p>
+                                        </div>
+                                    </div>
+                                `,
+                                confirmButtonText: 'Entendido',
+                                confirmButtonColor: '#dc3545',
+                                width: '600px'
+                            });
+                            return false;
+                        }
+                        
                         // Remover selección de todos los botones
                         document.querySelectorAll('.btn-tipo-documento').forEach(b => {
-                            b.style.background = 'white';
-                            b.style.transform = 'scale(1)';
-                            b.style.boxShadow = 'none';
-                            b.style.fontWeight = 'normal';
+                            if (!b.disabled) {
+                                b.style.background = 'white';
+                                b.style.transform = 'scale(1)';
+                                b.style.boxShadow = 'none';
+                                b.style.fontWeight = 'normal';
+                            }
                         });
                         
                         // Marcar este botón como seleccionado con estilo DESTACADO
@@ -2308,7 +2396,6 @@ function clearCart() {
                         this.style.fontWeight = 'bold';
                         
                         // Actualizar campo oculto y variable global
-                        const tipo = this.getAttribute('data-tipo');
                         tipoDocSelect.value = tipo;
                         window.tipoDocumentoSeleccionado = tipo; // Guardar en variable global
                         console.log('[TIPO DOC] Tipo seleccionado:', tipo);

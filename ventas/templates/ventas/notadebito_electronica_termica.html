@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=80mm">
+    <title>Nota de Débito - {{ dte.folio|default:nota.numero }}</title>
+
+    {% load format_filters %}
+
+    <style>
+        @page {
+            size: 80mm auto;
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 9pt;
+            line-height: 1.2;
+            color: #000;
+            width: 80mm;
+            margin: 0 auto;
+            padding: 2mm;
+            background: white;
+        }
+
+        .ticket-container {
+            width: 100%;
+        }
+
+        /* Cabecera */
+        .header {
+            text-align: center;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 3mm;
+            margin-bottom: 3mm;
+        }
+
+        .company-logo {
+            max-width: 40mm;
+            max-height: 20mm;
+            margin-bottom: 2mm;
+        }
+
+        .company-name {
+            font-size: 11pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+        }
+
+        .company-info {
+            font-size: 8pt;
+            line-height: 1.3;
+        }
+
+        .company-rut {
+            font-size: 9pt;
+            font-weight: bold;
+            margin: 2mm 0;
+        }
+
+        /* Cuadro del Documento */
+        .document-box {
+            border: 2px solid #007bff;
+            padding: 2mm;
+            text-align: center;
+            margin: 3mm 0;
+            background: #e6f2ff;
+        }
+
+        .document-type {
+            font-size: 10pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+            color: #007bff;
+        }
+
+        .document-folio {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+            color: #007bff;
+        }
+
+        .document-fecha {
+            font-size: 8pt;
+            margin-top: 1mm;
+        }
+
+        /* Datos del Cliente */
+        .cliente-section {
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+            padding: 2mm 0;
+            margin: 2mm 0;
+            font-size: 8pt;
+        }
+
+        .cliente-row {
+            margin-bottom: 1mm;
+            word-wrap: break-word;
+        }
+
+        .cliente-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 25mm;
+        }
+
+        /* Documento Afectado */
+        .doc-afectado {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 2mm;
+            margin: 2mm 0;
+            font-size: 8pt;
+            border-radius: 2mm;
+        }
+
+        /* Tabla de Productos */
+        .productos-section {
+            margin: 3mm 0;
+            font-size: 8pt;
+        }
+
+        .productos-header {
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            padding-bottom: 1mm;
+            margin-bottom: 2mm;
+            text-align: center;
+        }
+
+        .producto-item {
+            margin-bottom: 2mm;
+            border-bottom: 1px dotted #ccc;
+            padding-bottom: 2mm;
+        }
+
+        .producto-codigo {
+            font-size: 7pt;
+            color: #666;
+        }
+
+        .producto-nombre {
+            font-weight: bold;
+            margin: 1mm 0;
+        }
+
+        .producto-detalle {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8pt;
+        }
+
+        /* Totales */
+        .totales-section {
+            border-top: 2px solid #000;
+            padding-top: 2mm;
+            margin-top: 3mm;
+            font-size: 9pt;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1mm;
+            padding: 1mm 0;
+        }
+
+        .total-label {
+            font-weight: bold;
+        }
+
+        .total-value {
+            text-align: right;
+        }
+
+        .total-final {
+            border-top: 2px solid #000;
+            border-bottom: 2px double #000;
+            font-size: 11pt;
+            font-weight: bold;
+            margin-top: 2mm;
+            padding: 2mm 0;
+            color: #007bff;
+        }
+
+        /* Timbre */
+        .timbre-section {
+            text-align: center;
+            margin: 3mm 0;
+            border: 1px solid #000;
+            padding: 2mm;
+        }
+
+        .timbre-img {
+            max-width: 60mm;
+            height: auto;
+            margin: 2mm 0;
+        }
+
+        .timbre-info {
+            font-size: 7pt;
+            line-height: 1.3;
+            margin-top: 2mm;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            font-size: 7pt;
+            color: #666;
+            margin-top: 3mm;
+            padding-top: 2mm;
+            border-top: 1px dashed #000;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                width: 80mm;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+
+            @page {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ticket-container">
+
+        <!-- CABECERA -->
+        <div class="header">
+            {% if empresa.logo %}
+            <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" class="company-logo">
+            {% endif %}
+
+            <div class="company-name">{{ empresa.nombre }}</div>
+            <div class="company-rut">RUT: {{ empresa.rut }}</div>
+            <div class="company-info">
+                {{ empresa.get_direccion_dte }}<br>
+                {{ empresa.get_ciudad_dte }}<br>
+                Fono: {{ empresa.telefono|default:"Sin teléfono" }}
+            </div>
+        </div>
+
+        <!-- CUADRO DEL DOCUMENTO -->
+        <div class="document-box">
+            <div class="document-type">NOTA DE DÉBITO ELECTRÓNICA</div>
+            <div class="document-folio">
+                {% if dte and dte.folio %}
+                    N° {{ dte.folio }}
+                {% else %}
+                    N° {{ nota.numero }}
+                {% endif %}
+            </div>
+            <div class="document-fecha">
+                {% load l10n %}
+                {{ nota.fecha|date:"d/m/Y" }}
+            </div>
+            <div style="font-size: 7pt; margin-top: 1mm;">
+                SII - {{ empresa.oficina_sii|default:empresa.get_ciudad_dte|upper }}
+            </div>
+        </div>
+
+        <!-- DOCUMENTO AFECTADO -->
+        <div class="doc-afectado">
+            <div style="font-weight: bold; text-align: center; margin-bottom: 1mm;">DOCUMENTO AFECTADO</div>
+            <div><strong>Tipo:</strong> {{ nota.get_tipo_doc_afectado_display }}</div>
+            <div><strong>Folio:</strong> {{ nota.numero_doc_afectado }}</div>
+            <div><strong>Fecha:</strong> {{ nota.fecha_doc_afectado|date:"d/m/Y" }}</div>
+        </div>
+
+        <!-- DATOS DEL CLIENTE -->
+        <div class="cliente-section">
+            <div class="cliente-row">
+                <span class="cliente-label">Cliente:</span>
+                <span>{{ nota.cliente.nombre|default:"Cliente" }}</span>
+            </div>
+            <div class="cliente-row">
+                <span class="cliente-label">RUT:</span>
+                <span>{{ nota.cliente.rut|default:"-" }}</span>
+            </div>
+            {% if nota.cliente.direccion %}
+            <div class="cliente-row">
+                <span class="cliente-label">Dirección:</span>
+                <span>{{ nota.cliente.direccion }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- MOTIVO -->
+        {% if nota.motivo or nota.observaciones %}
+        <div style="background: #f8f9fa; border: 1px solid #dee2e6; padding: 2mm; margin: 2mm 0; font-size: 7pt; border-radius: 2mm;">
+            <div style="font-weight: bold; margin-bottom: 1mm;">MOTIVO:</div>
+            <div>{{ nota.get_motivo_display }}</div>
+            {% if nota.observaciones %}
+            <div style="margin-top: 1mm; font-style: italic;">{{ nota.observaciones|truncatewords:20 }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- DETALLE DE PRODUCTOS -->
+        <div class="productos-section">
+            <div class="productos-header">DETALLE</div>
+            {% for detalle in detalles %}
+            <div class="producto-item">
+                <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
+                <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
+                <div class="producto-detalle">
+                    <span class="producto-cantidad">Cant: {{ detalle.cantidad|floatformat:0 }}</span>
+                    <span class="producto-precio">${{ detalle.total|format_miles }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- TOTALES -->
+        <div class="totales-section">
+            {% if nota.neto %}
+            <div class="total-row">
+                <span class="total-label">Neto:</span>
+                <span class="total-value">${{ nota.neto|format_miles }}</span>
+            </div>
+            {% endif %}
+            {% if nota.iva %}
+            <div class="total-row">
+                <span class="total-label">IVA (19%):</span>
+                <span class="total-value">${{ nota.iva|format_miles }}</span>
+            </div>
+            {% endif %}
+            <div class="total-row total-final">
+                <span class="total-label">TOTAL ND:</span>
+                <span class="total-value">${{ nota.monto_total|format_miles }}</span>
+            </div>
+        </div>
+
+        <!-- TIMBRE ELECTRÓNICO -->
+        {% if dte %}
+        <div class="timbre-section">
+            {% if dte.timbre_pdf417 %}
+                <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico" class="timbre-img">
+            {% else %}
+                <div style="padding: 5mm; background: #f5f5f5;">
+                    <div style="font-size: 8pt; font-weight: bold;">TIMBRE ELECTRÓNICO SII</div>
+                    <div style="font-size: 7pt; color: #666;">Folio: {{ dte.folio }}</div>
+                </div>
+            {% endif %}
+            <div class="timbre-info">
+                <strong>Timbre Electrónico SII</strong><br>
+                Res. Ex. SII N° {{ empresa.resolucion_numero|default:"80" }}<br>
+                del {{ empresa.resolucion_fecha|date:"d-m-Y"|default:"22-08-2014" }}<br>
+                Verifique en: www.sii.cl
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- FOOTER -->
+        <div class="footer">
+            {{ empresa.nombre }}<br>
+            Impreso: {{ nota.fecha|date:"d/m/Y" }}<br>
+            Este documento incrementa el monto del documento afectado
+        </div>
+
+    </div>
+
+    <!-- Botones de acción (solo en pantalla) -->
+    <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
+        <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
+            🖨️ Imprimir
+        </button>
+        <a href="javascript:history.back()" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
+            ← Volver
+        </a>
+    </div>
+
+    <script>
+      (function() {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const auto = params.get('auto');
+          const nombreImpresora = "{{ nombre_impresora|default:'' }}";
+
+          if (auto === '1') {
+            setTimeout(() => { 
+              try { 
+                if (nombreImpresora) {
+                  console.log('[PRINT] Impresora configurada:', nombreImpresora);
+                }
+                window.print(); 
+              } catch(e) {} 
+            }, 150);
+            
+            if ('onafterprint' in window) {
+              window.addEventListener('afterprint', () => setTimeout(() => {
+                try { window.close(); } catch(e) {}
+              }, 100));
+            }
+          }
+        } catch (e) {
+          // noop
+        }
+      })();
+    </script>
+
+</body>
+</html>
+

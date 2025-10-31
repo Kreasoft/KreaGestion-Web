@@ -292,6 +292,57 @@ class Empresa(models.Model):
         help_text="Tipo de impresora a usar para imprimir cotizaciones"
     )
     
+    # Nombres físicos de las impresoras (detectadas del sistema)
+    impresora_factura_nombre = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Nombre físico impresora facturas",
+        help_text="Nombre de la impresora física instalada en el sistema"
+    )
+    impresora_boleta_nombre = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Nombre físico impresora boletas",
+        help_text="Nombre de la impresora física instalada en el sistema"
+    )
+    impresora_guia_nombre = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Nombre físico impresora guías",
+        help_text="Nombre de la impresora física instalada en el sistema"
+    )
+    impresora_nota_credito_nombre = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Nombre físico impresora notas crédito",
+        help_text="Nombre de la impresora física instalada en el sistema"
+    )
+    impresora_nota_debito_nombre = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Nombre físico impresora notas débito",
+        help_text="Nombre de la impresora física instalada en el sistema"
+    )
+    impresora_vale_nombre = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Nombre físico impresora vales",
+        help_text="Nombre de la impresora física instalada en el sistema"
+    )
+    impresora_cotizacion_nombre = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Nombre físico impresora cotizaciones",
+        help_text="Nombre de la impresora física instalada en el sistema"
+    )
+    
     # Estado y auditoría
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activa')
     fecha_creacion = models.DateTimeField(auto_now_add=True)

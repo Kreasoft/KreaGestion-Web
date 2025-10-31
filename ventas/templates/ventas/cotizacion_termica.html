@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=80mm">
+    <title>Cotización - {{ cotizacion.numero_cotizacion }}</title>
+
+    {% load format_filters %}
+
+    <style>
+        @page {
+            size: 80mm auto;
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 9pt;
+            line-height: 1.2;
+            color: #000;
+            width: 80mm;
+            margin: 0 auto;
+            padding: 2mm;
+            background: white;
+        }
+
+        .ticket-container {
+            width: 100%;
+        }
+
+        /* Cabecera */
+        .header {
+            text-align: center;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 3mm;
+            margin-bottom: 3mm;
+        }
+
+        .company-logo {
+            max-width: 40mm;
+            max-height: 20mm;
+            margin-bottom: 2mm;
+        }
+
+        .company-name {
+            font-size: 11pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+        }
+
+        .company-info {
+            font-size: 8pt;
+            line-height: 1.3;
+        }
+
+        .company-rut {
+            font-size: 9pt;
+            font-weight: bold;
+            margin: 2mm 0;
+        }
+
+        /* Cuadro del Documento */
+        .document-box {
+            border: 2px solid #6f42c1;
+            padding: 2mm;
+            text-align: center;
+            margin: 3mm 0;
+            background: #f3e5f5;
+        }
+
+        .document-type {
+            font-size: 10pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+            color: #6f42c1;
+        }
+
+        .document-folio {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+            color: #6f42c1;
+        }
+
+        .document-fecha {
+            font-size: 8pt;
+            margin-top: 1mm;
+        }
+
+        /* Datos del Cliente */
+        .cliente-section {
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+            padding: 2mm 0;
+            margin: 2mm 0;
+            font-size: 8pt;
+        }
+
+        .cliente-row {
+            margin-bottom: 1mm;
+            word-wrap: break-word;
+        }
+
+        .cliente-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 25mm;
+        }
+
+        /* Tabla de Productos */
+        .productos-section {
+            margin: 3mm 0;
+            font-size: 8pt;
+        }
+
+        .productos-header {
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            padding-bottom: 1mm;
+            margin-bottom: 2mm;
+            text-align: center;
+        }
+
+        .producto-item {
+            margin-bottom: 2mm;
+            border-bottom: 1px dotted #ccc;
+            padding-bottom: 2mm;
+        }
+
+        .producto-codigo {
+            font-size: 7pt;
+            color: #666;
+        }
+
+        .producto-nombre {
+            font-weight: bold;
+            margin: 1mm 0;
+        }
+
+        .producto-detalle {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8pt;
+        }
+
+        /* Totales */
+        .totales-section {
+            border-top: 2px solid #000;
+            padding-top: 2mm;
+            margin-top: 3mm;
+            font-size: 9pt;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1mm;
+            padding: 1mm 0;
+        }
+
+        .total-label {
+            font-weight: bold;
+        }
+
+        .total-value {
+            text-align: right;
+        }
+
+        .total-final {
+            border-top: 2px solid #000;
+            border-bottom: 2px double #000;
+            font-size: 11pt;
+            font-weight: bold;
+            margin-top: 2mm;
+            padding: 2mm 0;
+            color: #6f42c1;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            font-size: 7pt;
+            color: #666;
+            margin-top: 3mm;
+            padding-top: 2mm;
+            border-top: 1px dashed #000;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                width: 80mm;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+
+            @page {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ticket-container">
+
+        <!-- CABECERA -->
+        <div class="header">
+            {% if cotizacion.empresa.logo %}
+            <img src="{{ cotizacion.empresa.logo.url }}" alt="{{ cotizacion.empresa.nombre }}" class="company-logo">
+            {% endif %}
+
+            <div class="company-name">{{ cotizacion.empresa.nombre }}</div>
+            <div class="company-rut">RUT: {{ cotizacion.empresa.rut }}</div>
+            <div class="company-info">
+                {{ cotizacion.empresa.get_direccion_dte }}<br>
+                {{ cotizacion.empresa.get_ciudad_dte }}<br>
+                Fono: {{ cotizacion.empresa.telefono|default:"Sin teléfono" }}
+            </div>
+        </div>
+
+        <!-- CUADRO DEL DOCUMENTO -->
+        <div class="document-box">
+            <div class="document-type">COTIZACIÓN</div>
+            <div class="document-folio">N° {{ cotizacion.numero_cotizacion }}</div>
+            <div class="document-fecha">
+                {% load l10n %}
+                {{ cotizacion.fecha_emision|date:"d/m/Y" }}
+            </div>
+            {% if cotizacion.fecha_vencimiento %}
+            <div style="font-size: 7pt; margin-top: 1mm; color: #dc3545; font-weight: bold;">
+                Válida hasta: {{ cotizacion.fecha_vencimiento|date:"d/m/Y" }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- DATOS DEL CLIENTE -->
+        <div class="cliente-section">
+            <div class="cliente-row">
+                <span class="cliente-label">Cliente:</span>
+                <span>{{ cotizacion.cliente.nombre|default:"Cliente" }}</span>
+            </div>
+            <div class="cliente-row">
+                <span class="cliente-label">RUT:</span>
+                <span>{{ cotizacion.cliente.rut|default:"-" }}</span>
+            </div>
+            {% if cotizacion.cliente.direccion %}
+            <div class="cliente-row">
+                <span class="cliente-label">Dirección:</span>
+                <span>{{ cotizacion.cliente.direccion }}</span>
+            </div>
+            {% endif %}
+            {% if cotizacion.vendedor %}
+            <div class="cliente-row">
+                <span class="cliente-label">Vendedor:</span>
+                <span>{{ cotizacion.vendedor.nombre }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- DETALLE DE PRODUCTOS -->
+        <div class="productos-section">
+            <div class="productos-header">DETALLE DE PRODUCTOS</div>
+            {% for detalle in detalles %}
+            <div class="producto-item">
+                <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
+                <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
+                <div class="producto-detalle">
+                    <span class="producto-cantidad">{{ detalle.cantidad|floatformat:0 }} x ${{ detalle.precio_unitario|format_miles }}</span>
+                    <span class="producto-precio">${{ detalle.precio_total|format_miles }}</span>
+                </div>
+                {% if detalle.descuento > 0 %}
+                <div style="font-size: 7pt; color: #c00; margin-top: 1mm;">
+                    Descuento: -${{ detalle.descuento|format_miles }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- TOTALES -->
+        <div class="totales-section">
+            <div class="total-row">
+                <span class="total-label">Subtotal:</span>
+                <span class="total-value">${{ cotizacion.subtotal|format_miles }}</span>
+            </div>
+            {% if cotizacion.descuento > 0 %}
+            <div class="total-row">
+                <span class="total-label">Descuento:</span>
+                <span class="total-value">-${{ cotizacion.descuento|format_miles }}</span>
+            </div>
+            {% endif %}
+            <div class="total-row">
+                <span class="total-label">Neto:</span>
+                <span class="total-value">${{ cotizacion.neto|format_miles }}</span>
+            </div>
+            <div class="total-row">
+                <span class="total-label">IVA (19%):</span>
+                <span class="total-value">${{ cotizacion.iva|format_miles }}</span>
+            </div>
+            {% if cotizacion.impuesto_especifico > 0 %}
+            <div class="total-row">
+                <span class="total-label">Impuesto Esp.:</span>
+                <span class="total-value">${{ cotizacion.impuesto_especifico|format_miles }}</span>
+            </div>
+            {% endif %}
+            <div class="total-row total-final">
+                <span class="total-label">TOTAL:</span>
+                <span class="total-value">${{ cotizacion.total|format_miles }}</span>
+            </div>
+        </div>
+
+        <!-- CONDICIONES -->
+        {% if cotizacion.condiciones_pago or cotizacion.observaciones %}
+        <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 2mm 0; margin: 2mm 0; font-size: 7pt;">
+            {% if cotizacion.condiciones_pago %}
+            <div style="margin-bottom: 1mm;">
+                <strong>Condiciones de Pago:</strong><br>
+                {{ cotizacion.condiciones_pago|truncatewords:15 }}
+            </div>
+            {% endif %}
+            {% if cotizacion.observaciones %}
+            <div style="margin-bottom: 1mm;">
+                <strong>Observaciones:</strong><br>
+                {{ cotizacion.observaciones|truncatewords:15 }}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ESTADO -->
+        <div style="text-align: center; padding: 2mm; margin: 2mm 0; background: 
+            {% if cotizacion.estado == 'aprobada' %}#d4edda{% elif cotizacion.estado == 'rechazada' %}#f8d7da{% elif cotizacion.estado == 'convertida' %}#d1ecf1{% else %}#fff3cd{% endif %}; 
+            border: 1px solid 
+            {% if cotizacion.estado == 'aprobada' %}#c3e6cb{% elif cotizacion.estado == 'rechazada' %}#f5c6cb{% elif cotizacion.estado == 'convertida' %}#bee5eb{% else %}#ffeeba{% endif %}; 
+            border-radius: 2mm; font-size: 8pt; font-weight: bold;">
+            ESTADO: {{ cotizacion.get_estado_display|upper }}
+        </div>
+
+        <!-- NOTA IMPORTANTE -->
+        <div style="background: #e7f3ff; border: 1px solid #007bff; padding: 2mm; margin: 2mm 0; font-size: 7pt; border-radius: 2mm; text-align: center;">
+            <strong>IMPORTANTE:</strong><br>
+            Esta cotización NO es un documento tributario<br>
+            Valores sujetos a disponibilidad de stock
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            {{ cotizacion.empresa.nombre }}<br>
+            Impreso: {{ cotizacion.fecha_emision|date:"d/m/Y" }}<br>
+            Gracias por su preferencia
+        </div>
+
+    </div>
+
+    <!-- Botones de acción (solo en pantalla) -->
+    <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
+        <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
+            🖨️ Imprimir
+        </button>
+        <a href="javascript:history.back()" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
+            ← Volver
+        </a>
+    </div>
+
+    <script>
+      (function() {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const auto = params.get('auto');
+          const nombreImpresora = "{{ nombre_impresora|default:'' }}";
+
+          if (auto === '1') {
+            setTimeout(() => { 
+              try { 
+                if (nombreImpresora) {
+                  console.log('[PRINT] Impresora configurada:', nombreImpresora);
+                }
+                window.print(); 
+              } catch(e) {} 
+            }, 150);
+            
+            if ('onafterprint' in window) {
+              window.addEventListener('afterprint', () => setTimeout(() => {
+                try { window.close(); } catch(e) {}
+              }, 100));
+            }
+          }
+        } catch (e) {
+          // noop
+        }
+      })();
+    </script>
+
+</body>
+</html>
+

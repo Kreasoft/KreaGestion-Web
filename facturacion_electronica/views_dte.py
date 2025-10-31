@@ -186,22 +186,83 @@ def ver_factura_electronica(request, dte_id):
         .select_related('articulo', 'articulo__unidad_medida')
     )
     
+    # Obtener configuración de impresora
+    empresa = request.empresa
+    nombre_impresora = None
+    
+    # Seleccionar template según tipo de DTE Y configuración de impresora
+    if dte.tipo_dte in ['33', '34']:  # Facturas
+        tipo_impresora = getattr(empresa, 'impresora_factura', 'laser')
+        nombre_impresora = getattr(empresa, 'impresora_factura_nombre', None)
+        
+        if tipo_impresora == 'termica':
+            template = 'ventas/factura_electronica_termica.html'
+            print(f"[PRINT] DTE Factura {dte.folio} -> Formato TERMICO 80mm")
+        else:
+            template = 'ventas/factura_electronica_html.html'
+            print(f"[PRINT] DTE Factura {dte.folio} -> Formato LASER A4")
+    
+    elif dte.tipo_dte in ['39', '41']:  # Boletas
+        tipo_impresora = getattr(empresa, 'impresora_boleta', 'laser')
+        nombre_impresora = getattr(empresa, 'impresora_boleta_nombre', None)
+        
+        if tipo_impresora == 'termica':
+            template = 'ventas/boleta_electronica_termica.html'
+            print(f"[PRINT] DTE Boleta {dte.folio} -> Formato TERMICO 80mm")
+        else:
+            template = 'ventas/factura_electronica_html.html'
+            print(f"[PRINT] DTE Boleta {dte.folio} -> Formato LASER A4")
+    
+    elif dte.tipo_dte == '52':  # Guía de Despacho
+        tipo_impresora = getattr(empresa, 'impresora_guia', 'laser')
+        nombre_impresora = getattr(empresa, 'impresora_guia_nombre', None)
+        template = 'inventario/guia_despacho_electronica_html.html'
+        print(f"[PRINT] DTE Guia {dte.folio} -> Tipo: {tipo_impresora}")
+    
+    else:
+        template = 'ventas/factura_electronica_html.html'
+    
+    # Log de impresora física
+    if nombre_impresora:
+        print(f"[PRINT] Impresora fisica configurada: {nombre_impresora}")
+    
+    # Obtener formas de pago múltiples (desde MovimientoCaja)
+    formas_pago_list = []
+    try:
+        from caja.models import VentaProcesada, MovimientoCaja
+        
+        # Buscar VentaProcesada para esta venta
+        venta_procesada = VentaProcesada.objects.filter(venta_final=venta).first()
+        
+        if venta_procesada and venta_procesada.apertura_caja:
+            # Obtener todos los movimientos de caja asociados a esta venta
+            movimientos = MovimientoCaja.objects.filter(
+                apertura_caja=venta_procesada.apertura_caja,
+                descripcion__icontains=venta.numero_venta
+            ).select_related('forma_pago')
+            
+            for mov in movimientos:
+                if mov.forma_pago and mov.tipo == 'ingreso':
+                    formas_pago_list.append({
+                        'forma_pago': mov.forma_pago.nombre,
+                        'monto': abs(mov.monto)
+                    })
+            
+            if formas_pago_list:
+                print(f"[PRINT] Formas de pago encontradas: {len(formas_pago_list)}")
+                for fp in formas_pago_list:
+                    print(f"   - {fp['forma_pago']}: ${fp['monto']}")
+    except Exception as e:
+        print(f"[WARN] Error al obtener formas de pago: {str(e)}")
+    
     context = {
         'dte': dte,
         'venta': venta,
         'detalles': detalles,
-        'empresa': request.empresa,
+        'empresa': empresa,
+        'nombre_impresora': nombre_impresora,  # Nombre de impresora física
+        'formas_pago_list': formas_pago_list,  # Lista de formas de pago múltiples
     }
-    
-    # Seleccionar template según tipo de DTE
-    if dte.tipo_dte in ['33', '34']:  # Facturas
-        template = 'ventas/factura_electronica_html.html'
-    elif dte.tipo_dte in ['39', '41']:  # Boletas
-        template = 'ventas/factura_electronica_html.html'  # Usar mismo template
-    elif dte.tipo_dte == '52':  # Guía de Despacho
-        template = 'inventario/guia_despacho_electronica_html.html'
-    else:
-        template = 'ventas/factura_electronica_html.html'
     
     return render(request, template, context)
 
@@ -220,13 +281,31 @@ def ver_notacredito_electronica(request, notacredito_id):
     # Obtener detalles de la nota de crédito
     detalles = nota.items.all()
     
+    # Obtener configuración de impresora
+    empresa = request.empresa
+    tipo_impresora = getattr(empresa, 'impresora_nota_credito', 'laser')
+    nombre_impresora = getattr(empresa, 'impresora_nota_credito_nombre', None)
+    
+    # Seleccionar template según configuración
+    if tipo_impresora == 'termica':
+        template = 'ventas/notacredito_electronica_termica.html'
+        print(f"[PRINT] Nota Credito -> Formato TERMICO 80mm")
+    else:
+        template = 'ventas/notacredito_electronica_html.html'
+        print(f"[PRINT] Nota Credito -> Formato LASER A4")
+    
+    if nombre_impresora:
+        print(f"[PRINT] Impresora fisica configurada: {nombre_impresora}")
+    
     context = {
         'dte': dte,
         'nota': nota,
         'detalles': detalles,
+        'empresa': empresa,
+        'nombre_impresora': nombre_impresora,
     }
     
-    return render(request, 'ventas/notacredito_electronica_html.html', context)
+    return render(request, template, context)
 
 
 @login_required

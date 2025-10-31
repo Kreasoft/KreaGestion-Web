@@ -425,6 +425,12 @@
                             <span class="total-label">IVA (19%)</span>
                             <span class="total-value">${{ venta.iva|format_miles }}</span>
                         </div>
+                        {% if venta.impuesto_especifico > 0 %}
+                        <div class="total-row">
+                            <span class="total-label">Impuesto Esp.</span>
+                            <span class="total-value">${{ venta.impuesto_especifico|format_miles }}</span>
+                        </div>
+                        {% endif %}
                         <div class="total-row">
                             <span class="total-label">TOTAL</span>
                             <span class="total-value">${{ venta.total|format_miles }}</span>
@@ -433,13 +439,38 @@
                 </div>
 
                 <!-- INFORMACIÓN DE PAGO -->
-                {% if venta.forma_pago %}
+                {% if formas_pago_list %}
+                <div class="payment-info">
+                    <div class="payment-title">Formas de Pago:</div>
+                    {% for fp in formas_pago_list %}
+                    <div class="payment-method">{{ fp.forma_pago }}: ${{ fp.monto|format_miles }}</div>
+                    {% endfor %}
+                </div>
+                {% elif venta.forma_pago %}
                 <div class="payment-info">
                     <div class="payment-title">Forma de Pago:</div>
                     <div class="payment-method">{{ venta.forma_pago.nombre }}</div>
                     {% if venta.forma_pago.es_cuenta_corriente and venta.saldo_pendiente > 0 %}
                     <div class="payment-balance">Saldo Pendiente: ${{ venta.saldo_pendiente|floatformat:"0" }}</div>
                     {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- REFERENCIAS -->
+                {% if venta.referencias.exists %}
+                <div style="background: #f9f9f9; padding: 6px; margin-bottom: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    <div style="font-weight: bold; font-size: 8pt; margin-bottom: 3px; text-align: center; background: #d0d0d0; padding: 3px; border-radius: 3px;">
+                        REFERENCIAS
+                    </div>
+                    {% for ref in venta.referencias.all %}
+                    <div style="font-size: 7pt; margin-bottom: 3px; padding: 3px; background: white; border: 1px solid #e0e0e0; border-radius: 2px;">
+                        <div><strong>Tipo:</strong> {{ ref.get_tipo_referencia_display }}</div>
+                        <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d/m/Y" }}</div>
+                        {% if ref.razon_referencia %}
+                        <div style="font-size: 6pt; color: #666; margin-top: 1px;"><strong>Razón:</strong> {{ ref.razon_referencia|truncatewords:15 }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
                 </div>
                 {% endif %}
             </div>

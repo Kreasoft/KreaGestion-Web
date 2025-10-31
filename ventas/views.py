@@ -853,22 +853,37 @@ def pos_seleccion_estacion(request):
 @requiere_empresa
 def pos_iniciar(request):
     """Iniciar POS con estación y vendedor seleccionados"""
+    print("[DEBUG] ==================== POS INICIAR ====================")
+    print(f"[DEBUG] Metodo: {request.method}")
+    print(f"[DEBUG] Usuario: {request.user}")
+    print(f"[DEBUG] Empresa: {request.empresa}")
+    
     if request.method == 'POST':
         estacion_id = request.POST.get('estacion_id')
         vendedor_id = request.POST.get('vendedor_id')
         
+        print(f"[DEBUG] POST - Estacion ID: {estacion_id}")
+        print(f"[DEBUG] POST - Vendedor ID: {vendedor_id}")
+        
         if not estacion_id or not vendedor_id:
+            print("[ERROR] Estacion o vendedor no proporcionados")
             return JsonResponse({'success': False, 'message': 'Debe seleccionar estación y vendedor'})
         
         try:
             estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa, activo=True)
             vendedor = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa, activo=True)
             
+            print(f"[DEBUG] Estacion encontrada: {estacion.nombre}")
+            print(f"[DEBUG] Vendedor encontrado: {vendedor.nombre}")
+            
             # Guardar en sesión
             request.session['pos_estacion_id'] = estacion.id
             request.session['pos_vendedor_id'] = vendedor.id
             request.session['pos_estacion_nombre'] = estacion.nombre
             request.session['pos_vendedor_nombre'] = vendedor.nombre
+            
+            print(f"[DEBUG] Guardado en sesion - Estacion ID: {request.session.get('pos_estacion_id')}")
+            print(f"[DEBUG] Guardado en sesion - Vendedor ID: {request.session.get('pos_vendedor_id')}")
             # Configuración desde Estación de Trabajo
             # - cierre_directo: activa el modo Cerrar y Emitir
             # - flujo_cierre_directo: 'rut_inicio' o 'rut_final'
@@ -876,6 +891,12 @@ def pos_iniciar(request):
             request.session['pos_cierre_directo'] = bool(getattr(estacion, 'cierre_directo', False))
             request.session['pos_flujo_directo'] = getattr(estacion, 'flujo_cierre_directo', 'rut_final')
             request.session['pos_enviar_sii_directo'] = bool(getattr(estacion, 'enviar_sii_directo', True))
+            
+            # FORZAR GUARDADO DE SESION (para evitar problemas de persistencia)
+            request.session.modified = True
+            request.session.save()
+            print("[OK] Sesion guardada exitosamente")
+            print(f"[DEBUG] Session Key: {request.session.session_key}")
             
             return JsonResponse({
                 'success': True, 
@@ -893,17 +914,73 @@ def pos_iniciar(request):
 @requiere_empresa
 def pos_session_info(request):
     """Obtener información de la sesión del POS"""
+    print("[DEBUG] ==================== POS SESSION INFO ====================")
+    print(f"[DEBUG] Usuario: {request.user}")
+    print(f"[DEBUG] Empresa: {request.empresa}")
+    
     estacion_id = request.session.get('pos_estacion_id')
     vendedor_id = request.session.get('pos_vendedor_id')
     estacion_nombre = request.session.get('pos_estacion_nombre')
     vendedor_nombre = request.session.get('pos_vendedor_nombre')
     
+    print(f"[DEBUG] Estacion ID en sesion: {estacion_id}")
+    print(f"[DEBUG] Vendedor ID en sesion: {vendedor_id}")
+    print(f"[DEBUG] Estacion Nombre en sesion: {estacion_nombre}")
+    print(f"[DEBUG] Vendedor Nombre en sesion: {vendedor_nombre}")
+    
     if not estacion_id or not vendedor_id:
+        print("[ERROR] Sesion POS no encontrada - Redirigiendo a seleccion")
         return JsonResponse({'success': False, 'message': 'Sesión no encontrada'})
     
     try:
+        print(f"[DEBUG] Buscando estacion ID={estacion_id} y vendedor ID={vendedor_id}")
         estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa, activo=True)
         vendedor = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa, activo=True)
+        print(f"[OK] Estacion y vendedor encontrados: {estacion.nombre}, {vendedor.nombre}")
+        
+        # Obtener folios disponibles reales desde la base de datos
+        from facturacion_electronica.models import CAF
+        from django.utils import timezone
+        
+        folios_factura = 0
+        folios_boleta = 0
+        folios_guia = 0
+        
+        try:
+            # Facturas (tipo 33)
+            caf_factura = CAF.objects.filter(
+                empresa=request.empresa,
+                tipo_documento='33',
+                estado='activo',
+                fecha_vencimiento__gte=timezone.now().date()
+            ).first()
+            if caf_factura:
+                folios_factura = caf_factura.hasta - caf_factura.folio_actual + 1
+            
+            # Boletas (tipo 39)
+            caf_boleta = CAF.objects.filter(
+                empresa=request.empresa,
+                tipo_documento='39',
+                estado='activo',
+                fecha_vencimiento__gte=timezone.now().date()
+            ).first()
+            if caf_boleta:
+                folios_boleta = caf_boleta.hasta - caf_boleta.folio_actual + 1
+            
+            # Guías (tipo 52)
+            caf_guia = CAF.objects.filter(
+                empresa=request.empresa,
+                tipo_documento='52',
+                estado='activo',
+                fecha_vencimiento__gte=timezone.now().date()
+            ).first()
+            if caf_guia:
+                folios_guia = caf_guia.hasta - caf_guia.folio_actual + 1
+        except Exception as e:
+            print(f"[WARN] Error al obtener folios disponibles: {e}")
+        
+        print(f"[DEBUG] Folios disponibles - Factura: {folios_factura}, Boleta: {folios_boleta}, Guia: {folios_guia}")
+        print("[OK] Sesion POS valida - Devolviendo datos al frontend")
         
         return JsonResponse({
             'success': True,
@@ -916,18 +993,22 @@ def pos_session_info(request):
                 'numero': estacion.numero,
                 'nombre': estacion.nombre,
                 'tipos_documentos': estacion.get_tipos_documentos_permitidos(),
-                            'correlativo_ticket': estacion.correlativo_ticket,
+                'correlativo_ticket': estacion.correlativo_ticket,
                 'max_items': {
                     'factura': estacion.max_items_factura,
                     'boleta': estacion.max_items_boleta,
                     'guia': estacion.max_items_guia,
                     'cotizacion': estacion.max_items_cotizacion,
                     'vale': estacion.max_items_vale,
-                }
+                },
+                'folios_factura': folios_factura,
+                'folios_boleta': folios_boleta,
+                'folios_guia': folios_guia,
             }
         })
         
-    except (EstacionTrabajo.DoesNotExist, Vendedor.DoesNotExist):
+    except (EstacionTrabajo.DoesNotExist, Vendedor.DoesNotExist) as e:
+        print(f"[ERROR] Estacion o vendedor no encontrados: {e}")
         return JsonResponse({'success': False, 'message': 'Estación o vendedor no válidos'})
 
 
@@ -1437,7 +1518,7 @@ def pos_procesar_preventa(request):
                             if data['tipo_documento'] in ['factura', 'boleta', 'guia']:
                                 try:
                                     from facturacion_electronica.dte_service import DTEService
-                                    from facturacion_electronica.models import DocumentoTributarioElectronico
+                                    from facturacion_electronica.models import DocumentoTributarioElectronico, CAF
                                     
                                     print(f"[CIERRE DIRECTO] Verificando si ya existe DTE para ticket {ticket_vale.id}...")
                                     
@@ -1448,6 +1529,27 @@ def pos_procesar_preventa(request):
                                         'guia': '52',     # Guía de Despacho Electrónica
                                     }
                                     tipo_dte_codigo = tipo_dte_map.get(data['tipo_documento'], '39')
+                                    
+                                    # VALIDAR FOLIOS DISPONIBLES ANTES DE CONTINUAR
+                                    print(f"[VALIDACION] Verificando folios disponibles para tipo DTE {tipo_dte_codigo}...")
+                                    caf_disponible = CAF.objects.filter(
+                                        empresa=request.empresa,
+                                        tipo_documento=tipo_dte_codigo,
+                                        estado='activo'
+                                    ).first()
+                                    
+                                    if not caf_disponible:
+                                        nombres_doc = {'33': 'Facturas', '39': 'Boletas', '52': 'Guías de Despacho'}
+                                        nombre_doc = nombres_doc.get(tipo_dte_codigo, 'Documentos')
+                                        
+                                        print(f"[ERROR] NO HAY FOLIOS DISPONIBLES para {nombre_doc}")
+                                        return JsonResponse({
+                                            'success': False,
+                                            'error': 'sin_folios',
+                                            'message': f'No hay folios disponibles para emitir {nombre_doc}',
+                                            'detalle': f'Debe cargar un archivo CAF activo para {nombre_doc} en Facturación Electrónica → Gestión de CAF',
+                                            'tipo_documento': data['tipo_documento']
+                                        }, status=400)
                                     
                                     # Verificar si ya existe un DTE para este ticket
                                     # Buscar por VentaProcesada asociada al ticket
@@ -2314,12 +2416,30 @@ def cotizacion_html(request, pk):
     
     detalles = VentaDetalle.objects.filter(venta=cotizacion).select_related('articulo')
     
+    # Obtener configuración de impresora
+    empresa = cotizacion.empresa
+    tipo_impresora = getattr(empresa, 'impresora_cotizacion', 'laser')
+    nombre_impresora = getattr(empresa, 'impresora_cotizacion_nombre', None)
+    
+    # Seleccionar template según configuración
+    if tipo_impresora == 'termica':
+        template = 'ventas/cotizacion_termica.html'
+        print(f"[PRINT] Cotizacion -> Formato TERMICO 80mm")
+    else:
+        template = 'ventas/cotizacion_html.html'
+        print(f"[PRINT] Cotizacion -> Formato LASER A4")
+    
+    if nombre_impresora:
+        print(f"[PRINT] Impresora fisica configurada: {nombre_impresora}")
+    
     context = {
         'cotizacion': cotizacion,
         'detalles': detalles,
+        'empresa': empresa,
+        'nombre_impresora': nombre_impresora,
     }
     
-    return render(request, 'ventas/cotizacion_html.html', context)
+    return render(request, template, context)
 
 
 @login_required
@@ -2373,31 +2493,126 @@ def venta_html(request, pk):
             print(f"[WARN] Error al buscar DTE: {str(e)}")
             pass
     
-    # Determinar el template según el tipo de documento
-    # USAR SIEMPRE EL NUEVO FORMATO ULTRA-COMPACTO PARA FACTURAS Y BOLETAS ELECTRÓNICAS
+    # Determinar el template según el tipo de documento Y tipo de impresora configurado
+    empresa = venta.empresa
+    
+    # Obtener nombre de impresora física configurada (para pasarlo al template)
+    nombre_impresora = None
+    
     if venta.tipo_documento == 'factura':
-        template_name = 'ventas/factura_electronica_html.html'
-    elif venta.tipo_documento == 'boleta':
-        # Usar template electrónico si tiene DTE, sino el normal
-        if dte:
-            template_name = 'ventas/factura_electronica_html.html'
+        # Verificar si usa impresora térmica o láser
+        tipo_impresora = getattr(empresa, 'impresora_factura', 'laser')
+        nombre_impresora = getattr(empresa, 'impresora_factura_nombre', None)
+        
+        if tipo_impresora == 'termica':
+            template_name = 'ventas/factura_electronica_termica.html'
+            print(f"[PRINT] Factura -> Formato TERMICO 80mm")
         else:
+            template_name = 'ventas/factura_electronica_html.html'
+            print(f"[PRINT] Factura -> Formato LASER A4")
+    
+    elif venta.tipo_documento == 'boleta':
+        # Verificar si usa impresora térmica o láser
+        tipo_impresora = getattr(empresa, 'impresora_boleta', 'laser')
+        nombre_impresora = getattr(empresa, 'impresora_boleta_nombre', None)
+        
+        if dte:  # Si tiene DTE, usar templates electrónicos
+            if tipo_impresora == 'termica':
+                template_name = 'ventas/boleta_electronica_termica.html'
+                print(f"[PRINT] Boleta Electronica -> Formato TERMICO 80mm")
+            else:
+                template_name = 'ventas/factura_electronica_html.html'  # Usa el mismo que factura en A4
+                print(f"[PRINT] Boleta Electronica -> Formato LASER A4")
+        else:
+            # Boleta sin DTE (boleta manual)
             template_name = 'ventas/boleta_html.html'
+            print(f"[PRINT] Boleta Manual -> Formato estandar")
+    
     elif venta.tipo_documento == 'guia':
-        # Las guías usan el mismo formato que las de transferencias
-        template_name = 'inventario/guia_despacho_html.html'
+        # Guías de despacho electrónicas
+        tipo_impresora = getattr(empresa, 'impresora_guia', 'laser')
+        nombre_impresora = getattr(empresa, 'impresora_guia_nombre', None)
+        
+        if dte:  # Guía electrónica con DTE
+            if tipo_impresora == 'termica':
+                template_name = 'inventario/guia_despacho_electronica_termica.html'
+                print(f"[PRINT] Guia Electronica -> Formato TERMICO 80mm")
+            else:
+                template_name = 'inventario/guia_despacho_electronica_html.html'
+                print(f"[PRINT] Guia Electronica -> Formato LASER A4")
+        else:
+            # Guía manual sin DTE
+            template_name = 'inventario/guia_despacho_html.html'
+            print(f"[PRINT] Guia Manual -> Formato estandar")
+    
     else:
-        tipo_templates = {
-            'vale': 'ventas/vale_html.html',
-            'cotizacion': 'ventas/cotizacion_html.html',
-        }
-        template_name = tipo_templates.get(venta.tipo_documento, 'ventas/boleta_html.html')
+        # Otros documentos (vale, cotización, NC, ND)
+        # Obtener impresora configurada según tipo
+        if venta.tipo_documento == 'vale':
+            tipo_impresora = getattr(empresa, 'impresora_vale', 'laser')
+            nombre_impresora = getattr(empresa, 'impresora_vale_nombre', None)
+            
+            if tipo_impresora == 'termica':
+                template_name = 'ventas/vale_termica.html'
+                print(f"[PRINT] Vale -> Formato TERMICO 80mm")
+            else:
+                template_name = 'ventas/vale_html.html'
+                print(f"[PRINT] Vale -> Formato LASER A4")
+                
+        elif venta.tipo_documento == 'cotizacion':
+            tipo_impresora = getattr(empresa, 'impresora_cotizacion', 'laser')
+            nombre_impresora = getattr(empresa, 'impresora_cotizacion_nombre', None)
+            
+            if tipo_impresora == 'termica':
+                template_name = 'ventas/cotizacion_termica.html'
+                print(f"[PRINT] Cotizacion -> Formato TERMICO 80mm")
+            else:
+                template_name = 'ventas/cotizacion_html.html'
+                print(f"[PRINT] Cotizacion -> Formato LASER A4")
+        else:
+            # Default para otros tipos
+            template_name = 'ventas/boleta_html.html'
+    
+    # Log de impresora física
+    if nombre_impresora:
+        print(f"[PRINT] Impresora fisica configurada: {nombre_impresora}")
+    
+    # Obtener formas de pago múltiples (desde MovimientoCaja)
+    formas_pago_list = []
+    try:
+        from caja.models import VentaProcesada, MovimientoCaja
+        
+        # Buscar VentaProcesada para esta venta
+        venta_procesada = VentaProcesada.objects.filter(venta_final=venta).first()
+        
+        if venta_procesada and venta_procesada.apertura_caja:
+            # Obtener todos los movimientos de caja asociados a esta venta
+            movimientos = MovimientoCaja.objects.filter(
+                apertura_caja=venta_procesada.apertura_caja,
+                descripcion__icontains=venta.numero_venta
+            ).select_related('forma_pago')
+            
+            for mov in movimientos:
+                if mov.forma_pago and mov.tipo == 'ingreso':
+                    formas_pago_list.append({
+                        'forma_pago': mov.forma_pago.nombre,
+                        'monto': abs(mov.monto)
+                    })
+            
+            if formas_pago_list:
+                print(f"[PRINT] Formas de pago encontradas: {len(formas_pago_list)}")
+                for fp in formas_pago_list:
+                    print(f"   - {fp['forma_pago']}: ${fp['monto']}")
+    except Exception as e:
+        print(f"[WARN] Error al obtener formas de pago: {str(e)}")
     
     context = {
         'venta': venta,
         'detalles': detalles,
-        'empresa': venta.empresa,  # Asegurar que empresa siempre esté en el contexto
+        'empresa': empresa,
         'dte': dte,  # DTE si existe (puede ser None)
+        'nombre_impresora': nombre_impresora,  # Nombre de impresora física
+        'formas_pago_list': formas_pago_list,  # Lista de formas de pago múltiples
         # Alias para compatibilidad con templates específicos
         'boleta': venta if venta.tipo_documento == 'boleta' else None,
         'factura': venta if venta.tipo_documento == 'factura' else None,

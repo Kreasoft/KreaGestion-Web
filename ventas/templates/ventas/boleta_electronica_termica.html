@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=80mm">
+    <title>Boleta Electrónica - {{ dte.folio|default:venta.numero_venta }}</title>
+
+    {% load format_filters %}
+
+    <style>
+        @page {
+            size: 80mm auto;
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 9pt;
+            line-height: 1.2;
+            color: #000;
+            width: 80mm;
+            margin: 0 auto;
+            padding: 2mm;
+            background: white;
+        }
+
+        .ticket-container {
+            width: 100%;
+        }
+
+        /* Cabecera */
+        .header {
+            text-align: center;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 3mm;
+            margin-bottom: 3mm;
+        }
+
+        .company-logo {
+            max-width: 40mm;
+            max-height: 20mm;
+            margin-bottom: 2mm;
+        }
+
+        .company-name {
+            font-size: 11pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+        }
+
+        .company-info {
+            font-size: 8pt;
+            line-height: 1.3;
+        }
+
+        .company-rut {
+            font-size: 9pt;
+            font-weight: bold;
+            margin: 2mm 0;
+        }
+
+        /* Cuadro del Documento */
+        .document-box {
+            border: 2px solid #000;
+            padding: 2mm;
+            text-align: center;
+            margin: 3mm 0;
+            background: #fff;
+        }
+
+        .document-type {
+            font-size: 10pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+        }
+
+        .document-folio {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+        }
+
+        .document-fecha {
+            font-size: 8pt;
+            margin-top: 1mm;
+        }
+
+        /* Datos del Cliente (más simple para boletas) */
+        .cliente-section {
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+            padding: 2mm 0;
+            margin: 2mm 0;
+            font-size: 8pt;
+            text-align: center;
+        }
+
+        /* Tabla de Productos */
+        .productos-section {
+            margin: 3mm 0;
+            font-size: 8pt;
+        }
+
+        .productos-header {
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            padding-bottom: 1mm;
+            margin-bottom: 2mm;
+            text-align: center;
+        }
+
+        .producto-item {
+            margin-bottom: 2mm;
+            border-bottom: 1px dotted #ccc;
+            padding-bottom: 2mm;
+        }
+
+        .producto-codigo {
+            font-size: 7pt;
+            color: #666;
+        }
+
+        .producto-nombre {
+            font-weight: bold;
+            margin: 1mm 0;
+        }
+
+        .producto-detalle {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8pt;
+        }
+
+        .producto-cantidad {
+            text-align: left;
+        }
+
+        .producto-precio {
+            text-align: right;
+        }
+
+        /* Totales */
+        .totales-section {
+            border-top: 2px solid #000;
+            padding-top: 2mm;
+            margin-top: 3mm;
+            font-size: 9pt;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1mm;
+            padding: 1mm 0;
+        }
+
+        .total-label {
+            font-weight: bold;
+        }
+
+        .total-value {
+            text-align: right;
+        }
+
+        .total-final {
+            border-top: 2px solid #000;
+            border-bottom: 2px double #000;
+            font-size: 11pt;
+            font-weight: bold;
+            margin-top: 2mm;
+            padding: 2mm 0;
+        }
+
+        /* Timbre */
+        .timbre-section {
+            text-align: center;
+            margin: 3mm 0;
+            border: 1px solid #000;
+            padding: 2mm;
+        }
+
+        .timbre-img {
+            max-width: 60mm;
+            height: auto;
+            margin: 2mm 0;
+        }
+
+        .timbre-info {
+            font-size: 7pt;
+            line-height: 1.3;
+            margin-top: 2mm;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            font-size: 7pt;
+            color: #666;
+            margin-top: 3mm;
+            padding-top: 2mm;
+            border-top: 1px dashed #000;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                width: 80mm;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+
+            @page {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ticket-container">
+
+        <!-- CABECERA -->
+        <div class="header">
+            {% if venta.empresa.logo %}
+            <img src="{{ venta.empresa.logo.url }}" alt="{{ venta.empresa.nombre }}" class="company-logo">
+            {% endif %}
+
+            <div class="company-name">{{ venta.empresa.nombre }}</div>
+            <div class="company-rut">RUT: {{ venta.empresa.rut }}</div>
+            <div class="company-info">
+                {{ venta.empresa.get_direccion_dte }}<br>
+                {{ venta.empresa.get_ciudad_dte }}<br>
+                Fono: {{ venta.empresa.telefono|default:"Sin teléfono" }}
+            </div>
+        </div>
+
+        <!-- CUADRO DEL DOCUMENTO -->
+        <div class="document-box">
+            <div class="document-type">BOLETA ELECTRÓNICA</div>
+            <div class="document-folio">
+                {% if dte and dte.folio %}
+                    N° {{ dte.folio }}
+                {% else %}
+                    N° {{ venta.numero_venta }}
+                {% endif %}
+            </div>
+            <div class="document-fecha">
+                {% load l10n %}
+                {{ venta.fecha_creacion|date:"d/m/Y H:i" }}
+            </div>
+            <div style="font-size: 7pt; margin-top: 1mm;">
+                SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}
+            </div>
+        </div>
+
+        <!-- DATOS DEL CLIENTE (Simple para boletas) -->
+        {% if venta.cliente.nombre and venta.cliente.nombre != "Cliente General" %}
+        <div class="cliente-section">
+            <strong>Cliente:</strong> {{ venta.cliente.nombre }}<br>
+            {% if venta.cliente.rut %}
+            <strong>RUT:</strong> {{ venta.cliente.rut }}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- DETALLE DE PRODUCTOS -->
+        <div class="productos-section">
+            <div class="productos-header">DETALLE DE PRODUCTOS</div>
+            {% for detalle in detalles %}
+            <div class="producto-item">
+                <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
+                <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
+                <div class="producto-detalle">
+                    <span class="producto-cantidad">{{ detalle.cantidad|floatformat:0 }} x ${{ detalle.precio_unitario|format_miles }}</span>
+                    <span class="producto-precio">${{ detalle.precio_total|format_miles }}</span>
+                </div>
+                {% if detalle.descuento > 0 %}
+                <div style="font-size: 7pt; color: #c00; margin-top: 1mm;">
+                    Descuento: -${{ detalle.descuento|format_miles }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- TOTALES -->
+        <div class="totales-section">
+            <div class="total-row">
+                <span class="total-label">Subtotal:</span>
+                <span class="total-value">${{ venta.subtotal|format_miles }}</span>
+            </div>
+            {% if venta.descuento > 0 %}
+            <div class="total-row">
+                <span class="total-label">Descuento:</span>
+                <span class="total-value">-${{ venta.descuento|format_miles }}</span>
+            </div>
+            {% endif %}
+            <div class="total-row">
+                <span class="total-label">Neto:</span>
+                <span class="total-value">${{ venta.neto|format_miles }}</span>
+            </div>
+            <div class="total-row">
+                <span class="total-label">IVA (19%):</span>
+                <span class="total-value">${{ venta.iva|format_miles }}</span>
+            </div>
+            {% if venta.impuesto_especifico > 0 %}
+            <div class="total-row">
+                <span class="total-label">Impuesto Esp.:</span>
+                <span class="total-value">${{ venta.impuesto_especifico|format_miles }}</span>
+            </div>
+            {% endif %}
+            <div class="total-row total-final">
+                <span class="total-label">TOTAL:</span>
+                <span class="total-value">${{ venta.total|format_miles }}</span>
+            </div>
+        </div>
+
+        <!-- FORMAS DE PAGO -->
+        {% if formas_pago_list %}
+        <div style="border-top: 1px dashed #000; padding-top: 2mm; margin: 2mm 0;">
+            <div style="text-align: center; font-weight: bold; font-size: 8pt; margin-bottom: 1mm;">FORMAS DE PAGO</div>
+            {% for fp in formas_pago_list %}
+            <div style="display: flex; justify-content: space-between; font-size: 8pt; margin-bottom: 1mm;">
+                <span>{{ fp.forma_pago }}</span>
+                <span style="font-weight: bold;">${{ fp.monto|format_miles }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% elif venta.forma_pago %}
+        <div style="text-align: center; font-size: 8pt; margin: 2mm 0;">
+            <strong>Forma de Pago:</strong> {{ venta.forma_pago.nombre }}
+        </div>
+        {% endif %}
+
+        <!-- REFERENCIAS -->
+        {% if venta.referencias.exists %}
+        <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 2mm 0; margin: 2mm 0;">
+            <div style="text-align: center; font-weight: bold; font-size: 8pt; margin-bottom: 1mm;">REFERENCIAS</div>
+            {% for ref in venta.referencias.all %}
+            <div style="font-size: 7pt; margin-bottom: 1mm; padding: 1mm; background: #f5f5f5; border-radius: 2mm;">
+                <div><strong>Tipo:</strong> {{ ref.get_tipo_referencia_display }}</div>
+                <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d/m/Y" }}</div>
+                {% if ref.razon_referencia %}
+                <div style="font-size: 6pt; color: #666;"><strong>Razón:</strong> {{ ref.razon_referencia|truncatewords:10 }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- TIMBRE ELECTRÓNICO -->
+        <div class="timbre-section">
+            {% if dte and dte.timbre_pdf417 %}
+                <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico" class="timbre-img">
+            {% elif dte and dte.folio %}
+                <div style="padding: 5mm; background: #f5f5f5;">
+                    <div style="font-size: 8pt; font-weight: bold;">TIMBRE ELECTRÓNICO SII</div>
+                    <div style="font-size: 7pt; color: #666;">Folio: {{ dte.folio }}</div>
+                </div>
+            {% else %}
+                <div style="padding: 5mm; background: #fff8dc;">
+                    <div style="font-size: 8pt; font-weight: bold; color: #ff8c00;">DOCUMENTO NO ELECTRÓNICO</div>
+                    <div style="font-size: 7pt; color: #666;">N° Venta: {{ venta.numero_venta }}</div>
+                </div>
+            {% endif %}
+            <div class="timbre-info">
+                <strong>Timbre Electrónico SII</strong><br>
+                Res. Ex. SII N° {{ venta.empresa.resolucion_numero|default:"80" }}<br>
+                del {{ venta.empresa.resolucion_fecha|date:"d-m-Y"|default:"22-08-2014" }}<br>
+                Verifique en: www.sii.cl
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            {{ venta.empresa.nombre }}<br>
+            Impreso: {{ venta.fecha_creacion|date:"d/m/Y H:i" }}<br>
+            Gracias por su compra
+        </div>
+
+    </div>
+
+    <!-- Botones de acción (solo en pantalla) -->
+    <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
+        <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
+            🖨️ Imprimir
+        </button>
+        <a id="btnBackPOS" href="{% url 'ventas:pos_view' %}" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
+            ← Volver
+        </a>
+    </div>
+
+    <script>
+      (function() {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const auto = params.get('auto');
+          const posUrl = "{% url 'ventas:pos_view' %}";
+          const nombreImpresora = "{{ nombre_impresora|default:'' }}";
+
+          const notifyParent = () => {
+            try {
+              if (window.opener && window.opener !== window) {
+                window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
+              }
+            } catch (e) { /* noop */ }
+            try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
+          };
+
+          document.addEventListener('DOMContentLoaded', function() {
+            try {
+              const backBtn = document.getElementById('btnBackPOS');
+              if (backBtn) backBtn.addEventListener('click', function() { try { notifyParent(); } catch (e) {} });
+            } catch (e) { /* noop */ }
+          });
+
+          if (auto === '1') {
+            setTimeout(() => { 
+              try { 
+                // Si hay nombre de impresora específico, intentar usarlo (requiere extensión o API)
+                if (nombreImpresora) {
+                  console.log('[PRINT] Impresora configurada:', nombreImpresora);
+                  // Aquí podrías integrar con APIs de impresión específicas
+                }
+                window.print(); 
+              } catch(e) {} 
+            }, 150);
+            
+            if ('onafterprint' in window) {
+              window.addEventListener('afterprint', () => setTimeout(notifyParent, 100));
+            }
+            setTimeout(notifyParent, 1000);
+          }
+        } catch (e) {
+          // noop
+        }
+      })();
+    </script>
+
+</body>
+</html>
+
