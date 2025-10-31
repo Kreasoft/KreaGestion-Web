@@ -215,7 +215,7 @@ class DTEXMLGenerator:
                 etree.SubElement(transporte, "RUTTransp").text = rut_transp
         except Exception as e:
             # No romper el flujo si falla: solo loguear.
-            print(f"⚠️  Error al generar sección Transporte: {e}")
+            print(f"[WARN] Error al generar seccion Transporte: {e}")
     
     def _generar_emisor(self, encabezado):
         """Genera datos del emisor"""

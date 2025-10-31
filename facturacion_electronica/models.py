@@ -145,8 +145,10 @@ class ArchivoCAF(models.Model):
         return f"CAF {self.get_tipo_documento_display()} ({self.folio_desde}-{self.folio_hasta})"
     
     def folios_disponibles(self):
-        """Retorna la cantidad de folios disponibles"""
-        return self.cantidad_folios - self.folios_utilizados
+        """Cantidad de folios disponibles calculada dinámicamente.
+        Usa la diferencia entre folio_hasta y folio_actual para evitar falsos 0
+        cuando folios_utilizados aún no refleja el consumo en curso."""
+        return max(0, self.folio_hasta - self.folio_actual)
     
     def porcentaje_uso(self):
         """Retorna el porcentaje de uso del CAF"""
@@ -293,6 +295,30 @@ class DocumentoTributarioElectronico(models.Model):
         on_delete=models.PROTECT,
         related_name='dtes',
         verbose_name="CAF Utilizado"
+    )
+    vendedor = models.ForeignKey(
+        'ventas.Vendedor',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dtes_vendedor',
+        verbose_name="Vendedor Responsable"
+    )
+    vehiculo = models.ForeignKey(
+        'pedidos.Vehiculo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dtes_vehiculo',
+        verbose_name="Vehículo Asignado"
+    )
+    chofer = models.ForeignKey(
+        'pedidos.Chofer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dtes_chofer',
+        verbose_name="Chofer Asignado"
     )
     
     # IDENTIFICACIÓN DEL DOCUMENTO

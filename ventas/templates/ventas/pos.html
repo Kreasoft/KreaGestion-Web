@@ -392,8 +392,10 @@
     .pos-cart-items {
         flex: 1;
         overflow-y: auto;
-        overflow-x: auto;
-            padding: 0;
+        overflow-x: hidden;
+        padding: 0;
+        min-height: 0; /* Fix para flex + scroll */
+        max-height: calc(100vh - 450px); /* Altura máxima para forzar scroll */
     }
     
     .pos-cart-item {
@@ -860,6 +862,12 @@
                 
                 <!-- Panel de totales compacto -->
                 <div class="pos-totals-panel">
+                    {% if max_descuento_total > 0 %}
+                    <div class="totals-row">
+                        <span class="totals-label">Descuento Total (%)</span>
+                        <input type="number" id="descuento-total-input" class="form-control form-control-sm" style="width: 80px; text-align: right;" min="0" max="{{ max_descuento_total|unlocalize }}" step="0.01">
+                    </div>
+                    {% endif %}
                     <div class="totals-row">
                         <span class="totals-label">Subtotal:</span>
                         <span class="totals-value" id="subtotal">$0</span>
@@ -1042,13 +1050,30 @@ function updateCartDisplay() {
              <span>${item.cantidad}</span>
              <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>`;
         
+        const maxDescuentoLineal = parseFloat("{{ max_descuento_lineal|unlocalize|default:0 }}");
+        let descuentoLinealInput = '';
+        if (maxDescuentoLineal > 0) {
+            descuentoLinealInput = `
+                <input type="number" 
+                       class="form-control form-control-sm descuento-lineal-input" 
+                       style="width: 60px; text-align: right;" 
+                       min="0" 
+                       max="${maxDescuentoLineal}" 
+                       step="0.01" 
+                       value="${item.descuento}" 
+                       onchange="aplicarDescuentoLineal(${index}, this.value)">
+            `;
+        } else {
+            descuentoLinealInput = `${item.descuento}%`;
+        }
+
         itemDiv.innerHTML = `
             <div class="cart-item-name">${item.nombre}${isFromKit ? ' <span style="font-size: 0.7rem; color: #C8A882;">🎁</span>' : ''}</div>
             <div class="cart-item-price">$${formatChileanNumber(item.precio)}</div>
             <div class="cart-item-qty">
                 ${qtyButtons}
             </div>
-            <div class="cart-item-discount">${item.descuento}%</div>
+            <div class="cart-item-discount">${descuentoLinealInput}</div>
             <div class="cart-item-total">$${formatChileanNumber(item.total)}</div>
             <div class="cart-item-actions">
                 <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${index})" title="Eliminar">
@@ -1059,7 +1084,54 @@ function updateCartDisplay() {
         cartContainer.appendChild(itemDiv);
     });
     
-    // Actualizar totales después de mostrar items
+    // Scroll automático al último item agregado
+    setTimeout(() => {
+        cartContainer.scrollTop = cartContainer.scrollHeight;
+    }, 50);
+    
+        // Actualizar totales después de mostrar items
+    updateTotals();
+
+    // Añadir listener para el descuento total si existe
+    const descuentoTotalInput = document.getElementById('descuento-total-input');
+    if (descuentoTotalInput) {
+        descuentoTotalInput.addEventListener('change', (e) => {
+            const maxDescuento = parseFloat(e.target.max) || 0;
+            let valor = parseFloat(e.target.value) || 0;
+            if (valor > maxDescuento) {
+                valor = maxDescuento;
+                e.target.value = valor;
+                Swal.fire('Límite Excedido', `El descuento máximo total es ${maxDescuento}%`, 'warning');
+            }
+            if (valor < 0) {
+                valor = 0;
+                e.target.value = valor;
+            }
+            updateTotals();
+        });
+    }
+}
+
+// Aplicar descuento lineal a un item
+function aplicarDescuentoLineal(index, descuento) {
+    const item = cart[index];
+    const maxDescuento = {{ max_descuento_lineal|unlocalize|default:0 }};
+    let descuentoAplicado = parseFloat(descuento) || 0;
+
+    if (descuentoAplicado > maxDescuento) {
+        descuentoAplicado = maxDescuento;
+        Swal.fire('Límite Excedido', `El descuento máximo por línea es ${maxDescuento}%`, 'warning');
+    }
+
+    if (descuentoAplicado < 0) {
+        descuentoAplicado = 0;
+    }
+
+    item.descuento = descuentoAplicado;
+    // Recalcular el total del item basado en el precio original y el descuento
+    item.total = item.precio * item.cantidad * (1 - (descuentoAplicado / 100));
+
+    updateCartDisplay();
     updateTotals();
 }
 
@@ -1102,29 +1174,58 @@ function removeFromCart(index) {
 
 // Actualizar totales - DEBE ESTAR EN SCOPE GLOBAL
 function updateTotals() {
-    console.log('Cart items:', cart);
-    
-    currentSubtotal = cart.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
-    currentDescuento = 0;
-    
-    currentNeto = 0;
-    currentIva = 0;
-    currentImpuestoEspecifico = 0;
-    
+    let subtotalBruto = 0; // Suma de precios originales
+    let descuentoLinealTotal = 0;
+
     cart.forEach(item => {
-        const precioNeto = parseFloat(item.precio_neto || 0);
-        const iva = parseFloat(item.iva || 0);
-        const impEsp = parseFloat(item.impuesto_especifico || 0);
-        
-        currentNeto += precioNeto * parseFloat(item.cantidad);
-        currentIva += iva * parseFloat(item.cantidad);
-        currentImpuestoEspecifico += impEsp * parseFloat(item.cantidad);
+        subtotalBruto += item.precio * item.cantidad;
+        descuentoLinealTotal += (item.precio * item.cantidad) * (item.descuento / 100);
     });
-    
-    currentTotal = currentSubtotal;
-    
+
+    const subtotalPostDescuentoLineal = subtotalBruto - descuentoLinealTotal;
+
+    const descuentoTotalInput = document.getElementById('descuento-total-input');
+    const descuentoTotalPorcentaje = descuentoTotalInput ? parseFloat(descuentoTotalInput.value) || 0 : 0;
+    const descuentoGlobalMonto = subtotalPostDescuentoLineal * (descuentoTotalPorcentaje / 100);
+
+    const totalDescuentos = descuentoLinealTotal + descuentoGlobalMonto;
+    const totalVentaConDescuentos = subtotalBruto - totalDescuentos;
+
+    let netoFinal = 0;
+    let ivaFinal = 0;
+    let impuestoEspecificoFinal = 0;
+
+    // Recalcular impuestos item por item con descuentos aplicados
+    cart.forEach(item => {
+        const precioOriginalItem = item.precio * item.cantidad;
+        const descuentoLinealItem = precioOriginalItem * (item.descuento / 100);
+        const precioPostDescuentoLineal = precioOriginalItem - descuentoLinealItem;
+        
+        // Distribuir el descuento global proporcionalmente
+        const proporcionItem = subtotalPostDescuentoLineal > 0 ? precioPostDescuentoLineal / subtotalPostDescuentoLineal : 0;
+        const descuentoGlobalItem = descuentoGlobalMonto * proporcionItem;
+        
+        const precioFinalItem = precioPostDescuentoLineal - descuentoGlobalItem;
+
+        const factorImpuestos = 1 + (item.categoriaExentaIva ? 0 : 0.19) + (item.impuestoEspecifico / 100);
+        const netoItem = precioFinalItem / factorImpuestos;
+
+        netoFinal += netoItem;
+        if (!item.categoriaExentaIva) {
+            ivaFinal += netoItem * 0.19;
+        }
+        impuestoEspecificoFinal += netoItem * (item.impuestoEspecifico / 100);
+    });
+
+    currentSubtotal = subtotalBruto;
+    currentDescuento = totalDescuentos;
+    currentNeto = netoFinal;
+    currentIva = ivaFinal;
+    currentImpuestoEspecifico = impuestoEspecificoFinal;
+    currentTotal = totalVentaConDescuentos;
+
     document.getElementById('subtotal').textContent = `$${formatChileanNumber(currentSubtotal)}`;
-    document.getElementById('descuento').textContent = `$${formatChileanNumber(currentDescuento)}`;
+    document.getElementById('descuento').textContent = `-$${formatChileanNumber(currentDescuento)}`;
     document.getElementById('neto').textContent = `$${formatChileanNumber(currentNeto)}`;
     document.getElementById('iva').textContent = `$${formatChileanNumber(currentIva)}`;
     document.getElementById('impuesto_especifico').textContent = `$${formatChileanNumber(currentImpuestoEspecifico)}`;
@@ -1444,8 +1545,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event listeners
     document.getElementById('pos-search').addEventListener('input', filterProducts);
-        document.getElementById('btn-process').addEventListener('click', processSale);
-        document.getElementById('btn-clear').addEventListener('click', clearCart);
+    
+    const btnProcess = document.getElementById('btn-process');
+    console.log('*** Botón Procesar Venta encontrado:', btnProcess);
+    if (btnProcess) {
+        btnProcess.addEventListener('click', function(e) {
+            console.log('*** EVENT LISTENER EJECUTADO - CLICK EN BTN-PROCESS ***');
+            e.preventDefault();
+            processSale();
+        });
+        console.log('*** Event listener agregado exitosamente ***');
+    } else {
+        console.error('*** ERROR: No se encontró el botón btn-process ***');
+    }
+    
+    document.getElementById('btn-clear').addEventListener('click', clearCart);
     
     // Configurar botón "Todas" para filtro de categorías
     const btnTodas = document.querySelector('.category-btn[data-category="all"]');
@@ -1811,11 +1925,16 @@ function clearCart() {
 
     // Procesar venta
     function processSale() {
+        console.log('*** BOTON PROCESAR VENTA CLICKEADO ***');
+        console.log('Cart length:', cart.length);
+        console.log('window.currentEstacion:', window.currentEstacion);
+        
         // Desactivar temporalmente el modo escaneo
         wasScanningMode = barcodeMode; // Guardar en variable global
         barcodeMode = false;
         
         if (cart.length === 0) {
+            console.log('*** ERROR: Carrito vacío ***');
             Swal.fire({
                 icon: 'warning',
                 title: 'Carrito Vacío',
@@ -1837,15 +1956,18 @@ function clearCart() {
         }
     
         if (!window.currentEstacion) {
+            console.log('*** ERROR: No hay estación cargada ***');
             Swal.fire({
                 icon: 'error',
                 title: 'Error de Sesión',
-                text: 'No se encontró información de la estación de trabajo',
-                timer: 3000
+                text: 'No se encontró información de la estación de trabajo. Por favor, recarga la página.',
+                timer: 3000,
+                showConfirmButton: true
             });
             return;
         }
         
+        console.log('*** Llamando a showDocumentTypeSelector() ***');
         // Mostrar selector de tipo de documento
         showDocumentTypeSelector();
     }
@@ -1855,7 +1977,15 @@ function clearCart() {
     
     // Mostrar selector de tipo de documento para preventa
     function showDocumentTypeSelector() {
+        console.log('*** INICIO showDocumentTypeSelector() ***');
+        console.log('window.currentEstacion:', window.currentEstacion);
+        console.log('SweetAlert2 disponible:', typeof Swal !== 'undefined');
+        
+        // Inicializar variable global para tipo de documento
+        window.tipoDocumentoSeleccionado = null;
+        
         let tiposPermitidos = window.currentEstacion.tipos_documentos;
+        console.log('Tipos permitidos:', tiposPermitidos);
         
         // Si está en modo "con_cliente", filtrar boletas y vales
         const modoPOS = '{{ modo_pos }}';
@@ -1864,21 +1994,22 @@ function clearCart() {
         }
         
         if (tiposPermitidos.length === 0) {
+            console.log('*** ERROR: No hay tipos de documentos permitidos ***');
             Swal.fire({
                 icon: 'warning',
                 title: 'Sin Documentos Permitidos',
                 text: 'Esta estación no puede emitir ningún tipo de documento',
                 timer: 3000
             });
-        return;
-    }
+            return;
+        }
     
         // Crear botones de documentos con badges destacados
         const opciones = tiposPermitidos.map(tipo => {
             const config = {
                 'factura': { nombre: 'Factura', icono: 'fa-file-invoice', color: '#28a745', disponibles: window.currentEstacion.folios_factura || 0 },
                 'boleta': { nombre: 'Boleta', icono: 'fa-receipt', color: '#007bff', disponibles: window.currentEstacion.folios_boleta || 0 },
-                'guia': { nombre: 'Guía Manual', icono: 'fa-truck', color: '#ffc107', disponibles: 999 },
+                'guia': { nombre: 'Guía de Despacho', icono: 'fa-truck', color: '#ffc107', disponibles: window.currentEstacion.folios_guia || 999 },
                 'cotizacion': { nombre: 'Cotización', icono: 'fa-file-alt', color: '#6f42c1', disponibles: 999 },
                 'vale': { nombre: 'Vale Facturable', icono: 'fa-ticket-alt', color: '#6c757d', disponibles: 999 }
             };
@@ -2095,6 +2226,9 @@ function clearCart() {
             </div>
         `;
         
+        console.log('*** Preparando para abrir modal Swal.fire ***');
+        console.log('HTML generado para modal, longitud:', html.length);
+        
         Swal.fire({
             title: '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; margin: -20px -20px 20px -20px; border-radius: 8px 8px 0 0;"><i class="fas fa-cash-register me-2"></i>Procesar Preventa</div>',
             html: html,
@@ -2104,13 +2238,183 @@ function clearCart() {
             confirmButtonColor: '#28a745',
             cancelButtonColor: '#6c757d',
             width: '650px',
+            didOpen: () => {
+                // Agregar búsqueda en tiempo real
+                const busquedaClienteInput = document.getElementById('busqueda-cliente');
+                if (busquedaClienteInput) {
+                    busquedaClienteInput.addEventListener('input', function() {
+                        const busqueda = this.value.trim();
+                        if (busqueda.length >= 2) {
+                            buscarCliente();
+                        } else {
+                            document.getElementById('resultados-busqueda').style.display = 'none';
+                            document.getElementById('cliente-info').style.display = 'none';
+                            document.getElementById('cliente-no-encontrado').style.display = 'none';
+                            window.clienteSeleccionado = null;
+                        }
+                    });
+                }
+                
+                // Mostrar/ocultar botón de venta boleta según tipo de documento
+                const tipoDocSelect = document.getElementById('tipo-documento');
+                const btnVentaBoleta = document.getElementById('btn-venta-boleta');
+                const tipoDespachoContainer = document.getElementById('tipo-despacho-container');
+                const referenciasContainer = document.getElementById('referencias-container');
+                
+                // Array para almacenar referencias
+                window.referencias = [];
+                
+                function toggleCamposSegunTipoDoc() {
+                    const tipoDoc = tipoDocSelect.value;
+                    
+                    // Mostrar/ocultar botón boleta
+                    if (btnVentaBoleta) {
+                        btnVentaBoleta.style.display = (tipoDoc === 'boleta') ? 'block' : 'none';
+                    }
+                    
+                    // Mostrar/ocultar tipo de despacho (solo para guías)
+                    if (tipoDoc === 'guia') {
+                        tipoDespachoContainer.style.display = 'block';
+                        document.getElementById('tipo-despacho').required = true;
+                    } else {
+                        tipoDespachoContainer.style.display = 'none';
+                        document.getElementById('tipo-despacho').required = false;
+                    }
+                    
+                    // Mostrar/ocultar referencias (para facturas y guías)
+                    if (tipoDoc === 'factura' || tipoDoc === 'guia') {
+                        referenciasContainer.style.display = 'block';
+                    } else {
+                        referenciasContainer.style.display = 'none';
+                    }
+                }
+                
+                // Manejar clics en botones de tipo de documento
+                document.querySelectorAll('.btn-tipo-documento').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        // Remover selección de todos los botones
+                        document.querySelectorAll('.btn-tipo-documento').forEach(b => {
+                            b.style.background = 'white';
+                            b.style.transform = 'scale(1)';
+                            b.style.boxShadow = 'none';
+                            b.style.fontWeight = 'normal';
+                        });
+                        
+                        // Marcar este botón como seleccionado con estilo DESTACADO
+                        const borderColor = this.style.borderColor;
+                        this.style.background = 'linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%)';
+                        this.style.transform = 'scale(1.05)';
+                        this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2), 0 0 0 3px #ffc107';
+                        this.style.fontWeight = 'bold';
+                        
+                        // Actualizar campo oculto y variable global
+                        const tipo = this.getAttribute('data-tipo');
+                        tipoDocSelect.value = tipo;
+                        window.tipoDocumentoSeleccionado = tipo; // Guardar en variable global
+                        console.log('[TIPO DOC] Tipo seleccionado:', tipo);
+                        console.log('[TIPO DOC] Campo hidden value:', tipoDocSelect.value);
+                        
+                        // Trigger del evento change para mostrar/ocultar campos
+                        toggleCamposSegunTipoDoc();
+                    });
+                });
+                
+                tipoDocSelect.addEventListener('change', toggleCamposSegunTipoDoc);
+                toggleCamposSegunTipoDoc(); // Verificar estado inicial
+                
+                // Agregar evento click al botón de venta boleta
+                if (btnVentaBoleta) {
+                    btnVentaBoleta.addEventListener('click', function() {
+                        const busquedaInput = document.getElementById('busqueda-cliente');
+                        busquedaInput.value = '66666666-6';
+                        buscarCliente();
+                    });
+                }
+                
+                // Botón toggle para mostrar/ocultar formulario de referencias
+                const btnToggleRefs = document.getElementById('btn-toggle-referencias');
+                if (btnToggleRefs) {
+                    btnToggleRefs.addEventListener('click', function() {
+                        const card = document.getElementById('card-referencias');
+                        const btn = document.getElementById('btn-toggle-referencias');
+                        
+                        if (card.style.display === 'none') {
+                            card.style.display = 'block';
+                            btn.innerHTML = '<i class="fas fa-minus-circle me-2"></i>Ocultar Referencias';
+                            btn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+                        } else {
+                            card.style.display = 'none';
+                            btn.innerHTML = '<i class="fas fa-plus-circle me-2"></i>Agregar Referencias (Opcional)';
+                            btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                        }
+                    });
+                }
+                
+                // Botón agregar referencia inline
+                const btnAgregarRefInline = document.getElementById('btn-agregar-ref-inline');
+                if (btnAgregarRefInline) {
+                    btnAgregarRefInline.addEventListener('click', function() {
+                        const tipo = document.getElementById('tipo-referencia-inline').value;
+                        const folio = document.getElementById('folio-referencia-inline').value;
+                        const fecha = document.getElementById('fecha-referencia-inline').value;
+                        const razon = document.getElementById('razon-referencia-inline').value;
+                        
+                        if (!tipo || !folio || !fecha) {
+                            Swal.showValidationMessage('Complete los campos obligatorios (Tipo, Folio, Fecha)');
+                            return;
+                        }
+                        
+                        // Obtener texto del tipo
+                        const selectElement = document.getElementById('tipo-referencia-inline');
+                        const tipoTexto = selectElement.selectedOptions[0].text;
+                        
+                        // Agregar referencia
+                        window.referencias.push({
+                            tipo: tipo,
+                            tipo_texto: tipoTexto,
+                            folio: folio,
+                            fecha: fecha,
+                            razon: razon || '-'
+                        });
+                        
+                        // Actualizar lista visual
+                        actualizarListaReferencias();
+                        
+                        // Limpiar formulario
+                        document.getElementById('tipo-referencia-inline').value = '';
+                        document.getElementById('folio-referencia-inline').value = '';
+                        document.getElementById('fecha-referencia-inline').value = '';
+                        document.getElementById('razon-referencia-inline').value = '';
+                        
+                        // Actualizar contador
+                        document.getElementById('contador-refs-inline').textContent = window.referencias.length;
+                    });
+                }
+            },
             preConfirm: () => {
-                const tipoDocumento = document.getElementById('tipo-documento').value;
+                // Usar variable global como respaldo si el campo se pierde
+                let tipoDocumento = document.getElementById('tipo-documento').value;
+                if (!tipoDocumento && window.tipoDocumentoSeleccionado) {
+                    tipoDocumento = window.tipoDocumentoSeleccionado;
+                    console.log('[VALIDACION] Usando tipo documento de variable global:', tipoDocumento);
+                }
+                
                 const rutCliente = document.getElementById('busqueda-cliente').value;
                 const tipoDespacho = document.getElementById('tipo-despacho').value;
                 
-                if (!tipoDocumento || !rutCliente) {
-                    Swal.showValidationMessage('Debe seleccionar tipo de documento y buscar cliente');
+                console.log('[VALIDACION] Tipo documento:', tipoDocumento);
+                console.log('[VALIDACION] RUT cliente:', rutCliente);
+                console.log('[VALIDACION] Cliente seleccionado:', window.clienteSeleccionado);
+                
+                // Validación específica para cada campo
+                if (!tipoDocumento) {
+                    console.error('[VALIDACION] Tipo documento vacio!');
+                    Swal.showValidationMessage('Debe seleccionar un tipo de documento');
+                    return false;
+                }
+                
+                if (!rutCliente) {
+                    Swal.showValidationMessage('Debe buscar un cliente');
                     return false;
                 }
                 
@@ -2135,143 +2439,16 @@ function clearCart() {
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                processPreventaWithData(result.value);
+                // Procesar con vendedor actual del POS
+                // El vendedor se puede cambiar luego en la pantalla de pago si es necesario
+                const datosCompletos = {
+                    ...result.value,
+                    vendedor_id: window.currentVendedorId || null,
+                    vehiculo_id: null,
+                    chofer_id: null
+                };
+                processPreventaWithData(datosCompletos);
             }
-        });
-        
-        // Agregar búsqueda en tiempo real
-        document.getElementById('busqueda-cliente').addEventListener('input', function() {
-            const busqueda = this.value.trim();
-            if (busqueda.length >= 2) {
-                buscarCliente();
-            } else {
-                document.getElementById('resultados-busqueda').style.display = 'none';
-                document.getElementById('cliente-info').style.display = 'none';
-                document.getElementById('cliente-no-encontrado').style.display = 'none';
-                window.clienteSeleccionado = null;
-            }
-        });
-        
-        // Mostrar/ocultar botón de venta boleta según tipo de documento
-        const tipoDocSelect = document.getElementById('tipo-documento');
-        const btnVentaBoleta = document.getElementById('btn-venta-boleta');
-        const tipoDespachoContainer = document.getElementById('tipo-despacho-container');
-        const referenciasContainer = document.getElementById('referencias-container');
-        
-        // Array para almacenar referencias
-        window.referencias = [];
-        
-        function toggleCamposSegunTipoDoc() {
-            const tipoDoc = tipoDocSelect.value;
-            
-            // Mostrar/ocultar botón boleta
-            if (btnVentaBoleta) {
-                btnVentaBoleta.style.display = (tipoDoc === 'boleta') ? 'block' : 'none';
-            }
-            
-            // Mostrar/ocultar tipo de despacho (solo para guías)
-            if (tipoDoc === 'guia') {
-                tipoDespachoContainer.style.display = 'block';
-                document.getElementById('tipo-despacho').required = true;
-            } else {
-                tipoDespachoContainer.style.display = 'none';
-                document.getElementById('tipo-despacho').required = false;
-            }
-            
-            // Mostrar/ocultar referencias (para facturas y guías)
-            if (tipoDoc === 'factura' || tipoDoc === 'guia') {
-                referenciasContainer.style.display = 'block';
-            } else {
-                referenciasContainer.style.display = 'none';
-            }
-        }
-        
-        // Manejar clics en botones de tipo de documento
-        document.querySelectorAll('.btn-tipo-documento').forEach(btn => {
-            btn.addEventListener('click', function() {
-                // Remover selección de todos los botones
-                document.querySelectorAll('.btn-tipo-documento').forEach(b => {
-                    b.style.background = 'white';
-                    b.style.transform = 'scale(1)';
-                });
-                
-                // Marcar este botón como seleccionado
-                this.style.background = 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
-                this.style.transform = 'scale(1.02)';
-                
-                // Actualizar campo oculto
-                const tipo = this.getAttribute('data-tipo');
-                tipoDocSelect.value = tipo;
-                
-                // Trigger del evento change para mostrar/ocultar campos
-                toggleCamposSegunTipoDoc();
-            });
-        });
-        
-        tipoDocSelect.addEventListener('change', toggleCamposSegunTipoDoc);
-        toggleCamposSegunTipoDoc(); // Verificar estado inicial
-        
-        // Agregar evento click al botón de venta boleta
-        if (btnVentaBoleta) {
-            btnVentaBoleta.addEventListener('click', function() {
-                const busquedaInput = document.getElementById('busqueda-cliente');
-                busquedaInput.value = '66666666-6';
-                buscarCliente();
-            });
-        }
-        
-        // Botón toggle para mostrar/ocultar formulario de referencias
-        document.getElementById('btn-toggle-referencias').addEventListener('click', function() {
-            const card = document.getElementById('card-referencias');
-            const btn = document.getElementById('btn-toggle-referencias');
-            
-            if (card.style.display === 'none') {
-                card.style.display = 'block';
-                btn.innerHTML = '<i class="fas fa-minus-circle me-2"></i>Ocultar Referencias';
-                btn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
-            } else {
-                card.style.display = 'none';
-                btn.innerHTML = '<i class="fas fa-plus-circle me-2"></i>Agregar Referencias (Opcional)';
-                btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            }
-        });
-        
-        // Botón agregar referencia inline
-        document.getElementById('btn-agregar-ref-inline').addEventListener('click', function() {
-            const tipo = document.getElementById('tipo-referencia-inline').value;
-            const folio = document.getElementById('folio-referencia-inline').value;
-            const fecha = document.getElementById('fecha-referencia-inline').value;
-            const razon = document.getElementById('razon-referencia-inline').value;
-            
-            if (!tipo || !folio || !fecha) {
-                Swal.showValidationMessage('Complete los campos obligatorios (Tipo, Folio, Fecha)');
-                return;
-            }
-            
-            // Obtener texto del tipo
-            const selectElement = document.getElementById('tipo-referencia-inline');
-            const tipoTexto = selectElement.selectedOptions[0].text;
-            
-            // Agregar referencia
-            window.referencias.push({
-                tipo: tipo,
-                tipo_texto: tipoTexto,
-                folio: folio,
-                fecha: fecha,
-                razon: razon || '-'
-            });
-            
-            // Actualizar lista visual
-            actualizarListaReferencias();
-            
-            // Limpiar formulario
-            document.getElementById('tipo-referencia-inline').value = '';
-            document.getElementById('folio-referencia-inline').value = '';
-            document.getElementById('fecha-referencia-inline').value = '';
-            document.getElementById('razon-referencia-inline').value = '';
-            
-            // Actualizar contador
-            document.getElementById('contador-refs-inline').textContent = window.referencias.length;
         });
     }
     
@@ -2554,13 +2731,23 @@ function clearCart() {
     
     // Crear cliente automático para boletas
     function crearClienteBoleta() {
+        const data = {
+            items: cart.map(item => ({
+                articuloId: item.articuloId,
+                cantidad: item.cantidad,
+                precio: item.precio,
+                descuento: item.descuento
+            })),
+            descuento_total_pct: document.getElementById('descuento-total-input') ? document.getElementById('descuento-total-input').value : 0
+        };
+        
         fetch('/ventas/pos/crear-cliente-boleta/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             },
-            body: JSON.stringify({})
+            body: JSON.stringify(data)
         })
         .then(response => {
             if (!response.ok) {
@@ -2899,7 +3086,7 @@ function clearCart() {
                     
                     // CIERRE DIRECTO: Si se procesó automáticamente, abrir documento directamente
                     if (data.cierre_directo) {
-                        console.log('🔥 CIERRE DIRECTO - Abriendo documento automáticamente');
+                        console.log('[CIERRE DIRECTO] Abriendo documento automaticamente');
                         
                         Swal.fire({
                             icon: 'success',
@@ -3559,6 +3746,11 @@ function updateCartDisplayManual() {
         `;
         cartContainer.appendChild(itemDiv);
     });
+    
+    // Scroll automático al último item agregado
+    setTimeout(() => {
+        cartContainer.scrollTop = cartContainer.scrollHeight;
+    }, 50);
     
     console.log('*** CARRITO VISUALIZADO MANUALMENTE ***');
 }
@@ -4426,6 +4618,9 @@ function eliminarReferencia(index) {
     actualizarListaReferencias();
 }
 </script>
+
+<!-- Modal de Confirmación de Despacho -->
+{% include 'facturacion_electronica/modal_confirmacion_despacho.html' %}
 
 </body>
 </html>

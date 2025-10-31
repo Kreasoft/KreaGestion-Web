@@ -1,0 +1,480 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Rutas de Despacho{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilo terroso para la lista de rutas */
+    .ruta-header {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        padding: 12px 20px;
+        border-radius: 10px 10px 0 0;
+    }
+    
+    /* Efecto hover para tarjetas de estadísticas */
+    .row .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .btn-terroso {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+    }
+    
+    .btn-terroso:hover {
+        background: linear-gradient(135deg, #6F5B44 0%, #5A4A36 100%);
+        color: white;
+    }
+    
+    .modal-terroso .modal-header {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border-radius: 10px 10px 0 0;
+    }
+    
+    .modal-terroso .modal-header .btn-close {
+        filter: brightness(0) invert(1);
+    }
+    
+    .filter-card {
+        background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
+        border: 1px solid #e3e6f0;
+        border-radius: 10px;
+    }
+    
+    .table-ruta thead {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+    }
+    
+    .badge-ruta-activa {
+        background: #28a745;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+    
+    .badge-ruta-inactiva {
+        background: #6c757d;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <!-- Header -->
+                <div class="card-header ruta-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-route fa-2x text-white me-3"></i>
+                            <div>
+                                <h5 class="mb-0 text-white" style="font-size: 1.3rem; font-weight: 600;">
+                                    Rutas de Despacho
+                                </h5>
+                                <small class="text-white-50" style="font-size: 0.85rem;">Gestión de rutas de entrega</small>
+                            </div>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#createRutaModal">
+                                <i class="fas fa-plus me-2"></i> Nueva Ruta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estadísticas -->
+                <div class="card-body" style="padding: 15px 20px;">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%); border: none; border-radius: 10px; transition: transform 0.2s;">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; margin-bottom: 5px;">TOTAL RUTAS</h6>
+                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 1.8rem;">{{ total_rutas }}</h3>
+                                        </div>
+                                        <i class="fas fa-route fa-3x" style="opacity: 0.3;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card text-white" style="background: linear-gradient(135deg, #C8A882 0%, #B89968 100%); border: none; border-radius: 10px; transition: transform 0.2s;">
+                                <div class="card-body" style="padding: 10px 15px;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; margin-bottom: 5px;">RUTAS ACTIVAS</h6>
+                                            <h3 class="mb-0" style="color: white; font-weight: 700; font-size: 1.8rem;">{{ rutas_activas }}</h3>
+                                        </div>
+                                        <i class="fas fa-check-circle fa-3x" style="opacity: 0.3;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filtros -->
+                    <div class="card filter-card mb-3">
+                        <div class="card-body" style="padding: 12px 15px;">
+                            <form method="get" class="row g-2 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-size: 0.85rem; margin-bottom: 5px;">Estado</label>
+                                    <select name="estado" class="form-select form-select-sm">
+                                        <option value="">Todas</option>
+                                        <option value="activo" {% if estado_filter == 'activo' %}selected{% endif %}>Activas</option>
+                                        <option value="inactivo" {% if estado_filter == 'inactivo' %}selected{% endif %}>Inactivas</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" style="font-weight: 500; color: #495057; font-size: 0.85rem; margin-bottom: 5px;">Buscar</label>
+                                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Código, nombre, descripción..." value="{{ search|default:'' }}">
+                                </div>
+                                <div class="col-md-2 d-flex gap-1">
+                                    <button type="submit" class="btn btn-terroso btn-sm flex-grow-1">
+                                        <i class="fas fa-search"></i> Buscar
+                                    </button>
+                                    <a href="{% url 'pedidos:ruta_list' %}" class="btn btn-sm btn-secondary" title="Limpiar filtros">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de rutas -->
+                    {% if rutas %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm table-ruta" style="font-size: 0.85rem; margin-bottom: 0;">
+                            <thead>
+                                <tr>
+                                    <th style="padding: 8px 10px;">Código</th>
+                                    <th style="padding: 8px 10px;">Nombre</th>
+                                    <th style="padding: 8px 10px;">Descripción</th>
+                                    <th style="padding: 8px 10px; text-align: center;">Clientes</th>
+                                    <th style="padding: 8px 10px; text-align: center;">Estado</th>
+                                    <th style="padding: 8px 10px; text-align: center;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ruta in rutas %}
+                                <tr style="border-bottom: 1px solid #e3e6f0;" data-ruta-id="{{ ruta.id }}">
+                                    <td style="padding: 8px 10px; font-weight: 600; color: #8B7355;">{{ ruta.codigo }}</td>
+                                    <td style="padding: 8px 10px;">{{ ruta.nombre }}</td>
+                                    <td style="padding: 8px 10px;">
+                                        <small class="text-muted">{{ ruta.descripcion|truncatechars:60 }}</small>
+                                    </td>
+                                    <td style="padding: 8px 10px; text-align: center;">
+                                        <span class="badge bg-info">{{ ruta.cantidad_clientes }}</span>
+                                    </td>
+                                    <td style="padding: 8px 10px; text-align: center;">
+                                        {% if ruta.activo %}
+                                        <span class="badge-ruta-activa">Activa</span>
+                                        {% else %}
+                                        <span class="badge-ruta-inactiva">Inactiva</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 8px 10px; text-align: center;">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-terroso btn-sm btn-edit-ruta" data-id="{{ ruta.id }}" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-{% if ruta.activo %}warning{% else %}success{% endif %} btn-toggle-ruta" data-id="{{ ruta.id }}" title="{% if ruta.activo %}Desactivar{% else %}Activar{% endif %}">
+                                                <i class="fas fa-{% if ruta.activo %}ban{% else %}check{% endif %}"></i>
+                                            </button>
+                                            <button class="btn btn-danger btn-sm btn-delete-ruta" data-id="{{ ruta.id }}" data-codigo="{{ ruta.codigo }}" title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center" style="padding: 40px 20px;">
+                        <i class="fas fa-route fa-3x mb-3" style="color: #8B7355; opacity: 0.3;"></i>
+                        <p style="color: #6c757d; font-size: 1rem;">No hay rutas registradas</p>
+                        <small style="color: #6c757d;">Crea tu primera ruta haciendo clic en "Nueva Ruta"</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Ruta -->
+<div class="modal fade modal-terroso" id="createRutaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-route me-2"></i>Nueva Ruta de Despacho</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createRutaForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="create_codigo" class="form-label">Código <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="create_codigo" name="codigo" required maxlength="20" style="text-transform: uppercase;">
+                        <small class="text-muted">Ejemplo: R001, R-NORTE, etc.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="create_nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="create_nombre" name="nombre" required maxlength="200">
+                        <small class="text-muted">Ejemplo: Ruta Norte, Ruta Centro</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="create_descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="create_descripcion" name="descripcion" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-terroso" id="btnCreateRuta">
+                    <i class="fas fa-save me-2"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Ruta -->
+<div class="modal fade modal-terroso" id="editRutaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar Ruta de Despacho</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editRutaForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="edit_ruta_id" name="ruta_id">
+                    <div class="mb-3">
+                        <label for="edit_codigo" class="form-label">Código <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_codigo" name="codigo" required maxlength="20" style="text-transform: uppercase;">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_nombre" name="nombre" required maxlength="200">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="edit_descripcion" name="descripcion" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="edit_activo" name="activo">
+                            <label class="form-check-label" for="edit_activo">Ruta activa</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-terroso" id="btnEditRuta">
+                    <i class="fas fa-save me-2"></i>Actualizar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Crear ruta
+    $('#btnCreateRuta').click(function() {
+        const form = $('#createRutaForm');
+        const formData = new FormData(form[0]);
+        
+        $.ajax({
+            url: '{% url "pedidos:ruta_create" %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Éxito!',
+                        text: response.message,
+                        confirmButtonColor: '#8B7355'
+                    }).then(() => {
+                        location.reload();
+                    });
+                }
+            },
+            error: function(xhr) {
+                const response = xhr.responseJSON;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: response.error || 'Error al crear la ruta',
+                    confirmButtonColor: '#8B7355'
+                });
+            }
+        });
+    });
+
+    // Editar ruta
+    $('.btn-edit-ruta').click(function() {
+        const rutaId = $(this).data('id');
+        
+        $.ajax({
+            url: `/pedidos/rutas/${rutaId}/`,
+            type: 'GET',
+            success: function(response) {
+                if (response.success) {
+                    $('#edit_ruta_id').val(response.ruta.id);
+                    $('#edit_codigo').val(response.ruta.codigo);
+                    $('#edit_nombre').val(response.ruta.nombre);
+                    $('#edit_descripcion').val(response.ruta.descripcion);
+                    $('#edit_activo').prop('checked', response.ruta.activo);
+                    $('#editRutaModal').modal('show');
+                }
+            }
+        });
+    });
+
+    // Actualizar ruta
+    $('#btnEditRuta').click(function() {
+        const rutaId = $('#edit_ruta_id').val();
+        const form = $('#editRutaForm');
+        const formData = new FormData(form[0]);
+        formData.set('activo', $('#edit_activo').is(':checked'));
+        
+        $.ajax({
+            url: `/pedidos/rutas/${rutaId}/editar/`,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Éxito!',
+                        text: response.message,
+                        confirmButtonColor: '#8B7355'
+                    }).then(() => {
+                        location.reload();
+                    });
+                }
+            },
+            error: function(xhr) {
+                const response = xhr.responseJSON;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: response.error || 'Error al actualizar la ruta',
+                    confirmButtonColor: '#8B7355'
+                });
+            }
+        });
+    });
+
+    // Activar/Desactivar ruta
+    $('.btn-toggle-ruta').click(function() {
+        const rutaId = $(this).data('id');
+        
+        $.ajax({
+            url: `/pedidos/rutas/${rutaId}/toggle-activo/`,
+            type: 'POST',
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Éxito!',
+                        text: response.message,
+                        confirmButtonColor: '#8B7355',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        location.reload();
+                    });
+                }
+            }
+        });
+    });
+
+    // Eliminar ruta
+    $('.btn-delete-ruta').click(function() {
+        const rutaId = $(this).data('id');
+        const codigo = $(this).data('codigo');
+        
+        Swal.fire({
+            title: '¿Eliminar ruta?',
+            text: `¿Estás seguro de eliminar la ruta ${codigo}?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/pedidos/rutas/${rutaId}/eliminar/`,
+                    type: 'POST',
+                    data: {
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Eliminado!',
+                                text: response.message,
+                                confirmButtonColor: '#8B7355',
+                                timer: 1500,
+                        showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        const response = xhr.responseJSON;
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: response.error || 'Error al eliminar la ruta',
+                            confirmButtonColor: '#8B7355'
+                        });
+                    }
+                });
+            }
+        });
+    });
+
+    // Auto-uppercase para código
+    $('#create_codigo, #edit_codigo').on('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+});
+</script>
+{% endblock %}
+

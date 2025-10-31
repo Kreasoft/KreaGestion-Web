@@ -6,10 +6,14 @@ from django.shortcuts import render
 from . import views
 from . import views_notas_credito
 from . import views_notas_debito
+from . import api_views
 
 app_name = 'ventas'
 
 urlpatterns = [
+    # API Endpoints
+    path('api/vendedores/', api_views.api_vendedores, name='api_vendedores'),
+    
     # Vendedores
     path('vendedores/', views.vendedor_list, name='vendedor_list'),
     path('vendedores/crear/', views.vendedor_create, name='vendedor_create'),

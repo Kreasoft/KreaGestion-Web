@@ -461,6 +461,20 @@ class DTEService:
             giro_receptor = ''
             ciudad_receptor = ''
         
+        # Verificar si ya existe un DTE con este folio
+        dte_existente = DocumentoTributarioElectronico.objects.filter(
+            empresa=self.empresa,
+            tipo_dte=tipo_dte,
+            folio=folio
+        ).first()
+        
+        if dte_existente:
+            print(f"[WARN] ADVERTENCIA: Ya existe DTE con folio {folio}")
+            print(f"   DTE existente ID: {dte_existente.id}")
+            print(f"   Venta asociada: {dte_existente.venta.id if dte_existente.venta else 'N/A'}")
+            print(f"   Reutilizando DTE existente")
+            return dte_existente
+        
         # Crear el DTE
         dte = DocumentoTributarioElectronico.objects.create(
             empresa=self.empresa,

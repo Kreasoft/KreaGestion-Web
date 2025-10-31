@@ -104,6 +104,34 @@ class Empresa(models.Model):
         verbose_name="Tipo de Industria",
         help_text="Define el tipo de industria para adaptar formularios de producción"
     )
+    usa_produccion = models.BooleanField(
+        default=False,
+        verbose_name="Activar Módulo de Producción",
+        help_text="Habilita las funciones de recetas y órdenes de producción"
+    )
+    
+    # Configuración de despacho
+    usa_sistema_despacho = models.BooleanField(
+        default=False,
+        verbose_name="Usar Sistema de Despacho",
+        help_text="Solicita móvil y chofer al procesar ventas para generar hojas de ruta"
+    )
+
+    # Configuración de descuentos
+    max_descuento_lineal = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=0.00,
+        verbose_name="Máximo Descuento por Línea (%)",
+        help_text="Porcentaje máximo de descuento permitido por cada producto en una venta"
+    )
+    max_descuento_total = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=0.00,
+        verbose_name="Máximo Descuento Total (%)",
+        help_text="Porcentaje máximo de descuento permitido sobre el total de una venta"
+    )
     
     # === FACTURACIÓN ELECTRÓNICA ===
     facturacion_electronica = models.BooleanField(

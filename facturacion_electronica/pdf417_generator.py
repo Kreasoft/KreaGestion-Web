@@ -135,7 +135,7 @@ class PDF417Generator:
                     alto=100
                 )
             else:
-                print("⚠️ DTE no tiene TED generado. Se usará placeholder de timbre.")
+                print("[WARN] DTE no tiene TED generado. Se usara placeholder de timbre.")
                 imagen_bytes = PDF417Generator._generar_placeholder(ancho=280, alto=100)
 
             # Guardar en el campo del modelo

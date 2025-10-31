@@ -63,7 +63,7 @@ def caf_create(request):
     if request.method == 'POST':
         form = ArchivoCAFForm(request.POST, request.FILES)
         
-        print(f"🔍 DEBUG CAF - POST recibido")
+        print(f"[DEBUG] DEBUG CAF - POST recibido")
         print(f"   - Empresa: {request.empresa}")
         print(f"   - Files: {request.FILES}")
         print(f"   - Form válido: {form.is_valid()}")
@@ -82,7 +82,7 @@ def caf_create(request):
                 for encoding in ['utf-8', 'iso-8859-1', 'windows-1252', 'latin-1']:
                     try:
                         contenido_xml = contenido_bytes.decode(encoding)
-                        print(f"✅ Archivo decodificado exitosamente con: {encoding}")
+                        print(f"[OK] Archivo decodificado exitosamente con: {encoding}")
                         break
                     except UnicodeDecodeError:
                         continue
@@ -206,13 +206,13 @@ def caf_create(request):
                     return redirect('facturacion_electronica:caf_list')
                     
             except ET.ParseError as e:
-                print(f"❌ ERROR ParseError: {str(e)}")
+                print(f"[ERROR] ERROR ParseError: {str(e)}")
                 messages.error(request, f'Error al leer el archivo XML: {str(e)}')
             except ValueError as e:
-                print(f"❌ ERROR ValueError: {str(e)}")
+                print(f"[ERROR] ERROR ValueError: {str(e)}")
                 messages.error(request, f'Error en los datos del CAF: {str(e)}')
             except Exception as e:
-                print(f"❌ ERROR Exception: {type(e).__name__}: {str(e)}")
+                print(f"[ERROR] ERROR Exception: {type(e).__name__}: {str(e)}")
                 import traceback
                 traceback.print_exc()
                 messages.error(request, f'Error al procesar el CAF: {str(e)}')
@@ -275,7 +275,7 @@ def caf_ajustar_folio(request, pk):
                 f'Folios disponibles: {caf.folios_disponibles()}'
             )
             
-            print(f"📝 Ajuste de folio en CAF {caf.id}:")
+            print(f"[INFO] Ajuste de folio en CAF {caf.id}:")
             print(f"   Folio actual: {folio_actual_anterior} → {caf.folio_actual}")
             print(f"   Folios usados: {folios_usados_anterior} → {caf.folios_utilizados}")
             print(f"   Folios disponibles: {caf.folios_disponibles()}")

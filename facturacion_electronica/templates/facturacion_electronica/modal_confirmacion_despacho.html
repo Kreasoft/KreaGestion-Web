@@ -1,0 +1,238 @@
+<!-- Modal de Confirmación de Despacho -->
+<div class="modal fade" id="modalConfirmacionDespacho" tabindex="-1" aria-labelledby="modalConfirmacionDespachoLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; padding: 15px 20px;">
+                <h5 class="modal-title" id="modalConfirmacionDespachoLabel">
+                    <i class="fas fa-truck-loading me-2"></i>Confirmar Datos de Despacho
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p class="text-muted mb-3" style="font-size: 0.9rem;">
+                    <i class="fas fa-info-circle me-2" style="color: #8B7355;"></i>
+                    Complete la información requerida antes de generar el documento electrónico.
+                </p>
+                
+                <!-- Campo Vendedor (siempre visible) -->
+                <div class="mb-3">
+                    <label for="select_vendedor" class="form-label" style="font-weight: 600; color: #495057;">
+                        <i class="fas fa-user-tie me-2" style="color: #8B7355;"></i>Vendedor Responsable <span class="text-danger">*</span>
+                    </label>
+                    <select id="select_vendedor" class="form-select" required style="border: 1px solid #ced4da; border-radius: 8px;">
+                        <option value="">Cargando vendedores...</option>
+                    </select>
+                    <div class="invalid-feedback">Debe seleccionar un vendedor</div>
+                </div>
+                
+                <!-- Campos de Despacho Móvil (condicionales) -->
+                <div id="campos_despacho_movil" style="display: none;">
+                    <div style="background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%); padding: 10px 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h6 class="mb-0" style="color: #8B7355; font-weight: 600; font-size: 0.9rem;">
+                            <i class="fas fa-truck me-2"></i>Información de Transporte
+                        </h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="select_vehiculo" class="form-label" style="font-weight: 600; color: #495057;">
+                                <i class="fas fa-truck-moving me-2" style="color: #A0826D;"></i>Vehículo
+                            </label>
+                            <select id="select_vehiculo" class="form-select" style="border: 1px solid #ced4da; border-radius: 8px;">
+                                <option value="">Sin vehículo</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="select_chofer" class="form-label" style="font-weight: 600; color: #495057;">
+                                <i class="fas fa-user-tie me-2" style="color: #C8A882;"></i>Chofer
+                            </label>
+                            <select id="select_chofer" class="form-select" style="border: 1px solid #ced4da; border-radius: 8px;">
+                                <option value="">Sin chofer</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background-color: #f8f9fa; padding: 12px 20px;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 8px;">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" id="btn_confirmar_despacho" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; border-radius: 8px;">
+                    <i class="fas fa-check me-2"></i>Confirmar y Generar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variables globales para el modal de confirmación de despacho
+const modalConfirmacionDespacho = {
+    modal: null,
+    callback: null,
+    usaDespachoMovil: false,
+    
+    /**
+     * Inicializa el modal
+     */
+    init: function() {
+        this.modal = new bootstrap.Modal(document.getElementById('modalConfirmacionDespacho'));
+        
+        // Obtener configuración de empresa (usa_despacho_movil)
+        fetch('/empresas/api/configuracion/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.usaDespachoMovil = data.usa_despacho_movil || false;
+                    
+                    // Mostrar/ocultar campos según configuración
+                    const camposDespachoMovil = document.getElementById('campos_despacho_movil');
+                    if (this.usaDespachoMovil && camposDespachoMovil) {
+                        camposDespachoMovil.style.display = 'block';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar configuración:', error);
+            });
+        
+        // Event listener para confirmar
+        document.getElementById('btn_confirmar_despacho').addEventListener('click', () => {
+            this.confirmar();
+        });
+        
+        // Cargar datos iniciales
+        this.cargarVendedores();
+        this.cargarVehiculos();
+        this.cargarChoferes();
+    },
+    
+    /**
+     * Carga la lista de vendedores
+     */
+    cargarVendedores: function() {
+        const select = document.getElementById('select_vendedor');
+        
+        fetch('/ventas/api/vendedores/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    select.innerHTML = '<option value="">Seleccione un vendedor</option>';
+                    
+                    data.vendedores.forEach(vendedor => {
+                        const option = document.createElement('option');
+                        option.value = vendedor.id;
+                        option.textContent = `${vendedor.codigo} - ${vendedor.nombre}`;
+                        
+                        // Seleccionar por defecto si está definido
+                        if (data.vendedor_defecto_id && vendedor.id === data.vendedor_defecto_id) {
+                            option.selected = true;
+                        }
+                        
+                        select.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar vendedores:', error);
+                select.innerHTML = '<option value="">Error al cargar vendedores</option>';
+            });
+    },
+    
+    /**
+     * Carga la lista de vehículos
+     */
+    cargarVehiculos: function() {
+        const select = document.getElementById('select_vehiculo');
+        
+        fetch('/pedidos/api/vehiculos/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    select.innerHTML = '<option value="">Sin vehículo</option>';
+                    
+                    data.vehiculos.forEach(vehiculo => {
+                        const option = document.createElement('option');
+                        option.value = vehiculo.id;
+                        option.textContent = `${vehiculo.patente} - ${vehiculo.descripcion || 'Sin descripción'}`;
+                        select.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar vehículos:', error);
+            });
+    },
+    
+    /**
+     * Carga la lista de choferes
+     */
+    cargarChoferes: function() {
+        const select = document.getElementById('select_chofer');
+        
+        fetch('/pedidos/api/choferes/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    select.innerHTML = '<option value="">Sin chofer</option>';
+                    
+                    data.choferes.forEach(chofer => {
+                        const option = document.createElement('option');
+                        option.value = chofer.id;
+                        option.textContent = `${chofer.nombre} (${chofer.rut})`;
+                        select.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar choferes:', error);
+            });
+    },
+    
+    /**
+     * Abre el modal y define el callback
+     */
+    abrir: function(callback) {
+        this.callback = callback;
+        this.modal.show();
+    },
+    
+    /**
+     * Confirma y ejecuta el callback con los datos
+     */
+    confirmar: function() {
+        const vendedorId = document.getElementById('select_vendedor').value;
+        const vehiculoId = document.getElementById('select_vehiculo').value;
+        const choferId = document.getElementById('select_chofer').value;
+        
+        // Validar vendedor (requerido)
+        if (!vendedorId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Vendedor Requerido',
+                text: 'Debe seleccionar un vendedor responsable',
+                confirmButtonColor: '#8B7355'
+            });
+            return;
+        }
+        
+        // Cerrar modal
+        this.modal.hide();
+        
+        // Ejecutar callback con los datos
+        if (this.callback) {
+            this.callback({
+                vendedor_id: vendedorId,
+                vehiculo_id: vehiculoId || null,
+                chofer_id: choferId || null
+            });
+        }
+    }
+};
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    modalConfirmacionDespacho.init();
+});
+</script>

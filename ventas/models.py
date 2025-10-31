@@ -110,6 +110,8 @@ class Venta(models.Model):
     fecha = models.DateField(default=timezone.now, verbose_name="Fecha")
     cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Cliente")
     vendedor = models.ForeignKey('Vendedor', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vendedor")
+    vehiculo = models.ForeignKey('pedidos.Vehiculo', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vehículo Asignado", related_name='ventas_vehiculo', help_text="Vehículo asignado para el despacho (si aplica)")
+    chofer = models.ForeignKey('pedidos.Chofer', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Chofer Asignado", related_name='ventas_chofer', help_text="Chofer asignado para el despacho (si aplica)")
     forma_pago = models.ForeignKey('FormaPago', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Forma de Pago")
     estacion_trabajo = models.ForeignKey('EstacionTrabajo', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Estación de Trabajo")
     tipo_documento = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, default='boleta', verbose_name="Tipo de Documento")
@@ -132,7 +134,8 @@ class Venta(models.Model):
 
     # Totales
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Subtotal")
-    descuento = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Descuento")
+    descuento = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Descuento (Monto)")
+    descuento_total_pct = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), verbose_name="Descuento Total (%)")
     neto = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Neto")
     iva = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="IVA")
     impuesto_especifico = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Impuesto Específico")
@@ -228,6 +231,7 @@ class VentaDetalle(models.Model):
     articulo = models.ForeignKey(Articulo, on_delete=models.CASCADE, verbose_name="Artículo")
     cantidad = models.DecimalField(max_digits=10, decimal_places=3, validators=[MinValueValidator(Decimal('0.001'))], verbose_name="Cantidad")
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], verbose_name="Precio Unitario")
+    descuento_pct = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), verbose_name="Descuento (%)")
     precio_total = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], verbose_name="Precio Total")
     impuesto_especifico = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Impuesto Específico")
     
@@ -244,8 +248,10 @@ class VentaDetalle(models.Model):
         return f"{self.articulo.codigo} - {self.cantidad} x {self.precio_unitario}"
     
     def save(self, *args, **kwargs):
-        # Calcular precio total
-        self.precio_total = self.cantidad * self.precio_unitario
+        # Calcular precio total con descuento
+        precio_sin_descuento = self.cantidad * self.precio_unitario
+        monto_descuento = precio_sin_descuento * (self.descuento_pct / Decimal('100'))
+        self.precio_total = precio_sin_descuento - monto_descuento
         
         # Calcular impuesto específico si el artículo lo tiene
         if self.articulo.impuesto_especifico:

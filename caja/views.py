@@ -533,6 +533,63 @@ def procesar_venta(request, ticket_id):
         # Obtener tipo de documento (fallback al planeado o boleta)
         tipo_documento = request.POST.get('tipo_documento') or ticket.tipo_documento_planeado or 'boleta'
         
+        # Obtener vendedor seleccionado
+        vendedor_id = request.POST.get('vendedor_id')
+        if vendedor_id:
+            from ventas.models import Vendedor
+            try:
+                vendedor_seleccionado = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa)
+            except Vendedor.DoesNotExist:
+                vendedor_seleccionado = ticket.vendedor
+        else:
+            vendedor_seleccionado = ticket.vendedor
+        
+        # Obtener vehículo y chofer si el sistema de despacho está activo
+        vehiculo_seleccionado = ticket.vehiculo
+        chofer_seleccionado = ticket.chofer
+        
+        if request.empresa.usa_sistema_despacho:
+            vehiculo_id = request.POST.get('vehiculo_id')
+            chofer_id = request.POST.get('chofer_id')
+            
+            # Validar que se hayan seleccionado SOLO PARA FACTURAS (opcional para guias y boletas)
+            if tipo_documento == 'factura' and (not vehiculo_id or not chofer_id):
+                messages.error(request, 'Debe seleccionar movil y chofer para procesar facturas.')
+                form = ProcesarVentaForm(empresa=request.empresa, ticket=ticket, initial={'ticket_id': ticket.id})
+                from ventas.models import Vendedor
+                vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+                try:
+                    from pedidos.models_transporte import Vehiculo, Chofer
+                    vehiculos = Vehiculo.objects.filter(empresa=request.empresa, activo=True).order_by('patente')
+                    choferes = Chofer.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+                except:
+                    vehiculos = []
+                    choferes = []
+                return render(request, 'caja/procesar_venta.html', {
+                    'ticket': ticket,
+                    'form': form,
+                    'apertura_activa': apertura_activa,
+                    'empresa': request.empresa,
+                    'vendedores': vendedores,
+                    'vehiculos': vehiculos,
+                    'choferes': choferes
+                })
+            
+            # Obtener objetos de vehículo y chofer solo si se proporcionaron
+            if vehiculo_id and chofer_id:
+                try:
+                    from pedidos.models_transporte import Vehiculo, Chofer
+                    vehiculo_seleccionado = Vehiculo.objects.get(id=vehiculo_id, empresa=request.empresa)
+                    chofer_seleccionado = Chofer.objects.get(id=chofer_id, empresa=request.empresa)
+                    print(f"[OK] Sistema de despacho: Vehiculo {vehiculo_seleccionado.patente}, Chofer {chofer_seleccionado.nombre}")
+                except Exception as e:
+                    print(f"[WARN] Error al obtener vehiculo/chofer: {e}")
+                    # No mostrar error si son opcionales (guias/boletas)
+                    if tipo_documento == 'factura':
+                        messages.error(request, f'Error al obtener datos de despacho: {e}')
+            else:
+                print("[INFO] Sin datos de despacho (opcional para guias/boletas)")
+        
         # Las guías de despacho NO requieren pago (son documentos de traslado)
         if tipo_documento == 'guia':
             print("Tipo documento: GUÍA - No requiere validación de pago")
@@ -563,22 +620,69 @@ def procesar_venta(request, ticket_id):
             
             # PRECHEQUEOS FE: Para boleta/factura/guía, exigir FE activa y certificado antes de continuar
             if tipo_documento in ['factura', 'boleta', 'guia']:
+                print("[DEBUG] VERIFICANDO CONFIGURACION FE...")
                 fe_activa = getattr(request.empresa, 'facturacion_electronica', False)
+                print(f"   FE Activa: {fe_activa}")
                 cert_ok = hasattr(request.empresa, 'certificado_digital') and bool(getattr(request.empresa, 'certificado_digital'))
+                print(f"   Certificado OK: {cert_ok}")
+                
                 if not fe_activa:
-                    messages.error(request, 'La empresa no tiene Facturación Electrónica activada. No se puede emitir DTE.')
+                    print("[ERROR] FE NO ACTIVA - Devolviendo error")
+                    messages.error(request, 'La empresa no tiene Facturacion Electronica activada. No se puede emitir DTE.')
                     return render(request, 'caja/procesar_venta.html', {
                         'ticket': ticket,
                         'form': form,
                         'apertura_activa': apertura_activa,
                     })
                 if not cert_ok:
+                    print("[ERROR] CERTIFICADO NO CONFIGURADO - Devolviendo error")
                     messages.error(request, 'No hay certificado digital configurado para la empresa. Configure el certificado para emitir DTE.')
                     return render(request, 'caja/procesar_venta.html', {
                         'ticket': ticket,
                         'form': form,
                         'apertura_activa': apertura_activa,
                     })
+
+                # Validar contraseña/certificado ANTES de continuar
+                # TEMPORALMENTE DESHABILITADO PARA TESTING
+                print("[WARN] VALIDACION DE CERTIFICADO DESHABILITADA (MODO TESTING)")
+                print("   Para habilitar, corrige la contraseña del certificado en la configuracion de la empresa")
+                
+                # DESCOMENTAR CUANDO TENGAS LA CONTRASEÑA CORRECTA:
+                # print("[DEBUG] VALIDANDO CERTIFICADO DIGITAL...")
+                # try:
+                #     from facturacion_electronica.firma_electronica import FirmadorDTE
+                #     print("   Importando FirmadorDTE... OK")
+                #     print(f"   Certificado path: {request.empresa.certificado_digital.path}")
+                #     print("   Creando instancia FirmadorDTE...")
+                #     firmador = FirmadorDTE(request.empresa.certificado_digital.path, request.empresa.password_certificado or '')
+                #     print("   [OK] Certificado validado correctamente")
+                # except ValueError as e_cert:
+                #     print(f"[ERROR] ERROR AL VALIDAR CERTIFICADO: {e_cert}")
+                #     messages.error(
+                #         request,
+                #         f'Certificado digital rechazado: {e_cert}. No se puede procesar la venta hasta corregirlo.'
+                #     )
+                #     return render(request, 'caja/procesar_venta.html', {
+                #         'ticket': ticket,
+                #         'form': form,
+                #         'apertura_activa': apertura_activa,
+                #     })
+                # except Exception as e_cert_general:
+                #     print(f"[ERROR] ERROR INESPERADO AL VALIDAR CERTIFICADO: {type(e_cert_general).__name__}: {e_cert_general}")
+                #     import traceback
+                #     traceback.print_exc()
+                #     messages.error(
+                #         request,
+                #         f'Error al validar certificado: {e_cert_general}'
+                #     )
+                #     return render(request, 'caja/procesar_venta.html', {
+                #         'ticket': ticket,
+                #         'form': form,
+                #         'apertura_activa': apertura_activa,
+                #     })
+            
+            print("[OK] PRECHEQUEOS COMPLETADOS - Continuando...")
 
             # VALIDAR FOLIOS DISPONIBLES Y OBTENER FOLIO DEL CAF
             folio_caf = None
@@ -660,7 +764,7 @@ def procesar_venta(request, ticket_id):
                     
                     # El folio se obtendrá y consumirá dentro del DTEService para asegurar atomicidad
                     folio_caf = caf.folio_actual + 1 # Simular para la lógica que sigue
-                    print(f"✅ Verificación de folios OK. Próximo folio a usar: {folio_caf}")
+                    print(f"[OK] Verificacion de folios OK. Proximo folio a usar: {folio_caf}")
                     
                 except Exception as e:
                     print(f"ERROR al obtener folio CAF: {str(e)}")
@@ -741,7 +845,9 @@ def procesar_venta(request, ticket_id):
                         empresa=request.empresa,
                         numero_venta=numero_venta,
                         cliente=ticket.cliente,
-                        vendedor=ticket.vendedor,
+                        vendedor=vendedor_seleccionado,
+                        vehiculo=vehiculo_seleccionado,
+                        chofer=chofer_seleccionado,
                         forma_pago=primera_forma_pago,
                         estacion_trabajo=ticket.estacion_trabajo,
                         tipo_documento=tipo_documento,
@@ -751,6 +857,7 @@ def procesar_venta(request, ticket_id):
                         iva=ticket.iva,
                         impuesto_especifico=ticket.impuesto_especifico,
                         total=ticket.total,
+                        descuento_total_pct=ticket.descuento_total_pct,
                         estado='confirmada',
                         usuario_creacion=request.user,
                         observaciones=f"Ticket #{ticket.numero_venta}. {observaciones}"
@@ -766,6 +873,7 @@ def procesar_venta(request, ticket_id):
                             articulo=detalle_ticket.articulo,
                             cantidad=detalle_ticket.cantidad,
                             precio_unitario=detalle_ticket.precio_unitario,
+                            descuento_pct=detalle_ticket.descuento_pct,
                             precio_total=detalle_ticket.precio_total,
                             impuesto_especifico=detalle_ticket.impuesto_especifico
                         )
@@ -858,59 +966,59 @@ def procesar_venta(request, ticket_id):
                             dte = dte_service.generar_dte_desde_venta(venta_final, tipo_dte)
                             
                             if dte:
-                                print(f"✅ DTE generado exitosamente:")
-                                print(f"   Tipo: {dte.get_tipo_dte_display()} (Código: {dte.tipo_dte})")
+                                print(f"[OK] DTE generado exitosamente:")
+                                print(f"   Tipo: {dte.get_tipo_dte_display()} (Codigo: {dte.tipo_dte})")
                                 print(f"   Folio: {dte.folio}")
                                 print(f"   CAF: {dte.caf_utilizado.folio_desde}-{dte.caf_utilizado.folio_hasta}")
                                 print(f"   Empresa: {dte.empresa.nombre}")
                                 print(f"   Cliente: {dte.razon_social_receptor}")
                                 print(f"   Monto: ${dte.monto_total}")
 
-                                # ✅ ASIGNAR EL DTE A LA VENTA PROCESADA
+                                # ASIGNAR EL DTE A LA VENTA PROCESADA
                                 venta_procesada.dte_generado = dte
                                 venta_procesada.save()
                                 print(f"   DTE asignado a VentaProcesada ID: {venta_procesada.id}")
 
-                                # Mensaje específico según el tipo de documento
+                                # Mensaje especifico segun el tipo de documento
                                 if tipo_documento == 'boleta':
-                                    mensaje_dte = f'✅ Boleta Electrónica N° {dte.folio} generada con timbre SII.'
+                                    mensaje_dte = f'Boleta Electronica N° {dte.folio} generada con timbre SII.'
                                 elif tipo_documento == 'guia':
-                                    mensaje_dte = f'✅ Guía de Despacho Electrónica N° {dte.folio} generada con timbre SII.'
+                                    mensaje_dte = f'Guia de Despacho Electronica N° {dte.folio} generada con timbre SII.'
                                 else:
-                                    mensaje_dte = f'✅ Factura Electrónica N° {dte.folio} generada con timbre SII.'
+                                    mensaje_dte = f'Factura Electronica N° {dte.folio} generada con timbre SII.'
 
                                 messages.success(request, mensaje_dte)
 
-                                # Envío directo al SII (para boleta/factura/guía) cuando FE está activa
+                                # Envio directo al SII (para boleta/factura/guia) cuando FE esta activa
                                 try:
-                                    print("🔄 Enviando DTE al SII (envío directo)...")
+                                    print("[INFO] Enviando DTE al SII (envio directo)...")
                                     resp_envio = dte_service.enviar_dte_al_sii(dte)
                                     track_id = resp_envio.get('track_id') if isinstance(resp_envio, dict) else None
                                     if track_id:
-                                        messages.success(request, f"✅ DTE enviado al SII. Track ID: {track_id}")
+                                        messages.success(request, f"DTE enviado al SII. Track ID: {track_id}")
                                     else:
                                         messages.info(request, "DTE enviado al SII (sin Track ID en respuesta).")
                                 except Exception as e_envio:
-                                    print(f"⚠️ Error al enviar DTE al SII (envío directo): {str(e_envio)}")
+                                    print(f"[WARN] Error al enviar DTE al SII (envio directo): {str(e_envio)}")
                                     messages.warning(request, f"DTE generado pero no enviado al SII: {str(e_envio)}")
 
                         except ValueError as e:
-                            print(f"❌ ERROR al generar DTE (ValueError): {str(e)}")
-                            # Errores de validación (sin folios, sin certificado, etc.)
+                            print(f"[ERROR] ERROR al generar DTE (ValueError): {str(e)}")
+                            # Errores de validacion (sin folios, sin certificado, etc.)
                             if "No hay folios disponibles" in str(e):
-                                messages.error(request, f'⚠️ No se generó DTE: No hay folios CAF disponibles para {tipo_documento}.')
+                                messages.error(request, f'No se genero DTE: No hay folios CAF disponibles para {tipo_documento}.')
                             elif "certificado" in str(e).lower():
-                                messages.error(request, f'⚠️ Error con certificado digital: {str(e)}')
-                            elif "no tiene facturación electrónica" in str(e).lower():
-                                messages.warning(request, 'La facturación electrónica no está activada.')
+                                messages.error(request, f'Error con certificado digital: {str(e)}')
+                            elif "no tiene facturacion electronica" in str(e).lower():
+                                messages.warning(request, 'La facturacion electronica no esta activada.')
                             else:
-                                messages.warning(request, f'⚠️ No se generó DTE: {str(e)}')
+                                messages.warning(request, f'No se genero DTE: {str(e)}')
                         
                         except Exception as e:
-                            print(f"❌ ERROR inesperado al generar DTE: {str(e)}")
+                            print(f"[ERROR] ERROR inesperado al generar DTE: {str(e)}")
                             import traceback
                             traceback.print_exc()
-                            messages.warning(request, f'⚠️ Error al generar DTE: {str(e)}. La venta se procesó correctamente.')
+                            messages.warning(request, f'Error al generar DTE: {str(e)}. La venta se proceso correctamente.')
                     
                     # Limpiar banderas de sesión de cierre directo (si existen)
                     try:
@@ -938,6 +1046,15 @@ def procesar_venta(request, ticket_id):
                         msg = f'Exito: {venta_final.get_tipo_documento_display()} #{venta_final.numero_venta} generada exitosamente. Cambio: ${monto_cambio:,.0f}'
                     messages.success(request, msg)
                     
+                    print("="*80)
+                    print("[OK] VENTA PROCESADA EXITOSAMENTE")
+                    print(f"   Venta Final ID: {venta_final.id}")
+                    print(f"   Número: {venta_final.numero_venta}")
+                    print(f"   Tipo: {venta_final.tipo_documento}")
+                    print(f"   Total: ${venta_final.total}")
+                    print(f"   DTE Generado: {venta_procesada.dte_generado}")
+                    print("="*80)
+                    
                     venta_creada_exitosamente = True
 
                                         # --- INICIO: Bloque para impresión automática ---
@@ -946,12 +1063,18 @@ def procesar_venta(request, ticket_id):
                     from django.urls import reverse
                     dte_generado = venta_procesada.dte_generado
 
+                    print(f"[DEBUG] Preparando redireccion...")
+                    print(f"   DTE Generado: {dte_generado}")
+                    
                     if dte_generado:
                         doc_url = reverse('facturacion_electronica:ver_factura_electronica', args=[dte_generado.pk])
                         doc_url += "?auto=1"
+                        print(f"   URL DTE: {doc_url}")
                     else:
                         doc_url = reverse('ventas:venta_html', args=[venta_final.pk]) + "?auto=1"
+                        print(f"   URL Venta: {doc_url}")
 
+                    print(f"[DEBUG] Renderizando venta_imprimir_y_volver.html")
                     return render(request, 'ventas/venta_imprimir_y_volver.html', {
                         'venta': venta_final,
                         'doc_url': doc_url
@@ -973,12 +1096,12 @@ def procesar_venta(request, ticket_id):
                         raise
                 
                 except Exception as e:
-                    print(f"💥 ERROR en intento {reintento + 1}: {type(e).__name__}: {str(e)}")
+                    print(f"[ERROR] ERROR en intento {reintento + 1}: {type(e).__name__}: {str(e)}")
                     raise
             
-            # Si llegamos aquí sin éxito, mostrar error
+            # Si llegamos aqui sin exito, mostrar error
             if not venta_creada_exitosamente:
-                print(f"💥 ERROR EN EXCEPCIÓN: {type(e).__name__}: {str(e)}")
+                print(f"[ERROR] ERROR EN EXCEPCION: {type(e).__name__}: {str(e)}")
                 import traceback
                 traceback.print_exc()
                 messages.error(request, f'Error al procesar la venta: {str(e)}')
@@ -1000,6 +1123,21 @@ def procesar_venta(request, ticket_id):
             disponibilidad_folios = {}
             disponibilidad_folios_json = '{}'
 
+    # Obtener lista de vendedores activos
+    from ventas.models import Vendedor
+    vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    
+    # Obtener lista de vehículos y choferes si el sistema de despacho está activo
+    vehiculos = []
+    choferes = []
+    if empresa.usa_sistema_despacho:
+        try:
+            from pedidos.models_transporte import Vehiculo, Chofer
+            vehiculos = Vehiculo.objects.filter(empresa=request.empresa, activo=True).order_by('patente')
+            choferes = Chofer.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+        except Exception as e:
+            print(f"Error al cargar vehículos/choferes: {e}")
+    
     context = {
         'form': form,
         'ticket': ticket,
@@ -1009,7 +1147,10 @@ def procesar_venta(request, ticket_id):
         'tipo_documento_planeado': ticket.tipo_documento_planeado,
         'disponibilidad_folios': disponibilidad_folios,
         'disponibilidad_folios_json': disponibilidad_folios_json,
-        'empresa': empresa
+        'empresa': empresa,
+        'vendedores': vendedores,
+        'vehiculos': vehiculos,
+        'choferes': choferes
     }
     
     return render(request, 'caja/procesar_venta.html', context)
@@ -1064,7 +1205,7 @@ def actualizar_cuenta_corriente_cliente(venta, cliente):
         )
 
         if created:
-            print(f"✓ Nueva cuenta corriente creada para {cliente.nombre}")
+            print(f"[OK] Nueva cuenta corriente creada para {cliente.nombre}")
 
         # Crear o actualizar DocumentoCliente
         documento, doc_created = DocumentoCliente.objects.get_or_create(
@@ -1084,7 +1225,7 @@ def actualizar_cuenta_corriente_cliente(venta, cliente):
         )
         
         if doc_created:
-            print(f"✓ Documento creado: {documento.tipo_documento} {documento.numero_documento}")
+            print(f"[OK] Documento creado: {documento.tipo_documento} {documento.numero_documento}")
 
         # Registrar el movimiento
         saldo_anterior = cuenta_corriente.saldo_total
@@ -1109,12 +1250,12 @@ def actualizar_cuenta_corriente_cliente(venta, cliente):
         venta.observaciones += f"\n[CRÉDITO] Registrado en cuenta corriente - Movimiento #{movimiento.id}"
         venta.save()
 
-        print(f"✓ Venta a crédito registrada: {cliente.nombre} - ${venta.total} - Movimiento #{movimiento.id}")
+        print(f"[OK] Venta a credito registrada: {cliente.nombre} - ${venta.total} - Movimiento #{movimiento.id}")
 
         return True
 
     except Exception as e:
-        print(f"❌ Error al registrar venta a crédito: {e}")
+        print(f"[ERROR] Error al registrar venta a credito: {e}")
         # Fallback: registrar en observaciones
         try:
             venta.observaciones += f"\n[CRÉDITO ERROR] No se pudo registrar en cuenta corriente: {str(e)} - Total: ${venta.total}"

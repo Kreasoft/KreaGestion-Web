@@ -198,6 +198,11 @@
                                 <i class="fas fa-store me-2"></i>Sucursales
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="configuraciones-tab" data-bs-toggle="tab" data-bs-target="#configuraciones" type="button" role="tab" aria-controls="configuraciones" aria-selected="false">
+                                <i class="fas fa-cogs me-2"></i>Configuraciones
+                            </button>
+                        </li>
                     </ul>
 
                     <!-- Contenido de las pestañas -->
@@ -604,6 +609,95 @@
                             </form>
                         </div>
                         
+                        <!-- Pestaña Configuraciones -->
+                        <div class="tab-pane fade" id="configuraciones" role="tabpanel" aria-labelledby="configuraciones-tab">
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="form_type" value="configuraciones">
+                                <!-- Campos ocultos para mantener los datos de la empresa -->
+                                <input type="hidden" name="nombre" value="{{ empresa.nombre }}">
+                                <input type="hidden" name="razon_social" value="{{ empresa.razon_social }}">
+                                <input type="hidden" name="rut" value="{{ empresa.rut }}">
+                                <input type="hidden" name="giro" value="{{ empresa.giro }}">
+                                <input type="hidden" name="direccion" value="{{ empresa.direccion }}">
+                                <input type="hidden" name="comuna" value="{{ empresa.comuna }}">
+                                <input type="hidden" name="ciudad" value="{{ empresa.ciudad }}">
+                                <input type="hidden" name="region" value="{{ empresa.region }}">
+                                <input type="hidden" name="telefono" value="{{ empresa.telefono }}">
+                                <input type="hidden" name="email" value="{{ empresa.email }}">
+                                <input type="hidden" name="regimen_tributario" value="{{ empresa.regimen_tributario }}">
+                                <input type="hidden" name="ambiente_sii" value="{{ empresa.ambiente_sii }}">
+                                <input type="hidden" name="alerta_folios_minimos" value="{{ empresa.alerta_folios_minimos }}">
+                                <input type="hidden" name="impresora_factura" value="{{ empresa.impresora_factura }}">
+                                <input type="hidden" name="impresora_boleta" value="{{ empresa.impresora_boleta }}">
+                                <input type="hidden" name="impresora_guia" value="{{ empresa.impresora_guia }}">
+                                <input type="hidden" name="impresora_nota_credito" value="{{ empresa.impresora_nota_credito }}">
+                                <input type="hidden" name="impresora_nota_debito" value="{{ empresa.impresora_nota_debito }}">
+                                <input type="hidden" name="impresora_vale" value="{{ empresa.impresora_vale }}">
+                                <input type="hidden" name="impresora_cotizacion" value="{{ empresa.impresora_cotizacion }}">
+                                <input type="hidden" name="estado" value="{{ empresa.estado }}">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <div class="form-check form-switch">
+                                                {{ form.usa_produccion }}
+                                                <label class="form-check-label" for="{{ form.usa_produccion.id_for_label }}">
+                                                    {{ form.usa_produccion.label }}
+                                                </label>
+                                            </div>
+                                            <small class="form-text text-muted">{{ form.usa_produccion.help_text }}</small>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <div class="form-check form-switch">
+                                                {{ form.usa_sistema_despacho }}
+                                                <label class="form-check-label" for="{{ form.usa_sistema_despacho.id_for_label }}">
+                                                    {{ form.usa_sistema_despacho.label }}
+                                                </label>
+                                            </div>
+                                            <small class="form-text text-muted">{{ form.usa_sistema_despacho.help_text }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="mb-3">
+                                            {{ form.tipo_industria.label_tag }}
+                                            {{ form.tipo_industria }}
+                                            <small class="form-text text-muted">{{ form.tipo_industria.help_text }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.max_descuento_lineal.label_tag }}
+                                            <div class="input-group">
+                                                {{ form.max_descuento_lineal }}
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                            <small class="form-text text-muted">{{ form.max_descuento_lineal.help_text }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.max_descuento_total.label_tag }}
+                                            <div class="input-group">
+                                                {{ form.max_descuento_total }}
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                            <small class="form-text text-muted">{{ form.max_descuento_total.help_text }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-end mt-4">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Guardar Configuraciones
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
                         <!-- Pestaña Configuración de Impresoras -->
                         <div class="tab-pane fade" id="impresoras" role="tabpanel" aria-labelledby="impresoras-tab">
                             <form method="post" action="{% url 'empresas:configurar_impresoras' %}">
@@ -902,9 +996,30 @@
                                             <div class="col-md-6 mb-3">
                                                 <label for="{{ fe_form.password_certificado.id_for_label }}" class="form-label">
                                                     {{ fe_form.password_certificado.label }}
+                                                    {% if empresa.password_certificado %}
+                                                        <span class="badge bg-success ms-2">
+                                                            <i class="fas fa-check"></i> Configurada
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning ms-2">
+                                                            <i class="fas fa-exclamation-triangle"></i> No configurada
+                                                        </span>
+                                                    {% endif %}
                                                 </label>
-                                                {{ fe_form.password_certificado }}
-                                                <small class="text-muted d-block mt-1">Contraseña del archivo .p12/.pfx</small>
+                                                <div class="input-group">
+                                                    {{ fe_form.password_certificado }}
+                                                    <button class="btn btn-outline-secondary" type="button" id="togglePasswordCertificado" 
+                                                            style="border-color: #ced4da;">
+                                                        <i class="fas fa-eye" id="iconPasswordCertificado"></i>
+                                                    </button>
+                                                </div>
+                                                <small class="text-muted d-block mt-1">
+                                                    {% if empresa.password_certificado %}
+                                                        <i class="fas fa-info-circle me-1"></i>Dejar en blanco para mantener la contraseña actual
+                                                    {% else %}
+                                                        <i class="fas fa-exclamation-circle me-1"></i>Debe ingresar la contraseña del certificado
+                                                    {% endif %}
+                                                </small>
                                             </div>
                                         </div>
                                     </div>
@@ -1116,6 +1231,15 @@
                                                     <small class="text-muted d-block">
                                                         {{ empresa.certificado_digital.name|truncatechars:40 }}
                                                     </small>
+                                                    {% if empresa.password_certificado %}
+                                                        <small class="text-success d-block mt-1">
+                                                            <i class="fas fa-key me-1"></i>Contraseña configurada
+                                                        </small>
+                                                    {% else %}
+                                                        <small class="text-danger d-block mt-1">
+                                                            <i class="fas fa-exclamation-triangle me-1"></i>Sin contraseña
+                                                        </small>
+                                                    {% endif %}
                                                 {% else %}
                                                     <span class="badge bg-danger">
                                                         <i class="fas fa-times me-1"></i>No cargado
@@ -1376,5 +1500,37 @@ document.getElementById('{{ form.logo.id_for_label }}').addEventListener('change
         preview.innerHTML = '';
     }
 });
+
+// Toggle para mostrar/ocultar contraseña del certificado
+const togglePasswordBtn = document.getElementById('togglePasswordCertificado');
+const passwordIcon = document.getElementById('iconPasswordCertificado');
+
+if (togglePasswordBtn) {
+    togglePasswordBtn.addEventListener('click', function() {
+        // Buscar el input dentro del input-group
+        const passwordInput = this.previousElementSibling;
+        
+        if (passwordInput && passwordInput.tagName === 'INPUT') {
+            console.log('🔍 Toggle password - Tipo actual:', passwordInput.type);
+            
+            // Cambiar tipo de input
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                passwordIcon.classList.remove('fa-eye');
+                passwordIcon.classList.add('fa-eye-slash');
+                console.log('👁️ Contraseña visible');
+            } else {
+                passwordInput.type = 'password';
+                passwordIcon.classList.remove('fa-eye-slash');
+                passwordIcon.classList.add('fa-eye');
+                console.log('🔒 Contraseña oculta');
+            }
+        } else {
+            console.error('❌ No se encontró el input de contraseña');
+        }
+    });
+} else {
+    console.warn('⚠️ Botón togglePasswordCertificado no encontrado');
+}
 </script>
 {% endblock %}

@@ -340,6 +340,58 @@ def empresa_configuracion(request):
 	return render(request, 'empresas/empresa_configuracion.html', context)
 
 
+@requiere_empresa
+def empresa_configuracion(request):
+    """
+    Vista para configurar datos de la empresa
+    """
+    empresa = request.empresa
+    
+    if not empresa:
+        if request.user.is_superuser:
+            messages.info(request, 'Primero debe crear una empresa.')
+            return redirect('empresas:empresa_create')
+        else:
+            messages.error(request, 'No tiene acceso a ninguna empresa. Contacte al administrador.')
+            return redirect('logout')
+    
+    if request.method == 'POST':
+        form = EmpresaForm(request.POST, instance=empresa)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Configuración actualizada exitosamente.')
+            return redirect('empresas:empresa_configuracion')
+    else:
+        form = EmpresaForm(instance=empresa)
+    
+    context = {
+        'empresa': empresa,
+        'form': form,
+        'titulo': 'Configuraciones Generales',
+    }
+    
+    return render(request, 'empresas/empresa_configuracion.html', context)
+
+
+@requiere_empresa
+def empresa_configuraciones(request):
+    empresa = request.empresa
+    if request.method == 'POST':
+        form = EmpresaForm(request.POST, instance=empresa)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Configuraciones guardadas exitosamente.')
+            return redirect('empresas:empresa_configuraciones')
+    else:
+        form = EmpresaForm(instance=empresa)
+
+    context = {
+        'form': form,
+        'empresa': empresa,
+        'titulo': 'Configuraciones Generales'
+    }
+    return render(request, 'empresas/empresa_configuraciones_form.html', context)
+
 def paleta_colores(request):
 	"""
 	Vista para mostrar la paleta de colores del sistema
@@ -420,8 +472,27 @@ def editar_empresa_activa(request):
 		print(f"DEBUG - FILES recibidos: {request.FILES}")
 		
 		# Determinar qué formulario se está enviando
+		form_type = request.POST.get('form_type')
+
+		if form_type == 'configuraciones':
+			from .forms import ConfiguracionesGeneralesForm
+			config_gen_form = ConfiguracionesGeneralesForm(request.POST, instance=empresa_activa)
+			if config_gen_form.is_valid():
+				config_gen_form.save()
+				messages.success(request, 'Configuraciones generales guardadas correctamente.')
+				return redirect('empresas:editar_empresa_activa')
+			else:
+				error_list = []
+				for field, errors in config_gen_form.errors.items():
+					for error in errors:
+						error_list.append(f"{field}: {error}")
+				if error_list:
+					messages.error(request, f"Hubo errores en el formulario de configuraciones: {', '.join(error_list)}")
+				else:
+					messages.error(request, 'Hubo un error al guardar las configuraciones.')
+
 		# Si tiene certificado_digital o resolucion_fecha, es el formulario FE específico
-		if 'certificado_digital' in request.FILES or 'resolucion_fecha' in request.POST or 'resolucion_numero' in request.POST:
+		elif 'certificado_digital' in request.FILES or 'resolucion_fecha' in request.POST or 'resolucion_numero' in request.POST:
 			fe_form = FacturacionElectronicaForm(request.POST, request.FILES, instance=empresa_activa)
 			if fe_form.is_valid():
 				fe_form.save()

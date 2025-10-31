@@ -218,7 +218,7 @@ class DTEService:
         """
         # Verificar que la empresa tenga FE activada
         if not venta.empresa.facturacion_electronica:
-            print(f"❌ La empresa {venta.empresa.nombre} no tiene FE activada")
+            print(f"[ERROR] La empresa {venta.empresa.nombre} no tiene FE activada")
             return None
         
         # Mapear tipo de documento
@@ -228,7 +228,7 @@ class DTEService:
         folio, caf = FolioService.obtener_siguiente_folio(venta.empresa, tipo_doc_sii)
         
         if folio is None:
-            print(f"❌ No hay folios disponibles para {venta.tipo_documento}")
+            print(f"[ERROR] No hay folios disponibles para {venta.tipo_documento}")
             return None
         
         # Crear el DTE
@@ -288,7 +288,7 @@ class DTEService:
                     save=True
                 )
             
-            print(f"✅ DTE creado: Tipo {tipo_doc_sii}, Folio {folio}")
+            print(f"[OK] DTE creado: Tipo {tipo_doc_sii}, Folio {folio}")
             return dte
     
     @staticmethod

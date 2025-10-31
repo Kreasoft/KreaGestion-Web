@@ -3,10 +3,14 @@ URLs para el módulo de empresas
 """
 from django.urls import path
 from . import views
+from . import api_views
 
 app_name = 'empresas'
 
 urlpatterns = [
+	# API Endpoints
+	path('api/configuracion/', api_views.api_configuracion, name='api_configuracion'),
+	
 	path('', views.home, name='home'),
 	path('empresas/', views.empresa_list, name='empresa_list'),
 	path('empresas/nueva/', views.empresa_create, name='empresa_create'),
@@ -21,6 +25,7 @@ urlpatterns = [
 	path('sucursales/<int:pk>/eliminar/', views.sucursal_delete, name='sucursal_delete'),
 	# Configuración de empresa
 	path('configuracion/', views.empresa_configuracion, name='empresa_configuracion'),
+	path('configuraciones/', views.empresa_configuraciones, name='empresa_configuraciones'),
 	# Configuración de impresoras
 	path('configuracion/impresoras/', views.configurar_impresoras, name='configurar_impresoras'),
 	# Paleta de colores

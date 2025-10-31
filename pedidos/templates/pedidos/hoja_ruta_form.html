@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Crear Hoja de Ruta{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Crear Hoja de Ruta</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Datos de la Ruta</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label for="fecha" class="form-label">Fecha de Ruta *</label>
+                        <input type="date" class="form-control" id="fecha" name="fecha" value="{{ "now"|date:"Y-m-d" }}" required>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="vehiculo" class="form-label">Vehículo *</label>
+                        <select class="form-control" id="vehiculo" name="vehiculo" required>
+                            <option value="">Seleccione...</option>
+                            {% for v in vehiculos %}
+                            <option value="{{ v.id }}">{{ v }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="chofer" class="form-label">Chofer *</label>
+                        <select class="form-control" id="chofer" name="chofer" required>
+                            <option value="">Seleccione...</option>
+                            {% for c in choferes %}
+                            <option value="{{ c.id }}">{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="ayudante" class="form-label">Ayudante</label>
+                        <input type="text" class="form-control" id="ayudante" name="ayudante">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Documentos Disponibles</h6>
+                    </div>
+                    <div class="card-body" style="height: 400px; overflow-y: auto;">
+                        <ul class="list-group" id="documentos-disponibles">
+                            {% for doc in documentos_disponibles %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center" data-id="{{ doc.id }}">
+                                <div>
+                                    <strong>#{{ doc.numero_venta }}</strong> - {{ doc.cliente.nombre|default:"Sin Cliente" }}<br>
+                                    <small>{{ doc.get_tipo_documento_display }} - ${{ doc.total|floatformat:0 }}</small>
+                                </div>
+                                <button type="button" class="btn btn-success btn-sm btn-add"><i class="fas fa-arrow-right"></i></button>
+                            </li>
+                            {% empty %}
+                            <li class="list-group-item text-center text-muted">No hay documentos disponibles.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-danger">Documentos en Ruta</h6>
+                    </div>
+                    <div class="card-body" style="height: 400px; overflow-y: auto;">
+                        <ul class="list-group" id="documentos-en-ruta">
+                            <!-- Documentos se añaden aquí con JS -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="hidden-inputs"></div>
+
+        <div class="d-flex justify-content-end mb-4">
+            <a href="{% url 'pedidos:hoja_ruta_list' %}" class="btn btn-secondary mr-2">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Guardar Hoja de Ruta</button>
+        </div>
+    </form>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const disponiblesList = document.getElementById('documentos-disponibles');
+        const enRutaList = document.getElementById('documentos-en-ruta');
+        const hiddenInputsContainer = document.getElementById('hidden-inputs');
+
+        disponiblesList.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-add')) {
+                const item = e.target.closest('li');
+                moveToRuta(item);
+            }
+        });
+
+        enRutaList.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-remove')) {
+                const item = e.target.closest('li');
+                moveToDisponibles(item);
+            }
+        });
+
+        function moveToRuta(item) {
+            item.querySelector('button').innerHTML = '<i class="fas fa-arrow-left"></i>';
+            item.querySelector('button').classList.replace('btn-success', 'btn-danger');
+            item.querySelector('button').classList.replace('btn-add', 'btn-remove');
+            enRutaList.appendChild(item);
+            addHiddenInput(item.dataset.id);
+        }
+
+        function moveToDisponibles(item) {
+            item.querySelector('button').innerHTML = '<i class="fas fa-arrow-right"></i>';
+            item.querySelector('button').classList.replace('btn-danger', 'btn-success');
+            item.querySelector('button').classList.replace('btn-remove', 'btn-add');
+            disponiblesList.appendChild(item);
+            removeHiddenInput(item.dataset.id);
+        }
+
+        function addHiddenInput(id) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'documentos';
+            input.value = id;
+            input.id = 'doc-input-' + id;
+            hiddenInputsContainer.appendChild(input);
+        }
+
+        function removeHiddenInput(id) {
+            const input = document.getElementById('doc-input-' + id);
+            if (input) {
+                input.remove();
+            }
+        }
+    });
+</script>
+{% endblock %}

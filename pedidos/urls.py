@@ -2,10 +2,15 @@ from django.urls import path
 from . import views
 from . import views_despacho
 from . import views_transporte
+from . import api_views
 
 app_name = 'pedidos'
 
 urlpatterns = [
+    # API Endpoints
+    path('api/vehiculos/', api_views.api_vehiculos, name='api_vehiculos'),
+    path('api/choferes/', api_views.api_choferes, name='api_choferes'),
+    
     # CRUD de órdenes de pedido
     path('', views.orden_pedido_list, name='orden_pedido_list'),
     path('crear/', views.orden_pedido_create, name='orden_pedido_create'),

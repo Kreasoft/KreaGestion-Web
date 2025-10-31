@@ -1,4 +1,5 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from .models import Empresa, Sucursal, ConfiguracionEmpresa
 
 
@@ -28,7 +29,9 @@ class EmpresaForm(forms.ModelForm):
             'nombre', 'razon_social', 'rut', 'giro',
             'direccion', 'comuna', 'ciudad', 'region',
             'telefono', 'email', 'sitio_web', 'logo',
-            'regimen_tributario', 'tipo_industria', 'facturacion_electronica',
+            'regimen_tributario', 'tipo_industria', 'usa_produccion', 'usa_sistema_despacho',
+            'max_descuento_lineal', 'max_descuento_total',
+            'facturacion_electronica',
             'ambiente_sii', 'modo_reutilizacion_folios', 'password_certificado',
             'razon_social_sii', 'giro_sii', 'codigo_actividad_economica',
             'direccion_casa_matriz', 'comuna_casa_matriz', 'ciudad_casa_matriz',
@@ -52,6 +55,10 @@ class EmpresaForm(forms.ModelForm):
             'logo': forms.FileInput(attrs={'class': 'form-control'}),
             'regimen_tributario': forms.Select(attrs={'class': 'form-select'}),
             'tipo_industria': forms.Select(attrs={'class': 'form-select'}),
+            'usa_produccion': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'usa_sistema_despacho': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'max_descuento_lineal': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+            'max_descuento_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
             'facturacion_electronica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'ambiente_sii': forms.Select(attrs={'class': 'form-select'}),
             'modo_reutilizacion_folios': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -77,14 +84,54 @@ class EmpresaForm(forms.ModelForm):
         }
 
 
+class ConfiguracionesGeneralesForm(forms.ModelForm):
+    """Formulario solo para configuraciones generales (NO incluye FE)"""
+    class Meta:
+        model = Empresa
+        fields = [
+            'usa_produccion', 'usa_sistema_despacho',
+            'tipo_industria', 'max_descuento_lineal', 'max_descuento_total'
+        ]
+        widgets = {
+            'usa_produccion': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'usa_sistema_despacho': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'tipo_industria': forms.Select(attrs={'class': 'form-select'}),
+            'max_descuento_lineal': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+            'max_descuento_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+        }
+
+
 class FacturacionElectronicaForm(forms.ModelForm):
     """Formulario para configurar Facturación Electrónica"""
+    
+    # Hacer password_certificado opcional
+    password_certificado = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Dejar en blanco para mantener la actual'
+        }),
+        label='Contraseña del Certificado',
+        help_text='Solo completar si desea cambiar la contraseña'
+    )
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Asegurar formato correcto de fecha
         if 'resolucion_fecha' in self.fields:
             self.fields['resolucion_fecha'].input_formats = ['%Y-%m-%d']
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Si no se proporcionó password, mantener el existente
+        if not self.cleaned_data.get('password_certificado'):
+            if self.instance.pk:  # Si es edición
+                # Recuperar el password anterior de la BD
+                original = Empresa.objects.get(pk=self.instance.pk)
+                instance.password_certificado = original.password_certificado
+        if commit:
+            instance.save()
+        return instance
     
     class Meta:
         model = Empresa
@@ -109,7 +156,7 @@ class FacturacionElectronicaForm(forms.ModelForm):
             'facturacion_electronica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'ambiente_sii': forms.Select(attrs={'class': 'form-select'}),
             'certificado_digital': forms.FileInput(attrs={'class': 'form-control', 'accept': '.p12,.pfx'}),
-            'password_certificado': forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Contraseña del certificado'}),
+            # password_certificado se define arriba como campo personalizado
             'razon_social_sii': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Razón social registrada en SII'}),
             'giro_sii': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Giro registrado en SII'}),
             'codigo_actividad_economica': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 620200'}),
@@ -126,22 +173,22 @@ class FacturacionElectronicaForm(forms.ModelForm):
             'email_contacto_sii': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email registrado en SII'}),
         }
         labels = {
-            'facturacion_electronica': 'Activar Facturación Electrónica',
-            'ambiente_sii': 'Ambiente SII',
-            'certificado_digital': 'Certificado Digital (.p12 o .pfx)',
-            'password_certificado': 'Contraseña del Certificado',
-            'razon_social_sii': 'Razón Social SII',
-            'giro_sii': 'Giro SII',
-            'codigo_actividad_economica': 'Código Actividad Económica',
-            'direccion_casa_matriz': 'Dirección Casa Matriz',
-            'comuna_casa_matriz': 'Comuna Casa Matriz',
-            'ciudad_casa_matriz': 'Ciudad Casa Matriz',
-            'oficina_sii': 'Oficina SII',
-            'resolucion_fecha': 'Fecha Resolución',
-            'resolucion_numero': 'Número Resolución',
-            'email_intercambio': 'Email de Intercambio',
-            'email_contacto_sii': 'Email Contacto SII',
+            # labels dict remains
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        cert_file = cleaned.get('certificado_digital') or (self.instance.certificado_digital if self.instance and self.instance.pk else None)
+        password = cleaned.get('password_certificado') or (self.instance.password_certificado if self.instance and self.instance.pk else '')
+        if self.cleaned_data.get('facturacion_electronica'):
+            if not cert_file:
+                raise ValidationError('Debe adjuntar un certificado digital (.p12/.pfx) para activar Facturación Electrónica.')
+            try:
+                from facturacion_electronica.firma_electronica import FirmadorDTE
+                FirmadorDTE(cert_file.path if hasattr(cert_file, 'path') else cert_file.name, password or '')
+            except ValueError as e:
+                raise ValidationError(f'Certificado digital inválido o contraseña incorrecta: {e}')
+        return cleaned
 
 
 class ConfiguracionEmpresaForm(forms.ModelForm):
@@ -154,6 +201,12 @@ class ConfiguracionEmpresaForm(forms.ModelForm):
             'prefijo_orden_compra',
             'siguiente_orden_compra',
             'formato_orden_compra',
+            'imprimir_logo',
+            'pie_pagina_documentos',
+            'alerta_stock_minimo',
+            'notificar_vencimientos',
+            'respaldo_automatico',
+            'frecuencia_respaldo',
         ]
         widgets = {
             'prefijo_ajustes': forms.TextInput(attrs={'class': 'form-control'}),
@@ -162,6 +215,12 @@ class ConfiguracionEmpresaForm(forms.ModelForm):
             'prefijo_orden_compra': forms.TextInput(attrs={'class': 'form-control'}),
             'siguiente_orden_compra': forms.NumberInput(attrs={'class': 'form-control'}),
             'formato_orden_compra': forms.TextInput(attrs={'class': 'form-control'}),
+            'imprimir_logo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'pie_pagina_documentos': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'alerta_stock_minimo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notificar_vencimientos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'respaldo_automatico': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'frecuencia_respaldo': forms.Select(attrs={'class': 'form-select'}),
         }
 
 

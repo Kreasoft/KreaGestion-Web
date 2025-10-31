@@ -1,0 +1,412 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load format_filters %}
+
+{% block title %}Procesar Venta - {{ ticket.numero_venta }}{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+    --terroso-primary: #8B7355;
+    --terroso-dark: #6F5B44;
+    --terroso-light: #A0826D;
+    --terroso-bg: #F5F1ED;
+}
+
+.procesar-container {
+    max-width: 1400px;
+    margin: 20px auto;
+}
+
+.card-terroso {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(139, 115, 85, 0.1);
+}
+
+.card-header-terroso {
+    background: linear-gradient(135deg, var(--terroso-primary) 0%, var(--terroso-dark) 100%);
+    color: white;
+    border-radius: 12px 12px 0 0 !important;
+    padding: 15px 20px;
+}
+
+.btn-terroso {
+    background: linear-gradient(135deg, var(--terroso-primary) 0%, var(--terroso-dark) 100%);
+    border: none;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-terroso:hover {
+    background: linear-gradient(135deg, var(--terroso-dark) 0%, var(--terroso-primary) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 115, 85, 0.3);
+    color: white;
+}
+
+.form-control, .form-select {
+    border: 1px solid #D4A574;
+    border-radius: 6px;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--terroso-primary);
+    box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+}
+
+.badge-terroso {
+    background: var(--terroso-primary);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.tipo-doc-option {
+    border: 2px solid #D4A574;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: white;
+}
+
+.tipo-doc-option:hover {
+    border-color: var(--terroso-primary);
+    background: var(--terroso-bg);
+}
+
+.tipo-doc-option input[type="radio"]:checked + label {
+    color: var(--terroso-primary);
+    font-weight: 600;
+}
+
+.forma-pago-item {
+    background: var(--terroso-bg);
+    border: 1px solid #D4A574;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+
+.resumen-box {
+    background: linear-gradient(135deg, #F5F1ED 0%, #E8E0D5 100%);
+    border-radius: 8px;
+    padding: 20px;
+    border: 2px solid var(--terroso-light);
+}
+
+.total-row {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--terroso-dark);
+    padding: 10px 0;
+    border-top: 2px solid var(--terroso-primary);
+}
+
+.compact-form-group {
+    margin-bottom: 12px;
+}
+
+.compact-form-group label {
+    font-weight: 500;
+    color: var(--terroso-dark);
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="procesar-container">
+    <div class="row">
+        <!-- Columna Izquierda: Información del Ticket -->
+        <div class="col-md-4">
+            <div class="card card-terroso">
+                <div class="card-header-terroso">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Ticket #{{ ticket.numero_venta }}</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Cliente -->
+                    <div class="mb-3">
+                        <small class="text-muted d-block">CLIENTE</small>
+                        <strong>{{ ticket.cliente.nombre|default:"PÚBLICO GENERAL" }}</strong>
+                        {% if ticket.cliente.rut %}
+                        <br><small class="text-muted">RUT: {{ ticket.cliente.rut }}</small>
+                        {% endif %}
+                    </div>
+
+                    <!-- Vendedor -->
+                    {% if ticket.vendedor %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block">VENDEDOR</small>
+                        <strong>{{ ticket.vendedor.nombre }}</strong>
+                    </div>
+                    {% endif %}
+
+                    <!-- Items del Ticket -->
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-2">ITEMS</small>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            {% for detalle in ticket.ventadetalle_set.all %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2" style="border-bottom: 1px solid #E8E0D5;">
+                                <div class="flex-grow-1">
+                                    <small>{{ detalle.articulo.nombre }}</small>
+                                    <br><small class="text-muted">{{ detalle.cantidad }} x ${{ detalle.precio_unitario|floatformat:0 }}</small>
+                                </div>
+                                <strong class="text-end">${{ detalle.precio_total|floatformat:0 }}</strong>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Totales -->
+                    <div class="resumen-box">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <strong>${{ ticket.subtotal|floatformat:0 }}</strong>
+                        </div>
+                        {% if ticket.descuento > 0 %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Descuento:</span>
+                            <strong class="text-danger">-${{ ticket.descuento|floatformat:0 }}</strong>
+                        </div>
+                        {% endif %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Neto:</span>
+                            <strong>${{ ticket.neto|floatformat:0 }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>IVA (19%):</span>
+                            <strong>${{ ticket.iva|floatformat:0 }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between total-row">
+                            <span>TOTAL:</span>
+                            <span>${{ ticket.total|floatformat:0 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Formulario de Procesamiento -->
+        <div class="col-md-8">
+            <form method="post" id="formProcesar">
+                {% csrf_token %}
+                <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
+
+                <div class="card card-terroso mb-3">
+                    <div class="card-header-terroso">
+                        <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Tipo de Documento</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            {% if '39' in form.tipo_documento_permitidos %}
+                            <div class="col-md-4">
+                                <div class="tipo-doc-option">
+                                    <input type="radio" name="tipo_documento" value="boleta" id="tipo_boleta" 
+                                           {% if ticket.tipo_documento_planeado == 'boleta' or not ticket.tipo_documento_planeado %}checked{% endif %}>
+                                    <label for="tipo_boleta" class="d-block text-center mb-0">
+                                        <i class="fas fa-receipt fa-2x d-block mb-2"></i>
+                                        <strong>Boleta</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if '33' in form.tipo_documento_permitidos %}
+                            <div class="col-md-4">
+                                <div class="tipo-doc-option">
+                                    <input type="radio" name="tipo_documento" value="factura" id="tipo_factura"
+                                           {% if ticket.tipo_documento_planeado == 'factura' %}checked{% endif %}>
+                                    <label for="tipo_factura" class="d-block text-center mb-0">
+                                        <i class="fas fa-file-invoice fa-2x d-block mb-2"></i>
+                                        <strong>Factura</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if '52' in form.tipo_documento_permitidos %}
+                            <div class="col-md-4">
+                                <div class="tipo-doc-option">
+                                    <input type="radio" name="tipo_documento" value="guia" id="tipo_guia"
+                                           {% if ticket.tipo_documento_planeado == 'guia' %}checked{% endif %}>
+                                    <label for="tipo_guia" class="d-block text-center mb-0">
+                                        <i class="fas fa-truck fa-2x d-block mb-2"></i>
+                                        <strong>Guía Despacho</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card card-terroso mb-3" id="formasPagoCard">
+                    <div class="card-header-terroso">
+                        <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Formas de Pago</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="formas-pago-container">
+                            <!-- Primera forma de pago por defecto -->
+                            <div class="forma-pago-item">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-6">
+                                        <label class="form-label mb-1">Forma de Pago</label>
+                                        <select name="forma_pago_1" class="form-select form-select-sm">
+                                            {% for fp in formas_pago %}
+                                            <option value="{{ fp.id }}">{{ fp.nombre }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label mb-1">Monto</label>
+                                        <input type="number" name="monto_pago_1" class="form-control form-control-sm monto-pago" 
+                                               step="1" min="0" value="{{ ticket.total|unlocalize }}">
+                                    </div>
+                                    <div class="col-md-1 text-end">
+                                        <button type="button" class="btn btn-sm btn-danger remove-pago" style="visibility: hidden;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="btnAgregarPago">
+                            <i class="fas fa-plus me-1"></i>Agregar Forma de Pago
+                        </button>
+
+                        <div class="resumen-box mt-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total a Pagar:</span>
+                                <strong id="totalAPagar">${{ ticket.total|floatformat:0 }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total Pagado:</span>
+                                <strong id="totalPagado" class="text-success">$0</strong>
+                            </div>
+                            <div class="d-flex justify-content-between total-row">
+                                <span>Diferencia:</span>
+                                <span id="diferencia">$0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card card-terroso mb-3">
+                    <div class="card-body">
+                        <div class="compact-form-group">
+                            <label for="observaciones">Observaciones (Opcional)</label>
+                            <textarea name="observaciones" id="observaciones" class="form-control" rows="2" 
+                                      placeholder="Ingrese observaciones adicionales..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="{% url 'caja:procesar_venta_buscar' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-terroso btn-lg" id="btnProcesar">
+                        <i class="fas fa-check me-2"></i>Procesar Venta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// JavaScript MÍNIMO - Solo para cálculos de totales
+const totalVenta = {{ ticket.total|unlocalize }};
+let contadorFormasPago = 1;
+
+// Actualizar resumen de pagos
+function actualizarResumen() {
+    const montos = document.querySelectorAll('.monto-pago');
+    let totalPagado = 0;
+    
+    montos.forEach(input => {
+        const valor = parseFloat(input.value) || 0;
+        totalPagado += valor;
+    });
+    
+    const diferencia = totalVenta - totalPagado;
+    
+    document.getElementById('totalPagado').textContent = '$' + Math.round(totalPagado).toLocaleString('es-CL');
+    document.getElementById('diferencia').textContent = '$' + Math.round(diferencia).toLocaleString('es-CL');
+    document.getElementById('diferencia').style.color = diferencia <= 0 ? '#28a745' : '#dc3545';
+}
+
+// Agregar forma de pago
+document.getElementById('btnAgregarPago').addEventListener('click', function() {
+    contadorFormasPago++;
+    const container = document.getElementById('formas-pago-container');
+    const nuevaFila = document.createElement('div');
+    nuevaFila.className = 'forma-pago-item';
+    nuevaFila.innerHTML = `
+        <div class="row g-2 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label mb-1">Forma de Pago</label>
+                <select name="forma_pago_${contadorFormasPago}" class="form-select form-select-sm">
+                    {% for fp in formas_pago %}
+                    <option value="{{ fp.id }}">{{ fp.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label mb-1">Monto</label>
+                <input type="number" name="monto_pago_${contadorFormasPago}" class="form-control form-control-sm monto-pago" 
+                       step="1" min="0" value="0">
+            </div>
+            <div class="col-md-1 text-end">
+                <button type="button" class="btn btn-sm btn-danger remove-pago">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(nuevaFila);
+    
+    // Event listener para eliminar
+    nuevaFila.querySelector('.remove-pago').addEventListener('click', function() {
+        nuevaFila.remove();
+        actualizarResumen();
+    });
+    
+    // Event listener para actualizar totales
+    nuevaFila.querySelector('.monto-pago').addEventListener('input', actualizarResumen);
+    
+    actualizarResumen();
+});
+
+// Listeners iniciales
+document.querySelectorAll('.monto-pago').forEach(input => {
+    input.addEventListener('input', actualizarResumen);
+});
+
+// Mostrar/ocultar formas de pago según tipo de documento
+document.querySelectorAll('input[name="tipo_documento"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const card = document.getElementById('formasPagoCard');
+        if (this.value === 'guia') {
+            card.style.display = 'none';
+        } else {
+            card.style.display = 'block';
+        }
+    });
+});
+
+// Inicializar
+actualizarResumen();
+if (document.querySelector('input[name="tipo_documento"]:checked')?.value === 'guia') {
+    document.getElementById('formasPagoCard').style.display = 'none';
+}
+</script>
+{% endblock %}
+
+

@@ -827,6 +827,8 @@ def pos_view(request):
         'modo_pos': modo_pos,  # Nuevo
         'estacion_activa': estacion_activa,  # Nuevo
         'kits': kits_disponibles,  # Kits de ofertas
+        'max_descuento_lineal': request.empresa.max_descuento_lineal,
+        'max_descuento_total': request.empresa.max_descuento_total,
     }
     
     return render(request, 'ventas/pos.html', context)
@@ -1119,16 +1121,30 @@ def pos_procesar_preventa(request):
             estacion_id = clean_id(data.get('estacion_id'))
             vendedor_id = clean_id(data.get('vendedor_id'))
             cliente_id = clean_id(data.get('cliente_id'))
+            vehiculo_id = clean_id(data.get('vehiculo_id'))
+            chofer_id = clean_id(data.get('chofer_id'))
             
-            print(f"🔍 DEBUG - IDs limpiados:")
-            print(f"  Estacion ID: {data.get('estacion_id')} → {estacion_id}")
-            print(f"  Vendedor ID: {data.get('vendedor_id')} → {vendedor_id}")
-            print(f"  Cliente ID: {data.get('cliente_id')} → {cliente_id}")
+            print(f"[DEBUG] IDs limpiados:")
+            print(f"  Estacion ID: {data.get('estacion_id')} -> {estacion_id}")
+            print(f"  Vendedor ID: {data.get('vendedor_id')} -> {vendedor_id}")
+            print(f"  Cliente ID: {data.get('cliente_id')} -> {cliente_id}")
+            print(f"  Vehiculo ID: {data.get('vehiculo_id')} -> {vehiculo_id}")
+            print(f"  Chofer ID: {data.get('chofer_id')} -> {chofer_id}")
 
             # Obtener objetos con IDs limpios
             estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa)
             vendedor = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa)
             cliente = Cliente.objects.get(id=cliente_id, empresa=request.empresa)
+            
+            # Obtener vehículo y chofer si están presentes
+            vehiculo = None
+            chofer = None
+            if vehiculo_id:
+                from pedidos.models_transporte import Vehiculo
+                vehiculo = Vehiculo.objects.get(id=vehiculo_id, empresa=request.empresa)
+            if chofer_id:
+                from pedidos.models_transporte import Chofer
+                chofer = Chofer.objects.get(id=chofer_id, empresa=request.empresa)
             
             # Generar número de preventa único
             # Buscar el último número de venta de la empresa
@@ -1192,12 +1208,15 @@ def pos_procesar_preventa(request):
                 numero_venta=proximo_numero,
                 cliente=cliente,
                 vendedor=vendedor,
+                vehiculo=vehiculo,  # ← GUARDAR VEHÍCULO
+                chofer=chofer,  # ← GUARDAR CHOFER
                 estacion_trabajo=estacion,
                 tipo_documento=data['tipo_documento'],
                 tipo_documento_planeado=data.get('tipo_documento_planeado', data['tipo_documento']),  # ← GUARDAR TIPO PLANEADO
                 tipo_despacho=data.get('tipo_despacho'),  # ← GUARDAR TIPO DE DESPACHO
                 subtotal=subtotal,
                 descuento=descuento,
+                descuento_total_pct=Decimal(data.get('descuento_total_pct', 0)),
                 neto=neto,
                 iva=iva,
                 impuesto_especifico=impuesto_especifico,
@@ -1212,7 +1231,7 @@ def pos_procesar_preventa(request):
             for i, item in enumerate(data['items']):
                 print(f"DEBUG - Procesando item {i}: {item}")
                 articulo_id_limpio = clean_id(item.get('articuloId'))
-                print(f"DEBUG - Buscando artículo ID: {item.get('articuloId')} → {articulo_id_limpio}")
+                print(f"DEBUG - Buscando artículo ID: {item.get('articuloId')} -> {articulo_id_limpio}")
                 articulo = Articulo.objects.get(id=articulo_id_limpio, empresa=request.empresa)
                 print(f"DEBUG - Artículo encontrado: {articulo.nombre}")
                 
@@ -1229,6 +1248,7 @@ def pos_procesar_preventa(request):
                         cantidad=Decimal(str(item['cantidad'])),
                         precio_unitario=Decimal(str(item['precio'])),
                         precio_total=Decimal(str(item['total'])),
+                        descuento_pct=Decimal(item.get('descuento', 0)),
                         impuesto_especifico=Decimal('0.00')
                     )
                     print(f"DEBUG - VentaDetalle creado exitosamente")
@@ -1330,23 +1350,299 @@ def pos_procesar_preventa(request):
                 ticket_vale_numero = numero_vale
                 print(f"DEBUG - Ticket facturable (vale) #{numero_vale} generado exitosamente")
                 
-                # CIERRE DIRECTO: Redirigir a pantalla de forma de pago pero marcar para generación automática de DTE
+                # CIERRE DIRECTO: Procesar automáticamente el ticket y generar DTE
                 if estacion.cierre_directo:
-                    print(f"🔥 CIERRE DIRECTO ACTIVO - Redirigiendo a pantalla de forma de pago")
-                    print(f"   (El DTE se generará automáticamente después de procesar)")
+                    print(f"[CIERRE DIRECTO] Procesando ticket automaticamente")
                     
-                    # Simplemente retornar el ticket/vale para que vaya a la pantalla de caja
-                    # donde el usuario podrá elegir forma de pago, pero el DTE se generará automáticamente
-                    return JsonResponse({
-                        'success': True,
-                        'numero_preventa': proximo_numero,
-                        'tipo_documento': data['tipo_documento'],
-                        'preventa_id': preventa.id,
-                        'ticket_vale_id': ticket_vale_id,
-                        'ticket_vale_numero': ticket_vale_numero,
-                        'cierre_directo': False,  # No procesar automáticamente
-                        'tiene_cierre_directo': True  # Pero marcar que la estación tiene cierre directo
-                    })
+                    # Procesar el ticket automáticamente
+                    try:
+                        from caja.models import AperturaCaja, Caja, VentaProcesada, MovimientoCaja
+                        from django.db import transaction
+                        
+                        # Buscar apertura activa
+                        apertura_activa = None
+                        for caja in Caja.objects.filter(empresa=request.empresa, activo=True):
+                            apertura = caja.get_apertura_activa()
+                            if apertura:
+                                apertura_activa = apertura
+                                break
+                        
+                        if not apertura_activa:
+                            # Si no hay caja abierta, redirigir a pantalla de caja normal
+                            print(f"[WARN] CIERRE DIRECTO: No hay caja abierta, redirigiendo a pantalla de caja")
+                            return JsonResponse({
+                                'success': True,
+                                'numero_preventa': proximo_numero,
+                                'tipo_documento': data['tipo_documento'],
+                                'preventa_id': preventa.id,
+                                'ticket_vale_id': ticket_vale_id,
+                                'ticket_vale_numero': ticket_vale_numero,
+                                'cierre_directo': False,
+                                'error_caja': 'No hay caja abierta'
+                            })
+                        
+                        # Obtener forma de pago por defecto (Efectivo)
+                        forma_pago = FormaPago.objects.filter(
+                            empresa=request.empresa,
+                            codigo__iexact='EF'
+                        ).first()
+                        
+                        if not forma_pago:
+                            # Si no existe efectivo, usar la primera forma de pago activa
+                            forma_pago = FormaPago.objects.filter(
+                                empresa=request.empresa,
+                                activo=True
+                            ).first()
+                        
+                        if not forma_pago:
+                            print(f"[WARN] CIERRE DIRECTO: No hay formas de pago configuradas")
+                            return JsonResponse({
+                                'success': False,
+                                'message': 'No hay formas de pago configuradas'
+                            }, status=400)
+                        
+                        # Procesar el ticket con transacción atómica
+                        with transaction.atomic():
+                            # Generar número de venta temporal (será reemplazado por el folio del DTE)
+                            # Buscar el número más alto existente
+                            ventas_existentes = Venta.objects.filter(
+                                empresa=request.empresa
+                            ).order_by('-numero_venta')
+                            
+                            numero = 1
+                            if ventas_existentes.exists():
+                                for venta_temp in ventas_existentes[:20]:
+                                    try:
+                                        num_actual = int(venta_temp.numero_venta)
+                                        if num_actual >= numero:
+                                            numero = num_actual + 1
+                                    except ValueError:
+                                        continue
+                            
+                            # Buscar número disponible
+                            numero_venta_temp = f"{numero:06d}"
+                            while Venta.objects.filter(
+                                empresa=request.empresa,
+                                numero_venta=numero_venta_temp
+                            ).exists():
+                                numero += 1
+                                numero_venta_temp = f"{numero:06d}"
+                            
+                            print(f"[CIERRE DIRECTO] Numero de venta temporal: {numero_venta_temp}")
+                            
+                            # Primero generar el DTE para obtener el folio correcto
+                            dte = None
+                            numero_venta_final = numero_venta_temp
+                            
+                            if data['tipo_documento'] in ['factura', 'boleta', 'guia']:
+                                try:
+                                    from facturacion_electronica.dte_service import DTEService
+                                    from facturacion_electronica.models import DocumentoTributarioElectronico
+                                    
+                                    print(f"[CIERRE DIRECTO] Verificando si ya existe DTE para ticket {ticket_vale.id}...")
+                                    
+                                    # Mapear tipo de documento a código SII
+                                    tipo_dte_map = {
+                                        'factura': '33',  # Factura Electrónica
+                                        'boleta': '39',   # Boleta Electrónica
+                                        'guia': '52',     # Guía de Despacho Electrónica
+                                    }
+                                    tipo_dte_codigo = tipo_dte_map.get(data['tipo_documento'], '39')
+                                    
+                                    # Verificar si ya existe un DTE para este ticket
+                                    # Buscar por VentaProcesada asociada al ticket
+                                    from caja.models import VentaProcesada as VentaProcesadaCheck
+                                    venta_proc_existente = VentaProcesadaCheck.objects.filter(
+                                        venta_preventa=ticket_vale,
+                                        dte_generado__isnull=False
+                                    ).first()
+                                    
+                                    if venta_proc_existente and venta_proc_existente.dte_generado:
+                                        # Ya existe un DTE para este ticket, reutilizarlo
+                                        dte = venta_proc_existente.dte_generado
+                                        numero_venta_final = f"{dte.folio:06d}"
+                                        print(f"[OK] CIERRE DIRECTO: DTE ya existe - Folio {dte.folio} (reutilizando)")
+                                        
+                                        # Actualizar el número de venta del ticket_vale
+                                        ticket_vale.numero_venta = numero_venta_final
+                                        ticket_vale.tipo_documento = data['tipo_documento']
+                                        ticket_vale.estado = 'confirmada'
+                                        ticket_vale.save()
+                                    else:
+                                        # No existe DTE, generar uno nuevo
+                                        print(f"[CIERRE DIRECTO] Generando DTE nuevo para obtener folio...")
+                                        
+                                        # Preparar venta temporal para generar DTE
+                                        ticket_vale.numero_venta = numero_venta_temp
+                                        ticket_vale.tipo_documento = data['tipo_documento']
+                                        ticket_vale.estado = 'confirmada'
+                                        ticket_vale.save()
+                                        
+                                        # Generar DTE
+                                        dte_service = DTEService(request.empresa)
+                                        dte = dte_service.generar_dte_desde_venta(ticket_vale, tipo_dte_codigo)
+                                        
+                                        if dte:
+                                            # Usar el folio del DTE como número de venta final
+                                            numero_venta_final = f"{dte.folio:06d}"
+                                            print(f"[OK] CIERRE DIRECTO: DTE generado - Folio {dte.folio}")
+                                            print(f"[OK] CIERRE DIRECTO: Número de venta final actualizado a: {numero_venta_final}")
+                                            
+                                            # Actualizar el número de venta del ticket_vale con el folio
+                                            ticket_vale.numero_venta = numero_venta_final
+                                            ticket_vale.save()
+                                        
+                                except Exception as e_dte:
+                                    print(f"[ERROR] CIERRE DIRECTO: Error al generar DTE: {e_dte}")
+                                    import traceback
+                                    traceback.print_exc()
+                                    # Continuar sin DTE, usar número temporal
+                            
+                            # Verificar si ya existe una venta final con ese folio
+                            venta_final = Venta.objects.filter(
+                                empresa=request.empresa,
+                                tipo_documento=data['tipo_documento'],
+                                numero_venta=numero_venta_final
+                            ).first()
+                            
+                            if not venta_final:
+                                # Crear venta final definitiva solo si no existe
+                                venta_final = Venta.objects.create(
+                                    empresa=request.empresa,
+                                    sucursal=ticket_vale.sucursal,  # Usar sucursal del ticket
+                                    tipo_documento=data['tipo_documento'],
+                                    numero_venta=numero_venta_final,
+                                    cliente=cliente,
+                                    vendedor=ticket_vale.vendedor,
+                                    estado='confirmada',
+                                    subtotal=ticket_vale.subtotal,
+                                    descuento=ticket_vale.descuento,
+                                    neto=ticket_vale.neto,
+                                    iva=ticket_vale.iva,
+                                    total=ticket_vale.total,
+                                    fecha=timezone.now().date(),
+                                    usuario_creacion=request.user
+                                )
+                                
+                                # Copiar detalles del ticket a la venta final
+                                for detalle in ticket_vale.detalles.all():
+                                    VentaDetalle.objects.create(
+                                        venta=venta_final,
+                                        articulo=detalle.articulo,
+                                        cantidad=detalle.cantidad,
+                                        precio_unitario=detalle.precio_unitario,
+                                        precio_total=detalle.precio_total,
+                                        impuesto_especifico=detalle.impuesto_especifico
+                                    )
+                                print(f"[OK] CIERRE DIRECTO: Venta final creada - ID {venta_final.id}")
+                            else:
+                                print(f"[INFO] CIERRE DIRECTO: Venta final ya existe - ID {venta_final.id}, reutilizando")
+                            
+                            # Si hay DTE, asociarlo a la venta final
+                            if dte:
+                                dte.venta = venta_final
+                                dte.save()
+                            
+                            # Crear movimiento de caja (solo si no es guía de despacho)
+                            movimiento_caja = None
+                            if data['tipo_documento'] != 'guia':
+                                movimiento_caja = MovimientoCaja.objects.create(
+                                    apertura=apertura_activa,
+                                    tipo='ingreso',
+                                    forma_pago=forma_pago,
+                                    monto=total,
+                                    descripcion=f"{data['tipo_documento'].title()} #{numero_venta_final}",
+                                    registrado_por=request.user
+                                )
+                            
+                            # Crear venta procesada con los campos correctos del modelo
+                            venta_procesada = VentaProcesada.objects.create(
+                                venta_preventa=ticket_vale,
+                                venta_final=venta_final,
+                                apertura_caja=apertura_activa,
+                                movimiento_caja=movimiento_caja,
+                                usuario_proceso=request.user,
+                                monto_recibido=total,
+                                monto_cambio=Decimal('0.00'),
+                                stock_descontado=True,
+                                dte_generado=dte
+                            )
+                            
+                            # Descontar stock
+                            from inventario.models import Inventario
+                            bodega_caja = apertura_activa.caja.bodega
+                            
+                            for detalle in ticket_vale.detalles.all():
+                                # Buscar inventario en la bodega de la caja
+                                inventario = Inventario.objects.filter(
+                                    empresa=request.empresa,
+                                    bodega=bodega_caja,
+                                    articulo=detalle.articulo,
+                                    activo=True
+                                ).first()
+                                
+                                if inventario:
+                                    inventario.cantidad_disponible -= detalle.cantidad
+                                    inventario.save()
+                            
+                            # Generar URL del documento y enviar al SII si corresponde
+                            doc_url = None
+                            if dte:
+                                # Generar URL del documento electrónico
+                                from django.urls import reverse
+                                doc_url = reverse('facturacion_electronica:ver_factura_electronica', args=[dte.pk])
+                                
+                                # Enviar al SII si está configurado
+                                if estacion.enviar_sii_directo and request.empresa.facturacion_electronica:
+                                    try:
+                                        from facturacion_electronica.dte_service import DTEService
+                                        dte_service = DTEService(request.empresa)
+                                        print("[INFO] CIERRE DIRECTO: Enviando DTE al SII...")
+                                        dte_service.enviar_dte_al_sii(dte)
+                                        print("[OK] CIERRE DIRECTO: DTE enviado al SII")
+                                    except Exception as e_envio:
+                                        print(f"[WARN] CIERRE DIRECTO: Error al enviar DTE al SII: {e_envio}")
+                            
+                            # Marcar ticket como procesado
+                            ticket_vale.estado = 'confirmada'
+                            ticket_vale.save()
+                            
+                            print("=" * 80)
+                            print("[OK] VENTA PROCESADA EXITOSAMENTE")
+                            print(f"   Venta Final ID: {venta_final.id}")
+                            print(f"   Numero: {numero_venta_final}")
+                            print(f"   Tipo: {data['tipo_documento']}")
+                            print(f"   Total: ${total}")
+                            print(f"   DTE Generado: {dte.id if dte else None}")
+                            print("=" * 80)
+                            
+                            # Retornar respuesta con documento generado
+                            return JsonResponse({
+                                'success': True,
+                                'cierre_directo': True,
+                                'tipo_documento': data['tipo_documento'],
+                                'numero_venta': numero_venta_final,
+                                'doc_url': doc_url or '',
+                                'ticket_vale_id': ticket_vale_id,
+                                'ticket_vale_numero': ticket_vale_numero,
+                                'venta_final_id': venta_final.id
+                            })
+                    
+                    except Exception as e_cierre:
+                        print(f"[ERROR] ERROR en cierre directo: {e_cierre}")
+                        import traceback
+                        traceback.print_exc()
+                        # Si falla el cierre directo, redirigir a pantalla de caja normal
+                        return JsonResponse({
+                            'success': True,
+                            'numero_preventa': proximo_numero,
+                            'tipo_documento': data['tipo_documento'],
+                            'preventa_id': preventa.id,
+                            'ticket_vale_id': ticket_vale_id,
+                            'ticket_vale_numero': ticket_vale_numero,
+                            'cierre_directo': False,
+                            'error_cierre': str(e_cierre)
+                        })
             
             # Retorno normal (sin cierre directo)
             return JsonResponse({
@@ -1366,7 +1662,7 @@ def pos_procesar_preventa(request):
             print("Traceback completo:")
             print(traceback.format_exc())
             print("=" * 80)
-            return JsonResponse({'success': False, 'message': f'Error al procesar preventa: {str(e)}'})
+            return JsonResponse({'success': False, 'message': f'Error al procesar preventa: {str(e)}'}, status=500)
     
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
@@ -2053,14 +2349,14 @@ def venta_html(request, pk):
             # Buscar DTE directamente asociado a la venta
             if hasattr(venta, 'dte'):
                 dte = venta.dte
-                print(f"✅ DTE encontrado directamente en venta: Tipo {dte.tipo_dte}, Folio {dte.folio}")
+                print(f"[OK] DTE encontrado directamente en venta: Tipo {dte.tipo_dte}, Folio {dte.folio}")
             else:
                 # Buscar por relación en VentaProcesada
                 from caja.models import VentaProcesada
                 venta_procesada = VentaProcesada.objects.filter(venta_final=venta).first()
                 if venta_procesada and hasattr(venta_procesada, 'dte_generado'):
                     dte = venta_procesada.dte_generado
-                    print(f"✅ DTE encontrado en VentaProcesada: Tipo {dte.tipo_dte}, Folio {dte.folio}")
+                    print(f"[OK] DTE encontrado en VentaProcesada: Tipo {dte.tipo_dte}, Folio {dte.folio}")
                     print(f"   Timbre PDF417: {'SI' if dte.timbre_pdf417 else 'NO'}")
             
             # Si no se encontró DTE, buscar directamente en DocumentoTributarioElectronico
@@ -2072,9 +2368,9 @@ def venta_html(request, pk):
                     tipo_dte=tipo_dte_codigo
                 ).first()
                 if dte:
-                    print(f"✅ DTE encontrado por búsqueda directa: Tipo {dte.tipo_dte}, Folio {dte.folio}")
+                    print(f"[OK] DTE encontrado por búsqueda directa: Tipo {dte.tipo_dte}, Folio {dte.folio}")
         except Exception as e:
-            print(f"⚠️ Error al buscar DTE: {str(e)}")
+            print(f"[WARN] Error al buscar DTE: {str(e)}")
             pass
     
     # Determinar el template según el tipo de documento

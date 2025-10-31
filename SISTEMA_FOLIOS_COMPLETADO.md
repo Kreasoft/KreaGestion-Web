@@ -342,3 +342,7 @@ def porcentaje_uso(self):
 
 
 
+
+
+
+
