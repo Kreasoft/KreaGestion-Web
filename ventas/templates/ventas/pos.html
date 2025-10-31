@@ -1615,34 +1615,70 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Cargar información de la sesión
     function loadSessionInfo() {
-        // Obtener información de la sesión desde el servidor
-        fetch('/ventas/pos/session-info/')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('estacion-nombre').textContent = data.estacion_nombre;
-                    document.getElementById('vendedor-nombre').textContent = data.vendedor_nombre;
+        console.log('[DEBUG] Cargando sesion POS...');
+        
+        // ESPERAR 500ms para que la sesión se propague (fix para loop)
+        setTimeout(() => {
+            // Obtener información de la sesión desde el servidor
+            fetch('/ventas/pos/session-info/')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('[DEBUG] Respuesta session-info:', data);
                     
-                    // Guardar IDs para uso posterior
-                    window.currentEstacionId = data.estacion_id;
-                    window.currentVendedorId = data.vendedor_id;
-                    window.currentEstacion = data.estacion;
-                } else {
-                    // Si no hay sesión, redirigir a selección
+                    if (data.success) {
+                        console.log('[OK] Sesion POS cargada exitosamente');
+                        document.getElementById('estacion-nombre').textContent = data.estacion_nombre;
+                        document.getElementById('vendedor-nombre').textContent = data.vendedor_nombre;
+                        
+                        // Guardar IDs para uso posterior
+                        window.currentEstacionId = data.estacion_id;
+                        window.currentVendedorId = data.vendedor_id;
+                        window.currentEstacion = data.estacion;
+                    } else {
+                        console.error('[ERROR] Session-info devolvio success=false:', data);
+                        
+                        // REINTENTO: Esperar 1 segundo más e intentar de nuevo
+                        console.log('[RETRY] Reintentando en 1 segundo...');
+                        setTimeout(() => {
+                            fetch('/ventas/pos/session-info/')
+                                .then(response => response.json())
+                                .then(data2 => {
+                                    if (data2.success) {
+                                        console.log('[OK] Sesion POS cargada en segundo intento');
+                                        document.getElementById('estacion-nombre').textContent = data2.estacion_nombre;
+                                        document.getElementById('vendedor-nombre').textContent = data2.vendedor_nombre;
+                                        window.currentEstacionId = data2.estacion_id;
+                                        window.currentVendedorId = data2.vendedor_id;
+                                        window.currentEstacion = data2.estacion;
+                                    } else {
+                                        // Si falla el reintento, SI redirigir
+                                        console.error('[ERROR] Session-info fallo en reintento');
+                                        Swal.fire({
+                                            icon: 'warning',
+                                            title: 'Sesión no encontrada',
+                                            text: 'Debe seleccionar una estación de trabajo y vendedor',
+                                            timer: 3000
+                                        }).then(() => {
+                                            window.location.href = '{% url "ventas:pos_seleccion" %}';
+                                        });
+                                    }
+                                });
+                        }, 1000);
+                    }
+                })
+                .catch(error => {
+                    console.error('[ERROR] Error en fetch session-info:', error);
+                    // NO redirigir inmediatamente en caso de error de red
                     Swal.fire({
-                        icon: 'warning',
-                        title: 'Sesión no encontrada',
-                        text: 'Debe seleccionar una estación de trabajo y vendedor',
-                        timer: 3000
+                        icon: 'error',
+                        title: 'Error de conexión',
+                        text: 'No se pudo verificar la sesión. Intente recargar la página.',
+                        confirmButtonText: 'Recargar'
                     }).then(() => {
-                        window.location.href = '{% url "ventas:pos_seleccion" %}';
+                        location.reload();
                     });
-                }
-            })
-            .catch(error => {
-                console.error('Error al cargar información de sesión:', error);
-                window.location.href = '{% url "ventas:pos_seleccion" %}';
-            });
+                });
+        }, 500);  // Delay inicial de 500ms
     }
 
 // Actualizar fecha y hora

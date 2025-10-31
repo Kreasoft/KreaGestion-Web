@@ -41,12 +41,12 @@ class EmpresaMiddleware:
 				if empresa_id:
 					try:
 						request.empresa = Empresa.objects.get(id=empresa_id)
-						# Asegurar que está en la sesión
-						request.session['empresa_activa_id'] = request.empresa.id
-						# Marcar sesión como modificada para forzar guardado
-						request.session.modified = True
-						# CRÍTICO: Forzar guardado inmediato
-						request.session.save()
+						# SOLO actualizar sesión si cambió (evitar sobrescribir POS)
+						if request.session.get('empresa_activa_id') != request.empresa.id:
+							request.session['empresa_activa_id'] = request.empresa.id
+							request.session.modified = True
+							# CRÍTICO: Forzar guardado inmediato
+							request.session.save()
 					except Empresa.DoesNotExist:
 						empresa_id = None
 				

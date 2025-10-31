@@ -729,6 +729,23 @@ def pos_view(request):
     from django.contrib import messages
     from django.shortcuts import render
     
+    # DEBUG CRÍTICO: Verificar sesión POS
+    print("[DEBUG] ==================== POS VIEW ====================")
+    print(f"[DEBUG] Session Key: {request.session.session_key}")
+    print(f"[DEBUG] pos_estacion_id en sesion: {request.session.get('pos_estacion_id')}")
+    print(f"[DEBUG] pos_vendedor_id en sesion: {request.session.get('pos_vendedor_id')}")
+    
+    # VALIDAR SESIÓN POS ANTES DE CONTINUAR
+    estacion_id = request.session.get('pos_estacion_id')
+    vendedor_id = request.session.get('pos_vendedor_id')
+    
+    if not estacion_id or not vendedor_id:
+        print("[ERROR] Sesion POS perdida - Redirigiendo a seleccion")
+        messages.warning(request, 'Sesión POS perdida. Por favor, seleccione estación y vendedor nuevamente.')
+        return redirect('ventas:pos_seleccion')
+    
+    print(f"[OK] Sesion POS valida - Estacion ID: {estacion_id}, Vendedor ID: {vendedor_id}")
+    
     # VALIDACIÓN CRÍTICA: Verificar que haya sucursal activa
     if not hasattr(request, 'sucursal_activa') or not request.sucursal_activa:
         # Renderizar página con SweetAlert
@@ -857,6 +874,7 @@ def pos_iniciar(request):
     print(f"[DEBUG] Metodo: {request.method}")
     print(f"[DEBUG] Usuario: {request.user}")
     print(f"[DEBUG] Empresa: {request.empresa}")
+    print(f"[DEBUG] Session Key ANTES: {request.session.session_key}")
     
     if request.method == 'POST':
         estacion_id = request.POST.get('estacion_id')
@@ -876,36 +894,47 @@ def pos_iniciar(request):
             print(f"[DEBUG] Estacion encontrada: {estacion.nombre}")
             print(f"[DEBUG] Vendedor encontrado: {vendedor.nombre}")
             
-            # Guardar en sesión
-            request.session['pos_estacion_id'] = estacion.id
-            request.session['pos_vendedor_id'] = vendedor.id
-            request.session['pos_estacion_nombre'] = estacion.nombre
-            request.session['pos_vendedor_nombre'] = vendedor.nombre
-            
-            print(f"[DEBUG] Guardado en sesion - Estacion ID: {request.session.get('pos_estacion_id')}")
-            print(f"[DEBUG] Guardado en sesion - Vendedor ID: {request.session.get('pos_vendedor_id')}")
-            # Configuración desde Estación de Trabajo
-            # - cierre_directo: activa el modo Cerrar y Emitir
-            # - flujo_cierre_directo: 'rut_inicio' o 'rut_final'
-            # - enviar_sii_directo: si además se envía al SII automáticamente
+            # Guardar en sesión CON CICLO ASEGURADO
+            request.session['pos_estacion_id'] = int(estacion.id)
+            request.session['pos_vendedor_id'] = int(vendedor.id)
+            request.session['pos_estacion_nombre'] = str(estacion.nombre)
+            request.session['pos_vendedor_nombre'] = str(vendedor.nombre)
             request.session['pos_cierre_directo'] = bool(getattr(estacion, 'cierre_directo', False))
-            request.session['pos_flujo_directo'] = getattr(estacion, 'flujo_cierre_directo', 'rut_final')
+            request.session['pos_flujo_directo'] = str(getattr(estacion, 'flujo_cierre_directo', 'rut_final'))
             request.session['pos_enviar_sii_directo'] = bool(getattr(estacion, 'enviar_sii_directo', True))
             
-            # FORZAR GUARDADO DE SESION (para evitar problemas de persistencia)
+            # TRIPLE GUARDADO FORZADO (evitar race conditions)
             request.session.modified = True
             request.session.save()
+            
+            # Verificar que se guardó
+            print(f"[DEBUG] Verificando guardado...")
+            print(f"[DEBUG] - pos_estacion_id: {request.session.get('pos_estacion_id')}")
+            print(f"[DEBUG] - pos_vendedor_id: {request.session.get('pos_vendedor_id')}")
+            print(f"[DEBUG] - pos_estacion_nombre: {request.session.get('pos_estacion_nombre')}")
+            print(f"[DEBUG] - pos_vendedor_nombre: {request.session.get('pos_vendedor_nombre')}")
+            print(f"[DEBUG] Session Key DESPUES: {request.session.session_key}")
             print("[OK] Sesion guardada exitosamente")
-            print(f"[DEBUG] Session Key: {request.session.session_key}")
             
             return JsonResponse({
                 'success': True, 
                 'message': f'POS iniciado - Estación: {estacion.nombre}, Vendedor: {vendedor.nombre}',
-                'redirect_url': reverse('ventas:pos_view')
+                'redirect_url': reverse('ventas:pos_view'),
+                'debug': {
+                    'session_key': request.session.session_key,
+                    'estacion_id': estacion.id,
+                    'vendedor_id': vendedor.id
+                }
             })
             
-        except (EstacionTrabajo.DoesNotExist, Vendedor.DoesNotExist):
+        except (EstacionTrabajo.DoesNotExist, Vendedor.DoesNotExist) as e:
+            print(f"[ERROR] Estacion o vendedor no encontrados: {e}")
             return JsonResponse({'success': False, 'message': 'Estación o vendedor no válidos'})
+        except Exception as e:
+            print(f"[ERROR] Error inesperado en pos_iniciar: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
     
     return JsonResponse({'success': False, 'message': 'Método no permitido'})
 
@@ -914,102 +943,104 @@ def pos_iniciar(request):
 @requiere_empresa
 def pos_session_info(request):
     """Obtener información de la sesión del POS"""
-    print("[DEBUG] ==================== POS SESSION INFO ====================")
-    print(f"[DEBUG] Usuario: {request.user}")
-    print(f"[DEBUG] Empresa: {request.empresa}")
-    
-    estacion_id = request.session.get('pos_estacion_id')
-    vendedor_id = request.session.get('pos_vendedor_id')
-    estacion_nombre = request.session.get('pos_estacion_nombre')
-    vendedor_nombre = request.session.get('pos_vendedor_nombre')
-    
-    print(f"[DEBUG] Estacion ID en sesion: {estacion_id}")
-    print(f"[DEBUG] Vendedor ID en sesion: {vendedor_id}")
-    print(f"[DEBUG] Estacion Nombre en sesion: {estacion_nombre}")
-    print(f"[DEBUG] Vendedor Nombre en sesion: {vendedor_nombre}")
-    
-    if not estacion_id or not vendedor_id:
-        print("[ERROR] Sesion POS no encontrada - Redirigiendo a seleccion")
-        return JsonResponse({'success': False, 'message': 'Sesión no encontrada'})
-    
     try:
-        print(f"[DEBUG] Buscando estacion ID={estacion_id} y vendedor ID={vendedor_id}")
-        estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa, activo=True)
-        vendedor = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa, activo=True)
-        print(f"[OK] Estacion y vendedor encontrados: {estacion.nombre}, {vendedor.nombre}")
+        print("[DEBUG] ==================== POS SESSION INFO ====================")
+        print(f"[DEBUG] Usuario: {request.user}")
+        print(f"[DEBUG] Empresa: {request.empresa}")
         
-        # Obtener folios disponibles reales desde la base de datos
-        from facturacion_electronica.models import CAF
-        from django.utils import timezone
+        estacion_id = request.session.get('pos_estacion_id')
+        vendedor_id = request.session.get('pos_vendedor_id')
+        estacion_nombre = request.session.get('pos_estacion_nombre')
+        vendedor_nombre = request.session.get('pos_vendedor_nombre')
         
-        folios_factura = 0
-        folios_boleta = 0
-        folios_guia = 0
+        print(f"[DEBUG] Estacion ID en sesion: {estacion_id}")
+        print(f"[DEBUG] Vendedor ID en sesion: {vendedor_id}")
+        print(f"[DEBUG] Estacion Nombre en sesion: {estacion_nombre}")
+        print(f"[DEBUG] Vendedor Nombre en sesion: {vendedor_nombre}")
+        
+        if not estacion_id or not vendedor_id:
+            print("[ERROR] Sesion POS no encontrada - Redirigiendo a seleccion")
+            return JsonResponse({'success': False, 'message': 'Sesión no encontrada'})
         
         try:
-            # Facturas (tipo 33)
-            caf_factura = CAF.objects.filter(
-                empresa=request.empresa,
-                tipo_documento='33',
-                estado='activo',
-                fecha_vencimiento__gte=timezone.now().date()
-            ).first()
-            if caf_factura:
-                folios_factura = caf_factura.hasta - caf_factura.folio_actual + 1
+            print(f"[DEBUG] Buscando estacion ID={estacion_id} y vendedor ID={vendedor_id}")
+            estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa, activo=True)
+            vendedor = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa, activo=True)
+            print(f"[OK] Estacion y vendedor encontrados: {estacion.nombre}, {vendedor.nombre}")
             
-            # Boletas (tipo 39)
-            caf_boleta = CAF.objects.filter(
-                empresa=request.empresa,
-                tipo_documento='39',
-                estado='activo',
-                fecha_vencimiento__gte=timezone.now().date()
-            ).first()
-            if caf_boleta:
-                folios_boleta = caf_boleta.hasta - caf_boleta.folio_actual + 1
+            # Obtener folios disponibles reales desde la base de datos
+            from facturacion_electronica.models import ArchivoCAF
             
-            # Guías (tipo 52)
-            caf_guia = CAF.objects.filter(
-                empresa=request.empresa,
-                tipo_documento='52',
-                estado='activo',
-                fecha_vencimiento__gte=timezone.now().date()
-            ).first()
-            if caf_guia:
-                folios_guia = caf_guia.hasta - caf_guia.folio_actual + 1
-        except Exception as e:
-            print(f"[WARN] Error al obtener folios disponibles: {e}")
-        
-        print(f"[DEBUG] Folios disponibles - Factura: {folios_factura}, Boleta: {folios_boleta}, Guia: {folios_guia}")
-        print("[OK] Sesion POS valida - Devolviendo datos al frontend")
-        
-        return JsonResponse({
-            'success': True,
-            'estacion_id': estacion.id,
-            'vendedor_id': vendedor.id,
-            'estacion_nombre': estacion_nombre,
-            'vendedor_nombre': vendedor_nombre,
-            'estacion': {
-                'id': estacion.id,
-                'numero': estacion.numero,
-                'nombre': estacion.nombre,
-                'tipos_documentos': estacion.get_tipos_documentos_permitidos(),
-                'correlativo_ticket': estacion.correlativo_ticket,
-                'max_items': {
-                    'factura': estacion.max_items_factura,
-                    'boleta': estacion.max_items_boleta,
-                    'guia': estacion.max_items_guia,
-                    'cotizacion': estacion.max_items_cotizacion,
-                    'vale': estacion.max_items_vale,
-                },
-                'folios_factura': folios_factura,
-                'folios_boleta': folios_boleta,
-                'folios_guia': folios_guia,
-            }
-        })
-        
-    except (EstacionTrabajo.DoesNotExist, Vendedor.DoesNotExist) as e:
-        print(f"[ERROR] Estacion o vendedor no encontrados: {e}")
-        return JsonResponse({'success': False, 'message': 'Estación o vendedor no válidos'})
+            folios_factura = 0
+            folios_boleta = 0
+            folios_guia = 0
+            
+            try:
+                # Facturas (tipo 33)
+                caf_factura = ArchivoCAF.objects.filter(
+                    empresa=request.empresa,
+                    tipo_documento='33',
+                    estado='activo'
+                ).first()
+                if caf_factura:
+                    folios_factura = caf_factura.folio_hasta - caf_factura.folio_actual + 1
+                
+                # Boletas (tipo 39)
+                caf_boleta = ArchivoCAF.objects.filter(
+                    empresa=request.empresa,
+                    tipo_documento='39',
+                    estado='activo'
+                ).first()
+                if caf_boleta:
+                    folios_boleta = caf_boleta.folio_hasta - caf_boleta.folio_actual + 1
+                
+                # Guías (tipo 52)
+                caf_guia = ArchivoCAF.objects.filter(
+                    empresa=request.empresa,
+                    tipo_documento='52',
+                    estado='activo'
+                ).first()
+                if caf_guia:
+                    folios_guia = caf_guia.folio_hasta - caf_guia.folio_actual + 1
+            except Exception as e:
+                print(f"[WARN] Error al obtener folios disponibles: {e}")
+            
+            print(f"[DEBUG] Folios disponibles - Factura: {folios_factura}, Boleta: {folios_boleta}, Guia: {folios_guia}")
+            print("[OK] Sesion POS valida - Devolviendo datos al frontend")
+            
+            return JsonResponse({
+                'success': True,
+                'estacion_id': estacion.id,
+                'vendedor_id': vendedor.id,
+                'estacion_nombre': estacion_nombre,
+                'vendedor_nombre': vendedor_nombre,
+                'estacion': {
+                    'id': estacion.id,
+                    'numero': estacion.numero,
+                    'nombre': estacion.nombre,
+                    'tipos_documentos': estacion.get_tipos_documentos_permitidos(),
+                    'correlativo_ticket': estacion.correlativo_ticket,
+                    'max_items': {
+                        'factura': estacion.max_items_factura,
+                        'boleta': estacion.max_items_boleta,
+                        'guia': estacion.max_items_guia,
+                        'cotizacion': estacion.max_items_cotizacion,
+                        'vale': estacion.max_items_vale,
+                    },
+                    'folios_factura': folios_factura,
+                    'folios_boleta': folios_boleta,
+                    'folios_guia': folios_guia,
+                }
+            })
+            
+        except (EstacionTrabajo.DoesNotExist, Vendedor.DoesNotExist) as e:
+            print(f"[ERROR] Estacion o vendedor no encontrados: {e}")
+            return JsonResponse({'success': False, 'message': 'Estación o vendedor no válidos'})
+    except Exception as e:
+        print(f"[ERROR] Error inesperado en pos_session_info: {e}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'message': f'Error interno: {str(e)}'})
 
 
 @login_required
@@ -1532,7 +1563,8 @@ def pos_procesar_preventa(request):
                                     
                                     # VALIDAR FOLIOS DISPONIBLES ANTES DE CONTINUAR
                                     print(f"[VALIDACION] Verificando folios disponibles para tipo DTE {tipo_dte_codigo}...")
-                                    caf_disponible = CAF.objects.filter(
+                                    from facturacion_electronica.models import ArchivoCAF
+                                    caf_disponible = ArchivoCAF.objects.filter(
                                         empresa=request.empresa,
                                         tipo_documento=tipo_dte_codigo,
                                         estado='activo'

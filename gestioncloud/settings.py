@@ -240,7 +240,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Default es 1000
 # Configuración de sesiones (MEJORADO: Persistencia entre sesiones de navegador)
 SESSION_COOKIE_AGE = 30 * 24 * 60 * 60  # 30 días (en segundos)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # NO borrar al cerrar navegador
-SESSION_SAVE_EVERY_REQUEST = True  # Guardar en cada request para mantener sesión activa
+SESSION_SAVE_EVERY_REQUEST = False  # DESACTIVADO: Causaba loop en POS al sobrescribir sesión
 SESSION_COOKIE_HTTPONLY = True  # Seguridad: no accesible por JavaScript
 SESSION_COOKIE_SAMESITE = 'Lax'  # Protección CSRF
 
