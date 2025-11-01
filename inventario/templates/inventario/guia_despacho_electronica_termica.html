@@ -251,7 +251,7 @@
             </div>
             <div class="document-fecha">
                 {% load l10n %}
-                {{ dte.fecha_emision|date:"d/m/Y H:i" }}
+                {{ dte.fecha_emision|date:"d/m/Y" }}
             </div>
             <div style="font-size: 7pt; margin-top: 1mm;">
                 SII - {{ empresa.oficina_sii|default:empresa.get_ciudad_dte|upper }}
@@ -274,12 +274,14 @@
                 <span>{{ dte.direccion_receptor }}</span>
             </div>
             {% endif %}
-            {% if venta and venta.tipo_despacho %}
             <div class="cliente-row">
-                <span class="cliente-label">Motivo:</span>
-                <span>{{ venta.get_tipo_despacho_display }}</span>
+                <span class="cliente-label">Tipo Traslado:</span>
+                {% if venta %}
+                    <span>{{ venta.get_tipo_despacho_display|default:"Venta" }}</span>
+                {% else %}
+                    <span>{{ dte.get_tipo_traslado_display|default:"Venta" }}</span>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
 
         <!-- DATOS DE TRANSPORTE -->
@@ -292,8 +294,8 @@
             <div class="productos-header">DETALLE DE PRODUCTOS</div>
             {% for detalle in detalles %}
             <div class="producto-item">
-                <div class="producto-codigo">Cód: {{ detalle.codigo_producto }}</div>
-                <div class="producto-nombre">{{ detalle.nombre_producto }}</div>
+                <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
+                <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
                 <div class="producto-detalle">
                     <span class="producto-cantidad">Cant: {{ detalle.cantidad|floatformat:0 }} {{ detalle.unidad_medida|default:"UN" }}</span>
                     <span class="producto-precio">${{ detalle.precio_unitario|format_miles }}</span>
@@ -371,7 +373,7 @@
         <!-- FOOTER -->
         <div class="footer">
             {{ empresa.nombre }}<br>
-            Impreso: {{ dte.fecha_emision|date:"d/m/Y H:i" }}<br>
+            Impreso: {{ dte.fecha_emision|date:"d/m/Y" }}<br>
             Gracias por su preferencia
         </div>
 
