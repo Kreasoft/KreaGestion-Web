@@ -160,6 +160,12 @@ class OrdenDespacho(models.Model):
             total=models.Sum('cantidad')
         )['total'] or 0
     
+    def save(self, *args, **kwargs):
+        """Sobrescribe el método save para actualizar el estado del pedido."""
+        super().save(*args, **kwargs)
+        # Llama a la actualización del estado de la orden de pedido principal
+        self.orden_pedido.actualizar_estado_segun_despachos()
+
     def get_documentos_asociados(self):
         """Retorna lista de documentos (guías y facturas) asociados"""
         documentos = []

@@ -99,6 +99,22 @@ class OrdenPedido(models.Model):
         self.numero_pedido = f"PED-{nuevo_numero:06d}"
         return self.numero_pedido
 
+    def actualizar_estado_segun_despachos(self):
+        """Verifica si todos los items están despachados y actualiza el estado."""
+        if self.estado in ['cancelada', 'completada']:
+            return
+
+        items = self.items.all()
+        if not items:
+            return
+
+        # Comprueba si todos los items tienen cantidad pendiente cero o menos
+        completada = all(item.cantidad_pendiente <= 0 for item in items)
+
+        if completada:
+            self.estado = 'completada'
+            self.save(update_fields=['estado', 'fecha_modificacion'])
+
 
 class ItemOrdenPedido(models.Model):
     """Items de una orden de pedido"""
@@ -145,6 +161,19 @@ class ItemOrdenPedido(models.Model):
     def get_total(self):
         """Calcula el total del item"""
         return self.get_base_imponible() + self.get_impuesto_monto()
+
+    @property
+    def cantidad_despachada(self):
+        """Calcula la cantidad total despachada para este item."""
+        total_despachado = self.despachos.filter(
+            orden_despacho__estado__in=['despachado', 'entregado']
+        ).aggregate(total=models.Sum('cantidad'))['total'] or Decimal('0')
+        return total_despachado
+
+    @property
+    def cantidad_pendiente(self):
+        """Calcula la cantidad pendiente por despachar."""
+        return self.cantidad - self.cantidad_despachada
 
 
 # Importar modelos de despacho y transporte

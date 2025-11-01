@@ -1441,16 +1441,15 @@ def kit_oferta_list(request):
     kits = KitOferta.objects.filter(empresa=request.empresa).prefetch_related('items__articulo')
     
     # Filtros
-    search_term = request.GET.get('search', '')
-    articulo_id_raw = clean_id(request.GET.get('articulo_id'))
-    lista_id = request.GET.get('lista_id')
-
     def clean_id(dirty_id):
         if isinstance(dirty_id, str):
             return ''.join(filter(str.isdigit, dirty_id))
         return dirty_id
 
+    search_term = request.GET.get('search', '')
+    articulo_id_raw = request.GET.get('articulo_id')
     articulo_id = clean_id(articulo_id_raw) if articulo_id_raw else None
+    lista_id = request.GET.get('lista_id')
     destacado = request.GET.get('destacado', '')
     
     if search_term:
@@ -1474,7 +1473,7 @@ def kit_oferta_list(request):
     
     return render(request, 'articulos/kit_oferta_list.html', {
         'kits': kits,
-        'search': search,
+        'search': search_term,
         'activo': activo,
         'destacado': destacado
     })
