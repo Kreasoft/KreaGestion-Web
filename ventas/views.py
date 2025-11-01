@@ -772,7 +772,12 @@ def pos_view(request):
         form_apertura = AperturaCajaForm(empresa=request.empresa)
     
     # Obtener datos para el POS con impuesto específico incluido
-    articulos_queryset = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')[:500]  # Limitar para performance
+    articulos_queryset = (
+        Articulo.objects
+        .filter(empresa=request.empresa, activo=True)
+        .select_related('categoria', 'categoria__impuesto_especifico')
+        .order_by('-en_oferta', 'nombre')[:500]
+    )
     
     # Calcular precios finales directamente en la vista
     articulos = []
@@ -1328,7 +1333,6 @@ def pos_procesar_preventa(request):
                 tipo_despacho=data.get('tipo_despacho'),  # ← GUARDAR TIPO DE DESPACHO
                 subtotal=subtotal,
                 descuento=descuento,
-                descuento_total_pct=Decimal(data.get('descuento_total_pct', 0)),
                 neto=neto,
                 iva=iva,
                 impuesto_especifico=impuesto_especifico,
@@ -1360,7 +1364,6 @@ def pos_procesar_preventa(request):
                         cantidad=Decimal(str(item['cantidad'])),
                         precio_unitario=Decimal(str(item['precio'])),
                         precio_total=Decimal(str(item['total'])),
-                        descuento_pct=Decimal(item.get('descuento', 0)),
                         impuesto_especifico=Decimal('0.00')
                     )
                     print(f"DEBUG - VentaDetalle creado exitosamente")

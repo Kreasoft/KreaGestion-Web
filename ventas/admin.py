@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Vendedor, FormaPago, EstacionTrabajo, Venta, VentaDetalle, Devolucion, DevolucionDetalle, 
-    PrecioClienteArticulo, VentaReferencia, NotaCredito, NotaCreditoDetalle, NotaDebito, NotaDebitoDetalle
+    PrecioClienteArticulo, VentaReferencia, NotaCredito, NotaCreditoDetalle
 )
 
 
@@ -240,59 +240,4 @@ class NotaCreditoDetalleAdmin(admin.ModelAdmin):
     list_display = ['nota_credito', 'articulo', 'codigo', 'cantidad', 'precio_unitario', 'descuento', 'total']
     list_filter = ['nota_credito__empresa']
     search_fields = ['nota_credito__numero', 'articulo__nombre', 'articulo__codigo', 'codigo']
-    ordering = ['-fecha_creacion']
-
-
-# ===== NOTAS DE DÉBITO =====
-
-class NotaDebitoDetalleInline(admin.TabularInline):
-    model = NotaDebitoDetalle
-    extra = 1
-    readonly_fields = ['total']
-
-@admin.register(NotaDebito)
-class NotaDebitoAdmin(admin.ModelAdmin):
-    list_display = [
-        'numero', 'fecha', 'cliente', 'tipo_nd', 'tipo_doc_afectado', 
-        'numero_doc_afectado', 'total', 'estado'
-    ]
-    list_filter = ['estado', 'tipo_nd', 'tipo_doc_afectado', 'empresa', 'fecha']
-    search_fields = ['numero', 'cliente__nombre', 'cliente__rut', 'numero_doc_afectado']
-    ordering = ['-fecha', '-numero']
-    inlines = [NotaDebitoDetalleInline]
-    
-    fieldsets = (
-        ('Información General', {
-            'fields': ('empresa', 'sucursal', 'numero', 'fecha', 'estado')
-        }),
-        ('Cliente', {
-            'fields': ('cliente', 'vendedor', 'bodega')
-        }),
-        ('Documento Afectado', {
-            'fields': ('tipo_doc_afectado', 'numero_doc_afectado', 'fecha_doc_afectado')
-        }),
-        ('Tipo y Motivo', {
-            'fields': ('tipo_nd', 'motivo')
-        }),
-        ('Montos', {
-            'fields': ('subtotal', 'descuento', 'iva', 'total')
-        }),
-        ('DTE', {
-            'fields': ('dte',),
-            'classes': ('collapse',)
-        }),
-        ('Auditoría', {
-            'fields': ('usuario_creacion', 'fecha_creacion', 'fecha_modificacion'),
-            'classes': ('collapse',)
-        })
-    )
-    
-    readonly_fields = ['usuario_creacion', 'fecha_creacion', 'fecha_modificacion']
-
-
-@admin.register(NotaDebitoDetalle)
-class NotaDebitoDetalleAdmin(admin.ModelAdmin):
-    list_display = ['nota_debito', 'articulo', 'codigo', 'cantidad', 'precio_unitario', 'descuento', 'total']
-    list_filter = ['nota_debito__empresa']
-    search_fields = ['nota_debito__numero', 'articulo__nombre', 'articulo__codigo', 'codigo']
     ordering = ['-fecha_creacion']

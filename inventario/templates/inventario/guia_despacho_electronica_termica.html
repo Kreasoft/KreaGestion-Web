@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=80mm">
-    <title>Guía de Despacho - {{ dte.folio|default:guia.numero_guia }}</title>
+    <title>Guía de Despacho - {{ dte.folio }}</title>
 
     {% load format_filters %}
 
@@ -247,15 +247,11 @@
         <div class="document-box">
             <div class="document-type">GUÍA DE DESPACHO ELECTRÓNICA</div>
             <div class="document-folio">
-                {% if dte and dte.folio %}
-                    N° {{ dte.folio }}
-                {% else %}
-                    N° {{ guia.numero_guia }}
-                {% endif %}
+                N° {{ dte.folio }}
             </div>
             <div class="document-fecha">
                 {% load l10n %}
-                {{ guia.fecha_emision|date:"d/m/Y H:i" }}
+                {{ dte.fecha_emision|date:"d/m/Y H:i" }}
             </div>
             <div style="font-size: 7pt; margin-top: 1mm;">
                 SII - {{ empresa.oficina_sii|default:empresa.get_ciudad_dte|upper }}
@@ -266,43 +262,30 @@
         <div class="cliente-section">
             <div class="cliente-row">
                 <span class="cliente-label">Receptor:</span>
-                <span>{{ guia.razon_social_receptor|default:"Cliente" }}</span>
+                <span>{{ dte.razon_social_receptor|default:"Cliente" }}</span>
             </div>
             <div class="cliente-row">
                 <span class="cliente-label">RUT:</span>
-                <span>{{ guia.rut_receptor|default:"-" }}</span>
+                <span>{{ dte.rut_receptor|default:"-" }}</span>
             </div>
-            {% if guia.direccion_receptor %}
+            {% if dte.direccion_receptor %}
             <div class="cliente-row">
                 <span class="cliente-label">Dirección:</span>
-                <span>{{ guia.direccion_receptor }}</span>
+                <span>{{ dte.direccion_receptor }}</span>
             </div>
             {% endif %}
-            {% if guia.motivo %}
+            {% if venta and venta.tipo_despacho %}
             <div class="cliente-row">
                 <span class="cliente-label">Motivo:</span>
-                <span>{{ guia.get_motivo_display }}</span>
+                <span>{{ venta.get_tipo_despacho_display }}</span>
             </div>
             {% endif %}
         </div>
 
         <!-- DATOS DE TRANSPORTE -->
-        {% if guia.patente_vehiculo or guia.nombre_chofer %}
-        <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 2mm 0; margin: 2mm 0; font-size: 8pt;">
-            <div style="text-align: center; font-weight: bold; margin-bottom: 1mm;">TRANSPORTE</div>
-            {% if guia.patente_vehiculo %}
-            <div style="margin-bottom: 1mm;">
-                <strong>Vehículo:</strong> {{ guia.patente_vehiculo }}
-            </div>
-            {% endif %}
-            {% if guia.nombre_chofer %}
-            <div style="margin-bottom: 1mm;">
-                <strong>Chofer:</strong> {{ guia.nombre_chofer }}
-                {% if guia.rut_chofer %} - {{ guia.rut_chofer }}{% endif %}
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
+        {% comment %}
+        <!-- Datos de transporte no disponibles en el modelo Venta actual -->
+        {% endcomment %}
 
         <!-- DETALLE DE PRODUCTOS -->
         <div class="productos-section">
@@ -320,32 +303,32 @@
         </div>
 
         <!-- TOTALES -->
-        {% if guia.monto_total %}
+        {% if venta %}
         <div class="totales-section">
-            {% if guia.monto_neto %}
+            {% if venta.neto %}
             <div class="total-row">
                 <span class="total-label">Neto:</span>
-                <span class="total-value">${{ guia.monto_neto|format_miles }}</span>
+                <span class="total-value">${{ venta.neto|format_precio }}</span>
             </div>
             {% endif %}
-            {% if guia.monto_iva %}
+            {% if venta.iva %}
             <div class="total-row">
                 <span class="total-label">IVA (19%):</span>
-                <span class="total-value">${{ guia.monto_iva|format_miles }}</span>
+                <span class="total-value">${{ venta.iva|format_precio }}</span>
             </div>
             {% endif %}
             <div class="total-row total-final">
                 <span class="total-label">TOTAL:</span>
-                <span class="total-value">${{ guia.monto_total|format_miles }}</span>
+                <span class="total-value">${{ venta.total|format_precio }}</span>
             </div>
         </div>
         {% endif %}
 
         <!-- REFERENCIAS -->
-        {% if guia.referencias.exists %}
+        {% if venta and venta.referencias.exists %}
         <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 2mm 0; margin: 2mm 0;">
             <div style="text-align: center; font-weight: bold; font-size: 8pt; margin-bottom: 1mm;">REFERENCIAS</div>
-            {% for ref in guia.referencias.all %}
+            {% for ref in venta.referencias.all %}
             <div style="font-size: 7pt; margin-bottom: 1mm; padding: 1mm; background: #f5f5f5; border-radius: 2mm;">
                 <div><strong>Tipo:</strong> {{ ref.get_tipo_referencia_display }}</div>
                 <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d/m/Y" }}</div>
@@ -378,17 +361,17 @@
         {% endif %}
 
         <!-- OBSERVACIONES -->
-        {% if guia.observaciones %}
+        {% if venta and venta.observaciones %}
         <div style="border-top: 1px dashed #000; padding-top: 2mm; margin-top: 2mm; font-size: 7pt;">
             <strong>Observaciones:</strong><br>
-            {{ guia.observaciones|truncatewords:30 }}
+            {{ venta.observaciones|truncatewords:30 }}
         </div>
         {% endif %}
 
         <!-- FOOTER -->
         <div class="footer">
             {{ empresa.nombre }}<br>
-            Impreso: {{ guia.fecha_emision|date:"d/m/Y H:i" }}<br>
+            Impreso: {{ dte.fecha_emision|date:"d/m/Y H:i" }}<br>
             Gracias por su preferencia
         </div>
 

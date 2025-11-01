@@ -172,7 +172,7 @@
                                 <tr style="border-bottom: 1px solid #F5F1E8;">
                                     <td style="font-size: 0.75rem;">
                                         <div class="fw-bold" style="color: #8B7355;">{{ articulo.codigo }}</div>
-                                        <div class="fw-semibold">{{ articulo.nombre }}</div>
+                                        <div class="fw-semibold">{{ articulo.nombre }}{% if articulo.en_oferta %} <span class="badge bg-danger ms-1" style="font-size:0.6rem;">Oferta</span>{% endif %}</div>
                                         {% if articulo.descripcion %}
                                             <small class="text-muted">{{ articulo.descripcion|truncatechars:30 }}</small>
                                         {% endif %}
@@ -224,36 +224,16 @@
                                         {% endif %}
                                     </td>
                                     <td style="text-align: center;">
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
-                                                    data-bs-toggle="dropdown" style="padding: 2px 6px; font-size: 0.7rem; border-color: #D4C4A8;">
-                                                <i class="fas fa-ellipsis-v"></i>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end" style="font-size: 0.8rem;">
-                                                <li>
-                                                    <a class="dropdown-item" href="{% url 'articulos:articulo_detail' articulo.pk %}">
-                                                        <i class="fas fa-eye me-2"></i>Ver
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="{% url 'articulos:articulo_update' articulo.pk %}">
-                                                        <i class="fas fa-edit me-2"></i>Editar
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="{% url 'articulos:homologacion_list' articulo.pk %}">
-                                                        <i class="fas fa-code-branch me-2"></i>Homologación
-                                                    </a>
-                                                </li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li>
-                                                    <a class="dropdown-item text-danger" href="{% url 'articulos:articulo_delete' articulo.pk %}">
-                                                        <i class="fas fa-trash me-2"></i>Eliminar
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </td>
+                                            <a href="{% url 'articulos:articulo_detail' articulo.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver" style="padding:2px 6px; font-size:0.7rem; border-color:#D4C4A8;">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'articulos:articulo_update' articulo.pk %}" class="btn btn-sm btn-outline-secondary" title="Editar" style="padding:2px 6px; font-size:0.7rem; border-color:#D4C4A8;">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'articulos:articulo_delete' articulo.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" style="padding:2px 6px; font-size:0.7rem; border-color:#D4C4A8;">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
@@ -320,10 +300,18 @@
 }
 
 .table-compact tbody td {
-    padding: 8px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 4px 6px;
     vertical-align: middle;
     line-height: 1.2;
     border: none;
+    height: 34px;
+}
+
+.table-compact tbody tr {
+    height: 34px;
 }
 
 .table-compact tbody tr:hover {

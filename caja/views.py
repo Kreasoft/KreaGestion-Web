@@ -857,7 +857,6 @@ def procesar_venta(request, ticket_id):
                         iva=ticket.iva,
                         impuesto_especifico=ticket.impuesto_especifico,
                         total=ticket.total,
-                        descuento_total_pct=ticket.descuento_total_pct,
                         estado='confirmada',
                         usuario_creacion=request.user,
                         observaciones=f"Ticket #{ticket.numero_venta}. {observaciones}"
@@ -873,7 +872,6 @@ def procesar_venta(request, ticket_id):
                             articulo=detalle_ticket.articulo,
                             cantidad=detalle_ticket.cantidad,
                             precio_unitario=detalle_ticket.precio_unitario,
-                            descuento_pct=detalle_ticket.descuento_pct,
                             precio_total=detalle_ticket.precio_total,
                             impuesto_especifico=detalle_ticket.impuesto_especifico
                         )

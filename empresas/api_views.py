@@ -42,3 +42,4 @@ def api_configuracion(request):
         }, status=404)
 
 
+

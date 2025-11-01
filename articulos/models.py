@@ -238,6 +238,46 @@ class Articulo(models.Model):
         help_text="Temperatura requerida para almacenar el producto"
     )
     
+    # Sistema de Ofertas/Promociones
+    en_oferta = models.BooleanField(
+        default=False,
+        verbose_name="En Oferta",
+        help_text="Marcar si el artículo está en oferta/promoción"
+    )
+    precio_oferta = models.CharField(
+        max_length=50,
+        default='0.00',
+        blank=True,
+        null=True,
+        verbose_name="Precio de Oferta",
+        help_text="Precio especial mientras la oferta esté activa"
+    )
+    porcentaje_descuento_oferta = models.CharField(
+        max_length=50,
+        default='0.00',
+        blank=True,
+        null=True,
+        verbose_name="Descuento de Oferta (%)",
+        help_text="Porcentaje de descuento sobre el precio normal"
+    )
+    fecha_inicio_oferta = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Inicio de Oferta",
+        help_text="Fecha y hora en que inicia la oferta"
+    )
+    fecha_fin_oferta = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fin de Oferta",
+        help_text="Fecha y hora en que finaliza la oferta"
+    )
+    descripcion_oferta = models.TextField(
+        blank=True,
+        verbose_name="Descripción de la Oferta",
+        help_text="Descripción o mensaje promocional de la oferta"
+    )
+    
     # Estado
     activo = models.BooleanField(default=True, verbose_name="Activo")
     fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
@@ -334,16 +374,89 @@ class Articulo(models.Model):
         # Los precios se manejan manualmente en el formulario
         super().save(*args, **kwargs)
     
+    def oferta_activa(self):
+        """Verifica si la oferta está activa en este momento"""
+        if not self.en_oferta:
+            return False
+        
+        ahora = timezone.now()
+        
+        # Si no hay fechas configuradas, la oferta está activa si en_oferta=True
+        if not self.fecha_inicio_oferta and not self.fecha_fin_oferta:
+            return True
+        
+        # Verificar fecha de inicio
+        if self.fecha_inicio_oferta and ahora < self.fecha_inicio_oferta:
+            return False
+        
+        # Verificar fecha de fin
+        if self.fecha_fin_oferta and ahora > self.fecha_fin_oferta:
+            return False
+        
+        return True
+    
+    def get_precio_actual(self):
+        """Retorna el precio actual considerando si hay oferta activa"""
+        if self.oferta_activa():
+            precio_oferta = self._string_to_decimal(self.precio_oferta)
+            if precio_oferta > 0:
+                return precio_oferta
+        
+        return self._string_to_decimal(self.precio_venta)
+    
+    def get_precio_oferta_decimal(self):
+        """Retorna el precio de oferta como Decimal.
+        Si no hay precio fijo pero sí porcentaje de descuento, lo calcula al vuelo."""
+        precio_oferta = self._string_to_decimal(self.precio_oferta)
+        if precio_oferta > 0:
+            return precio_oferta
+        # intentar a partir de porcentaje
+        desc = self._string_to_decimal(self.porcentaje_descuento_oferta)
+        if desc > 0:
+            return self.calcular_precio_oferta_desde_descuento()
+        return Decimal('0.00')
+    
+    def get_porcentaje_ahorro(self):
+        """Calcula el porcentaje de ahorro de la oferta"""
+        if not self.oferta_activa():
+            return Decimal('0.00')
+        
+        precio_normal = self._string_to_decimal(self.precio_venta)
+        precio_oferta = self.get_precio_oferta_decimal()
+        
+        if precio_normal <= 0 or precio_oferta <= 0:
+            return Decimal('0.00')
+        
+        ahorro = ((precio_normal - precio_oferta) / precio_normal) * Decimal('100.00')
+        return ahorro.quantize(Decimal('0.01'))
+    
+    def calcular_precio_oferta_desde_descuento(self):
+        """Calcula el precio de oferta basado en el porcentaje de descuento"""
+        precio_venta = self._string_to_decimal(self.precio_venta)
+        descuento = self._string_to_decimal(self.porcentaje_descuento_oferta)
+        
+        if precio_venta <= 0 or descuento <= 0:
+            return Decimal('0.00')
+        
+        precio_oferta = precio_venta * (Decimal('1.00') - (descuento / Decimal('100.00')))
+        return precio_oferta.quantize(Decimal('0.01'))
+    
     def _string_to_decimal(self, value):
         """Convierte string a Decimal manejando formato chileno"""
         if not value:
             return Decimal('0')
         
         try:
-            # Convertir formato chileno a decimal
-            value_str = str(value).replace('.', '').replace(',', '.')
+            value_str = str(value).strip()
+            if ',' in value_str:
+                # Caso típico chileno: 1.234,56 o 1234,56
+                value_str = value_str.replace('.', '')  # quitar separador de miles
+                value_str = value_str.replace(',', '.')  # usar punto decimal
+            elif '.' in value_str:
+                # Asumir punto como decimal y coma (si hubiera) como miles
+                value_str = value_str.replace(',', '')
             return Decimal(value_str)
-        except:
+        except Exception:
             return Decimal('0')
     
     @property

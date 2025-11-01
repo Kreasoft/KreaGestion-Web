@@ -315,6 +315,78 @@
         text-align: right;
     }
     
+    /* Estilos para productos en oferta */
+    .pos-product-card.en-oferta {
+        border: 2px solid #ff6b6b;
+        background: linear-gradient(135deg, #fff 0%, #ffebeb 100%);
+        position: relative;
+    }
+    
+    .pos-product-badge-oferta {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
+        z-index: 1;
+    }
+    
+    .pos-product-badge-oferta i {
+        margin-right: 2px;
+    }
+    
+    .pos-product-price-oferta {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        margin-bottom: 5px;
+    }
+    
+    .precio-normal-tachado {
+        font-size: 0.75rem;
+        color: #999;
+        text-decoration: line-through;
+        font-weight: 400;
+    }
+    
+    .precio-oferta {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #ff6b6b;
+    }
+    
+    /* Vista lista - ofertas */
+    .vista-lista .pos-product-badge-oferta {
+        position: static;
+        padding: 1px 4px;
+        font-size: 0.55rem;
+        margin-right: 6px;
+    }
+    
+    .vista-lista .pos-product-price-oferta {
+        flex-direction: row;
+        gap: 8px;
+        margin-bottom: 0;
+        min-width: 120px;
+        justify-content: flex-end;
+    }
+    
+    .vista-lista .precio-normal-tachado {
+        font-size: 0.7rem;
+    }
+    
+    .vista-lista .precio-oferta {
+        font-size: 0.9rem;
+    }
+    
     .vista-lista .pos-product-stock {
         margin-left: 12px;
         font-size: 0.75rem;
@@ -731,6 +803,11 @@
                     </button>
                 </li>
                 <li class="nav-item">
+                    <button class="nav-link" id="tab-ofertas" data-bs-toggle="tab" data-bs-target="#panel-ofertas" type="button" style="color: #6F5B44; font-weight: 600;">
+                        <i class="fas fa-tag me-1"></i> Ofertas
+                    </button>
+                </li>
+                <li class="nav-item">
                     <button class="nav-link" id="tab-kits" data-bs-toggle="tab" data-bs-target="#panel-kits" type="button" style="color: #6F5B44; font-weight: 600;">
                         <i class="fas fa-gift me-1"></i> Kits de Ofertas
                         {% if kits %}<span class="badge bg-success ms-1">{{ kits|length }}</span>{% endif %}
@@ -746,16 +823,31 @@
                     <div class="pos-products-container">
             <div class="pos-products-grid" id="pos-products-grid">
                 {% for articulo in articulos %}
-                <div class="pos-product-card {% if articulo.stock_actual <= 0 %}disabled{% endif %}" 
+                <div class="pos-product-card {% if articulo.stock_actual <= 0 %}disabled{% endif %}" title="{{ articulo.nombre }}" {% if articulo.oferta_activa or articulo.en_oferta %}en-oferta{% endif %}" 
                      data-articulo-id="{{ articulo.id }}" 
                      data-precio="{{ articulo.precio_final_calculado|unlocalize }}"
                      data-precio-neto="{{ articulo.precio_venta|unlocalize }}"
                      data-stock="{{ articulo.stock_actual|default:0 }}"
                      data-categoria="{% if articulo.categoria %}{{ articulo.categoria.nombre }}{% else %}sin-categoria{% endif %}"
                      data-categoria-exenta-iva="{% if articulo.categoria.exenta_iva %}true{% else %}false{% endif %}"
-                     data-impuesto-especifico="{% if articulo.categoria.impuesto_especifico %}{{ articulo.categoria.impuesto_especifico.get_porcentaje_decimal|unlocalize }}{% else %}0{% endif %}">
+                     data-impuesto-especifico="{% if articulo.categoria.impuesto_especifico %}{{ articulo.categoria.impuesto_especifico.get_porcentaje_decimal|unlocalize }}{% else %}0{% endif %}"
+                     data-en-oferta="{% if articulo.oferta_activa or articulo.en_oferta %}true{% else %}false{% endif %}"
+                     data-precio-oferta="{% if articulo.oferta_activa or articulo.en_oferta %}{{ articulo.get_precio_oferta_decimal|unlocalize }}{% else %}0{% endif %}"
+                     data-porcentaje-ahorro="{% if articulo.oferta_activa or articulo.en_oferta %}{{ articulo.get_porcentaje_ahorro|unlocalize }}{% else %}0{% endif %}">
+                    {% if articulo.oferta_activa or articulo.en_oferta %}
+                    <div class="pos-product-badge-oferta">
+                        <i class="fas fa-tag"></i> OFERTA{% if articulo.get_porcentaje_ahorro %} -{{ articulo.get_porcentaje_ahorro|floatformat:0 }}%{% endif %}
+                    </div>
+                    {% endif %}
                     <div class="pos-product-name">{{ articulo.nombre }}</div>
+                    {% if articulo.oferta_activa or articulo.en_oferta %}
+                    <div class="pos-product-price-oferta">
+                        <span class="precio-normal-tachado">${{ articulo.precio_final_calculado|format_price }}</span>
+                        <span class="precio-oferta">${{ articulo.get_precio_oferta_decimal|format_price }}</span>
+                    </div>
+                    {% else %}
                     <div class="pos-product-price">${{ articulo.precio_final_calculado|format_price }}</div>
+                    {% endif %}
                     <div class="pos-product-stock {% if articulo.stock_actual <= 0 %}text-danger{% endif %}">
                         Stock: {{ articulo.stock_actual|default:"0" }}
                     </div>
@@ -770,6 +862,38 @@
                     </div>
                 </div>
                 
+                <!-- Panel Ofertas -->
+                <div class="tab-pane fade" id="panel-ofertas">
+                    <div class="mb-2">
+                        <input type="text" id="search-offers" class="form-control form-control-sm" placeholder="Buscar ofertas...">
+                    </div>
+                    <div class="pos-products-container">
+                        <div class="pos-products-grid" id="pos-offers-grid">
+                            {% for articulo in articulos %}
+                                {% if articulo.oferta_activa or articulo.en_oferta %}
+                                <div class="pos-product-card{% if articulo.stock_actual <= 0 %} disabled{% endif %} en-oferta" title="{{ articulo.nombre }}" 
+                                     data-articulo-id="{{ articulo.id }}" 
+                                     data-precio="{{ articulo.get_precio_oferta_decimal|unlocalize }}"
+                                     data-precio-neto="{{ articulo.precio_venta|unlocalize }}"
+                                     data-stock="{{ articulo.stock_actual|default:0 }}">
+                                    <div class="pos-product-badge-oferta">
+                                        <i class="fas fa-tag"></i> OFERTA{% if articulo.get_porcentaje_ahorro %} -{{ articulo.get_porcentaje_ahorro|floatformat:0 }}%{% endif %}
+                                    </div>
+                                    <div class="pos-product-name">{{ articulo.nombre }}</div>
+                                    <div class="pos-product-price-oferta">
+                                        <span class="precio-normal-tachado">${{ articulo.precio_final_calculado|format_price }}</span>
+                                        <span class="precio-oferta">${{ articulo.get_precio_oferta_decimal|format_price }}</span>
+                                    </div>
+                                    <div class="pos-product-stock{% if articulo.stock_actual <= 0 %} text-danger{% endif %}">
+                                        Stock: {{ articulo.stock_actual|default:"0" }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Panel Kits -->
                 <div class="tab-pane fade" id="panel-kits">
                     <div class="pos-products-container">

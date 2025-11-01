@@ -5,15 +5,10 @@ from django.urls import path
 from django.shortcuts import render
 from . import views
 from . import views_notas_credito
-from . import views_notas_debito
-from . import api_views
 
 app_name = 'ventas'
 
 urlpatterns = [
-    # API Endpoints
-    path('api/vendedores/', api_views.api_vendedores, name='api_vendedores'),
-    
     # Vendedores
     path('vendedores/', views.vendedor_list, name='vendedor_list'),
     path('vendedores/crear/', views.vendedor_create, name='vendedor_create'),
@@ -103,15 +98,4 @@ urlpatterns = [
 
     # API AJAX para buscar documentos afectados
     path('ajax/buscar-documento-afectado/', views_notas_credito.ajax_buscar_documento_afectado, name='ajax_buscar_documento_afectado'),
-    
-    # Notas de Débito
-    path('notas-debito/', views_notas_debito.notadebito_list, name='notadebito_list'),
-    path('notas-debito/crear/', views_notas_debito.notadebito_create, name='notadebito_create'),
-    path('notas-debito/<int:pk>/', views_notas_debito.notadebito_detail, name='notadebito_detail'),
-    path('notas-debito/<int:pk>/imprimir/', views_notas_debito.notadebito_print, name='notadebito_print'),
-    path('notas-debito/<int:pk>/eliminar/', views_notas_debito.notadebito_delete, name='notadebito_delete'),
-    path('notas-debito/<int:pk>/enviar-sii/', views_notas_debito.notadebito_enviar_sii, name='notadebito_enviar_sii'),
-    
-    # API AJAX para buscar documentos afectados (Notas de Débito)
-    path('ajax/buscar-documento-afectado-nd/', views_notas_debito.ajax_buscar_documento_afectado_nd, name='ajax_buscar_documento_afectado_nd'),
 ]

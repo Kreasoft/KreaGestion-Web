@@ -14,7 +14,10 @@ class ArticuloForm(forms.ModelForm):
         fields = [
             'categoria', 'unidad_medida', 'codigo', 'codigo_barras', 'nombre', 'descripcion', 'logo',
             'precio_costo', 'precio_venta', 'precio_final', 'margen_porcentaje', 'impuesto_especifico',
-            'control_stock', 'stock_minimo', 'stock_maximo', 'tipo_articulo', 'activo'
+            'control_stock', 'stock_minimo', 'stock_maximo', 'tipo_articulo',
+            'en_oferta', 'precio_oferta', 'porcentaje_descuento_oferta', 
+            'fecha_inicio_oferta', 'fecha_fin_oferta', 'descripcion_oferta',
+            'activo'
         ]
         widgets = {
             'categoria': forms.Select(attrs={'class': 'form-select'}),
@@ -33,6 +36,12 @@ class ArticuloForm(forms.ModelForm):
             'stock_minimo': forms.NumberInput(attrs={'class': 'form-control'}),
             'stock_maximo': forms.NumberInput(attrs={'class': 'form-control'}),
             'tipo_articulo': forms.Select(attrs={'class': 'form-select'}),
+            'en_oferta': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'precio_oferta': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0.00'}),
+            'porcentaje_descuento_oferta': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0.00'}),
+            'fecha_inicio_oferta': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'fecha_fin_oferta': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'descripcion_oferta': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Ej: ¡Oferta especial por tiempo limitado!'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
     
@@ -123,6 +132,66 @@ class ArticuloForm(forms.ModelForm):
             return impuesto_str
         except (ValueError, AttributeError):
             return '0.00'
+    
+    def clean_precio_oferta(self):
+        """Validar precio de oferta"""
+        precio_oferta = self.cleaned_data.get('precio_oferta')
+        if precio_oferta:
+            return str(precio_oferta).strip()
+        return '0.00'
+    
+    def clean_porcentaje_descuento_oferta(self):
+        """Validar porcentaje de descuento"""
+        descuento = self.cleaned_data.get('porcentaje_descuento_oferta')
+        if descuento:
+            return str(descuento).strip()
+        return '0.00'
+    
+    def clean(self):
+        """Validación global del formulario incluyendo lógica de ofertas"""
+        cleaned_data = super().clean()
+        en_oferta = cleaned_data.get('en_oferta')
+        precio_oferta = cleaned_data.get('precio_oferta')
+        porcentaje_descuento = cleaned_data.get('porcentaje_descuento_oferta')
+        fecha_inicio = cleaned_data.get('fecha_inicio_oferta')
+        fecha_fin = cleaned_data.get('fecha_fin_oferta')
+        precio_venta = cleaned_data.get('precio_venta')
+        
+        # Si está en oferta, validar que tenga al menos precio de oferta o porcentaje
+        if en_oferta:
+            try:
+                precio_oferta_decimal = Decimal(str(precio_oferta).replace(',', '.')) if precio_oferta else Decimal('0')
+                porcentaje_decimal = Decimal(str(porcentaje_descuento).replace(',', '.')) if porcentaje_descuento else Decimal('0')
+                
+                if precio_oferta_decimal <= 0 and porcentaje_decimal <= 0:
+                    raise ValidationError(
+                        'Debe especificar un precio de oferta o un porcentaje de descuento para activar la oferta.'
+                    )
+                
+                # Validar que el precio de oferta sea menor al precio de venta
+                if precio_oferta_decimal > 0 and precio_venta:
+                    precio_venta_decimal = Decimal(str(precio_venta).replace(',', '.'))
+                    if precio_oferta_decimal >= precio_venta_decimal:
+                        raise ValidationError(
+                            'El precio de oferta debe ser menor al precio de venta normal.'
+                        )
+                
+                # Validar que el porcentaje esté entre 0 y 100
+                if porcentaje_decimal > 0 and (porcentaje_decimal < 0 or porcentaje_decimal > 100):
+                    raise ValidationError(
+                        'El porcentaje de descuento debe estar entre 0 y 100.'
+                    )
+            except (ValueError, TypeError, Decimal.InvalidOperation):
+                raise ValidationError('Los precios y porcentajes deben ser valores numéricos válidos.')
+        
+        # Validar fechas de oferta
+        if fecha_inicio and fecha_fin:
+            if fecha_fin <= fecha_inicio:
+                raise ValidationError(
+                    'La fecha de fin de la oferta debe ser posterior a la fecha de inicio.'
+                )
+        
+        return cleaned_data
     
     def clean_stock_maximo(self):
         stock_maximo = self.cleaned_data.get('stock_maximo')

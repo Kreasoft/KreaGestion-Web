@@ -2,80 +2,32 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 {% load widget_tweaks %}
+{% load humanize %}
+{% load articulo_filters %}
 
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
 <!-- Mensajes de Django -->
 {% if messages %}
-    <div class="container-fluid mt-3" id="messages-container">
+    <div class="container-fluid mt-3">
         {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mensaje-persistente" role="alert">
-                <strong>
-                    {% if message.tags == 'error' or message.tags == 'danger' %}
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                    {% elif message.tags == 'success' %}
-                        <i class="fas fa-check-circle me-2"></i>
-                    {% elif message.tags == 'warning' %}
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                    {% else %}
-                        <i class="fas fa-info-circle me-2"></i>
-                    {% endif %}
-                </strong>
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
                 {{ message }}
-                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         {% endfor %}
     </div>
 {% endif %}
 
 <style>
-/* Estilos para mensajes persistentes */
-.mensaje-persistente {
-    animation: none !important;
-    position: sticky;
-    top: 10px;
-    z-index: 9999;
-    font-size: 1rem;
-    padding: 1rem 1.5rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    border-left: 4px solid;
-}
-
-.mensaje-persistente.alert-danger,
-.mensaje-persistente.alert-error {
-    border-left-color: #dc3545;
-    background-color: #f8d7da;
-}
-
-.mensaje-persistente.alert-success {
-    border-left-color: #28a745;
-    background-color: #d4edda;
-}
-
-/* Estilos para pestañas activas */
-.nav-tabs .nav-link.active {
-    background: linear-gradient(135deg, #A89080 0%, #8B7355 100%) !important;
-    color: white !important;
-    font-weight: 600;
-    border-color: #8B7355 #8B7355 #fff !important;
-    box-shadow: 0 2px 4px rgba(139, 115, 85, 0.3);
-}
-
-.nav-tabs .nav-link {
-    color: #6F5B44;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    border: 1px solid transparent;
-}
-
-.nav-tabs .nav-link:hover:not(.active) {
-    background-color: #F5F1E8;
-    border-color: #D4C5B0 #D4C5B0 #dee2e6;
-    color: #6F5B44;
-}
-
 /* Estilos para campos inválidos en pestañas */
+.tab-pane input.form-control,
+.tab-pane select.form-select {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
 .tab-pane .is-invalid {
     border-color: #dc3545 !important;
     box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
@@ -118,6 +70,45 @@
     border-radius: 8px;
     border: 2px dashed #dee2e6;
 }
+.oferta-panel {
+    background: #FFFFFF;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+.oferta-panel .form-label {
+    color: #8B7355;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.oferta-panel input.form-control, .oferta-panel textarea.form-control {
+    background: #FFFFFF;
+    border: 1px solid #E8DCC8;
+}
+.oferta-panel .form-check-label {
+    color: #6F5B44;
+    font-weight: 600;
+}
+.nav-tabs {
+    border-bottom: 2px solid #8B7355;
+}
+.nav-tabs .nav-link {
+    color: #6F5B44;
+    font-weight: 600;
+    background: #F5F1E8;
+    border: 1px solid #D4C4A8;
+    margin-right: 2px;
+    font-size: 0.9rem;
+}
+.nav-tabs .nav-link:hover {
+    background: #E8DCC8;
+    color: #6F5B44;
+}
+.nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    color: #FFFFFF;
+    border-color: #8B7355;
+}
+.price-base{color:#C19461;font-weight:700;font-size:1.05rem;}
 </style>
 
 <div class="container-fluid">
@@ -162,6 +153,11 @@
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock" type="button" role="tab" aria-controls="stock" aria-selected="false">
                                     <i class="fas fa-warehouse me-2"></i>Stock y Tipo
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="oferta-tab" data-bs-toggle="tab" data-bs-target="#oferta" type="button" role="tab" aria-controls="oferta" aria-selected="false">
+                                    <i class="fas fa-tag me-2"></i>Oferta
                                 </button>
                             </li>
                         </ul>
@@ -361,19 +357,19 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Precio de Venta Final -->
+                                        <!-- Precio Final -->
                                         <div class="col-md-4">
                                         <div class="mb-3">
-                                                <label for="{{ form.precio_final.id_for_label }}" class="form-label fw-bold fs-5" style="color: #28a745;">
-                                                    <i class="fas fa-cash-register me-2"></i>PRECIO DE VENTA FINAL
+                                                <label for="{{ form.precio_final.id_for_label }}" class="form-label">
+                                                    <i class="fas fa-calculator me-1"></i>Precio Final
                                             </label>
-                                            <div class="input-group input-group-lg">
-                                                    <div class="input-group-text" style="background-color: #d4edda; border-color: #28a745; border-width: 2px;">
-                                                        <i class="fas fa-dollar-sign" style="color: #155724; font-size: 1.2rem;"></i>
+                                            <div class="input-group">
+                                                    <div class="input-group-text" style="background-color: #d1ecf1; border-color: #17a2b8;">
+                                                        <i class="fas fa-money-bill-wave" style="color: #0c5460;"></i>
                                                     </div>
-                                                    {{ form.precio_final|add_class:"form-control form-control-lg fw-bold"|attr:"oninput:calcularPrecios()"|attr:"style:border-left: none; border-width: 2px; border-color: #28a745; font-size: 1.3rem;" }}
+                                                    {{ form.precio_final|add_class:"form-control"|attr:"oninput:calcularPrecios()"|attr:"style:border-left: none;" }}
                                                 </div>
-                                                <div class="form-text fw-bold text-success">Precio final con todos los impuestos incluidos (lo que cobra al cliente)</div>
+                                                <div class="form-text">Precio final con todos los impuestos (calculado)</div>
                                                 {% if form.precio_final.errors %}
                                                     <div class="text-danger">{{ form.precio_final.errors.0 }}</div>
                                                 {% endif %}
@@ -410,8 +406,8 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <div class="text-center">
-                                                                <div class="fw-bold text-success fs-4" id="precio_final_display" style="font-size: 1.5rem !important;">$0</div>
-                                                                <small class="text-muted fw-bold">PRECIO DE VENTA FINAL</small>
+                                                                <div class="fw-bold text-success fs-5" id="precio_final_display">$0</div>
+                                                                <small class="text-muted">Precio Final</small>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -484,8 +480,77 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            
+                            <div class="tab-pane fade" id="oferta" role="tabpanel" aria-labelledby="oferta-tab">
+                                <div class="p-4 oferta-panel" style="background-color: #ffffff;">
+                                    <div class="mb-4">
+                                        <h6 class="fw-bold" style="color:#8B7355;">
+                                            {{ form.instance.nombre|default:"Nuevo Artículo" }}
+                                            {% if form.instance.pk %}
+                                                <span class="text-muted fw-normal" style="font-size:0.8rem;"><span class="price-base ms-1">Precio actual: ${{ form.instance.precio_final|floatformat:0|intcomma }}</span></span>
+                                            {% endif %}
+                                        </h6>
+                                        <ol class="small" style="color:#6F5B44; padding-left:18px;">
+                                            <li>Marca la casilla para activar la oferta.</li>
+                                            <li>Define el <em>Precio de Oferta</em> o el <em>% Descuento</em>.</li>
+                                            <li>Establece la <em>Fecha Inicio</em> y la <em>Fecha Fin</em>.</li>
+                                        </ol>
+                                    </div>
+                                    <p class="mb-4" style="font-size:0.83rem; color:#6F5B44;">
+                                        Define aquí la <strong>promo</strong> de tu artículo:
+                                        1) Activa la casilla para marcarlo en oferta.
+                                        2) Ingresa un <em>Precio de Oferta</em> o un <em>% Descuento</em> (uno de los dos bastará).
+                                        3) Fija la <em>Fecha Inicio</em> y <em>Fecha Fin</em> para delimitar la vigencia.
+                                        Cuando la oferta esté activa, el POS mostrará automáticamente un badge ☑ y el precio rebajado.
+                                    </p>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <div class="form-check mb-3">
+                                                {{ form.en_oferta|add_class:"form-check-input" }}
+                                                <label class="form-check-label" for="{{ form.en_oferta.id_for_label }}">
+                                                    {{ form.en_oferta.label }}
+                                                </label>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label" for="{{ form.precio_oferta.id_for_label }}">Precio oferta</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="fas fa-dollar-sign"></i></span>
+                                                    {{ form.precio_oferta|add_class:"form-control text-end"|attr:"placeholder:0" }}
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label" for="{{ form.porcentaje_descuento_oferta.id_for_label }}">% Descuento</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="fas fa-percent"></i></span>
+                                                    {{ form.porcentaje_descuento_oferta|add_class:"form-control text-end"|attr:"placeholder:0" }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label" for="{{ form.fecha_inicio_oferta.id_for_label }}">Fecha inicio</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                                                    {{ form.fecha_inicio_oferta|add_class:"form-control"|attr:"type:date" }}
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label" for="{{ form.fecha_fin_oferta.id_for_label }}">Fecha fin</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                                                    {{ form.fecha_fin_oferta|add_class:"form-control"|attr:"type:date" }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label" for="{{ form.descripcion_oferta.id_for_label }}">Descripción oferta</label>
+                                                {{ form.descripcion_oferta|add_class:"form-control"|attr:"rows:4" }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Pestaña 4: Stock y Tipo -->
                             <div class="tab-pane fade" id="stock" role="tabpanel" aria-labelledby="stock-tab">
                                 <div class="p-4">
@@ -564,7 +629,7 @@
                                 <a href="{% url 'articulos:articulo_list' %}" class="btn btn-outline-secondary">
                                     <i class="fas fa-arrow-left me-2"></i>Cancelar
                                     </a>
-                                <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none;">
+                                <button type="submit" class="btn btn-success">
                                     <i class="fas fa-save me-2"></i>Guardar Artículo
                                     </button>
                             </div>
@@ -615,9 +680,8 @@ function removeLogoPreview() {
         }
     }
 
-    // Variables globales para almacenar información de la categoría
+    // Variable global para almacenar el porcentaje de impuesto específico
     let impuestoEspecificoPorcentaje = 0;
-    let categoriaExentaIva = false;
     
     // Función para obtener impuesto específico de la categoría
     function obtenerImpuestoEspecificoCategoria() {
@@ -626,7 +690,6 @@ function removeLogoPreview() {
         
         if (!categoriaId) {
             impuestoEspecificoPorcentaje = 0;
-            categoriaExentaIva = false;
             const impuestoField = document.getElementById('id_impuesto_especifico');
             if (impuestoField) {
                 impuestoField.value = '0.00';
@@ -641,14 +704,10 @@ function removeLogoPreview() {
             .then(data => {
                 if (data.impuesto_especifico_porcentaje) {
                     impuestoEspecificoPorcentaje = parseFloat(data.impuesto_especifico_porcentaje);
-                    categoriaExentaIva = data.exenta_iva || false;
                     console.log('Impuesto específico aplicado:', impuestoEspecificoPorcentaje + '%');
-                    console.log('Categoría exenta de IVA:', categoriaExentaIva);
                     calcularPrecios();
                 } else {
                     impuestoEspecificoPorcentaje = 0;
-                    categoriaExentaIva = data.exenta_iva || false;
-                    console.log('Categoría exenta de IVA:', categoriaExentaIva);
                     const impuestoField = document.getElementById('id_impuesto_especifico');
                     if (impuestoField) {
                         impuestoField.value = '0.00';
@@ -659,7 +718,6 @@ function removeLogoPreview() {
             .catch(error => {
                 console.error('Error al obtener impuesto específico:', error);
                 impuestoEspecificoPorcentaje = 0;
-                categoriaExentaIva = false;
                 calcularPrecios();
             });
     }
@@ -672,29 +730,11 @@ function removeLogoPreview() {
         // Función para convertir formato chileno a número
         function parseChileanNumber(value) {
             if (!value) return 0;
-            let strValue = value.toString().trim();
-            
-            // Si tiene punto Y coma, es formato chileno: 1.234,56
-            if (strValue.includes('.') && strValue.includes(',')) {
-                // Quitar puntos (separador de miles) y convertir coma a punto
-                strValue = strValue.replace(/\./g, '').replace(',', '.');
-            }
-            // Si solo tiene coma, es decimal chileno: 1234,56
-            else if (strValue.includes(',')) {
-                strValue = strValue.replace(',', '.');
-            }
-            // Si solo tiene punto y tiene más de 2 decimales o está antes de los últimos 3 dígitos, es separador de miles
-            else if (strValue.includes('.')) {
-                const parts = strValue.split('.');
-                // Si la última parte tiene 3 dígitos y hay más partes, son miles: 1.234
-                if (parts.length > 1 && parts[parts.length - 1].length === 3) {
-                    strValue = strValue.replace(/\./g, '');
-                }
-                // Si la última parte tiene 1-2 dígitos, es decimal: 1234.5
-                // No hacer nada, ya está en formato correcto
-            }
-            
-            return parseFloat(strValue) || 0;
+            // Quitar separadores de miles (puntos) pero mantener coma decimal
+            let cleanValue = value.toString().replace(/\./g, '');
+            // Convertir coma decimal a punto
+            cleanValue = cleanValue.replace(',', '.');
+            return parseFloat(cleanValue) || 0;
         }
         
         const precioCosto = parseChileanNumber(document.getElementById('id_precio_costo').value);
@@ -718,9 +758,9 @@ function removeLogoPreview() {
             // Precio Final = Precio Neto * (1 + 0.19 + impuestoEspecificoPorcentaje/100)
             // Precio Neto = Precio Final / (1 + 0.19 + impuestoEspecificoPorcentaje/100)
             
-            const factorTotal = 1 + (categoriaExentaIva ? 0 : 0.19) + (impuestoEspecificoPorcentaje / 100);
+            const factorTotal = 1 + 0.19 + (impuestoEspecificoPorcentaje / 100);
             nuevoPrecioNeto = precioFinal / factorTotal;
-            iva = categoriaExentaIva ? 0 : nuevoPrecioNeto * 0.19;
+            iva = nuevoPrecioNeto * 0.19;
             
             console.log('Factor total:', factorTotal, 'Nuevo precio neto:', nuevoPrecioNeto, 'IVA:', iva);
             
@@ -733,21 +773,21 @@ function removeLogoPreview() {
         // Si se modifica Precio Neto, calcular hacia adelante
         else if (precioNeto > 0) {
             console.log('Calculando desde Precio Neto hacia adelante');
-            iva = categoriaExentaIva ? 0 : precioNeto * 0.19;
+            iva = precioNeto * 0.19;
             const impuestoEspecificoCalculado = precioNeto * (impuestoEspecificoPorcentaje / 100);
             nuevoPrecioFinal = precioNeto + iva + impuestoEspecificoCalculado;
             
             console.log('IVA:', iva, 'Impuesto específico:', impuestoEspecificoCalculado, 'Nuevo precio final:', nuevoPrecioFinal);
             
-            // Actualizar Precio Final si es diferente (sin decimales)
+            // Actualizar Precio Final si es diferente
             if (Math.abs(precioFinal - nuevoPrecioFinal) > 0.01) {
-                document.getElementById('id_precio_final').value = Math.round(nuevoPrecioFinal).toString();
-                console.log('Actualizado precio final a:', Math.round(nuevoPrecioFinal));
+                document.getElementById('id_precio_final').value = nuevoPrecioFinal.toFixed(2).replace('.', ',');
+                console.log('Actualizado precio final a:', nuevoPrecioFinal.toFixed(2).replace('.', ','));
             }
         }
         
         // Calcular margen si hay precio de costo y precio final
-        const precioFinalActual = parseChileanNumber(document.getElementById('id_precio_final').value);
+        const precioFinalActual = parseFloat(document.getElementById('id_precio_final').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
         if (precioCosto > 0 && precioFinalActual > 0) {
             margenCalculado = ((precioFinalActual - precioCosto) / precioCosto) * 100;
             document.getElementById('id_margen_porcentaje').value = margenCalculado.toFixed(2).replace('.', ',');
@@ -761,10 +801,10 @@ function removeLogoPreview() {
             console.log('Actualizado campo impuesto específico a:', impuestoEspecificoValor.toFixed(2).replace('.', ','));
         }
         
-        // Actualizar displays con valores finales (usando parseChileanNumber)
-        const precioNetoDisplay = parseChileanNumber(document.getElementById('id_precio_venta').value);
-        const precioFinalDisplay = parseChileanNumber(document.getElementById('id_precio_final').value);
-        const ivaDisplay = categoriaExentaIva ? 0 : precioNetoDisplay * 0.19;
+        // Actualizar displays con valores finales
+        const precioNetoDisplay = parseFloat(document.getElementById('id_precio_venta').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+        const precioFinalDisplay = parseFloat(document.getElementById('id_precio_final').value.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+        const ivaDisplay = precioNetoDisplay * 0.19;
         const impuestoEspecificoDisplay = precioNetoDisplay * (impuestoEspecificoPorcentaje / 100);
         
         console.log('Displays - Neto:', precioNetoDisplay, 'Final:', precioFinalDisplay, 'IVA:', ivaDisplay, 'Imp. Esp:', impuestoEspecificoDisplay);
@@ -841,6 +881,18 @@ document.addEventListener('DOMContentLoaded', function() {
         
         calcularPrecios();
         
+        // === Fechas por defecto Oferta ===
+        const fi=document.getElementById('id_fecha_inicio_oferta');
+        const ff=document.getElementById('id_fecha_fin_oferta');
+        if(fi && !fi.value){
+            const hoy=new Date();
+            fi.value=hoy.toISOString().slice(0,10);
+            if(ff && !ff.value){
+                const fin=new Date(hoy);
+                fin.setDate(fin.getDate()+7);
+                ff.value=fin.toISOString().slice(0,10);
+            }
+        }
         // Agregar event listeners para recalcular automáticamente
         document.getElementById('id_precio_costo').addEventListener('input', calcularPrecios);
         document.getElementById('id_precio_venta').addEventListener('input', calcularPrecios);
