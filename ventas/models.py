@@ -162,6 +162,15 @@ class Venta(models.Model):
         ordering = ['-fecha_creacion']
         unique_together = ['empresa', 'tipo_documento', 'numero_venta']
     
+    @property
+    def dte_asociado(self):
+        from caja.models import VentaProcesada
+        try:
+            venta_procesada = VentaProcesada.objects.get(venta_final=self)
+            return venta_procesada.dte_generado
+        except VentaProcesada.DoesNotExist:
+            return None
+
     def __str__(self):
         return f"Venta {self.numero_venta} - {self.fecha}"
 

@@ -5,7 +5,7 @@ from django import forms
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.forms import UserCreationForm
 from .models import PerfilUsuario
-from empresas.models import Empresa
+from empresas.models import Empresa, Sucursal
 
 
 class UsuarioCreateForm(UserCreationForm):
@@ -51,6 +51,16 @@ class UsuarioCreateForm(UserCreationForm):
             'class': 'form-control'
         })
     )
+    sucursal = forms.ModelChoiceField(
+        queryset=Sucursal.objects.none(),
+        required=False,
+        label='Sucursal',
+        help_text='Dejar en blanco para permitir acceso a todas las sucursales',
+        empty_label='--------- (Todas las sucursales)',
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        })
+    )
     is_staff = forms.BooleanField(
         required=False,
         label='Acceso al panel de administración',
@@ -61,7 +71,7 @@ class UsuarioCreateForm(UserCreationForm):
     
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2', 'empresa', 'grupo', 'is_staff']
+        fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2', 'empresa', 'grupo', 'sucursal', 'is_staff']
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -84,6 +94,19 @@ class UsuarioCreateForm(UserCreationForm):
         self.fields['password1'].label = 'Contraseña'
         self.fields['password2'].label = 'Confirmar Contraseña'
         
+        # Filtrar sucursales según la empresa seleccionada
+        if 'empresa' in self.data:
+            try:
+                empresa_id = int(self.data.get('empresa'))
+                empresa = Empresa.objects.get(id=empresa_id)
+                self.fields['sucursal'].queryset = empresa.sucursales.filter(estado='activa').order_by('nombre')
+            except (ValueError, TypeError, Empresa.DoesNotExist):
+                pass
+        elif self.instance and self.instance.pk and hasattr(self.instance, 'perfil') and self.instance.perfil.empresa:
+            self.fields['sucursal'].queryset = self.instance.perfil.empresa.sucursales.filter(estado='activa').order_by('nombre')
+        else:
+            self.fields['sucursal'].queryset = Sucursal.objects.none()
+        
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data['email']
@@ -98,12 +121,16 @@ class UsuarioCreateForm(UserCreationForm):
             # Usamos get_or_create porque la señal post_save puede haber creado el perfil
             perfil, created = PerfilUsuario.objects.get_or_create(
                 usuario=user,
-                defaults={'empresa': self.cleaned_data['empresa']}
+                defaults={
+                    'empresa': self.cleaned_data['empresa'],
+                    'sucursal': self.cleaned_data.get('sucursal')
+                }
             )
             
-            # Si el perfil ya existía, actualizamos la empresa
+            # Si el perfil ya existía, actualizamos la empresa y sucursal
             if not created:
                 perfil.empresa = self.cleaned_data['empresa']
+                perfil.sucursal = self.cleaned_data.get('sucursal')
                 perfil.save()
             
             # Asignar grupo si se especificó
@@ -149,6 +176,16 @@ class UsuarioUpdateForm(forms.ModelForm):
             'class': 'form-control'
         })
     )
+    sucursal = forms.ModelChoiceField(
+        queryset=Sucursal.objects.none(),
+        required=False,
+        label='Sucursal',
+        help_text='Dejar en blanco para permitir acceso a todas las sucursales',
+        empty_label='--------- (Todas las sucursales)',
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        })
+    )
     is_active = forms.BooleanField(
         required=False,
         label='Usuario activo',
@@ -185,6 +222,17 @@ class UsuarioUpdateForm(forms.ModelForm):
             grupo_actual = self.instance.groups.first()
             if grupo_actual:
                 self.fields['grupo'].initial = grupo_actual
+            
+            # Precargar la sucursal actual del usuario
+            if hasattr(self.instance, 'perfil') and self.instance.perfil:
+                self.fields['sucursal'].initial = self.instance.perfil.sucursal
+                # Filtrar sucursales por la empresa del usuario
+                if self.instance.perfil.empresa:
+                    self.fields['sucursal'].queryset = self.instance.perfil.empresa.sucursales.filter(
+                        estado='activa'
+                    ).order_by('nombre')
+        else:
+            self.fields['sucursal'].queryset = Sucursal.objects.none()
                 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -195,6 +243,7 @@ class UsuarioUpdateForm(forms.ModelForm):
             # Actualizar el perfil
             if hasattr(user, 'perfil'):
                 user.perfil.es_activo = user.is_active
+                user.perfil.sucursal = self.cleaned_data.get('sucursal')
                 user.perfil.save()
             
             # Actualizar grupo

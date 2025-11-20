@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=80mm">
+    <meta name="viewport" content="width=302">
     <title>Boleta Electrónica - {{ dte.folio|default:venta.numero_venta }}</title>
 
     {% load format_filters %}
@@ -411,7 +411,13 @@
                 window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
               }
             } catch (e) { /* noop */ }
-            try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
+            // Solo cerrar si la ventana fue abierta por el script
+            if (window.opener && window.opener !== window) {
+              try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
+            } else {
+              // Si no se puede cerrar, redirigir al POS
+              try { window.location.href = posUrl; } catch (e2) {}
+            }
           };
 
           document.addEventListener('DOMContentLoaded', function() {

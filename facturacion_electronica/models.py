@@ -290,6 +290,12 @@ class DocumentoTributarioElectronico(models.Model):
         related_name='dte',
         verbose_name="Venta Asociada"
     )
+    orden_despacho = models.ManyToManyField(
+        'ventas.Venta',
+        related_name='dtes_despacho',
+        verbose_name="Documentos de Despacho Asociados (Ventas/Guías)",
+        blank=True
+    )
     caf_utilizado = models.ForeignKey(
         ArchivoCAF,
         on_delete=models.PROTECT,
@@ -328,6 +334,7 @@ class DocumentoTributarioElectronico(models.Model):
         verbose_name="Tipo DTE"
     )
     folio = models.IntegerField(verbose_name="Folio")
+    fecha = models.DateField(verbose_name="Fecha", default=timezone.now)
     fecha_emision = models.DateField(verbose_name="Fecha de Emisión")
     
     # EMISOR

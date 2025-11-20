@@ -24,7 +24,7 @@ def exportar_cuentas_cobrar_excel(request):
     """Exportar cuentas por cobrar a Excel"""
     documentos = DocumentoCliente.objects.filter(
         empresa=request.empresa,
-        estado__in=['pendiente', 'parcial']
+        estado_pago__in=['pendiente', 'parcial']
     ).select_related('cliente').order_by('fecha_vencimiento')
     
     wb = Workbook()
@@ -56,9 +56,9 @@ def exportar_cuentas_cobrar_excel(request):
         ws.cell(row=row, column=5).number_format = '$#,##0'
         ws.cell(row=row, column=6, value=float(doc.monto_pagado)).border = border
         ws.cell(row=row, column=6).number_format = '$#,##0'
-        ws.cell(row=row, column=7, value=float(doc.saldo)).border = border
+        ws.cell(row=row, column=7, value=float(doc.saldo_pendiente)).border = border
         ws.cell(row=row, column=7).number_format = '$#,##0'
-        ws.cell(row=row, column=8, value=doc.get_estado_display()).border = border
+        ws.cell(row=row, column=8, value=doc.get_estado_pago_display()).border = border
         row += 1
     
     ws.column_dimensions['A'].width = 18

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Factura Electrónica - {{ dte.folio|default:venta.numero_venta }}</title>
+    <title>Factura Electrónica - {{ dte.folio|default:venta.numero_venta|default:"N/A" }}</title>
 
     {% load format_filters %}
 
@@ -379,8 +379,10 @@
                     <div class="document-folio">
                         {% if dte and dte.folio %}
                             N° {{ dte.folio }}
-                        {% else %}
+                        {% elif venta %}
                             N° {{ venta.numero_venta }}
+                        {% else %}
+                            N° N/A
                         {% endif %}
                     </div>
                     <div class="document-sii">SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}</div>
@@ -527,7 +529,7 @@
                             </div>
                             <div style="font-size: 7pt; color: #666;">
                                 Este documento NO ha sido enviado al SII<br>
-                                Número de Venta: {{ venta.numero_venta }}
+                                Número de Venta: {{ venta.numero_venta|default:"N/A" }}
                             </div>
                         </div>
                     {% endif %}
@@ -660,8 +662,13 @@
                 window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
               }
             } catch (e) { /* noop */ }
-            // Intentar cerrar la ventana del documento; si no se puede, ir al POS
-            try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
+            // Solo cerrar si la ventana fue abierta por el script
+            if (window.opener && window.opener !== window) {
+              try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
+            } else {
+              // Si no se puede cerrar, redirigir al POS
+              try { window.location.href = posUrl; } catch (e2) {}
+            }
           };
 
           // Enganchar botón Volver al POS para notificar al padre

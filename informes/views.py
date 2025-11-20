@@ -184,6 +184,9 @@ def informe_productos_vendidos(request):
 @requiere_empresa
 def informe_stock_actual(request):
     """Informe de stock actual por bodega"""
+    from inventario.models import Stock
+    from decimal import Decimal
+    
     bodega_id = clean_id(clean_id(request.GET.get('bodega_id')))
     
     stocks = Stock.objects.filter(
@@ -197,17 +200,31 @@ def informe_stock_actual(request):
     
     # Calcular valorización y agregar a cada stock
     stocks_list = []
-    total_valorizacion = 0
+    total_valorizacion = Decimal('0')
+    articulos_unicos = set()  # Para contar artículos únicos
     
     for stock in stocks:
-        valorizacion = float(stock.cantidad) * float(stock.precio_promedio)
+        # Obtener precio promedio (puede ser None o 0)
+        precio_promedio = stock.precio_promedio or Decimal('0')
+        cantidad = Decimal(str(stock.cantidad))
+        
+        # Calcular valorización
+        valorizacion = cantidad * precio_promedio
         stock.valorizacion = valorizacion
         total_valorizacion += valorizacion
+        
+        # Contar artículos únicos (solo si tiene stock > 0)
+        if cantidad > 0:
+            articulos_unicos.add(stock.articulo.id)
+        
         stocks_list.append(stock)
+    
+    total_articulos = len(articulos_unicos)
     
     context = {
         'stocks': stocks_list,
-        'total_valorizacion': total_valorizacion
+        'total_valorizacion': total_valorizacion,
+        'total_articulos': total_articulos,
     }
     
     return render(request, 'informes/stock_actual.html', context)

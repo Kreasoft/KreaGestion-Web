@@ -325,9 +325,14 @@
     </style>
 </head>
 <body>
-    <button onclick="window.print()" class="print-button no-print">
-        <i class="fas fa-print"></i> Imprimir
-    </button>
+    <div class="no-print" style="position: fixed; top: 10px; right: 10px; z-index: 1000; display: flex; gap: 10px;">
+        <button onclick="window.print()" class="print-button" style="padding: 10px 20px; background: #6B8E23; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            <i class="fas fa-print"></i> Imprimir
+        </button>
+        <button onclick="safeCloseWindow()" style="padding: 10px 20px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            ❌ Cerrar
+        </button>
+    </div>
 
     <div class="guia-container">
         <!-- CABECERA -->
@@ -431,31 +436,17 @@
                 </tr>
             </thead>
             <tbody>
-                {% if detalles %}
-                    {% for detalle in detalles %}
-                    <tr>
-                        <td style="text-align: center;">{{ detalle.articulo.codigo }}</td>
-                        <td>{{ detalle.articulo.nombre }}</td>
-                        <td style="text-align: center;">{{ detalle.articulo.unidad_medida.nombre|default:"UND" }}</td>
-                        <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
-                        <td style="text-align: right;">${{ detalle.precio_unitario|floatformat:0 }}</td>
-                        <td style="text-align: right;">$0</td>
-                        <td style="text-align: right;">${{ detalle.precio_total|floatformat:0 }}</td>
-                    </tr>
-                    {% endfor %}
-                {% elif venta %}
-                    {% for detalle in venta.ventadetalle_set.all %}
-                    <tr>
-                        <td style="text-align: center;">{{ detalle.articulo.codigo }}</td>
-                        <td>{{ detalle.articulo.nombre }}</td>
-                        <td style="text-align: center;">{{ detalle.articulo.unidad_medida.nombre|default:"UND" }}</td>
-                        <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
-                        <td style="text-align: right;">${{ detalle.precio_unitario|floatformat:0 }}</td>
-                        <td style="text-align: right;">$0</td>
-                        <td style="text-align: right;">${{ detalle.precio_total|floatformat:0 }}</td>
-                    </tr>
-                    {% endfor %}
-                {% endif %}
+                {% for detalle in detalles %}
+                <tr>
+                    <td style="text-align: center;">{{ detalle.item_pedido.articulo.codigo }}</td>
+                    <td>{{ detalle.item_pedido.articulo.nombre }}</td>
+                    <td style="text-align: center;">{{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UND" }}</td>
+                    <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
+                    <td style="text-align: right;">${{ detalle.item_pedido.precio_unitario|floatformat:0 }}</td>
+                    <td style="text-align: right;">$0</td>
+                    <td style="text-align: right;">${{ detalle.subtotal|floatformat:0 }}</td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
 
@@ -538,5 +529,38 @@
     </div>
 
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script>
+        function safeCloseWindow() {
+            // Intentar cerrar la ventana de varias formas
+            try {
+                // Si la ventana fue abierta por un script, intentar cerrarla
+                if (window.opener && window.opener !== window) {
+                    window.close();
+                    return;
+                }
+            } catch(e) {
+                console.log('No se pudo cerrar con window.close()');
+            }
+            
+            // Si no se puede cerrar, intentar volver atrás
+            try {
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    // Si no hay historial, redirigir a una página por defecto
+                    window.location.href = '/';
+                }
+            } catch(e) {
+                console.log('No se pudo volver atrás');
+                // Último recurso: intentar cerrar de todas formas
+                try {
+                    window.close();
+                } catch(e2) {
+                    // Si nada funciona, mostrar mensaje
+                    alert('No se puede cerrar esta ventana. Por favor, ciérrela manualmente.');
+                }
+            }
+        }
+    </script>
 </body>
 </html>

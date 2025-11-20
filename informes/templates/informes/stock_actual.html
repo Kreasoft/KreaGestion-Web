@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load humanize %}
+{% load format_filters %}
 
 {% block title %}Informe de Stock Actual{% endblock %}
 
@@ -40,13 +41,13 @@
         <div class="col-md-6 mb-2">
             <div class="stat-card">
                 <p class="stat-label">Total Artículos</p>
-                <p class="stat-value">{{ stocks.count }}</p>
+                <p class="stat-value">{{ total_articulos|default:0|format_miles }}</p>
             </div>
         </div>
         <div class="col-md-6 mb-2">
             <div class="stat-card">
                 <p class="stat-label">Valorización Total</p>
-                <p class="stat-value">${{ total_valorizacion|floatformat:0|intcomma }}</p>
+                <p class="stat-value">${{ total_valorizacion|default:0|format_miles }}</p>
             </div>
         </div>
     </div>
@@ -77,8 +78,8 @@
                                     <td class="text-end {% if stock.cantidad <= stock.articulo.stock_minimo %}stock-bajo{% else %}stock-ok{% endif %}">
                                         {{ stock.cantidad|floatformat:0 }}
                                     </td>
-                                    <td class="text-end">${{ stock.precio_promedio|floatformat:0|intcomma }}</td>
-                                    <td class="text-end">${{ stock.valorizacion|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">${{ stock.precio_promedio|format_miles }}</td>
+                                    <td class="text-end">${{ stock.valorizacion|format_miles }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>

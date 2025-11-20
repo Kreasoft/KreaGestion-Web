@@ -37,6 +37,7 @@ THIRD_PARTY_APPS = [
 	'crispy_bootstrap5',
 	'django_tables2',
 	'widget_tweaks',
+	# 'ckeditor',  # Temporalmente comentado - instalar con: pip install django-ckeditor
 	# 'django_bootstrap5',  # Comentado temporalmente
 	# 'simple_history',  # Comentado temporalmente
 ]
@@ -189,7 +190,9 @@ CKEDITOR_CONFIGS = {
 			['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyBlock'],
 			['Link', 'Unlink'],
 			['RemoveFormat', 'Source']
-		]
+		],
+		'height': 300,
+		'width': '100%',
 	}
 }
 

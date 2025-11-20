@@ -337,12 +337,23 @@
         <button onclick="window.print()" class="btn btn-primary">
             <i class="fas fa-print me-2"></i>Imprimir Ticket Facturable
         </button>
-        <button onclick="window.close()" class="btn btn-secondary ms-2">
+        <button onclick="safeCloseWindow()" class="btn btn-secondary ms-2">
             <i class="fas fa-times me-2"></i>Cerrar
         </button>
     </div>
     
     <script>
+        function safeCloseWindow() {
+            // Solo cerrar si la ventana fue abierta por el script
+            if (window.opener && window.opener !== window) {
+                try {
+                    window.close();
+                } catch(e) {
+                    // Si no se puede cerrar, no hacer nada
+                }
+            }
+        }
+        
         // Generar código de barras
         document.addEventListener('DOMContentLoaded', function() {
             try {

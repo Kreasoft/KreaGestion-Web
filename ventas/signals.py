@@ -16,8 +16,18 @@ def actualizar_stock_venta(sender, instance, created, **kwargs):
     if instance.tipo_documento in ['cotizacion']:
         return
     
-    # Si la venta está confirmada, descontar stock
-    if instance.estado == 'confirmada':
+    # Verificar si ya hay movimientos de inventario para esta venta
+    # Esto evita procesar múltiples veces cuando el signal se ejecuta varias veces
+    from inventario.models import Inventario
+    movimientos_existentes = Inventario.objects.filter(
+        empresa=instance.empresa,
+        numero_documento=instance.numero_venta,
+        tipo_movimiento='salida',
+        estado='confirmado'
+    ).exists()
+    
+    # Si la venta está confirmada, descontar stock (solo si no se ha procesado antes)
+    if instance.estado == 'confirmada' and not movimientos_existentes:
         descontar_stock_venta(instance)
     
     # Si la venta fue anulada, reponer stock
@@ -50,6 +60,23 @@ def descontar_stock_venta(venta):
             
             # Solo descontar si el artículo tiene control de stock
             if not articulo.control_stock:
+                continue
+            
+            # Verificar si ya existe un movimiento de inventario para esta venta y artículo
+            # Esto evita duplicados cuando el signal se ejecuta múltiples veces
+            movimiento_existente = Inventario.objects.filter(
+                empresa=venta.empresa,
+                bodega_origen=bodega,
+                articulo=articulo,
+                tipo_movimiento='salida',
+                numero_documento=venta.numero_venta,
+                estado='confirmado'
+            ).first()
+            
+            if movimiento_existente:
+                # Si ya existe un movimiento, solo actualizar el stock si es necesario
+                # pero no crear otro movimiento
+                print(f"[INFO] Movimiento de inventario ya existe para venta {venta.numero_venta}, artículo {articulo.nombre}. Saltando creación duplicada.")
                 continue
             
             # Obtener o crear el registro de stock

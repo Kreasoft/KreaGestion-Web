@@ -185,3 +185,107 @@ def requiere_empresa_json(view_func):
     
     return _wrapped_view
 
+
+def requiere_permiso(permiso, mensaje=None, redirect_url=None):
+    """
+    Decorador que verifica si el usuario tiene un permiso específico.
+    Si no tiene permiso, muestra SweetAlert2 y redirige.
+    
+    Args:
+        permiso: String con el permiso requerido (ej: 'articulos.change_articulo')
+        mensaje: Mensaje personalizado (opcional)
+        redirect_url: URL a la que redirigir (opcional, por defecto usa el referer o dashboard)
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            from django.shortcuts import render
+            from django.http import JsonResponse
+            
+            # Verificar autenticación primero
+            if not request.user.is_authenticated:
+                return redirect('login')
+            
+            # Superusuarios siempre tienen acceso
+            if request.user.is_superuser:
+                return view_func(request, *args, **kwargs)
+            
+            # Verificar permiso
+            try:
+                tiene_permiso = request.user.has_perm(permiso)
+            except Exception as e:
+                logger.error(f"Error al verificar permiso {permiso} para usuario {request.user.username}: {e}")
+                tiene_permiso = False
+            
+            if not tiene_permiso:
+                # Mensaje por defecto
+                if not mensaje:
+                    mensaje_texto = f'No tienes permisos para realizar esta acción. Por favor, contacta al administrador del sistema para solicitar el permiso necesario.'
+                else:
+                    mensaje_texto = mensaje
+                
+                # Determinar URL de redirección
+                if redirect_url:
+                    # Si es un nombre de URL (contiene ':'), usar reverse
+                    if ':' in redirect_url:
+                        from django.urls import reverse
+                        try:
+                            redirect_to = reverse(redirect_url)
+                        except Exception as e:
+                            logger.error(f"Error al hacer reverse de {redirect_url}: {e}")
+                            redirect_to = '/'
+                    # Si empieza con '/', es una ruta absoluta
+                    elif redirect_url.startswith('/'):
+                        redirect_to = redirect_url
+                    else:
+                        # Si no empieza con '/' y no tiene ':', intentar usar reverse con el nombre
+                        # Si falla, usar como ruta absoluta
+                        from django.urls import reverse
+                        try:
+                            redirect_to = reverse(redirect_url)
+                        except Exception as e:
+                            logger.error(f"Error al hacer reverse de {redirect_url}: {e}")
+                            # Si no es un nombre de URL válido, tratarlo como ruta absoluta
+                            redirect_to = '/' + redirect_url.lstrip('/')
+                else:
+                    # Intentar obtener del referer
+                    referer = request.META.get('HTTP_REFERER')
+                    if referer:
+                        # Extraer solo la ruta relativa del referer
+                        from urllib.parse import urlparse
+                        parsed = urlparse(referer)
+                        redirect_to = parsed.path
+                        if parsed.query:
+                            redirect_to += '?' + parsed.query
+                    else:
+                        # Fallback al dashboard
+                        redirect_to = '/'
+                
+                # Si es petición AJAX, retornar JSON
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': False,
+                        'error': mensaje_texto,
+                        'show_alert': True,
+                        'alert_type': 'warning',
+                        'alert_title': 'Acceso Denegado',
+                        'alert_message': mensaje_texto
+                    }, status=403)
+                
+                # Para TODAS las peticiones (POST y GET), redirigir con mensaje
+                # Esto evita mostrar pantallas en blanco o errores 403
+                # Usar HttpResponseRedirect explícito para evitar problemas con status codes
+                from django.http import HttpResponseRedirect
+                logger.warning(f"Usuario {request.user.username} sin permiso {permiso} intentó acceder a {view_func.__name__}. Redirigiendo a {redirect_to}")
+                messages.error(request, mensaje_texto)
+                # Crear redirect con status 302 explícito (no 403)
+                response = HttpResponseRedirect(redirect_to)
+                response.status_code = 302  # Asegurar que es un redirect, no un error
+                # Forzar que el status code sea 302
+                return response
+            
+            # Si tiene permiso, ejecutar la vista normalmente
+            return view_func(request, *args, **kwargs)
+        
+        return _wrapped_view
+    return decorator

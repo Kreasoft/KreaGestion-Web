@@ -202,14 +202,12 @@
                                         <input type="hidden" name="{{ item_form.DELETE.html_name }}" id="{{ item_form.DELETE.id_for_label }}">
                                         
                                         <div class="col-md-5">
-                                            <select name="{{ item_form.articulo.html_name }}" class="form-select form-select-sm articulo-select" data-index="{{ forloop.counter0 }}" style="font-size: 0.8rem; padding: 0.25rem 0.5rem; height: 32px;">
+                                            <select name="{{ item_form.articulo.html_name }}" class="form-select form-select-sm articulo-select" data-index="{{ forloop.counter0 }}">
                                                 <option value="">Buscar por código o nombre...</option>
                                                 {% for articulo in articulos_empresa %}
-                                                    <option value="{{ articulo.id }}"
-                                                            data-codigo="{{ articulo.codigo }}"
-                                                            data-nombre="{{ articulo.nombre }}"
-                                                            data-precio="{{ articulo.precio_venta }}"
-                                                            {% if item_form.articulo.value == articulo.id %}selected{% endif %}>
+                                                    <option value="{{ articulo.id|unlocalize }}"
+                                                            data-precio="{{ articulo.precio_venta|unlocalize }}"
+                                                            {% if item_form.articulo.value|stringformat:'s' == articulo.id|stringformat:'s' %}selected{% endif %}>
                                                         {{ articulo.codigo }} - {{ articulo.nombre|truncatechars:50 }}
                                                     </option>
                                                 {% endfor %}
@@ -400,7 +398,10 @@ $(document).ready(function() {
     });
     
     // Inicializar Select2 para bodega y estado
-    $('#{{ form.bodega.id_for_label }}').select2({
+    if ($('.bodega-select').data('select2')) {
+        $('.bodega-select').select2('destroy');
+    }
+    $('.bodega-select').select2({
         placeholder: 'Seleccionar bodega...',
         allowClear: true,
         width: '100%',
@@ -632,14 +633,15 @@ $(document).ready(function() {
     $('#addItemBtn').click(function() {
         console.log('📝 Agregando item. formIdx actual:', formIdx);
         
-        const newForm = $('.item-form-compact:first').clone();
-        
-        // Destruir Select2 del elemento clonado si existe
-        const clonedSelect = newForm.find('.articulo-select');
-        if (clonedSelect.length && clonedSelect.data('select2')) {
-            clonedSelect.select2('destroy');
-        }
-        
+        const newForm = $('.item-form-compact:first').clone(true, true);
+
+        // Destruir la instancia de Select2 del nuevo formulario clonado para evitar conflictos
+        newForm.find('.articulo-select').each(function() {
+            if ($(this).data('select2')) {
+                $(this).select2('destroy');
+            }
+        });
+
         // Actualizar todos los atributos name e id
         newForm.find('input, select, textarea').each(function() {
             const name = $(this).attr('name');

@@ -1,82 +1,458 @@
 {% extends 'base.html' %}
+{% load static %}
+{% load format_filters %}
 
-{% block title %}Documentos Tributarios Electrónicos{% endblock %}
+{% block title %}Libro de Ventas Electrónico - {{ request.empresa.nombre }}{% endblock %}
 
-{% block content %}
-<div class="container-fluid mt-4">
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
     
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h2><i class="fas fa-file-invoice-dollar"></i> Documentos Tributarios Electrónicos</h2>
-            <p class="text-muted">Lista de DTEs emitidos</p>
-        </div>
-    </div>
+    /* Paleta terrosa para tarjetas de estadísticas */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    
+    .stat-card-1 {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+    }
+    
+    .stat-card-2 {
+        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
+    }
+    
+    .stat-card-3 {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    }
+    
+    .stat-card-4 {
+        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
+    }
+    
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        color: rgba(255,255,255,0.9);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
+    
+    .stat-icon {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.3);
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+    }
+    
+    .mini-stat-card {
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        border: 1.5px solid #D4C4A8;
+        border-radius: 10px;
+        padding: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .mini-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        border-color: #C4B498;
+    }
+    
+    .filter-section {
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(111, 91, 68, 0.1);
+        border: 1px solid #E8DCC8;
+    }
+    
+    .filter-section .form-label {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        color: #6F5B44;
+        margin-bottom: 5px;
+        font-size: 0.75rem;
+    }
+    
+    .filter-section .form-control,
+    .filter-section .form-select {
+        font-family: 'Poppins', sans-serif;
+        border: 1.5px solid #D4C4A8;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        color: #6F5B44;
+        transition: all 0.3s ease;
+    }
+    
+    .filter-section .form-control:focus,
+    .filter-section .form-select:focus {
+        border-color: #8B7355;
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.15);
+        outline: none;
+    }
+    
+    .filter-section .form-control::placeholder {
+        color: #A67C52;
+        opacity: 0.6;
+    }
+    
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
 
-    <div class="card">
-        <div class="card-body">
-            {% if dtes %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Tipo</th>
-                            <th>Folio</th>
-                            <th>Fecha</th>
-                            <th>Cliente</th>
-                            <th>Total</th>
-                            <th>Estado SII</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for dte in dtes %}
-                        <tr>
-                            <td>{{ dte.get_tipo_documento_display }}</td>
-                            <td><strong>{{ dte.folio }}</strong></td>
-                            <td>{{ dte.fecha_emision|date:"d/m/Y" }}</td>
-                            <td>{{ dte.razon_social_receptor }}</td>
-                            <td>${{ dte.monto_total|floatformat:0 }}</td>
-                            <td>
-                                {% if dte.estado_sii == 'aceptado' %}
-                                    <span class="badge bg-success">Aceptado</span>
-                                {% elif dte.estado_sii == 'rechazado' %}
-                                    <span class="badge bg-danger">Rechazado</span>
-                                {% elif dte.estado_sii == 'pendiente' %}
-                                    <span class="badge bg-warning">Pendiente</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">{{ dte.estado_sii }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'facturacion_electronica:dte_detail' dte.pk %}" class="btn btn-sm btn-info">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="text-center py-5">
-                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                <p class="text-muted">No hay DTEs emitidos aún</p>
-                <small class="text-muted">Los DTEs se generarán automáticamente al procesar ventas con FE activada</small>
-            </div>
-            {% endif %}
-        </div>
-    </div>
+    .table-compact thead th {
+        padding: 8px 6px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
 
-</div>
+    .table-compact tbody td {
+        padding: 6px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.75rem;
+    }
+
+    .table-compact tbody tr {
+        height: 35px;
+        border-bottom: 1px solid #F5F1E8;
+    }
+    
+    .table-compact tbody tr:hover {
+        background-color: #F5F1E8;
+    }
+    
+    .badge-tipo {
+        padding: 4px 8px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        border-radius: 4px;
+    }
+    
+    .btn-filter {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        padding: 8px 20px;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+    
+    .btn-action {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        border-radius: 6px;
+        font-family: 'Poppins', sans-serif;
+    }
+</style>
 {% endblock %}
 
+{% block content %}
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                
+                <!-- HEADER PRINCIPAL -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-book fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.2rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Libro de Ventas Electrónico
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Registro completo de documentos tributarios electrónicos
+                                </small>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 6px 12px; font-size: 0.75rem;" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i> Imprimir
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
+                <div class="card-body" style="padding: 15px; background: #FAFAF8;">
 
+                    <!-- ESTADÍSTICAS PRINCIPALES -->
+                    <div class="row mb-3">
+                        <div class="col-md-3 mb-2">
+                            <div class="stat-card stat-card-1 p-3 position-relative">
+                                <div class="stat-value" style="font-size: 1.3rem;">{{ stats.total_documentos|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.75rem;">Total Documentos</div>
+                                <i class="fas fa-file-invoice stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="stat-card stat-card-2 p-3 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">${{ stats.total_neto|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.75rem;">Total Neto</div>
+                                <i class="fas fa-dollar-sign stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="stat-card stat-card-3 p-3 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">${{ stats.total_iva|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.75rem;">Total IVA</div>
+                                <i class="fas fa-percentage stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="stat-card stat-card-4 p-3 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">${{ stats.total_general|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.75rem;">Total General</div>
+                                <i class="fas fa-coins stat-icon"></i>
+                            </div>
+                        </div>
+                    </div>
 
+                    <!-- ESTADÍSTICAS POR TIPO -->
+                    {% if stats_por_tipo %}
+                    <div class="row mb-3">
+                        {% for stat in stats_por_tipo %}
+                        <div class="col-md-2 col-6 mb-2">
+                            <div class="mini-stat-card text-center">
+                                <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600; text-transform: uppercase; margin-bottom: 5px;">
+                                    {% if stat.tipo_dte == '33' %}FACTURA
+                                    {% elif stat.tipo_dte == '34' %}FACT. EXENTA
+                                    {% elif stat.tipo_dte == '39' %}BOLETA
+                                    {% elif stat.tipo_dte == '41' %}BOL. EXENTA
+                                    {% elif stat.tipo_dte == '52' %}GUÍA
+                                    {% elif stat.tipo_dte == '56' %}NOTA DÉBITO
+                                    {% elif stat.tipo_dte == '61' %}NOTA CRÉDITO
+                                    {% else %}{{ stat.tipo_dte|upper }}{% endif %}
+                                </div>
+                                <div style="font-size: 1rem; font-weight: 700; color: #8B7355;">{{ stat.cantidad|format_miles }}</div>
+                                <div style="font-size: 0.65rem; color: #A67C52;">${{ stat.total|format_miles }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
 
+                    <!-- FILTROS -->
+                    <div class="filter-section">
+                        <form method="get" action="{% url 'facturacion_electronica:dte_list' %}">
+                            <div class="row g-2">
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-calendar-alt me-1"></i>Desde
+                                    </label>
+                                    <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-calendar-alt me-1"></i>Hasta
+                                    </label>
+                                    <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-file-invoice me-1"></i>Tipo DTE
+                                    </label>
+                                    <select name="tipo_dte" class="form-select form-select-sm">
+                                        <option value="">Todos</option>
+                                        {% for key, value in tipos_dte.items %}
+                                        <option value="{{ key }}" {% if tipo_dte == key %}selected{% endif %}>{{ value }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-user me-1"></i>Cliente
+                                    </label>
+                                    <select name="cliente" class="form-select form-select-sm">
+                                        <option value="">Todos</option>
+                                        {% for cliente in clientes %}
+                                        <option value="{{ cliente.id }}" {% if cliente_id == cliente.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ cliente.nombre|truncatechars:20 }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-check-circle me-1"></i>Estado SII
+                                    </label>
+                                    <select name="estado" class="form-select form-select-sm">
+                                        {% for key, value in estados_sii %}
+                                        <option value="{{ key }}" {% if estado == key %}selected{% endif %}>{{ value }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">
+                                        <i class="fas fa-search me-1"></i>Buscar
+                                    </label>
+                                    <input type="text" name="search" class="form-control form-control-sm" 
+                                           placeholder="Folio, cliente, RUT..." 
+                                           value="{{ search }}">
+                                </div>
+                            </div>
+                            <div class="row g-2 mt-2">
+                                <div class="col-md-12 d-flex gap-2">
+                                    <button type="submit" class="btn btn-filter">
+                                        <i class="fas fa-filter me-1"></i>Filtrar
+                                    </button>
+                                    <a href="{% url 'facturacion_electronica:dte_list' %}" class="btn btn-sm" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 8px 20px;">
+                                        <i class="fas fa-times me-1"></i>Limpiar
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
 
+                    <!-- TABLA COMPACTA -->
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 6%;">Tipo</th>
+                                    <th style="width: 8%;">Folio</th>
+                                    <th style="width: 8%;">Fecha</th>
+                                    <th style="width: 25%;">Cliente</th>
+                                    <th style="width: 8%;">RUT</th>
+                                    <th class="text-end" style="width: 10%;">Neto</th>
+                                    <th class="text-end" style="width: 10%;">IVA</th>
+                                    <th class="text-end" style="width: 10%;">Total</th>
+                                    <th style="width: 8%;">Estado SII</th>
+                                    <th class="text-center" style="width: 7%;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dte in dtes %}
+                                <tr>
+                                    <td>
+                                        {% if dte.tipo_dte == '33' %}
+                                        <span class="badge badge-tipo bg-success" title="Factura Electrónica">FE</span>
+                                        {% elif dte.tipo_dte == '34' %}
+                                        <span class="badge badge-tipo bg-success" title="Factura Exenta">FEX</span>
+                                        {% elif dte.tipo_dte == '39' %}
+                                        <span class="badge badge-tipo bg-primary" title="Boleta Electrónica">BE</span>
+                                        {% elif dte.tipo_dte == '41' %}
+                                        <span class="badge badge-tipo bg-primary" title="Boleta Exenta">BEX</span>
+                                        {% elif dte.tipo_dte == '52' %}
+                                        <span class="badge badge-tipo bg-info" title="Guía de Despacho">GD</span>
+                                        {% elif dte.tipo_dte == '56' %}
+                                        <span class="badge badge-tipo bg-danger" title="Nota de Débito">ND</span>
+                                        {% elif dte.tipo_dte == '61' %}
+                                        <span class="badge badge-tipo bg-warning text-dark" title="Nota de Crédito">NC</span>
+                                        {% else %}
+                                        <span class="badge badge-tipo bg-secondary">{{ dte.get_tipo_dte_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><strong style="color: #6F5B44; font-size: 0.75rem;">{{ dte.folio }}</strong></td>
+                                    <td style="font-size: 0.75rem;">{{ dte.fecha_emision|date:"d/m/Y" }}</td>
+                                    <td style="font-size: 0.75rem;">{{ dte.razon_social_receptor|truncatechars:30 }}</td>
+                                    <td style="font-size: 0.7rem; color: #A67C52;">{{ dte.rut_receptor }}</td>
+                                    <td class="text-end" style="font-size: 0.75rem; color: #6F5B44;">${{ dte.monto_neto|format_miles }}</td>
+                                    <td class="text-end" style="font-size: 0.75rem; color: #A67C52;">${{ dte.monto_iva|format_miles }}</td>
+                                    <td class="text-end"><strong style="color: #8B7355; font-size: 0.8rem;">${{ dte.monto_total|format_miles }}</strong></td>
+                                    <td>
+                                        {% if dte.estado_sii == 'aceptado' %}
+                                        <span class="badge bg-success" style="font-size: 0.65rem;">Aceptado</span>
+                                        {% elif dte.estado_sii == 'rechazado' %}
+                                        <span class="badge bg-danger" style="font-size: 0.65rem;">Rechazado</span>
+                                        {% elif dte.estado_sii == 'pendiente' %}
+                                        <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Pendiente</span>
+                                        {% elif dte.estado_sii == 'anulado' %}
+                                        <span class="badge bg-secondary" style="font-size: 0.65rem;">Anulado</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary" style="font-size: 0.65rem;">{{ dte.estado_sii|default:"-" }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if dte.tipo_dte == '52' and dte.transferencias.first %}
+                                        <a href="{% url 'inventario:transferencia_imprimir_guia' dte.transferencias.first.pk %}"
+                                           class="btn btn-sm btn-action btn-outline-primary"
+                                           target="_blank"
+                                           title="Ver guía"
+                                           style="padding: 4px 8px; font-size: 0.7rem;">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                        {% elif dte.tipo_dte == '33' or dte.tipo_dte == '34' or dte.tipo_dte == '39' or dte.tipo_dte == '41' %}
+                                        <a href="{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}"
+                                           class="btn btn-sm btn-action btn-outline-primary"
+                                           target="_blank"
+                                           title="Ver documento electrónico"
+                                           style="padding: 4px 8px; font-size: 0.7rem;">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
+                                        {% elif dte.tipo_dte == '61' and dte.notacredito_id %}
+                                        <a href="{% url 'facturacion_electronica:ver_notacredito_electronica' dte.notacredito_id %}"
+                                           class="btn btn-sm btn-action btn-outline-primary"
+                                           target="_blank"
+                                           title="Ver Nota de Crédito"
+                                           style="padding: 4px 8px; font-size: 0.7rem;">
+                                            <i class="fas fa-file-contract"></i>
+                                        </a>
+                                        {% else %}
+                                        <a href="{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}"
+                                           class="btn btn-sm btn-action btn-outline-primary"
+                                           target="_blank"
+                                           title="Ver DTE"
+                                           style="padding: 4px 8px; font-size: 0.7rem;">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center py-4">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.85rem; font-family: 'Poppins', sans-serif;">No se encontraron documentos</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
 
-
-
-
-
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

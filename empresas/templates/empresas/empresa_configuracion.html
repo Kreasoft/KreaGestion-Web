@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Configuración de Empresa{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-md-12">
+            <div class="card shadow-lg">
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
+                    <h4 class="mb-0">
+                        <i class="fas fa-cogs"></i>
+                        Configuración de Empresa
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        <div class="messages mb-4">
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Numeración de Documentos -->
+                        <div class="mb-4">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-hashtag"></i> Numeración de Documentos
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <h6 class="text-muted mb-3">Ajustes de Inventario</h6>
+                                    <div class="mb-3">
+                                        {{ form.prefijo_ajustes.label_tag }}
+                                        {{ form.prefijo_ajustes }}
+                                        {% if form.prefijo_ajustes.errors %}
+                                            <div class="text-danger small">{{ form.prefijo_ajustes.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.siguiente_ajuste.label_tag }}
+                                        {{ form.siguiente_ajuste }}
+                                        {% if form.siguiente_ajuste.errors %}
+                                            <div class="text-danger small">{{ form.siguiente_ajuste.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.formato_ajustes.label_tag }}
+                                        {{ form.formato_ajustes }}
+                                        {% if form.formato_ajustes.errors %}
+                                            <div class="text-danger small">{{ form.formato_ajustes.errors.0 }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">Ejemplo: AJ-000001</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <h6 class="text-muted mb-3">Órdenes de Compra</h6>
+                                    <div class="mb-3">
+                                        {{ form.prefijo_orden_compra.label_tag }}
+                                        {{ form.prefijo_orden_compra }}
+                                        {% if form.prefijo_orden_compra.errors %}
+                                            <div class="text-danger small">{{ form.prefijo_orden_compra.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.siguiente_orden_compra.label_tag }}
+                                        {{ form.siguiente_orden_compra }}
+                                        {% if form.siguiente_orden_compra.errors %}
+                                            <div class="text-danger small">{{ form.siguiente_orden_compra.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.formato_orden_compra.label_tag }}
+                                        {{ form.formato_orden_compra }}
+                                        {% if form.formato_orden_compra.errors %}
+                                            <div class="text-danger small">{{ form.formato_orden_compra.errors.0 }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">Ejemplo: OC-000001</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Configuración de Impresión -->
+                        <div class="mb-4">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-print"></i> Configuración de Impresión
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            {{ form.imprimir_logo }}
+                                            <label class="form-check-label" for="{{ form.imprimir_logo.id_for_label }}">
+                                                {{ form.imprimir_logo.label }}
+                                            </label>
+                                        </div>
+                                        {% if form.imprimir_logo.errors %}
+                                            <div class="text-danger small">{{ form.imprimir_logo.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        {{ form.pie_pagina_documentos.label_tag }}
+                                        {{ form.pie_pagina_documentos }}
+                                        {% if form.pie_pagina_documentos.errors %}
+                                            <div class="text-danger small">{{ form.pie_pagina_documentos.errors.0 }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">Este texto aparecerá en el pie de página de todos los documentos impresos.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Alertas y Notificaciones -->
+                        <div class="mb-4">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-bell"></i> Alertas y Notificaciones
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            {{ form.alerta_stock_minimo }}
+                                            <label class="form-check-label" for="{{ form.alerta_stock_minimo.id_for_label }}">
+                                                {{ form.alerta_stock_minimo.label }}
+                                            </label>
+                                        </div>
+                                        {% if form.alerta_stock_minimo.errors %}
+                                            <div class="text-danger small">{{ form.alerta_stock_minimo.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            {{ form.notificar_vencimientos }}
+                                            <label class="form-check-label" for="{{ form.notificar_vencimientos.id_for_label }}">
+                                                {{ form.notificar_vencimientos.label }}
+                                            </label>
+                                        </div>
+                                        {% if form.notificar_vencimientos.errors %}
+                                            <div class="text-danger small">{{ form.notificar_vencimientos.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Respaldo Automático -->
+                        <div class="mb-4">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-database"></i> Respaldo Automático
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            {{ form.respaldo_automatico }}
+                                            <label class="form-check-label" for="{{ form.respaldo_automatico.id_for_label }}">
+                                                {{ form.respaldo_automatico.label }}
+                                            </label>
+                                        </div>
+                                        {% if form.respaldo_automatico.errors %}
+                                            <div class="text-danger small">{{ form.respaldo_automatico.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.frecuencia_respaldo.label_tag }}
+                                        {{ form.frecuencia_respaldo }}
+                                        {% if form.frecuencia_respaldo.errors %}
+                                            <div class="text-danger small">{{ form.frecuencia_respaldo.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{% url 'dashboard' %}" class="btn btn-secondary me-2">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
+                                <i class="fas fa-save"></i> Guardar Configuración
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

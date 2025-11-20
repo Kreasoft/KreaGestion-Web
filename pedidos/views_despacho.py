@@ -75,92 +75,81 @@ def orden_despacho_list(request):
 @permission_required('pedidos.add_ordendespacho', raise_exception=True)
 def orden_despacho_create(request):
     """Crear nueva orden de despacho"""
+    pedido_id = request.GET.get('pedido')
+    pedido = None
+
+    if pedido_id:
+        pedido = get_object_or_404(OrdenPedido, pk=pedido_id, empresa=request.empresa)
+        if pedido.estado in ['completada', 'cancelada']:
+            messages.warning(request, f"El pedido {pedido.numero_pedido} ya está {pedido.get_estado_display()} y no se pueden crear nuevos despachos.")
+            return redirect('pedidos:orden_pedido_detail', pk=pedido.pk)
+
     if request.method == 'POST':
+        # Si el pedido no se obtuvo del POST, se busca de nuevo.
+        if not pedido:
+            pedido_id_post = request.POST.get('orden_pedido')
+            if pedido_id_post:
+                pedido = get_object_or_404(OrdenPedido, pk=pedido_id_post, empresa=request.empresa)
+        
         form = OrdenDespachoForm(request.POST, empresa=request.empresa)
         formset = DetalleOrdenDespachoFormSet(request.POST)
         
         if form.is_valid() and formset.is_valid():
             try:
                 with transaction.atomic():
-                    # Crear orden de despacho
                     orden = form.save(commit=False)
                     orden.empresa = request.empresa
                     orden.creado_por = request.user
-                    orden.estado = 'pendiente'  # Forzar estado inicial
+                    orden.orden_pedido = pedido # Asignar el pedido
+                    orden.estado = 'pendiente'
                     
-                    # Generar número de despacho
                     if not orden.numero_despacho:
                         orden.generar_numero_despacho()
                     
-                    orden.estado = 'despachado' # Se genera el documento, se marca como despachado
+                    orden.estado = 'despachado'
                     orden.save()
 
-                    # Guardar items
                     formset.instance = orden
                     formset.save()
 
-                    # Generar el documento seleccionado
                     tipo_documento = form.cleaned_data.get('tipo_documento')
-                    dte_generado = False
-                    
-                    if tipo_documento:
-                        try:
-                            if tipo_documento == 'guia':
-                                from .utils_despacho import generar_guia_desde_orden_despacho
-                                dte = generar_guia_desde_orden_despacho(orden, request.user)
-                                messages.success(request, f'✓ Guía de Despacho N° {dte.folio} generada exitosamente.')
-                                dte_generado = True
-                            elif tipo_documento == 'factura':
-                                from .utils_despacho import generar_factura_desde_orden_despacho
-                                dte = generar_factura_desde_orden_despacho(orden, request.user)
-                                messages.success(request, f'✓ Factura N° {dte.folio} generada exitosamente.')
-                                dte_generado = True
-                            else:
-                                messages.warning(request, 'No se especificó un tipo de documento válido.')
+                    if tipo_documento == 'guia':
+                        from .utils_despacho import generar_guia_desde_orden_despacho
+                        dte = generar_guia_desde_orden_despacho(orden, request.user)
+                        messages.success(request, f'✓ Guía de Despacho N° {dte.folio} generada.')
+                    elif tipo_documento == 'factura':
+                        from .utils_despacho import generar_factura_desde_orden_despacho
+                        dte = generar_factura_desde_orden_despacho(orden, request.user)
+                        messages.success(request, f'✓ Factura N° {dte.folio} generada.')
 
-                        except Exception as e:
-                            error_msg = str(e)
-                            messages.error(request, f'⚠ Error al generar documento: {error_msg}')
-                            
-                            # Sugerencias basadas en el error
-                            if 'No hay folios CAF disponibles' in error_msg:
-                                messages.warning(request, 'Debe cargar archivos CAF en Facturación Electrónica → Folios CAF')
-                            
-                            # La transacción se revertirá, no es necesario eliminar la orden manualmente
-                            raise # Levantar la excepción para que transaction.atomic() haga rollback
-                    else:
-                        messages.warning(request, 'No se seleccionó ningún tipo de documento para generar.')
-
-                    # Mensaje final según si se generó o no el documento
-                    if dte_generado:
-                        messages.success(request, f'✓ Orden de Despacho {orden.numero_despacho} creada y documento generado exitosamente.')
-                    else:
-                        messages.success(request, f'✓ Orden de Despacho {orden.numero_despacho} creada. No se generó documento.')
+                    messages.success(request, f'✓ Orden de Despacho {orden.numero_despacho} creada exitosamente.')
                     return redirect('pedidos:orden_despacho_detail', pk=orden.pk)
             
             except Exception as e:
-                messages.error(request, f'Error al crear orden de despacho: {str(e)}')
+                error_msg = str(e)
+                messages.error(request, f'⚠ Error al crear orden: {error_msg}')
+                if 'No hay folios CAF disponibles' in error_msg:
+                    messages.warning(request, 'Debe cargar archivos CAF en Facturación Electrónica → Folios CAF')
         else:
-            # Si la validación falla, mostrar errores específicos
             if form.errors:
                 for field, error_list in form.errors.items():
-                    for error in error_list:
-                        messages.error(request, f'Error en {form.fields[field].label or field}: {error}')
-            
+                    messages.error(request, f'Error en {form.fields[field].label or field}: {error}')
             if formset.errors:
                 for i, form_errors in enumerate(formset.errors):
                     if form_errors:
                         for field, error_list in form_errors.items():
-                            for error in error_list:
-                                messages.error(request, f'Error en Artículo {i+1} ({field}): {error}')
+                            for error_item in error_list:
+                                messages.error(request, f'Error en Artículo {i+1} ({field}): {error_item}')
     
     else:
-        form = OrdenDespachoForm(empresa=request.empresa)
+        initial_data = {'orden_pedido': pedido} if pedido else {}
+        form = OrdenDespachoForm(initial=initial_data, empresa=request.empresa)
         formset = DetalleOrdenDespachoFormSet()
     
     context = {
         'form': form,
         'formset': formset,
+        'pedido': pedido, # Pasar el objeto pedido a la plantilla
         'titulo': 'Nueva Orden de Despacho',
         'accion': 'Crear'
     }

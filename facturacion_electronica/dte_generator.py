@@ -253,94 +253,89 @@ class DTEXMLGenerator:
             etree.SubElement(emisor, "CiudadOrigen").text = ciudad[:20]
         
     def _generar_receptor(self, encabezado):
-        """Genera datos del receptor"""
+        """Genera datos del receptor de forma robusta."""
         receptor = etree.SubElement(encabezado, "Receptor")
-        
-        # Si es boleta y no hay cliente, usar datos genéricos
-        from ventas.models import Venta
-        if isinstance(self.documento, Venta) and self.tipo_dte in ['39', '41'] and not self.documento.cliente:
-            etree.SubElement(receptor, "RUTRecep").text = "66666666-6"
-            etree.SubElement(receptor, "RznSocRecep").text = "Cliente Genérico"
-            return
-        
-        # Cliente específico
-        if self.documento.cliente:
+
+        # Obtener datos del receptor desde el objeto DTE (self.documento)
+        rut_receptor = getattr(self.documento, 'rut_receptor', None)
+        razon_social = getattr(self.documento, 'razon_social_receptor', None)
+        giro = getattr(self.documento, 'giro_receptor', '')
+        direccion = getattr(self.documento, 'direccion_receptor', '')
+        comuna = getattr(self.documento, 'comuna_receptor', '')
+
+        # Si no hay datos en el DTE, intentar obtenerlos desde la relación 'cliente'
+        if not rut_receptor and hasattr(self.documento, 'cliente') and self.documento.cliente:
             cliente = self.documento.cliente
-            
-            # RUT
-            rut_receptor = cliente.rut.replace('.', '')
-            etree.SubElement(receptor, "RUTRecep").text = rut_receptor
-            
-            # Razón Social
+            rut_receptor = cliente.rut
             razon_social = cliente.nombre
-            etree.SubElement(receptor, "RznSocRecep").text = razon_social[:100]
-            
-            # Giro
-            if hasattr(cliente, 'giro') and cliente.giro:
-                etree.SubElement(receptor, "GiroRecep").text = cliente.giro[:40]
-            
-            # Dirección
-            if cliente.direccion:
-                etree.SubElement(receptor, "DirRecep").text = cliente.direccion[:70]
-            
-            # Comuna
-            if cliente.comuna:
-                etree.SubElement(receptor, "CmnaRecep").text = cliente.comuna[:20]
-            
-            # Ciudad
-            if hasattr(cliente, 'ciudad') and cliente.ciudad:
-                etree.SubElement(receptor, "CiudadRecep").text = cliente.ciudad[:20]
-        else:
-            # Fallback: usar datos de la empresa como receptor (traslado interno, guía 52 sin cliente)
-            rut_receptor = self.empresa.rut.replace('.', '')
-            etree.SubElement(receptor, "RUTRecep").text = rut_receptor
-            razon_social = self.empresa.nombre
-            etree.SubElement(receptor, "RznSocRecep").text = razon_social[:100]
-            direccion = self.empresa.direccion or self.empresa.direccion_casa_matriz or ''
-            if direccion:
-                etree.SubElement(receptor, "DirRecep").text = direccion[:70]
-            comuna = self.empresa.comuna or self.empresa.comuna_casa_matriz or ''
-            if comuna:
-                etree.SubElement(receptor, "CmnaRecep").text = comuna[:20]
-            ciudad = self.empresa.ciudad or self.empresa.ciudad_casa_matriz or ''
-            if ciudad:
-                etree.SubElement(receptor, "CiudadRecep").text = ciudad[:20]
+            giro = getattr(cliente, 'giro', '')
+            direccion = cliente.direccion
+            comuna = cliente.comuna
+
+        # Caso especial para boletas sin cliente: usar datos genéricos
+        if self.tipo_dte in ['39', '41'] and not rut_receptor:
+            rut_receptor = "66666666-6"
+            razon_social = "Cliente Genérico"
+            giro = ''
+            direccion = ''
+            comuna = ''
+
+        # Validar que tenemos los datos mínimos
+        if not rut_receptor or not razon_social:
+            raise ValueError("No se pudieron determinar los datos del receptor para el DTE.")
+
+        # Escribir los datos en el XML
+        etree.SubElement(receptor, "RUTRecep").text = rut_receptor.replace('.', '')
+        etree.SubElement(receptor, "RznSocRecep").text = razon_social[:100]
+        if giro:
+            etree.SubElement(receptor, "GiroRecep").text = giro[:40]
+        if direccion:
+            etree.SubElement(receptor, "DirRecep").text = direccion[:70]
+        if comuna:
+            etree.SubElement(receptor, "CmnaRecep").text = comuna[:20]
     
     def _generar_totales(self, encabezado):
         """Genera los totales del documento"""
         totales = etree.SubElement(encabezado, "Totales")
         
-        # Monto Neto
-        if self.tipo_dte not in ['34', '41']:  # No exentos
-            # Para NC, el subtotal es el neto. Para Venta, hay que calcularlo.
-            neto = self.documento.neto if hasattr(self.documento, 'neto') else self.documento.subtotal
-            monto_neto = int(round(float(neto)))
-            etree.SubElement(totales, "MntNeto").text = str(monto_neto)
-        
-        # Monto Exento
-        if self.tipo_dte in ['34', '41']:  # Documentos exentos
-            monto_exento = int(round(float(self.documento.total)))
-            etree.SubElement(totales, "MntExe").text = str(monto_exento)
-        
-        # IVA
+        # Obtener los montos desde el objeto DTE (self.documento)
+        monto_neto = getattr(self.documento, 'monto_neto', 0)
+        monto_exento = getattr(self.documento, 'monto_exento', 0)
+        monto_iva = getattr(self.documento, 'monto_iva', 0)
+        monto_total = getattr(self.documento, 'monto_total', 0)
+
+        # Monto Neto (si aplica)
         if self.tipo_dte not in ['34', '41']:
-            monto_iva = int(round(float(self.documento.iva)))
-            etree.SubElement(totales, "IVA").text = str(monto_iva)
+            etree.SubElement(totales, "MntNeto").text = str(int(round(monto_neto)))
+        
+        # Monto Exento (si aplica)
+        if monto_exento > 0 or self.tipo_dte in ['34', '41']:
+            etree.SubElement(totales, "MntExe").text = str(int(round(monto_exento)))
+        
+        # IVA (si aplica)
+        if self.tipo_dte not in ['34', '41']:
+            etree.SubElement(totales, "IVA").text = str(int(round(monto_iva)))
         
         # Monto Total
-        monto_total = int(round(float(self.documento.total)))
-        etree.SubElement(totales, "MntTotal").text = str(monto_total)
+        etree.SubElement(totales, "MntTotal").text = str(int(round(monto_total)))
     
     def _generar_detalles(self, documento):
         """Genera los detalles (items) del documento"""
         from ventas.models import Venta, NotaCredito
+        from facturacion_electronica.models import DocumentoTributarioElectronico
+
+        items = []
         if isinstance(self.documento, Venta):
             items = self.documento.ventadetalle_set.all()
         elif isinstance(self.documento, NotaCredito):
             items = self.documento.items.all()
+        elif isinstance(self.documento, DocumentoTributarioElectronico):
+            # Flujo desde POS/Despacho: los items vienen de la venta asociada al DTE
+            venta_asociada = self.documento.orden_despacho.first() # Usamos orden_despacho como relación genérica
+            if venta_asociada and hasattr(venta_asociada, 'ventadetalle_set'):
+                items = venta_asociada.ventadetalle_set.all()
         else:
-            # Soportar objetos genéricos (por ejemplo, transferencias con atributo 'items' o 'detalles')
-            items = []
+            # Soportar otros objetos genéricos
             if hasattr(self.documento, 'items') and self.documento.items is not None:
                 try:
                     items = self.documento.items.all()
@@ -427,3 +422,43 @@ class DTEXMLGenerator:
                 etree.SubElement(referencia, "FchRef").text = ref.fecha_emision.strftime('%Y-%m-%d')
             if hasattr(self.documento, 'razon_referencia') and self.documento.razon_referencia:
                 etree.SubElement(referencia, "RazonRef").text = self.documento.razon_referencia[:90]
+
+    def generar_xml_desde_dte(self):
+        """
+        Genera el XML completo para un DTE ya existente en la base de datos.
+        Este método es usado por flujos que primero crean el objeto DTE y luego el XML, 
+        como el POS o la creación de guías desde pedidos.
+        """
+        # Crear el documento raíz
+        root = etree.Element("DTE", version="1.0", nsmap={None: self.NS_SII})
+        
+        documento_id_prefix = {
+            '33': 'F', '34': 'F',
+            '39': 'B', '41': 'B',
+            '52': 'G',
+            '56': 'ND',
+            '61': 'NC',
+        }.get(self.tipo_dte, 'DOC')
+        
+        documento_xml = etree.SubElement(root, "Documento", ID=f"{documento_id_prefix}{self.folio}")
+        
+        # Generar Encabezado
+        # El objeto 'documento' que usa _generar_encabezado es el DTE mismo
+        encabezado = self._generar_encabezado(documento_xml, incluir_transporte=(self.tipo_dte == '52'))
+        
+        # Generar Totales
+        self._generar_totales(encabezado)
+        
+        # Generar Detalles
+        self._generar_detalles(documento_xml)
+        
+        # Generar Referencias si aplica
+        if hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia:
+            self._generar_referencia(documento_xml)
+
+        # Convertir a string con formato
+        xml_string = etree.tostring(
+            root, pretty_print=True, xml_declaration=True, encoding='ISO-8859-1'
+        ).decode('ISO-8859-1')
+        
+        return xml_string

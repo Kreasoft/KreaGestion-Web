@@ -138,20 +138,16 @@ class OrdenDespacho(models.Model):
         return f"Despacho {self.numero_despacho} - Pedido {self.orden_pedido.numero_pedido}"
     
     def generar_numero_despacho(self):
-        """Genera número consecutivo de despacho para la empresa"""
-        ultimo = OrdenDespacho.objects.filter(
-            empresa=self.empresa
-        ).order_by('-id').first()
+        """Genera número consecutivo de despacho POR ORDEN DE PEDIDO"""
+        # Contar cuántos despachos existen para esta orden de pedido
+        despachos_existentes = OrdenDespacho.objects.filter(
+            orden_pedido=self.orden_pedido
+        ).count()
         
-        if ultimo and ultimo.numero_despacho:
-            try:
-                numero = int(ultimo.numero_despacho.split('-')[1]) + 1
-            except (IndexError, ValueError):
-                numero = 1
-        else:
-            numero = 1
+        nuevo_numero = despachos_existentes + 1
         
-        self.numero_despacho = f"DESP-{numero:06d}"
+        # Formato: DESP-<ID_PEDIDO>-<NUMERO_CORRELATIVO>
+        self.numero_despacho = f"DESP-{self.orden_pedido.id}-{nuevo_numero}"
         return self.numero_despacho
     
     def get_total_items(self):

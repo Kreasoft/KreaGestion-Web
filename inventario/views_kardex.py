@@ -124,6 +124,40 @@ def kardex_articulo(request):
         
         inventarios = inventarios.order_by('fecha_movimiento', 'id')
         
+        # Eliminar duplicados: agrupar por campos clave y tomar solo el primero de cada grupo
+        # Los duplicados típicamente tienen: mismo numero_documento, tipo_movimiento, fecha, cantidad, bodega
+        movimientos_unicos = {}
+        inventarios_limpios = []
+        
+        for inv in inventarios:
+            # Crear clave única basada en campos que identifican un movimiento único
+            # Para ventas, el numero_documento es único por venta, así que si hay múltiples movimientos
+            # con el mismo numero_documento, tipo, fecha y cantidad, son duplicados
+            clave = (
+                inv.numero_documento or inv.numero_folio or '',
+                inv.tipo_movimiento,
+                inv.bodega_origen_id if inv.bodega_origen else None,
+                inv.bodega_destino_id if inv.bodega_destino else None,
+                str(inv.fecha_movimiento.date()),  # Solo la fecha, no la hora
+                str(inv.cantidad),  # Usar string para evitar problemas de precisión
+            )
+            
+            # Si ya existe un movimiento con esta clave, saltarlo (es duplicado)
+            # Mantener el primero que aparece (el más antiguo por ID)
+            if clave not in movimientos_unicos:
+                movimientos_unicos[clave] = inv
+                inventarios_limpios.append(inv)
+            else:
+                # Si encontramos un duplicado, mantener el que tiene el ID más bajo (más antiguo)
+                existente = movimientos_unicos[clave]
+                if inv.id < existente.id:
+                    # Reemplazar con el más antiguo
+                    index = inventarios_limpios.index(existente)
+                    inventarios_limpios[index] = inv
+                    movimientos_unicos[clave] = inv
+        
+        inventarios = inventarios_limpios
+        
         # Procesar movimientos
         saldo = saldo_inicial
         for inv in inventarios:
@@ -187,6 +221,7 @@ def kardex_articulo(request):
     ).order_by('nombre')
     
     # Stock en sistema basado en movimientos de Inventario (coherente con la cartola)
+    # Debe usar la misma lógica que el saldo actual, eliminando duplicados
     stock_sistema = None
     if articulo:
         stock_sistema_calc = 0
@@ -205,7 +240,33 @@ def kardex_articulo(request):
         inv_qs = inv_qs.filter(fecha_movimiento__date__lte=fecha_hasta_obj)
         if bodega:
             inv_qs = inv_qs.filter(Q(bodega_origen=bodega) | Q(bodega_destino=bodega))
+        
+        # Eliminar duplicados usando la misma lógica que el saldo actual
+        movimientos_unicos_stock = {}
+        inv_qs_limpios = []
+        
         for inv in inv_qs:
+            clave = (
+                inv.numero_documento or inv.numero_folio or '',
+                inv.tipo_movimiento,
+                inv.bodega_origen_id if inv.bodega_origen else None,
+                inv.bodega_destino_id if inv.bodega_destino else None,
+                str(inv.fecha_movimiento.date()),
+                str(inv.cantidad),
+            )
+            
+            if clave not in movimientos_unicos_stock:
+                movimientos_unicos_stock[clave] = inv
+                inv_qs_limpios.append(inv)
+            else:
+                existente = movimientos_unicos_stock[clave]
+                if inv.id < existente.id:
+                    index = inv_qs_limpios.index(existente)
+                    inv_qs_limpios[index] = inv
+                    movimientos_unicos_stock[clave] = inv
+        
+        # Calcular stock usando movimientos sin duplicados
+        for inv in inv_qs_limpios:
             t = (inv.tipo_movimiento or '').lower()
             if t == 'entrada':
                 if not bodega or inv.bodega_destino == bodega:

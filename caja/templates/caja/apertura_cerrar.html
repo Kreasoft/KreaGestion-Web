@@ -181,6 +181,67 @@
                         </div>
                     </div>
 
+                    <!-- Movimientos Manuales (Ingresos/Egresos) -->
+                    {% if movimientos_manuales %}
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
+                                <div class="card-header" style="background: #F5F0EB; padding: 10px 15px;">
+                                    <h6 class="mb-0" style="color: #6F5B44;">
+                                        <i class="fas fa-exchange-alt me-2"></i>Movimientos Manuales
+                                    </h6>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="row mb-2">
+                                        <div class="col-md-6">
+                                            <small class="text-muted">Total Ingresos:</small>
+                                            <p class="mb-0 fw-bold text-success">+${{ total_ingresos|format_price }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <small class="text-muted">Total Egresos:</small>
+                                            <p class="mb-0 fw-bold text-danger">-${{ total_egresos|format_price }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                        <table class="table table-sm table-hover mb-0">
+                                            <thead style="background: #F5F0EB;">
+                                                <tr>
+                                                    <th style="font-size: 0.75rem;">Fecha</th>
+                                                    <th style="font-size: 0.75rem;">Tipo</th>
+                                                    <th style="font-size: 0.75rem;">Descripción</th>
+                                                    <th class="text-end" style="font-size: 0.75rem;">Monto</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for mov in movimientos_manuales %}
+                                                <tr>
+                                                    <td style="font-size: 0.7rem;">{{ mov.fecha|date:"d/m/Y H:i" }}</td>
+                                                    <td>
+                                                        {% if mov.tipo == 'ingreso' %}
+                                                            <span class="badge bg-success" style="font-size: 0.65rem;">Ingreso</span>
+                                                        {% else %}
+                                                            <span class="badge bg-danger" style="font-size: 0.65rem;">Egreso</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td style="font-size: 0.7rem;">{{ mov.descripcion|default:"-" }}</td>
+                                                    <td class="text-end" style="font-size: 0.7rem;">
+                                                        {% if mov.tipo == 'ingreso' %}
+                                                            <span class="text-success">+${{ mov.monto|format_price }}</span>
+                                                        {% else %}
+                                                            <span class="text-danger">-${{ mov.monto|format_price }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <hr>
 
                     <!-- Formulario de Cierre -->
@@ -253,6 +314,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
+
+
+
 
 
 

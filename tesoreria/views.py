@@ -142,6 +142,7 @@ def cuenta_corriente_proveedor_detail(request, proveedor_id):
         'documentos': documentos,
         'stats': stats,
         'empresa': empresa,
+        'today': timezone.now().date(),
     }
     
     return render(request, 'tesoreria/cuenta_corriente_proveedor_detail.html', context)

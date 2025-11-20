@@ -23,7 +23,7 @@ import os
 from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo, KitOferta, KitOfertaItem
 from inventario.models import Stock, Inventario
 from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm, ListaPrecioForm, PrecioArticuloForm, HomologacionCodigoForm, KitOfertaForm, KitOfertaItemForm
-from core.decorators import requiere_empresa
+from core.decorators import requiere_empresa, requiere_permiso
 
 
 @requiere_empresa
@@ -135,7 +135,7 @@ def articulo_detail(request, pk):
 
 @requiere_empresa
 @login_required
-@permission_required('articulos.add_articulo', raise_exception=True)
+@requiere_permiso('articulos.add_articulo', mensaje='No tienes permisos para crear artículos. Por favor, contacta al administrador del sistema para solicitar este permiso.', redirect_url='articulos:articulo_list')
 def articulo_create(request):
     """Crear nuevo artículo"""
     if request.method == 'POST':
@@ -178,10 +178,11 @@ def articulo_create(request):
 
 @requiere_empresa
 @login_required
-@permission_required('articulos.change_articulo', raise_exception=True)
+@requiere_permiso('articulos.change_articulo', mensaje='No tienes permisos para editar artículos. Por favor, contacta al administrador del sistema para solicitar este permiso.', redirect_url='articulos:articulo_list')
 def articulo_update(request, pk):
     """Editar artículo"""
-    # Para superusuarios, permitir editar cualquier artículo
+    # Obtener el artículo: superusuarios pueden editar cualquier artículo,
+    # usuarios normales solo artículos de su empresa
     if request.user.is_superuser:
         articulo = get_object_or_404(Articulo, pk=pk)
     else:
@@ -252,7 +253,7 @@ def articulo_delete(request, pk):
 # Vistas para Categorías
 @requiere_empresa
 @login_required
-@permission_required('articulos.view_categoriaarticulo', raise_exception=True)
+@requiere_permiso('articulos.view_categoriaarticulo', mensaje='No tienes permisos para ver categorías. Por favor, contacta al administrador del sistema para solicitar este permiso.', redirect_url='articulos:articulo_list')
 def categoria_list(request):
     """Lista de categorías"""
     # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
@@ -376,7 +377,7 @@ def categoria_delete(request, pk):
 # Vistas para Unidades de Medida
 @requiere_empresa
 @login_required
-@permission_required('articulos.view_unidadmedida', raise_exception=True)
+@requiere_permiso('articulos.view_unidadmedida', mensaje='No tienes permisos para ver unidades de medida. Por favor, contacta al administrador del sistema para solicitar este permiso.', redirect_url='articulos:articulo_list')
 def unidad_medida_list(request):
     """Lista de unidades de medida"""
     # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)

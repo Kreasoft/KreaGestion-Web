@@ -1,0 +1,161 @@
+<form method="post" id="usuarioFormModal" novalidate action="{% if usuario %}{% url 'usuarios:usuario_edit' usuario.id %}{% else %}{% url 'usuarios:usuario_create' %}{% endif %}">
+    {% csrf_token %}
+    
+    <div class="row">
+        <!-- Información Básica -->
+        <div class="col-md-6">
+            <h6 class="mb-3" style="color: #8B7355; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                <i class="fas fa-user-circle me-2"></i>Información del Usuario
+            </h6>
+            
+            <div class="mb-3">
+                <label for="{{ form.username.id_for_label }}" class="form-label">
+                    {{ form.username.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.username }}
+                <div class="text-danger small" id="error_{{ form.username.id_for_label }}"></div>
+                {% if form.username.help_text %}
+                    <small class="form-text text-muted">{{ form.username.help_text }}</small>
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                    {{ form.first_name.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.first_name }}
+                <div class="text-danger small" id="error_{{ form.first_name.id_for_label }}"></div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                    {{ form.last_name.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.last_name }}
+                <div class="text-danger small" id="error_{{ form.last_name.id_for_label }}"></div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.email.id_for_label }}" class="form-label">
+                    {{ form.email.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.email }}
+                <div class="text-danger small" id="error_{{ form.email.id_for_label }}"></div>
+            </div>
+        </div>
+        
+        <!-- Permisos y Configuración -->
+        <div class="col-md-6">
+            <h6 class="mb-3" style="color: #8B7355; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                <i class="fas fa-cogs me-2"></i>Permisos y Configuración
+            </h6>
+            
+            {% if not usuario %}
+            <!-- Solo mostrar en creación -->
+            <div class="mb-3">
+                <label for="{{ form.empresa.id_for_label }}" class="form-label">
+                    {{ form.empresa.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.empresa }}
+                <div class="text-danger small" id="error_{{ form.empresa.id_for_label }}"></div>
+            </div>
+            {% endif %}
+            
+            <div class="mb-3">
+                <label for="{{ form.grupo.id_for_label }}" class="form-label">
+                    {{ form.grupo.label }}
+                </label>
+                {{ form.grupo }}
+                <div class="text-danger small" id="error_{{ form.grupo.id_for_label }}"></div>
+                <small class="form-text text-muted">Asigna un rol al usuario para controlar sus permisos</small>
+            </div>
+            
+            {% if not usuario %}
+            <!-- Solo mostrar en creación -->
+            <div class="mb-3">
+                <label for="{{ form.sucursal.id_for_label }}" class="form-label">
+                    {{ form.sucursal.label }}
+                </label>
+                {{ form.sucursal }}
+                <div class="text-danger small" id="error_{{ form.sucursal.id_for_label }}"></div>
+                {% if form.sucursal.help_text %}
+                    <small class="form-text text-muted">{{ form.sucursal.help_text }}</small>
+                {% endif %}
+            </div>
+            {% else %}
+            <!-- Mostrar en edición -->
+            <div class="mb-3">
+                <label for="{{ form.sucursal.id_for_label }}" class="form-label">
+                    {{ form.sucursal.label }}
+                </label>
+                {{ form.sucursal }}
+                <div class="text-danger small" id="error_{{ form.sucursal.id_for_label }}"></div>
+                {% if form.sucursal.help_text %}
+                    <small class="form-text text-muted">{{ form.sucursal.help_text }}</small>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if usuario %}
+            <div class="mb-3 form-check">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                    {{ form.is_active.label }}
+                </label>
+                <div class="text-danger small" id="error_{{ form.is_active.id_for_label }}"></div>
+            </div>
+            {% endif %}
+            
+            <div class="mb-3 form-check">
+                {{ form.is_staff }}
+                <label class="form-check-label" for="{{ form.is_staff.id_for_label }}">
+                    {{ form.is_staff.label }}
+                </label>
+                <div class="text-danger small" id="error_{{ form.is_staff.id_for_label }}"></div>
+                <small class="form-text text-muted d-block">Permite acceso al panel de administración de Django</small>
+            </div>
+            
+            {% if not usuario %}
+            <!-- Contraseñas solo en creación -->
+            <hr class="my-4">
+            <h6 class="mb-3" style="color: #8B7355; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                <i class="fas fa-lock me-2"></i>Contraseña
+            </h6>
+            
+            <div class="mb-3">
+                <label for="{{ form.password1.id_for_label }}" class="form-label">
+                    {{ form.password1.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.password1 }}
+                <div class="text-danger small" id="error_{{ form.password1.id_for_label }}"></div>
+                {% if form.password1.help_text %}
+                    <small class="form-text text-muted">{{ form.password1.help_text }}</small>
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.password2.id_for_label }}" class="form-label">
+                    {{ form.password2.label }} <span class="text-danger">*</span>
+                </label>
+                {{ form.password2 }}
+                <div class="text-danger small" id="error_{{ form.password2.id_for_label }}"></div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="alert alert-danger" id="formErrors" style="display: none;"></div>
+</form>
+
+<style>
+    .form-control:focus {
+        border-color: #8B7355;
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+    }
+    
+    .form-check-input:checked {
+        background-color: #8B7355;
+        border-color: #8B7355;
+    }
+</style>
+

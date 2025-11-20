@@ -4,7 +4,7 @@ API endpoints para la app de empresas
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
-from .models import Empresa
+from .models import Empresa, Sucursal
 
 
 @login_required
@@ -40,6 +40,43 @@ def api_configuracion(request):
             'success': False,
             'error': 'Empresa no encontrada'
         }, status=404)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_sucursales_empresa(request, empresa_id):
+    """API para obtener las sucursales activas de una empresa"""
+    try:
+        empresa = Empresa.objects.get(id=empresa_id)
+        sucursales = empresa.sucursales.filter(estado='activa').order_by('nombre')
+        
+        sucursales_data = [
+            {
+                'id': sucursal.id,
+                'nombre': sucursal.nombre,
+                'codigo': sucursal.codigo or ''
+            }
+            for sucursal in sucursales
+        ]
+        
+        return JsonResponse({
+            'success': True,
+            'sucursales': sucursales_data
+        })
+    except Empresa.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Empresa no encontrada'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+
+
 
 
 

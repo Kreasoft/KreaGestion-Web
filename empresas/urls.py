@@ -10,6 +10,7 @@ app_name = 'empresas'
 urlpatterns = [
 	# API Endpoints
 	path('api/configuracion/', api_views.api_configuracion, name='api_configuracion'),
+	path('<int:empresa_id>/sucursales/json/', api_views.api_sucursales_empresa, name='api_sucursales_empresa'),
 	
 	path('', views.home, name='home'),
 	path('empresas/', views.empresa_list, name='empresa_list'),

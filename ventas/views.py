@@ -772,12 +772,7 @@ def pos_view(request):
         form_apertura = AperturaCajaForm(empresa=request.empresa)
     
     # Obtener datos para el POS con impuesto específico incluido
-    articulos_queryset = (
-        Articulo.objects
-        .filter(empresa=request.empresa, activo=True)
-        .select_related('categoria', 'categoria__impuesto_especifico')
-        .order_by('-en_oferta', 'nombre')[:500]
-    )
+    articulos_queryset = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')[:500]  # Limitar para performance
     
     # Calcular precios finales directamente en la vista
     articulos = []
@@ -1312,16 +1307,21 @@ def pos_procesar_preventa(request):
             print(f"  Impuesto Específico: {impuesto_especifico}")
             print(f"  Total: {total}")
 
-            # VALIDACIÓN CRÍTICA: Verificar sucursal activa
-            if not hasattr(request, 'sucursal_activa') or not request.sucursal_activa:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'No puede procesar ventas sin una sucursal asignada. Contacte al administrador.'
-                }, status=400)
+            # Obtener sucursal activa si está disponible (opcional)
+            sucursal_activa = None
+            if hasattr(request, 'sucursal_activa') and request.sucursal_activa:
+                sucursal_activa = request.sucursal_activa
+            else:
+                # Intentar obtener la primera sucursal de la empresa como fallback
+                try:
+                    from empresas.models import Sucursal
+                    sucursal_activa = Sucursal.objects.filter(empresa=request.empresa, estado='activa').first()
+                except Exception:
+                    pass
             
             preventa = Venta.objects.create(
                 empresa=request.empresa,
-                sucursal=request.sucursal_activa,  # ← ASIGNAR SUCURSAL AUTOMÁTICAMENTE
+                sucursal=sucursal_activa,  # ← ASIGNAR SUCURSAL (puede ser None)
                 numero_venta=proximo_numero,
                 cliente=cliente,
                 vendedor=vendedor,
@@ -1552,7 +1552,7 @@ def pos_procesar_preventa(request):
                             if data['tipo_documento'] in ['factura', 'boleta', 'guia']:
                                 try:
                                     from facturacion_electronica.dte_service import DTEService
-                                    from facturacion_electronica.models import DocumentoTributarioElectronico, CAF
+                                    from facturacion_electronica.models import DocumentoTributarioElectronico, ArchivoCAF
                                     
                                     print(f"[CIERRE DIRECTO] Verificando si ya existe DTE para ticket {ticket_vale.id}...")
                                     
@@ -1662,7 +1662,7 @@ def pos_procesar_preventa(request):
                                 )
                                 
                                 # Copiar detalles del ticket a la venta final
-                                for detalle in ticket_vale.detalles.all():
+                                for detalle in ticket_vale.ventadetalle_set.all():
                                     VentaDetalle.objects.create(
                                         venta=venta_final,
                                         articulo=detalle.articulo,
@@ -1684,13 +1684,17 @@ def pos_procesar_preventa(request):
                             movimiento_caja = None
                             if data['tipo_documento'] != 'guia':
                                 movimiento_caja = MovimientoCaja.objects.create(
-                                    apertura=apertura_activa,
-                                    tipo='ingreso',
+                                    apertura_caja=apertura_activa,
+                                    venta=venta_final,
+                                    tipo='venta',
                                     forma_pago=forma_pago,
                                     monto=total,
                                     descripcion=f"{data['tipo_documento'].title()} #{numero_venta_final}",
-                                    registrado_por=request.user
+                                    usuario=request.user
                                 )
+                                
+                                # Recalcular totales de la apertura
+                                apertura_activa.calcular_totales()
                             
                             # Crear venta procesada con los campos correctos del modelo
                             venta_procesada = VentaProcesada.objects.create(
@@ -1709,7 +1713,7 @@ def pos_procesar_preventa(request):
                             from inventario.models import Inventario
                             bodega_caja = apertura_activa.caja.bodega
                             
-                            for detalle in ticket_vale.detalles.all():
+                            for detalle in ticket_vale.ventadetalle_set.all():
                                 # Buscar inventario en la bodega de la caja
                                 inventario = Inventario.objects.filter(
                                     empresa=request.empresa,
@@ -3004,12 +3008,12 @@ def libro_ventas(request):
     from itertools import chain
     from operator import attrgetter
     
-    # Fecha por defecto: mes actual
+    # Fecha por defecto: primer día del año hasta hoy
     hoy = timezone.now().date()
-    primer_dia_mes = hoy.replace(day=1)
+    primer_dia_ano = hoy.replace(month=1, day=1)
     
     # Obtener parámetros de filtros
-    fecha_desde = request.GET.get('fecha_desde', primer_dia_mes.strftime('%Y-%m-%d'))
+    fecha_desde = request.GET.get('fecha_desde', primer_dia_ano.strftime('%Y-%m-%d'))
     fecha_hasta = request.GET.get('fecha_hasta', hoy.strftime('%Y-%m-%d'))
     tipo_documento = request.GET.get('tipo_documento', '')
     cliente_id = request.GET.get('cliente', '')

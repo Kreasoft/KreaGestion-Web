@@ -2,9 +2,10 @@
 URLs para el módulo de ventas
 """
 from django.urls import path
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from . import views
 from . import views_notas_credito
+from . import api_views
 
 app_name = 'ventas'
 
@@ -75,7 +76,7 @@ urlpatterns = [
     path('cotizaciones/<int:pk>/convertir-venta/', views.cotizacion_convertir_venta, name='cotizacion_convertir_venta'),
     
     # Libro de Ventas
-    path('libro-ventas/', views.libro_ventas, name='libro_ventas'),
+    path('libro-ventas/', lambda request: redirect('facturacion_electronica:dte_list', permanent=True), name='libro_ventas'),
     
     # Precios Especiales Clientes
     path('precios-clientes/', views.precio_cliente_list, name='precio_cliente_list'),
@@ -86,6 +87,9 @@ urlpatterns = [
     # API Artículos
     path('articulos/api/articulo/<int:pk>/precio/', views.articulo_precio_api, name='articulo_precio_api'),
     path('api/precio-cliente/<int:cliente_id>/<int:articulo_id>/', views.precio_cliente_articulo_api, name='precio_cliente_articulo_api'),
+    
+    # API Vendedores
+    path('api/vendedores/', api_views.api_vendedores, name='api_vendedores'),
     
     # Notas de Crédito
     path('notas-credito/', views_notas_credito.notacredito_list, name='notacredito_list'),

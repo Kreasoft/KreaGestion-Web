@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST, require_http_methods
 from .models import PerfilUsuario
 from .forms import UsuarioCreateForm, UsuarioUpdateForm, GrupoForm
 from empresas.models import Empresa
-from core.decorators import requiere_empresa
+from core.decorators import requiere_empresa, requiere_permiso
 
 
 def obtener_empresa_usuario(request):
@@ -193,41 +193,55 @@ def usuario_asignar_grupo(request, user_id):
 
 @login_required
 @requiere_empresa
+@requiere_permiso('auth.add_user', mensaje='No tienes permisos para crear usuarios. Solo los administradores pueden realizar esta acción.', redirect_url='usuarios:usuario_list')
 def usuario_create(request):
     """Crear nuevo usuario"""
     import traceback
+    from django.http import JsonResponse
     
     empresa, error = obtener_empresa_usuario(request)
     if error:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': error}, status=400)
         messages.error(request, error)
         return redirect('dashboard')
     
     if request.method == 'POST':
         form = UsuarioCreateForm(request.POST)
         
-        # Debug: imprimir datos del POST
-        print("=== DEBUG CREAR USUARIO ===")
-        print(f"POST data: {request.POST}")
-        print(f"Form is valid: {form.is_valid()}")
-        
         if form.is_valid():
             try:
                 usuario = form.save()
-                print(f"Usuario creado: {usuario.username} (ID: {usuario.id})")
                 
-                # Verificar que el perfil se creó correctamente
-                if hasattr(usuario, 'perfil'):
-                    print(f"Perfil creado correctamente para empresa: {usuario.perfil.empresa.nombre}")
-                else:
-                    print("WARNING: El usuario no tiene perfil asociado!")
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'Usuario "{usuario.username}" creado exitosamente.',
+                        'redirect': False
+                    })
                 
                 messages.success(request, f'Usuario "{usuario.username}" creado exitosamente.')
                 return redirect('usuarios:usuario_list')
             except Exception as e:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Error al crear usuario: {str(e)}'
+                    }, status=400)
                 print(f"Error al guardar: {str(e)}")
                 print(traceback.format_exc())
                 messages.error(request, f'Error al crear usuario: {str(e)}')
         else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                errors = {}
+                for field, field_errors in form.errors.items():
+                    errors[field] = field_errors
+                return JsonResponse({
+                    'success': False,
+                    'errors': errors,
+                    'error': 'Por favor corrige los errores en el formulario.'
+                }, status=400)
+            
             # Mostrar todos los errores del formulario
             print(f"Errores del formulario: {form.errors}")
             print(f"Non field errors: {form.non_field_errors()}")
@@ -243,6 +257,9 @@ def usuario_create(request):
     else:
         # Precargar la empresa actual
         form = UsuarioCreateForm(initial={'empresa': empresa})
+        # Filtrar sucursales por la empresa
+        if empresa:
+            form.fields['sucursal'].queryset = empresa.sucursales.filter(estado='activa').order_by('nombre')
     
     context = {
         'form': form,
@@ -250,15 +267,24 @@ def usuario_create(request):
         'empresa': empresa,
     }
     
+    # Si es AJAX, devolver solo el formulario
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'usuarios/usuario_form_modal.html', context)
+    
     return render(request, 'usuarios/usuario_form.html', context)
 
 
 @login_required
 @requiere_empresa
+@requiere_permiso('auth.change_user', mensaje='No tienes permisos para editar usuarios. Solo los administradores pueden realizar esta acción.', redirect_url='usuarios:usuario_list')
 def usuario_edit(request, user_id):
     """Editar usuario existente"""
+    from django.http import JsonResponse
+    
     empresa, error = obtener_empresa_usuario(request)
     if error:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': error}, status=400)
         messages.error(request, error)
         return redirect('dashboard')
     
@@ -266,6 +292,8 @@ def usuario_edit(request, user_id):
     
     # Verificar que el usuario pertenece a la misma empresa
     if not usuario.is_superuser and usuario.perfil.empresa != empresa:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'No tienes permisos para editar este usuario.'}, status=403)
         messages.error(request, 'No tienes permisos para editar este usuario.')
         return redirect('usuarios:usuario_list')
     
@@ -274,16 +302,40 @@ def usuario_edit(request, user_id):
         if form.is_valid():
             try:
                 usuario = form.save()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'Usuario "{usuario.username}" actualizado exitosamente.',
+                        'redirect': False
+                    })
                 messages.success(request, f'Usuario "{usuario.username}" actualizado exitosamente.')
                 return redirect('usuarios:usuario_list')
             except Exception as e:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Error al actualizar usuario: {str(e)}'
+                    }, status=400)
                 messages.error(request, f'Error al actualizar usuario: {str(e)}')
         else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                errors = {}
+                for field, field_errors in form.errors.items():
+                    errors[field] = field_errors
+                return JsonResponse({
+                    'success': False,
+                    'errors': errors,
+                    'error': 'Por favor corrige los errores en el formulario.'
+                }, status=400)
+            
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f'{field}: {error}')
     else:
         form = UsuarioUpdateForm(instance=usuario)
+        # Filtrar sucursales por la empresa del usuario
+        if hasattr(usuario, 'perfil') and usuario.perfil.empresa:
+            form.fields['sucursal'].queryset = usuario.perfil.empresa.sucursales.filter(estado='activa').order_by('nombre')
     
     context = {
         'form': form,
@@ -292,10 +344,15 @@ def usuario_edit(request, user_id):
         'empresa': empresa,
     }
     
+    # Si es AJAX, devolver solo el formulario
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'usuarios/usuario_form_modal.html', context)
+    
     return render(request, 'usuarios/usuario_form.html', context)
 
 
 @login_required
+@requiere_permiso('auth.delete_user', mensaje='No tienes permisos para eliminar usuarios. Solo los administradores pueden realizar esta acción.', redirect_url='usuarios:usuario_list')
 @require_POST
 def usuario_delete(request, user_id):
     """Eliminar usuario"""
@@ -331,6 +388,7 @@ def usuario_delete(request, user_id):
 
 @login_required
 @requiere_empresa
+@requiere_permiso('auth.view_group', mensaje='No tienes permisos para ver la lista de grupos. Contacta al administrador.', redirect_url='dashboard')
 def grupo_list(request):
     """Lista de grupos/roles"""
     # Filtros
@@ -436,6 +494,27 @@ def traducir_permiso(permission):
         'formapago': 'Formas de Pago',
         'estaciontrabajo': 'Estaciones de Trabajo',
         'cotizacion': 'Cotizaciones',
+        
+        # Caja
+        'aperturacaja': 'Aperturas de Caja',
+        'movimientocaja': 'Movimientos de Caja',
+        'ventaprocesada': 'Ventas Procesadas',
+        
+        # Facturación Electrónica
+        'archivocaf': 'Archivos CAF',
+        'documentotributarioelectronico': 'Documentos Tributarios Electrónicos',
+        
+        # Pedidos
+        'pedido': 'Pedidos',
+        'pedidodetalle': 'Detalles de Pedidos',
+        
+        # Producción
+        'ordenproduccion': 'Órdenes de Producción',
+        'receta': 'Recetas',
+        'materialreceta': 'Materiales de Receta',
+        
+        # Informes
+        'informe': 'Informes',
     }
     
     # Extraer la acción del codename (add_, change_, delete_, view_)
@@ -460,6 +539,7 @@ def traducir_permiso(permission):
 
 @login_required
 @requiere_empresa
+@requiere_permiso('auth.add_group', mensaje='No tienes permisos para crear grupos. Solo los administradores pueden realizar esta acción.', redirect_url='usuarios:grupo_list')
 def grupo_create(request):
     """Crear nuevo grupo"""
     from django.contrib.auth.models import Permission
@@ -497,23 +577,30 @@ def grupo_create(request):
     nombres_apps = {
         'articulos': 'Artículos',
         'bodegas': 'Bodegas',
+        'caja': 'Caja',
         'clientes': 'Clientes',
         'compras': 'Compras',
         'documentos': 'Documentos',
         'empresas': 'Empresas',
+        'facturacion_electronica': 'Facturación Electrónica',
+        'informes': 'Informes',
         'inventario': 'Inventario',
+        'pedidos': 'Pedidos',
+        'produccion': 'Producción',
         'proveedores': 'Proveedores',
         'reportes': 'Reportes',
         'tesoreria': 'Tesorería',
+        'utilidades': 'Utilidades',
         'usuarios': 'Usuarios',
         'ventas': 'Ventas'
     }
     
     # Obtener content types de las apps del sistema
     app_labels = [
-        'articulos', 'bodegas', 'clientes', 'compras', 'documentos',
-        'empresas', 'inventario', 'proveedores', 'reportes', 
-        'tesoreria', 'usuarios', 'ventas'
+        'articulos', 'bodegas', 'caja', 'clientes', 'compras', 'documentos',
+        'empresas', 'facturacion_electronica', 'informes', 'inventario',
+        'pedidos', 'produccion', 'proveedores', 'reportes', 
+        'tesoreria', 'utilidades', 'usuarios', 'ventas'
     ]
     
     for app_label in app_labels:
@@ -541,6 +628,7 @@ def grupo_create(request):
 
 @login_required
 @requiere_empresa
+@requiere_permiso('auth.change_group', mensaje='No tienes permisos para editar grupos. Solo los administradores pueden realizar esta acción.', redirect_url='usuarios:grupo_list')
 def grupo_edit(request, grupo_id):
     """Editar grupo existente"""
     from django.contrib.auth.models import Permission
@@ -581,23 +669,30 @@ def grupo_edit(request, grupo_id):
     nombres_apps = {
         'articulos': 'Artículos',
         'bodegas': 'Bodegas',
+        'caja': 'Caja',
         'clientes': 'Clientes',
         'compras': 'Compras',
         'documentos': 'Documentos',
         'empresas': 'Empresas',
+        'facturacion_electronica': 'Facturación Electrónica',
+        'informes': 'Informes',
         'inventario': 'Inventario',
+        'pedidos': 'Pedidos',
+        'produccion': 'Producción',
         'proveedores': 'Proveedores',
         'reportes': 'Reportes',
         'tesoreria': 'Tesorería',
+        'utilidades': 'Utilidades',
         'usuarios': 'Usuarios',
         'ventas': 'Ventas'
     }
     
     # Obtener content types de las apps del sistema
     app_labels = [
-        'articulos', 'bodegas', 'clientes', 'compras', 'documentos',
-        'empresas', 'inventario', 'proveedores', 'reportes', 
-        'tesoreria', 'usuarios', 'ventas'
+        'articulos', 'bodegas', 'caja', 'clientes', 'compras', 'documentos',
+        'empresas', 'facturacion_electronica', 'informes', 'inventario',
+        'pedidos', 'produccion', 'proveedores', 'reportes', 
+        'tesoreria', 'utilidades', 'usuarios', 'ventas'
     ]
     
     for app_label in app_labels:
@@ -628,6 +723,7 @@ def grupo_edit(request, grupo_id):
 
 
 @login_required
+@requiere_permiso('auth.delete_group', mensaje='No tienes permisos para eliminar grupos. Solo los administradores pueden realizar esta acción.', redirect_url='usuarios:grupo_list')
 @require_POST
 def grupo_delete(request, grupo_id):
     """Eliminar grupo"""

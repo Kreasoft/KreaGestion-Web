@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% load static %}
+{% load format_filters %}
+
+{% block title %}Cuenta Corriente - {{ proveedor.nombre }} - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+    
+    /* Paleta terrosa para tarjetas de estadísticas */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    
+    .stat-card-1 {
+        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
+    }
+    
+    .stat-card-2 {
+        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
+    }
+    
+    .stat-card-3 {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    }
+    
+    .stat-card-4 {
+        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
+    }
+    
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        color: rgba(255,255,255,0.9);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
+    
+    .stat-icon {
+        font-size: 2rem;
+        color: rgba(255,255,255,0.3);
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+    }
+    
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+
+    .table-compact thead th {
+        padding: 8px 6px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+
+    .table-compact tbody td {
+        padding: 6px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.75rem;
+    }
+
+    .table-compact tbody tr {
+        height: 35px;
+        border-bottom: 1px solid #F5F1E8;
+    }
+    
+    .table-compact tbody tr:hover {
+        background-color: #F5F1E8;
+    }
+    
+    .badge-estado {
+        padding: 4px 8px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        border-radius: 4px;
+    }
+    
+    .proveedor-info-card {
+        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        border: 1.5px solid #D4C4A8;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                
+                <!-- HEADER PRINCIPAL -->
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}" class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 6px 12px;">
+                                <i class="fas fa-arrow-left"></i>
+                            </a>
+                            <i class="fas fa-truck fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.2rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Cuenta Corriente - {{ proveedor.nombre }}
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Documentos de compra en cuenta corriente
+                                </small>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 6px 12px; font-size: 0.75rem;" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i> Imprimir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body" style="padding: 15px; background: #FAFAF8;">
+
+                    <!-- INFORMACIÓN DEL PROVEEDOR -->
+                    <div class="proveedor-info-card">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 15px; font-family: 'Poppins', sans-serif;">
+                                    <i class="fas fa-building me-2"></i>Información del Proveedor
+                                </h6>
+                                <p style="margin-bottom: 5px; color: #6F5B44;">
+                                    <strong>Nombre:</strong> {{ proveedor.nombre }}
+                                </p>
+                                <p style="margin-bottom: 5px; color: #6F5B44;">
+                                    <strong>RUT:</strong> {{ proveedor.get_rut_formateado|default:proveedor.rut }}
+                                </p>
+                                {% if proveedor.telefono %}
+                                <p style="margin-bottom: 5px; color: #6F5B44;">
+                                    <strong>Teléfono:</strong> {{ proveedor.telefono }}
+                                </p>
+                                {% endif %}
+                                {% if proveedor.email %}
+                                <p style="margin-bottom: 5px; color: #6F5B44;">
+                                    <strong>Email:</strong> {{ proveedor.email }}
+                                </p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 15px; font-family: 'Poppins', sans-serif;">
+                                    <i class="fas fa-info-circle me-2"></i>Resumen
+                                </h6>
+                                <p style="margin-bottom: 5px; color: #6F5B44;">
+                                    <strong>Total Documentos:</strong> {{ stats.total_documentos|default:0|format_miles }}
+                                </p>
+                                <p style="margin-bottom: 5px; color: #6F5B44;">
+                                    <strong>Total Pendiente:</strong> ${{ stats.total_pendiente|default:0|format_miles }}
+                                </p>
+                                <p style="margin-bottom: 5px; color: #6F5B44;">
+                                    <strong>Total Vencido:</strong> ${{ stats.total_vencido|default:0|format_miles }}
+                                </p>
+                                <p style="margin-bottom: 0; color: #6F5B44;">
+                                    <strong>Pago Parcial:</strong> ${{ stats.total_parcial|default:0|format_miles }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ESTADÍSTICAS PRINCIPALES -->
+                    <div class="row mb-3">
+                        <div class="col-md-3 mb-2">
+                            <div class="stat-card stat-card-1 p-3 position-relative">
+                                <div class="stat-value" style="font-size: 1.3rem;">{{ stats.total_documentos|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.75rem;">Total Documentos</div>
+                                <i class="fas fa-file-invoice stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="stat-card stat-card-2 p-3 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">${{ stats.total_pendiente|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.75rem;">Total Pendiente</div>
+                                <i class="fas fa-clock stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="stat-card stat-card-3 p-3 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">${{ stats.total_vencido|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.75rem;">Total Vencido</div>
+                                <i class="fas fa-exclamation-triangle stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="stat-card stat-card-4 p-3 position-relative">
+                                <div class="stat-value" style="font-size: 1.1rem;">${{ stats.total_parcial|default:0|format_miles }}</div>
+                                <div class="stat-label" style="font-size: 0.75rem;">Pago Parcial</div>
+                                <i class="fas fa-coins stat-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TABLA DE DOCUMENTOS -->
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 8%;">N° Documento</th>
+                                    <th style="width: 8%;">Tipo</th>
+                                    <th style="width: 8%;">Fecha Emisión</th>
+                                    <th style="width: 8%;">Fecha Vencimiento</th>
+                                    <th class="text-end" style="width: 10%;">Total</th>
+                                    <th class="text-end" style="width: 10%;">Pagado</th>
+                                    <th class="text-end" style="width: 10%;">Saldo</th>
+                                    <th style="width: 8%;">Estado</th>
+                                    <th class="text-center" style="width: 10%;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for documento in documentos %}
+                                <tr>
+                                    <td><strong style="color: #6F5B44; font-size: 0.75rem;">{{ documento.numero_documento }}</strong></td>
+                                    <td>
+                                        <span class="badge badge-estado" style="background: #8B7355; color: white;">
+                                            {{ documento.get_tipo_documento_display }}
+                                        </span>
+                                    </td>
+                                    <td style="font-size: 0.75rem;">{{ documento.fecha_emision|date:"d/m/Y" }}</td>
+                                    <td style="font-size: 0.75rem; {% if documento.fecha_vencimiento and documento.fecha_vencimiento < today %}color: #dc3545; font-weight: 600;{% endif %}">
+                                        {{ documento.fecha_vencimiento|date:"d/m/Y"|default:"-" }}
+                                    </td>
+                                    <td class="text-end" style="font-size: 0.75rem; color: #6F5B44;">${{ documento.total_documento|format_miles }}</td>
+                                    <td class="text-end" style="font-size: 0.75rem; color: #A67C52;">${{ documento.monto_pagado|default:0|format_miles }}</td>
+                                    <td class="text-end"><strong style="color: #8B7355; font-size: 0.8rem;">${{ documento.saldo_pendiente|format_miles }}</strong></td>
+                                    <td>
+                                        {% if documento.estado_pago == 'pagada' %}
+                                        <span class="badge badge-estado bg-success">Pagada</span>
+                                        {% elif documento.estado_pago == 'vencida' %}
+                                        <span class="badge badge-estado bg-danger">Vencida</span>
+                                        {% elif documento.estado_pago == 'parcial' %}
+                                        <span class="badge badge-estado bg-warning text-dark">Parcial</span>
+                                        {% else %}
+                                        <span class="badge badge-estado bg-secondary">Pendiente</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-action btn-outline-primary" 
+                                                onclick="registrarPago({{ documento.id }})"
+                                                title="Registrar Pago"
+                                                style="padding: 4px 8px; font-size: 0.7rem;">
+                                            <i class="fas fa-money-bill-wave"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-action btn-outline-info ms-1" 
+                                                onclick="verHistorial({{ documento.id }})"
+                                                title="Ver Historial"
+                                                style="padding: 4px 8px; font-size: 0.7rem;">
+                                            <i class="fas fa-history"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-4">
+                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
+                                        <p style="color: #8B7355; font-size: 0.85rem; font-family: 'Poppins', sans-serif;">No se encontraron documentos</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para registrar pago (se puede reutilizar el de la lista) -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function registrarPago(documentoId) {
+    // Implementar lógica de registro de pago
+    alert('Funcionalidad de registro de pago en desarrollo');
+}
+
+function verHistorial(documentoId) {
+    // Implementar lógica para ver historial
+    alert('Funcionalidad de historial en desarrollo');
+}
+</script>
+{% endblock %}
+

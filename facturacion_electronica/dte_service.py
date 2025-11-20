@@ -107,6 +107,42 @@ class DTEService:
             print(f"\nError al generar DTE: {str(e)}")
             raise
 
+    def procesar_dte_existente(self, dte):
+        """
+        Procesa un DTE ya creado, generando XML, firmando y timbrando.
+        """
+        try:
+            with transaction.atomic():
+                # 1. Generar XML del DTE
+                generator = DTEXMLGenerator(self.empresa, dte, dte.tipo_dte, dte.folio, dte.caf_utilizado)
+                xml_sin_firmar = generator.generar_xml_desde_dte()
+
+                # 2. Firmar el XML
+                firmador = self._obtener_firmador()
+                xml_firmado = firmador.firmar_xml(xml_sin_firmar)
+
+                # 3. Generar TED (Timbre Electrónico)
+                ted_xml = self._generar_ted_desde_dte(dte, firmador)
+
+                # 4. Generar datos para PDF417
+                pdf417_data = firmador.generar_datos_pdf417(ted_xml)
+
+                # 5. Actualizar registro del DTE
+                dte.xml_dte = xml_sin_firmar
+                dte.xml_firmado = xml_firmado
+                dte.timbre_electronico = ted_xml
+                dte.datos_pdf417 = pdf417_data
+                dte.estado_sii = 'generado'
+                dte.save()
+
+                # 6. Generar imagen PDF417 del timbre
+                PDF417Generator.guardar_pdf417_en_dte(dte)
+
+                return dte
+        except Exception as e:
+            print(f"\nError al procesar DTE existente: {str(e)}")
+            raise
+
     def generar_dte_desde_nota_credito(self, nota_credito, items):
         """
         Genera un DTE de Nota de Crédito (tipo 61)

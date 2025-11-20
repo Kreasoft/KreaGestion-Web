@@ -76,10 +76,41 @@
     
     .filter-section {
         background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(111, 91, 68, 0.1);
+        border: 1px solid #E8DCC8;
+    }
+    
+    .filter-section .form-label {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        color: #6F5B44;
+        margin-bottom: 5px;
+    }
+    
+    .filter-section .form-control,
+    .filter-section .form-select {
+        font-family: 'Poppins', sans-serif;
+        border: 1.5px solid #D4C4A8;
         border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        color: #6F5B44;
+        transition: all 0.3s ease;
+    }
+    
+    .filter-section .form-control:focus,
+    .filter-section .form-select:focus {
+        border-color: #8B7355;
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.15);
+        outline: none;
+    }
+    
+    .filter-section .form-control::placeholder {
+        color: #A67C52;
+        opacity: 0.6;
     }
     
     .table-compact {
@@ -326,10 +357,8 @@
                                     <th style="width: 8%;">RUT</th>
                                     <th style="width: 10%;">Vendedor</th>
                                     <th style="width: 8%;">F. Pago</th>
-                                    <th class="text-end" style="width: 8%;">Neto</th>
-                                    <th class="text-end" style="width: 6%;">IVA</th>
                                     <th class="text-end" style="width: 8%;">Total</th>
-                                    <th class="text-center" style="width: 4%;">Ver</th>
+                                    <th class="text-center" style="width: 8%;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -439,13 +468,18 @@
                                         <td class="text-end" style="font-size: 0.7rem; color: #A67C52;">${{ documento.iva|format_miles }}</td>
                                         <td class="text-end"><strong style="color: #8B7355; font-size: 0.75rem;">${{ documento.total|format_miles }}</strong></td>
                                         <td class="text-center">
-                                            <a href="{% url 'ventas:venta_html' documento.pk %}"
-                                               class="btn btn-sm btn-action btn-outline-primary"
-                                               target="_blank"
-                                               title="Ver documento"
-                                               style="padding: 2px 6px; font-size: 0.7rem;">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
+                                            {% if documento.dte %}
+                                                <a href="{% url 'facturacion_electronica:ver_factura_electronica' documento.dte_asociado.id %}" class="btn btn-sm btn-outline-success" target="_blank" title="Ver DTE">
+                                                    <i class="fas fa-file-code"></i> Ver DTE
+                                                </a>
+                                            {% else %}
+                                                <a href="{% url 'ventas:venta_html' documento.pk %}"
+                                                   class="btn btn-sm btn-outline-primary"
+                                                   target="_blank"
+                                                   title="Ver documento">
+                                                    <i class="fas fa-eye"></i> Ver
+                                                </a>
+                                            {% endif %}
                                         </td>
                                     {% endif %}
                                 </tr>

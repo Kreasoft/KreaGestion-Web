@@ -27,9 +27,7 @@ class OrdenDespachoForm(forms.ModelForm):
         fields = [
             'orden_pedido', 'fecha_despacho', 'fecha_entrega_estimada',
             'estado', 'chofer', 'vehiculo', 'transportista_externo',
-            'orden_pedido', 'fecha_despacho', 'tipo_documento',
-            'fecha_entrega_estimada', 'chofer', 'vehiculo', 'transportista_externo',
-            'direccion_entrega', 'observaciones'
+            'tipo_documento', 'direccion_entrega', 'observaciones'
         ]
         widgets = {
             'orden_pedido': forms.Select(attrs={
@@ -80,34 +78,19 @@ class OrdenDespachoForm(forms.ModelForm):
 
         self.fields['estado'].widget = forms.HiddenInput()
         self.fields['estado'].required = False
-        
-        # Si estamos editando, el campo tipo_documento no es necesario
+
         if self.instance and self.instance.pk:
             self.fields['tipo_documento'].required = False
             self.fields['tipo_documento'].widget = forms.HiddenInput()
 
-        # Si se está creando desde un pedido específico, ocultar el campo
+        if empresa:
+            self.fields['orden_pedido'].queryset = OrdenPedido.objects.filter(empresa=empresa, estado__in=['confirmada', 'en_proceso']).select_related('cliente')
+            from .models_transporte import Chofer, Vehiculo
+            self.fields['chofer'].queryset = Chofer.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(empresa=empresa, activo=True).order_by('patente')
+
         if self.initial.get('orden_pedido'):
             self.fields['orden_pedido'].widget = forms.HiddenInput()
-        elif empresa:
-            from .models_transporte import Chofer, Vehiculo
-            
-            # Filtrar solo pedidos de la empresa para selección manual
-            self.fields['orden_pedido'].queryset = OrdenPedido.objects.filter(
-                empresa=empresa,
-                estado__in=['confirmada', 'en_proceso'] # Solo mostrar pedidos que pueden ser despachados
-            ).select_related('cliente')
-            
-            # Filtrar choferes y vehículos por empresa
-            self.fields['chofer'].queryset = Chofer.objects.filter(
-                empresa=empresa,
-                activo=True
-            ).order_by('nombre')
-            
-            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(
-                empresa=empresa,
-                activo=True
-            ).order_by('patente')
 
 
 class DetalleOrdenDespachoForm(forms.ModelForm):
@@ -125,19 +108,14 @@ class DetalleOrdenDespachoForm(forms.ModelForm):
         item_pedido = cleaned_data.get('item_pedido')
 
         if cantidad and item_pedido:
-            # Excluir la instancia actual si se está editando para no contarla dos veces
-            instance = self.instance
-            despachos_previos = item_pedido.despachos.exclude(
-                orden_despacho__estado='cancelado'
-            )
-            if instance and instance.pk:
-                despachos_previos = despachos_previos.exclude(pk=instance.pk)
+            # Usar la propiedad 'cantidad_pendiente' del modelo que ya hemos creado.
+            # Esta propiedad ya calcula correctamente lo que falta por despachar.
+            cantidad_pendiente = item_pedido.cantidad_pendiente
 
-            total_despachado_previo = despachos_previos.aggregate(
-                total=models.Sum('cantidad')
-            )['total'] or 0
-
-            cantidad_pendiente = item_pedido.cantidad - total_despachado_previo
+            # Si estamos editando un despacho existente, debemos sumar de vuelta la cantidad
+            # de este despacho al pendiente, porque la propiedad 'cantidad_pendiente' ya la restó.
+            if self.instance and self.instance.pk:
+                cantidad_pendiente += self.instance.cantidad
 
             if cantidad > cantidad_pendiente:
                 raise forms.ValidationError(

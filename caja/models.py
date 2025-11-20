@@ -84,13 +84,66 @@ class AperturaCaja(models.Model):
     
     def calcular_totales(self):
         """Calcula los totales de la apertura"""
-        movimientos = self.movimientos.filter(tipo='venta')
+        # Obtener todos los movimientos de venta
+        movimientos = self.movimientos.filter(tipo='venta').select_related('forma_pago', 'venta')
         
-        self.total_ventas_efectivo = sum(m.monto for m in movimientos.filter(forma_pago__nombre__icontains='efectivo'))
-        self.total_ventas_tarjeta = sum(m.monto for m in movimientos.filter(forma_pago__nombre__icontains='tarjeta'))
-        self.total_ventas_transferencia = sum(m.monto for m in movimientos.filter(forma_pago__nombre__icontains='transferencia'))
-        self.total_ventas_cheque = sum(m.monto for m in movimientos.filter(forma_pago__requiere_cheque=True))
-        self.total_ventas_credito = sum(m.monto for m in movimientos.filter(forma_pago__es_cuenta_corriente=True))
+        print(f"[CALCULAR_TOTALES] Total movimientos de venta: {movimientos.count()}")
+        
+        # Inicializar totales
+        self.total_ventas_efectivo = Decimal('0.00')
+        self.total_ventas_tarjeta = Decimal('0.00')
+        self.total_ventas_transferencia = Decimal('0.00')
+        self.total_ventas_cheque = Decimal('0.00')
+        self.total_ventas_credito = Decimal('0.00')
+        
+        # Clasificar cada movimiento por forma de pago (excluyendo guías y cotizaciones)
+        for movimiento in movimientos:
+            # Excluir guías y cotizaciones
+            if movimiento.venta and movimiento.venta.tipo_documento in ['guia', 'cotizacion']:
+                print(f"[CALCULAR_TOTALES] Movimiento {movimiento.id} excluido: {movimiento.venta.tipo_documento}")
+                continue
+                
+            if not movimiento.forma_pago:
+                print(f"[CALCULAR_TOTALES] Movimiento {movimiento.id} sin forma de pago - saltando")
+                continue
+                
+            forma_pago = movimiento.forma_pago
+            monto = movimiento.monto
+            
+            print(f"[CALCULAR_TOTALES] Movimiento {movimiento.id}: {forma_pago.nombre} (codigo: {forma_pago.codigo}), monto: ${monto}, es_cuenta_corriente: {forma_pago.es_cuenta_corriente}, requiere_cheque: {forma_pago.requiere_cheque}")
+            
+            # Prioridad: primero verificar campos booleanos específicos
+            if forma_pago.es_cuenta_corriente:
+                self.total_ventas_credito += monto
+                print(f"  -> Clasificado como CRÉDITO: ${monto}")
+            elif forma_pago.requiere_cheque:
+                self.total_ventas_cheque += monto
+                print(f"  -> Clasificado como CHEQUE: ${monto}")
+            else:
+                # Luego verificar por nombre o código
+                nombre_lower = forma_pago.nombre.lower()
+                codigo_lower = forma_pago.codigo.lower() if forma_pago.codigo else ''
+                
+                if 'efectivo' in nombre_lower or codigo_lower in ['ef', 'efectivo', 'cash']:
+                    self.total_ventas_efectivo += monto
+                    print(f"  -> Clasificado como EFECTIVO: ${monto}")
+                elif 'tarjeta' in nombre_lower or 'card' in nombre_lower or codigo_lower in ['tc', 'td', 'tarjeta', 'tr', 'cr']:
+                    self.total_ventas_tarjeta += monto
+                    print(f"  -> Clasificado como TARJETA: ${monto}")
+                elif 'transferencia' in nombre_lower or 'transfer' in nombre_lower or codigo_lower in ['tr', 'transferencia', 'tf']:
+                    self.total_ventas_transferencia += monto
+                    print(f"  -> Clasificado como TRANSFERENCIA: ${monto}")
+                else:
+                    # Por defecto, si no se identifica, se considera efectivo
+                    self.total_ventas_efectivo += monto
+                    print(f"  -> Clasificado como EFECTIVO (por defecto): ${monto}")
+        
+        print(f"[CALCULAR_TOTALES] Totales finales:")
+        print(f"  Efectivo: ${self.total_ventas_efectivo}")
+        print(f"  Tarjeta: ${self.total_ventas_tarjeta}")
+        print(f"  Transferencia: ${self.total_ventas_transferencia}")
+        print(f"  Cheque: ${self.total_ventas_cheque}")
+        print(f"  Crédito: ${self.total_ventas_credito}")
         
         total_efectivo_caja = self.monto_inicial + self.total_ventas_efectivo
         self.monto_final = total_efectivo_caja

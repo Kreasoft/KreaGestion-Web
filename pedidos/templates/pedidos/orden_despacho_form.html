@@ -2,7 +2,7 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}{{ titulo }} - GestionCloud{% endblock %}
+{% block title %}{{ titulo }} {% if pedido %}- Pedido {{ pedido.numero_pedido }}{% endif %} - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
@@ -21,6 +21,16 @@
     .item-field {
         height: 32px !important;
         font-size: 0.8rem;
+    }
+
+    /* Estilos para radio buttons más grandes */
+    .form-check-lg .form-check-input {
+        width: 1.5em;
+        height: 1.5em;
+    }
+    .form-check-lg .form-check-label {
+        font-size: 1rem;
+        padding-left: 0.5em;
     }
 </style>
 {% endblock %}
@@ -41,6 +51,7 @@
     </div>
     <form method="post" id="despachoForm">
         {% csrf_token %}
+        {{ form.orden_pedido }}
         {{ formset.management_form }}
         <div class="card shadow-sm" style="border: none; border-radius: 10px; font-size: 0.8rem;">
             <!-- Header -->
@@ -60,15 +71,15 @@
             <div class="card-body" style="padding: 0.5rem;">
                 <!-- Info Pedido y Cliente -->
                 <div class="row gx-2 mb-2 pb-2 border-bottom align-items-center">
-                    <div class="col-md-3"><strong>Pedido:</strong> {{ form.orden_pedido }}</div>
+                    <div class="col-md-3"><strong>Pedido:</strong> <a href="{% url 'pedidos:orden_pedido_detail' pedido.pk %}">{{ pedido.numero_pedido }}</a></div>
                     <div class="col-md-2"><strong>Fecha Despacho:</strong> {{ form.fecha_despacho }}</div>
                     <div class="col-md-2"><strong>Fecha Entrega:</strong> {{ form.fecha_entrega_estimada }}</div>
                     {% if not orden %}
-                    <div class="col-md-3">
-                        <strong>Documento a Generar:</strong>
-                        <div class="d-flex gap-3 mt-1">
+                    <div class="col-md-4">
+                        <strong class="d-block mb-1">Documento a Generar:</strong>
+                        <div class="d-flex align-items-center gap-4 mt-1">
                             {% for radio in form.tipo_documento %}
-                                <div class="form-check">
+                                <div class="form-check form-check-lg">
                                     {{ radio.tag }}
                                     <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
                                 </div>
@@ -295,25 +306,33 @@ $(document).ready(function() {
 
     // --- Carga Inicial ---
 
-    // Si hay un pedido seleccionado al cargar (por error de validación o al editar), cargar sus datos
-    const initialPedidoId = $('#id_orden_pedido').val();
+    const initialPedidoId = '{{ pedido.id|default_if_none:"" }}';
     if (initialPedidoId) {
-        {% if orden %}
-        // Si estamos editando, cargar solo la info del cliente, no los items
-        fetch(`/pedidos/ajax/items-pedido/?pedido_id=${initialPedidoId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.cliente) {
-                    $('#cliente_nombre').text(data.cliente.nombre || '-');
-                    $('#cliente_rut').text(data.cliente.rut || '-');
-                    $('#cliente_direccion').text(`${data.cliente.direccion || ''}, ${data.cliente.comuna || ''}, ${data.cliente.region || ''}`);
-                }
-            });
-        {% else %}
-        // Si estamos creando, cargar todo normalmente
         loadPedidoData(initialPedidoId);
-        {% endif %}
     }
+
+    // --- Lógica para tarjetas de selección de documento ---
+
+    $('input[name="tipo_documento"]').change(function() {
+        $('.doc-option-card').removeClass('selected');
+        if ($(this).is(':checked')) {
+            $(this).closest('.doc-option-card').addClass('selected');
+        }
+    });
+
+    // --- Validación de Formulario ---
+
+    $('#despachoForm').submit(function(e) {
+        if ($('input[name="tipo_documento"]:checked').length === 0) {
+            e.preventDefault(); // Detener envío
+            Swal.fire({
+                icon: 'error',
+                title: 'Acción Requerida',
+                text: 'Debe seleccionar un tipo de documento a generar (Guía o Factura).',
+                confirmButtonColor: '#8B7355'
+            });
+        }
+    });
 });
 </script>
 {% endblock %}

@@ -23,7 +23,7 @@ class OrdenPedidoForm(forms.ModelForm):
         ]
         widgets = {
             'cliente': forms.Select(attrs={'class': 'form-select form-select-sm'}),
-            'bodega': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'bodega': forms.Select(attrs={'class': 'form-select form-select-sm bodega-select'}),
             'fecha_pedido': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
             'fecha_entrega_estimada': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
             'numero_oc_cliente': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'N° OC del cliente'}),
@@ -78,9 +78,7 @@ ItemOrdenPedidoFormSet = inlineformset_factory(
     form=ItemOrdenPedidoForm,
     formset=BaseItemOrdenPedidoFormSet,
     extra=1,
-    can_delete=True,
-    min_num=1,
-    validate_min=True
+    can_delete=True
 )
 
 

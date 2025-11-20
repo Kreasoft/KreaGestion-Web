@@ -41,9 +41,9 @@
                             <button class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
                                 <i class="fas fa-print me-1"></i>
                             </button>
-                            <a href="{% url 'usuarios:usuario_create' %}" class="btn btn-sm me-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;">
+                            <button type="button" class="btn btn-sm me-2" id="btnNuevoUsuario" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;">
                                 <i class="fas fa-plus me-1"></i> Nuevo Usuario
-                            </a>
+                            </button>
                             <a href="{% url 'usuarios:grupo_list' %}" class="btn btn-sm" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
                                 <i class="fas fa-user-tag me-1"></i> Grupos
                             </a>
@@ -170,19 +170,23 @@
                                     <td style="font-size: 0.7rem;">{{ usuario.last_login|date:"d/m/Y"|default:"Nunca" }}</td>
                                     <td class="text-center">
                                         <div class="btn-group" role="group">
-                                            <button class="btn btn-sm btn-action btn-outline-primary toggle-estado"
+                                            <button class="btn btn-sm btn-action toggle-estado"
+                                                    style="background: linear-gradient(135deg, {% if usuario.is_active %}#28a745{% else %}#6c757d{% endif %} 0%, {% if usuario.is_active %}#218838{% else %}#5a6268{% endif %} 100%); border: none; color: white;"
                                                     data-user-id="{{ usuario.id }}"
                                                     data-current-state="{% if usuario.is_active %}active{% else %}inactive{% endif %}"
                                                     title="{% if usuario.is_active %}Desactivar{% else %}Activar{% endif %} Usuario">
                                                 <i class="fas fa-{% if usuario.is_active %}user-times{% else %}user-check{% endif %}"></i>
                                             </button>
                                             {% if not usuario.is_superuser %}
-                                                <a href="{% url 'usuarios:usuario_edit' usuario.id %}"
-                                                   class="btn btn-sm btn-action btn-outline-secondary"
-                                                   title="Editar Usuario">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-action btn-editar-usuario"
+                                                        style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white;"
+                                                        data-user-id="{{ usuario.id }}"
+                                                        title="Editar Usuario">
                                                     <i class="fas fa-edit"></i>
-                                                </a>
-                                                <button class="btn btn-sm btn-action btn-outline-danger delete-usuario"
+                                                </button>
+                                                <button class="btn btn-sm btn-action delete-usuario"
+                                                        style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border: none; color: white;"
                                                         data-user-id="{{ usuario.id }}"
                                                         data-user-name="{{ usuario.get_full_name|default:usuario.username }}"
                                                         title="Eliminar Usuario">
@@ -257,6 +261,8 @@
         border-radius: 12px;
         transition: all 0.3s ease;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        min-height: 90px;
+        padding: 1rem !important;
     }
 
     .stat-card:hover {
@@ -458,8 +464,287 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Modal de usuario
+    const usuarioModal = new bootstrap.Modal(document.getElementById('usuarioModal'));
+    const usuarioModalTitle = document.getElementById('usuarioModalTitle');
+    const usuarioModalBody = document.getElementById('usuarioModalBody');
+    const usuarioFormModal = document.getElementById('usuarioFormModal');
+    
+    // Botón nuevo usuario
+    document.getElementById('btnNuevoUsuario')?.addEventListener('click', function() {
+        usuarioModalTitle.textContent = 'Crear Nuevo Usuario';
+        usuarioModalBody.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>';
+        usuarioModal.show();
+        
+        fetch('{% url "usuarios:usuario_create" %}', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            // Verificar si la respuesta es JSON (error de permisos)
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json().then(data => {
+                    // Si es JSON, mostrar mensaje de error
+                    if (data.show_alert) {
+                        // Mostrar SweetAlert2 o mensaje elegante
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: data.alert_type || 'warning',
+                                title: data.alert_title || 'Acceso Denegado',
+                                text: data.alert_message || data.error,
+                                confirmButtonText: 'Entendido',
+                                confirmButtonColor: '#8B7355',
+                                customClass: {
+                                    popup: 'swal2-popup-custom',
+                                    title: 'swal2-title-custom',
+                                    confirmButton: 'swal2-confirm-custom'
+                                }
+                            }).then(() => {
+                                usuarioModal.hide();
+                            });
+                        } else {
+                            // Fallback: mostrar mensaje en el modal
+                            usuarioModalBody.innerHTML = `
+                                <div class="alert alert-warning" role="alert">
+                                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Acceso Denegado</h5>
+                                    <p>${data.alert_message || data.error}</p>
+                                    <hr>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        usuarioModalBody.innerHTML = `<div class="alert alert-danger">${data.error || 'Error al cargar el formulario.'}</div>`;
+                    }
+                });
+            } else {
+                // Si es HTML, procesar normalmente
+                return response.text().then(html => {
+                    usuarioModalBody.innerHTML = html;
+                    // Re-inicializar el formulario
+                    const form = document.getElementById('usuarioFormModal');
+                    if (form) {
+                        form.addEventListener('submit', handleFormSubmit);
+                        // Agregar listener para actualizar sucursales cuando cambie la empresa
+                        const empresaSelect = form.querySelector('#id_empresa');
+                        if (empresaSelect) {
+                            empresaSelect.addEventListener('change', function() {
+                        const empresaId = this.value;
+                        const sucursalSelect = form.querySelector('#id_sucursal');
+                        if (sucursalSelect && empresaId) {
+                            // Cargar sucursales de la empresa seleccionada
+                            fetch(`/empresas/${empresaId}/sucursales/json/`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        sucursalSelect.innerHTML = '<option value="">--------- (Todas las sucursales)</option>';
+                                        data.sucursales.forEach(sucursal => {
+                                            const option = document.createElement('option');
+                                            option.value = sucursal.id;
+                                            option.textContent = sucursal.nombre;
+                                            sucursalSelect.appendChild(option);
+                                        });
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error al cargar sucursales:', error);
+                                });
+                        }
+                    });
+                        }
+                        setupSucursalDropdown(form); // Setup dynamic sucursal loading
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            usuarioModalBody.innerHTML = '<div class="alert alert-danger">Error al cargar el formulario.</div>';
+        });
+    });
+    
+    // Botones editar usuario
+    document.querySelectorAll('.btn-editar-usuario').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            usuarioModalTitle.textContent = 'Editar Usuario';
+            usuarioModalBody.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>';
+            usuarioModal.show();
+            
+            fetch(`/usuarios/${userId}/editar/`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                // Verificar si la respuesta es JSON (error de permisos)
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json().then(data => {
+                        // Si es JSON, mostrar mensaje de error
+                        if (data.show_alert) {
+                            // Mostrar SweetAlert2 o mensaje elegante
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: data.alert_type || 'warning',
+                                    title: data.alert_title || 'Acceso Denegado',
+                                    text: data.alert_message || data.error,
+                                    confirmButtonText: 'Entendido',
+                                    confirmButtonColor: '#8B7355',
+                                    customClass: {
+                                        popup: 'swal2-popup-custom',
+                                        title: 'swal2-title-custom',
+                                        confirmButton: 'swal2-confirm-custom'
+                                    }
+                                }).then(() => {
+                                    usuarioModal.hide();
+                                });
+                            } else {
+                                // Fallback: mostrar mensaje en el modal
+                                usuarioModalBody.innerHTML = `
+                                    <div class="alert alert-warning" role="alert">
+                                        <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Acceso Denegado</h5>
+                                        <p>${data.alert_message || data.error}</p>
+                                        <hr>
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            usuarioModalBody.innerHTML = `<div class="alert alert-danger">${data.error || 'Error al cargar el formulario.'}</div>`;
+                        }
+                    });
+                } else {
+                    // Si es HTML, procesar normalmente
+                    return response.text().then(html => {
+                        usuarioModalBody.innerHTML = html;
+                        // Re-inicializar el formulario
+                        const form = document.getElementById('usuarioFormModal');
+                        if (form) {
+                            form.addEventListener('submit', handleFormSubmit);
+                            setupSucursalDropdown(form); // Setup dynamic sucursal loading
+                        }
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                usuarioModalBody.innerHTML = '<div class="alert alert-danger">Error al cargar el formulario.</div>';
+            });
+        });
+    });
+    
+    // Manejar envío del formulario
+    function handleFormSubmit(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton ? submitButton.innerHTML : '';
+        
+        // Limpiar errores previos
+        document.querySelectorAll('.text-danger.small').forEach(el => el.textContent = '');
+        document.getElementById('formErrors').style.display = 'none';
+        
+        // Deshabilitar botón
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+        }
+        
+        fetch(form.action || window.location.pathname, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mostrar mensaje de éxito
+                const toast = document.createElement('div');
+                toast.className = 'toast-notification';
+                toast.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #28a745; color: white; padding: 15px 20px; border-radius: 5px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+                toast.innerHTML = `<i class="fas fa-check-circle me-2"></i>${data.message}`;
+                document.body.appendChild(toast);
+                
+                // Cerrar modal y recargar
+                usuarioModal.hide();
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                // Mostrar errores
+                if (data.errors) {
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        const errorDiv = document.getElementById(`error_id_${field}`);
+                        if (errorDiv) {
+                            errorDiv.textContent = Array.isArray(errors) ? errors[0] : errors;
+                        }
+                    }
+                }
+                
+                if (data.error) {
+                    const errorDiv = document.getElementById('formErrors');
+                    errorDiv.textContent = data.error;
+                    errorDiv.style.display = 'block';
+                }
+                
+                // Re-habilitar botón
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalText;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            const errorDiv = document.getElementById('formErrors');
+            errorDiv.textContent = 'Error al procesar la solicitud. Por favor, intenta nuevamente.';
+            errorDiv.style.display = 'block';
+            
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+            }
+        });
+    }
+    
+    // Inicializar formulario si existe al cargar
+    if (usuarioFormModal) {
+        usuarioFormModal.addEventListener('submit', handleFormSubmit);
+    }
 });
 </script>
 
+<!-- Modal de Usuario -->
+<div class="modal fade" id="usuarioModal" tabindex="-1" aria-labelledby="usuarioModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
+                <h5 class="modal-title" id="usuarioModalTitle">
+                    <i class="fas fa-user-edit me-2"></i>Usuario
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="usuarioModalBody">
+                <!-- El contenido se carga dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Cancelar
+                </button>
+                <button type="submit" form="usuarioFormModal" class="btn btn-primary" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
+                    <i class="fas fa-save me-1"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
