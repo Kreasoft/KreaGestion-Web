@@ -6,10 +6,11 @@
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Hojas de Ruta</h1>
-        <a href="{% url 'pedidos:hoja_ruta_create' %}" class="btn btn-primary btn-icon-split">
-            <span class="icon text-white-50"><i class="fas fa-plus"></i></span>
-            <span class="text">Crear Hoja de Ruta</span>
-        </a>
+        <div>
+            <span class="text-muted small me-3">
+                <i class="fas fa-info-circle"></i> Las hojas de ruta se generan automáticamente al emitir facturas
+            </span>
+        </div>
     </div>
 
     <div class="card shadow mb-4">
@@ -37,14 +38,30 @@
                             <td>{{ hoja.fecha|date:"d/m/Y" }}</td>
                             <td>{{ hoja.vehiculo }}</td>
                             <td>{{ hoja.chofer }}</td>
-                            <td>{{ hoja.documentos.count }}</td>
+                            <td>{{ hoja.get_total_facturas }}</td>
                             <td>
-                                <span class="badge badge-{{ hoja.get_estado_display|lower }}">{{ hoja.get_estado_display }}</span>
+                                {% if hoja.estado == 'pendiente' %}
+                                    <span class="badge badge-warning">Pendiente</span>
+                                {% elif hoja.estado == 'en_ruta' %}
+                                    <span class="badge badge-info">En Ruta</span>
+                                {% elif hoja.estado == 'completada' %}
+                                    <span class="badge badge-success">Completada</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ hoja.get_estado_display }}</span>
+                                {% endif %}
                             </td>
                             <td>
-                                <a href="{% url 'pedidos:hoja_ruta_detail' hoja.id %}" class="btn btn-info btn-sm" title="Ver Detalle"><i class="fas fa-eye"></i></a>
-                                <a href="#" class="btn btn-warning btn-sm" title="Editar"><i class="fas fa-edit"></i></a>
-                                <a href="#" class="btn btn-danger btn-sm" title="Eliminar"><i class="fas fa-trash"></i></a>
+                                <a href="{% url 'pedidos:hoja_ruta_detail' hoja.id %}" class="btn btn-info btn-sm" title="Ver Detalle">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if perms.pedidos.change_hojaruta or user.is_superuser %}
+                                <a href="{% url 'pedidos:hoja_ruta_edit' hoja.id %}" class="btn btn-warning btn-sm" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'pedidos:hoja_ruta_imprimir' hoja.id %}" class="btn btn-primary btn-sm" title="Imprimir" target="_blank">
+                                    <i class="fas fa-print"></i>
+                                </a>
                             </td>
                         </tr>
                         {% empty %}

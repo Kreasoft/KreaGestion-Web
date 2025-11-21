@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import views_despacho
 from . import views_transporte
+from . import views_rutas
 from . import api_views
 
 app_name = 'pedidos'
@@ -47,6 +48,19 @@ urlpatterns = [
     path('choferes/<int:pk>/', views_transporte.chofer_detail, name='chofer_detail'),
     path('choferes/<int:pk>/editar/', views_transporte.chofer_update, name='chofer_update'),
     path('choferes/<int:pk>/eliminar/', views_transporte.chofer_delete, name='chofer_delete'),
+    
+    # Gestión de Rutas (tabla maestra)
+    path('rutas/', views_rutas.ruta_list, name='ruta_list'),
+    path('rutas/crear/', views_rutas.ruta_create, name='ruta_create'),
+    path('rutas/<int:pk>/', views_rutas.ruta_detail, name='ruta_detail'),
+    path('rutas/<int:pk>/editar/', views_rutas.ruta_edit, name='ruta_edit'),
+    path('rutas/<int:pk>/eliminar/', views_rutas.ruta_delete, name='ruta_delete'),
+    
+    # Gestión de Hojas de Ruta
+    path('hojas-ruta/', views_rutas.hoja_ruta_list, name='hoja_ruta_list'),
+    path('hojas-ruta/<int:pk>/', views_rutas.hoja_ruta_detail, name='hoja_ruta_detail'),
+    path('hojas-ruta/<int:pk>/editar/', views_rutas.hoja_ruta_edit, name='hoja_ruta_edit'),
+    path('hojas-ruta/<int:pk>/imprimir/', views_rutas.hoja_ruta_imprimir, name='hoja_ruta_imprimir'),
     
     # AJAX
     path('ajax/items-pedido/', views_despacho.ajax_items_pedido, name='ajax_items_pedido'),

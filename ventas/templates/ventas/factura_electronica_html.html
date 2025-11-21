@@ -390,11 +390,16 @@
             </div>
         </div>
 
-        <!-- FECHA -->
+        <!-- FECHA Y VENDEDOR -->
         <div class="fecha-emision">
             <strong>Fecha:</strong>
             {% load l10n %}
             {{ venta.fecha|date:"l, d \d\e F \d\e Y"|capfirst }}
+            {% if venta.vendedor %}
+            | <strong>Vendedor:</strong> {{ venta.vendedor.nombre }}
+            {% else %}
+            | <strong>Vendedor:</strong> No especificado
+            {% endif %}
         </div>
 
         <!-- DATOS DEL RECEPTOR -->
@@ -405,58 +410,80 @@
                         <span class="receptor-label">Señor(es):</span>
                     </div>
                     <div class="receptor-cell" colspan="3" style="padding-left: 0px; text-align: left;">
-                        <strong>{{ venta.cliente.nombre|default:"Cliente General" }}</strong>
+                        <strong>{% if venta.cliente %}{{ venta.cliente.nombre|default:"Cliente General" }}{% else %}Cliente General{% endif %}</strong>
                     </div>
                 </div>
             </div>
             <div class="receptor-grid">
                 <div class="receptor-row">
                     <div class="receptor-cell">
-                        <span class="receptor-label">Dirección</span>
-                    </div>
-                    <div class="receptor-cell">
-                        {{ venta.cliente.direccion|default:"-" }}
-                    </div>
-                    <div class="receptor-cell">
                         <span class="receptor-label">RUT</span>
                     </div>
                     <div class="receptor-cell">
-                        {{ venta.cliente.rut|default:"-" }}
+                        {% if venta.cliente %}{{ venta.cliente.rut|default:"Sin RUT" }}{% else %}Sin RUT{% endif %}
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Dirección</span>
+                    </div>
+                    <div class="receptor-cell">
+                        {% if venta.cliente %}{{ venta.cliente.direccion|default:"Sin dirección" }}{% else %}Sin dirección{% endif %}
                     </div>
                 </div>
             </div>
+            {% if venta.cliente and venta.cliente.giro %}
             <div class="receptor-grid">
                 <div class="receptor-row">
                     <div class="receptor-cell">
                         <span class="receptor-label">Giro</span>
                     </div>
-                    <div class="receptor-cell">
-                        {{ venta.cliente.giro|default:"Sin especificar" }}
-                    </div>
-                    <div class="receptor-cell">
-                        <span class="receptor-label">Ciudad</span>
-                    </div>
-                    <div class="receptor-cell">
-                        {{ venta.cliente.ciudad|default:"-" }}
+                    <div class="receptor-cell" colspan="3" style="padding-left: 0px; text-align: left;">
+                        {{ venta.cliente.giro }}
                     </div>
                 </div>
             </div>
+            {% endif %}
+            {% if venta.cliente %}
+                {% if venta.cliente.ciudad or venta.cliente.comuna %}
+                <div class="receptor-grid">
+                    <div class="receptor-row">
+                        {% if venta.cliente.comuna %}
+                        <div class="receptor-cell">
+                            <span class="receptor-label">Comuna</span>
+                        </div>
+                        <div class="receptor-cell">
+                            {{ venta.cliente.comuna }}
+                        </div>
+                        {% endif %}
+                        {% if venta.cliente.ciudad %}
+                        <div class="receptor-cell">
+                            <span class="receptor-label">Ciudad</span>
+                        </div>
+                        <div class="receptor-cell">
+                            {{ venta.cliente.ciudad }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
+            {% if venta.cliente and venta.cliente.telefono %}
             <div class="receptor-grid">
                 <div class="receptor-row">
                     <div class="receptor-cell">
-                        <span class="receptor-label">Comuna</span>
+                        <span class="receptor-label">Teléfono</span>
                     </div>
                     <div class="receptor-cell">
-                        {{ venta.cliente.comuna|default:"-" }}
+                        {{ venta.cliente.telefono }}
                     </div>
                     <div class="receptor-cell">
-                        <span class="receptor-label">Fecha Vto.</span>
+                        <span class="receptor-label">Email</span>
                     </div>
                     <div class="receptor-cell">
-                        {{ venta.fecha|date:"d/m/Y" }}
+                        {{ venta.cliente.email|default:"-" }}
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
 
         <!-- DETALLE DE PRODUCTOS -->
@@ -584,22 +611,21 @@
                 </div>
 
                 <!-- INFORMACIÓN DE PAGO -->
-                {% if formas_pago_list %}
-                <div class="payment-info">
-                    <div class="payment-title">Formas de Pago:</div>
-                    {% for fp in formas_pago_list %}
-                    <div class="payment-method">{{ fp.forma_pago }}: ${{ fp.monto|format_miles }}</div>
-                    {% endfor %}
-                </div>
-                {% elif venta.forma_pago %}
                 <div class="payment-info">
                     <div class="payment-title">Forma de Pago:</div>
-                    <div class="payment-method">{{ venta.forma_pago.nombre }}</div>
-                    {% if venta.forma_pago.es_cuenta_corriente and venta.saldo_pendiente > 0 %}
-                    <div class="payment-balance">Saldo Pendiente: ${{ venta.saldo_pendiente|floatformat:"0" }}</div>
+                    {% if formas_pago_list %}
+                        {% for fp in formas_pago_list %}
+                        <div class="payment-method">{{ fp.forma_pago }}: ${{ fp.monto|format_miles }}</div>
+                        {% endfor %}
+                    {% elif venta.forma_pago %}
+                        <div class="payment-method">{{ venta.forma_pago.nombre }}</div>
+                        {% if venta.forma_pago.es_cuenta_corriente and venta.saldo_pendiente > 0 %}
+                        <div class="payment-balance">Saldo Pendiente: ${{ venta.saldo_pendiente|floatformat:"0" }}</div>
+                        {% endif %}
+                    {% else %}
+                        <div class="payment-method" style="color: #ff0000;">⚠️ No especificada</div>
                     {% endif %}
                 </div>
-                {% endif %}
 
                 <!-- REFERENCIAS -->
                 {% if venta.referencias.exists %}
@@ -644,55 +670,148 @@
         <button onclick="window.print()" style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
             🖨️ Imprimir Factura
         </button>
-        <a id="btnBackPOS" href="{% url 'ventas:pos_view' %}" style="display: inline-block; padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px; text-decoration: none;">
-            ← Volver al POS
-        </a>
+        <button id="btnBackPOS" onclick="safeCloseWindow()" style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
+            ← Volver
+        </button>
     </div>
 
     <script>
-      (function() {
-        try {
-          const params = new URLSearchParams(window.location.search);
-          const auto = params.get('auto');
-          const posUrl = "{% url 'ventas:pos_view' %}";
-
-          const notifyParent = () => {
+        // Función universal para cerrar/volver desde templates de impresión
+        function safeCloseWindow() {
+            console.log('safeCloseWindow llamado');
+            
+            const posUrl = "{% url 'ventas:pos_view' %}";
+            
+            // Intentar notificar al padre si existe
             try {
-              if (window.opener && window.opener !== window) {
-                window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
-              }
-            } catch (e) { /* noop */ }
-            // Solo cerrar si la ventana fue abierta por el script
-            if (window.opener && window.opener !== window) {
-              try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
-            } else {
-              // Si no se puede cerrar, redirigir al POS
-              try { window.location.href = posUrl; } catch (e2) {}
+                if (window.opener && window.opener !== window && !window.opener.closed) {
+                    window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
+                }
+            } catch (e) {
+                console.log('No se pudo notificar al padre:', e);
             }
-          };
-
-          // Enganchar botón Volver al POS para notificar al padre
-          document.addEventListener('DOMContentLoaded', function() {
-            try {
-              const backBtn = document.getElementById('btnBackPOS');
-              if (backBtn) backBtn.addEventListener('click', function() { try { notifyParent(); } catch (e) {} });
-            } catch (e) { /* noop */ }
-          });
-
-          if (auto === '1') {
-            // Disparar impresión
-            setTimeout(() => { try { window.print(); } catch(e) {} }, 150);
-            // Volver inmediatamente tras afterprint
-            if ('onafterprint' in window) {
-              window.addEventListener('afterprint', () => setTimeout(notifyParent, 100));
+            
+            // Intentar cerrar la ventana si fue abierta por otra ventana
+            if (window.opener && window.opener !== window && !window.opener.closed) {
+                try {
+                    window.close();
+                    console.log('Ventana cerrada');
+                    return;
+                } catch (e) {
+                    console.log('No se pudo cerrar la ventana:', e);
+                }
             }
-            // Fallback rápido
-            setTimeout(notifyParent, 1000);
-          }
-        } catch (e) {
-          // noop
+            
+            // Obtener parámetros URL
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            const auto = params.get('auto');
+            
+            // Detectar si viene desde POS o caja
+            const referrer = document.referrer || '';
+            const fromPos = referrer.includes('/ventas/pos');
+            const fromCaja = referrer.includes('/caja/procesar-venta') || referrer.includes('/caja/');
+            const fromGestionCajas = referrer.includes('/caja/gestion') || referrer.includes('/caja/apertura');
+            
+            // SIEMPRE ir al POS si:
+            // 1. Viene con auto=1 (desde POS)
+            // 2. Viene con return_url que apunta al POS
+            // 3. Viene desde POS o caja/procesar-venta
+            // 4. NO usar referrer si es de gestión de cajas (siempre ir al POS)
+            if (auto === '1' || fromPos || fromCaja || (returnUrl && returnUrl.includes('/ventas/pos'))) {
+                console.log('Redirigiendo al POS (desde POS/caja)');
+                window.location.href = posUrl;
+                return;
+            }
+            
+            // Si viene desde gestión de cajas, SIEMPRE ir al POS (no volver a gestión)
+            if (fromGestionCajas) {
+                console.log('Redirigiendo al POS (venía desde gestión de cajas)');
+                window.location.href = posUrl;
+                return;
+            }
+            
+            // Si hay return_url válido y no es gestión de cajas, usarlo
+            if (returnUrl && !returnUrl.includes('/caja/gestion') && !returnUrl.includes('/caja/apertura')) {
+                console.log('Redirigiendo a return_url:', returnUrl);
+                window.location.href = returnUrl;
+                return;
+            }
+            
+            // Fallback: siempre ir al POS
+            console.log('Redirigiendo al POS (fallback)');
+            window.location.href = posUrl;
         }
-      })();
+        
+        // Guardar la URL de referencia cuando se carga la página
+        window.addEventListener('load', function() {
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            
+            // Guardar la URL de referencia si existe
+            if (returnUrl) {
+                sessionStorage.setItem('print_referer', returnUrl);
+                console.log('Return URL guardado:', returnUrl);
+            } else if (document.referrer && document.referrer !== window.location.href) {
+                sessionStorage.setItem('print_referer', document.referrer);
+                console.log('Referrer guardado:', document.referrer);
+            } else {
+                // Si no hay referrer, guardar el POS como fallback si viene de auto=1
+                if (params.get('auto') === '1') {
+                    sessionStorage.setItem('print_referer', "{% url 'ventas:pos_view' %}");
+                    console.log('Referrer fallback guardado: POS');
+                }
+            }
+        });
+        
+        // Asegurar que el botón funcione
+        document.addEventListener('DOMContentLoaded', function() {
+            const backBtn = document.getElementById('btnBackPOS');
+            if (backBtn) {
+                backBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    safeCloseWindow();
+                });
+                console.log('Event listener agregado al botón volver');
+            }
+        });
+        
+        // Auto-print cuando viene con auto=1
+        (function() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const auto = params.get('auto');
+                
+                if (auto === '1') {
+                    // Disparar impresión
+                    setTimeout(() => { 
+                        try { 
+                            window.print(); 
+                        } catch(e) {
+                            console.log('Error al imprimir:', e);
+                        }
+                    }, 150);
+                    
+                    // Volver tras afterprint solo si fue abierto por script
+                    if ('onafterprint' in window && window.opener && window.opener !== window) {
+                        window.addEventListener('afterprint', () => {
+                            setTimeout(() => {
+                                try {
+                                    if (window.opener && !window.opener.closed) {
+                                        window.close();
+                                    }
+                                } catch (e) {
+                                    safeCloseWindow();
+                                }
+                            }, 100);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.log('Error en auto-print:', e);
+            }
+        })();
     </script>
 
 </body>

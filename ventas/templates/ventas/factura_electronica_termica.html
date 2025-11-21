@@ -285,32 +285,47 @@
             </div>
         </div>
 
+        <!-- VENDEDOR -->
+        {% if venta.vendedor %}
+        <div style="text-align: center; font-size: 7pt; margin: 1mm 0;">
+            <strong>Vendedor:</strong> {{ venta.vendedor.nombre }}
+        </div>
+        {% endif %}
+
         <!-- DATOS DEL CLIENTE -->
         <div class="cliente-section">
             <div class="cliente-row">
                 <span class="cliente-label">Cliente:</span>
-                <span>{{ venta.cliente.nombre|default:"Cliente General" }}</span>
+                <span>{% if venta.cliente %}{{ venta.cliente.nombre|default:"Cliente General" }}{% else %}Cliente General{% endif %}</span>
             </div>
             <div class="cliente-row">
                 <span class="cliente-label">RUT:</span>
-                <span>{{ venta.cliente.rut|default:"-" }}</span>
+                <span>{% if venta.cliente %}{{ venta.cliente.rut|default:"-" }}{% else %}-{% endif %}</span>
             </div>
-            {% if venta.cliente.giro %}
+            {% if venta.cliente and venta.cliente.giro %}
             <div class="cliente-row">
                 <span class="cliente-label">Giro:</span>
                 <span>{{ venta.cliente.giro }}</span>
             </div>
             {% endif %}
-            {% if venta.cliente.direccion %}
+            {% if venta.cliente and venta.cliente.direccion %}
             <div class="cliente-row">
                 <span class="cliente-label">Dirección:</span>
                 <span>{{ venta.cliente.direccion }}</span>
             </div>
             {% endif %}
-            {% if venta.cliente.ciudad or venta.cliente.comuna %}
+            {% if venta.cliente %}
+                {% if venta.cliente.ciudad or venta.cliente.comuna %}
+                <div class="cliente-row">
+                    <span class="cliente-label">Ciudad:</span>
+                    <span>{{ venta.cliente.comuna|default:"-" }}{% if venta.cliente.comuna and venta.cliente.ciudad %}, {% endif %}{{ venta.cliente.ciudad|default:"-" }}</span>
+                </div>
+                {% endif %}
+            {% endif %}
+            {% if venta.cliente and venta.cliente.telefono %}
             <div class="cliente-row">
-                <span class="cliente-label">Ciudad:</span>
-                <span>{{ venta.cliente.comuna|default:"-" }}, {{ venta.cliente.ciudad|default:"-" }}</span>
+                <span class="cliente-label">Teléfono:</span>
+                <span>{{ venta.cliente.telefono }}</span>
             </div>
             {% endif %}
         </div>
@@ -368,8 +383,8 @@
         </div>
 
         <!-- FORMAS DE PAGO -->
-        {% if formas_pago_list %}
         <div style="border-top: 1px dashed #000; padding-top: 2mm; margin: 2mm 0;">
+            {% if formas_pago_list %}
             <div style="text-align: center; font-weight: bold; font-size: 8pt; margin-bottom: 1mm;">FORMAS DE PAGO</div>
             {% for fp in formas_pago_list %}
             <div style="display: flex; justify-content: space-between; font-size: 8pt; margin-bottom: 1mm;">
@@ -377,12 +392,16 @@
                 <span style="font-weight: bold;">${{ fp.monto|format_miles }}</span>
             </div>
             {% endfor %}
+            {% elif venta.forma_pago %}
+            <div style="text-align: center; font-size: 8pt;">
+                <strong>Forma de Pago:</strong> {{ venta.forma_pago.nombre }}
+            </div>
+            {% else %}
+            <div style="text-align: center; font-size: 8pt; color: #ff0000;">
+                <strong>Forma de Pago:</strong> ⚠️ No especificada
+            </div>
+            {% endif %}
         </div>
-        {% elif venta.forma_pago %}
-        <div style="text-align: center; font-size: 8pt; margin: 2mm 0;">
-            <strong>Forma de Pago:</strong> {{ venta.forma_pago.nombre }}
-        </div>
-        {% endif %}
 
         <!-- REFERENCIAS -->
         {% if venta.referencias.exists %}
@@ -457,62 +476,152 @@
         <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             🖨️ Imprimir
         </button>
-        <a id="btnBackPOS" href="{% url 'ventas:pos_view' %}" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
+        <button id="btnBackPOS" onclick="safeCloseWindow()" style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             ← Volver
-        </a>
+        </button>
     </div>
 
     <script>
-      (function() {
-        try {
-          const params = new URLSearchParams(window.location.search);
-          const auto = params.get('auto');
-          const posUrl = "{% url 'ventas:pos_view' %}";
-          const nombreImpresora = "{{ nombre_impresora|default:'' }}";
-
-          const notifyParent = () => {
-            try {
-              if (window.opener && window.opener !== window) {
-                window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
-              }
-            } catch (e) { /* noop */ }
-            // Solo cerrar si la ventana fue abierta por el script
-            if (window.opener && window.opener !== window) {
-              try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
-            } else {
-              // Si no se puede cerrar, redirigir al POS
-              try { window.location.href = posUrl; } catch (e2) {}
-            }
-          };
-
-          document.addEventListener('DOMContentLoaded', function() {
-            try {
-              const backBtn = document.getElementById('btnBackPOS');
-              if (backBtn) backBtn.addEventListener('click', function() { try { notifyParent(); } catch (e) {} });
-            } catch (e) { /* noop */ }
-          });
-
-          if (auto === '1') {
-            setTimeout(() => { 
-              try { 
-                // Si hay nombre de impresora específico, intentar usarlo (requiere extensión o API)
-                if (nombreImpresora) {
-                  console.log('[PRINT] Impresora configurada:', nombreImpresora);
-                  // Aquí podrías integrar con APIs de impresión específicas
-                }
-                window.print(); 
-              } catch(e) {} 
-            }, 150);
+        // Función universal para cerrar/volver desde templates de impresión
+        function safeCloseWindow() {
+            console.log('safeCloseWindow llamado');
             
-            if ('onafterprint' in window) {
-              window.addEventListener('afterprint', () => setTimeout(notifyParent, 100));
+            const posUrl = "{% url 'ventas:pos_view' %}";
+            
+            // Intentar notificar al padre si existe
+            try {
+                if (window.opener && window.opener !== window && !window.opener.closed) {
+                    window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
+                }
+            } catch (e) {
+                console.log('No se pudo notificar al padre:', e);
             }
-            setTimeout(notifyParent, 1000);
-          }
-        } catch (e) {
-          // noop
+            
+            // Intentar cerrar la ventana si fue abierta por otra ventana
+            if (window.opener && window.opener !== window && !window.opener.closed) {
+                try {
+                    window.close();
+                    console.log('Ventana cerrada');
+                    return;
+                } catch (e) {
+                    console.log('No se pudo cerrar la ventana:', e);
+                }
+            }
+            
+            // Obtener parámetros URL
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            const auto = params.get('auto');
+            
+            // Detectar si viene desde POS o caja
+            const referrer = document.referrer || '';
+            const fromPos = referrer.includes('/ventas/pos');
+            const fromCaja = referrer.includes('/caja/procesar-venta') || referrer.includes('/caja/');
+            const fromGestionCajas = referrer.includes('/caja/gestion') || referrer.includes('/caja/apertura');
+            
+            // SIEMPRE ir al POS si:
+            // 1. Viene con auto=1 (desde POS)
+            // 2. Viene con return_url que apunta al POS
+            // 3. Viene desde POS o caja/procesar-venta
+            // 4. NO usar referrer si es de gestión de cajas (siempre ir al POS)
+            if (auto === '1' || fromPos || fromCaja || (returnUrl && returnUrl.includes('/ventas/pos'))) {
+                console.log('Redirigiendo al POS (desde POS/caja)');
+                window.location.href = posUrl;
+                return;
+            }
+            
+            // Si viene desde gestión de cajas, SIEMPRE ir al POS (no volver a gestión)
+            if (fromGestionCajas) {
+                console.log('Redirigiendo al POS (venía desde gestión de cajas)');
+                window.location.href = posUrl;
+                return;
+            }
+            
+            // Si hay return_url válido y no es gestión de cajas, usarlo
+            if (returnUrl && !returnUrl.includes('/caja/gestion') && !returnUrl.includes('/caja/apertura')) {
+                console.log('Redirigiendo a return_url:', returnUrl);
+                window.location.href = returnUrl;
+                return;
+            }
+            
+            // Fallback: siempre ir al POS
+            console.log('Redirigiendo al POS (fallback)');
+            window.location.href = posUrl;
         }
-      })();
+        
+        // Guardar la URL de referencia cuando se carga la página
+        window.addEventListener('load', function() {
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            
+            // Guardar la URL de referencia si existe
+            if (returnUrl) {
+                sessionStorage.setItem('print_referer', returnUrl);
+                console.log('Return URL guardado:', returnUrl);
+            } else if (document.referrer && document.referrer !== window.location.href) {
+                sessionStorage.setItem('print_referer', document.referrer);
+                console.log('Referrer guardado:', document.referrer);
+            } else {
+                // Si no hay referrer, guardar el POS como fallback si viene de auto=1
+                if (params.get('auto') === '1') {
+                    sessionStorage.setItem('print_referer', "{% url 'ventas:pos_view' %}");
+                    console.log('Referrer fallback guardado: POS');
+                }
+            }
+        });
+        
+        // Asegurar que el botón funcione
+        document.addEventListener('DOMContentLoaded', function() {
+            const backBtn = document.getElementById('btnBackPOS');
+            if (backBtn) {
+                backBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    safeCloseWindow();
+                });
+                console.log('Event listener agregado al botón volver');
+            }
+        });
+        
+        // Auto-print cuando viene con auto=1
+        (function() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const auto = params.get('auto');
+                const nombreImpresora = "{{ nombre_impresora|default:'' }}";
+                
+                if (auto === '1') {
+                    setTimeout(() => { 
+                        try { 
+                            // Si hay nombre de impresora específico, intentar usarlo (requiere extensión o API)
+                            if (nombreImpresora) {
+                                console.log('[PRINT] Impresora configurada:', nombreImpresora);
+                            }
+                            window.print(); 
+                        } catch(e) {
+                            console.log('Error al imprimir:', e);
+                        }
+                    }, 150);
+                    
+                    // Volver tras afterprint solo si fue abierto por script
+                    if ('onafterprint' in window && window.opener && window.opener !== window) {
+                        window.addEventListener('afterprint', () => {
+                            setTimeout(() => {
+                                try {
+                                    if (window.opener && !window.opener.closed) {
+                                        window.close();
+                                    }
+                                } catch (e) {
+                                    safeCloseWindow();
+                                }
+                            }, 100);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.log('Error en auto-print:', e);
+            }
+        })();
     </script>
 
 </body>

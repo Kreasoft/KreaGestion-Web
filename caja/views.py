@@ -1067,6 +1067,18 @@ def procesar_venta(request, ticket_id):
                             # El generador espera una relación 'orden_despacho', la usamos de forma genérica.
                             dte.orden_despacho.add(venta_final)
                             dte.save()
+                            
+                            # Generar hoja de ruta automáticamente si aplica
+                            if tipo_documento == 'factura' and venta_final.cliente and venta_final.vehiculo and venta_final.chofer:
+                                try:
+                                    from pedidos.utils_hoja_ruta import generar_hoja_ruta_automatica
+                                    hoja_ruta = generar_hoja_ruta_automatica(dte, venta_final, request.empresa)
+                                    if hoja_ruta:
+                                        print(f"[OK] Hoja de ruta generada automáticamente: {hoja_ruta.numero_ruta}")
+                                except Exception as e_hr:
+                                    print(f"[WARN] Error al generar hoja de ruta automática: {e_hr}")
+                                    import traceback
+                                    traceback.print_exc()
 
                             # --- PROCESAMIENTO COMPLETO DEL DTE ---
                             empresa = request.empresa

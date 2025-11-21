@@ -65,6 +65,17 @@ class Cliente(models.Model):
     # Estado
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activo')
     
+    # Ruta de despacho asignada
+    ruta = models.ForeignKey(
+        'pedidos.Ruta',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='clientes',
+        verbose_name="Ruta de Despacho",
+        help_text="Ruta asignada para el despacho de productos a este cliente"
+    )
+    
     # Información adicional
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     fecha_alta = models.DateField(default=timezone.now, verbose_name="Fecha de Alta")

@@ -1,4 +1,8 @@
 from django.contrib import admin
+# Importar modelos de rutas para que Django los reconozca
+from . import models_rutas
+from .models_rutas import Ruta, HojaRuta
+
 from .models import (
     OrdenPedido, ItemOrdenPedido, 
     OrdenDespacho, DetalleOrdenDespacho,
@@ -123,3 +127,69 @@ class DetalleOrdenDespachoAdmin(admin.ModelAdmin):
         'lote'
     )
     autocomplete_fields = ['guia_despacho', 'factura']
+
+
+# ===== RUTAS =====
+@admin.register(Ruta)
+class RutaAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'nombre', 'orden_visita', 'dias_visita', 'activo', 'empresa', 'get_clientes_count')
+    list_filter = ('activo', 'empresa')
+    search_fields = ('codigo', 'nombre', 'descripcion')
+    ordering = ['orden_visita', 'codigo']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('empresa', 'codigo', 'nombre', 'descripcion')
+        }),
+        ('Configuración', {
+            'fields': ('dias_visita', 'orden_visita', 'activo')
+        }),
+    )
+    
+    def get_clientes_count(self, obj):
+        return obj.get_clientes_count()
+    get_clientes_count.short_description = 'Clientes'
+
+
+# ===== HOJAS DE RUTA =====
+@admin.register(HojaRuta)
+class HojaRutaAdmin(admin.ModelAdmin):
+    list_display = (
+        'numero_ruta', 'ruta', 'fecha', 'vehiculo', 'chofer', 
+        'estado', 'get_total_facturas', 'get_monto_total', 'creado_por'
+    )
+    list_filter = ('estado', 'fecha', 'ruta', 'vehiculo', 'chofer', 'empresa')
+    search_fields = (
+        'numero_ruta', 'ruta__nombre', 'chofer__nombre', 
+        'vehiculo__patente', 'ayudante'
+    )
+    readonly_fields = ('numero_ruta', 'fecha_creacion', 'fecha_modificacion')
+    filter_horizontal = ('facturas',)
+    
+    fieldsets = (
+        ('Información General', {
+            'fields': ('empresa', 'ruta', 'numero_ruta', 'fecha', 'estado')
+        }),
+        ('Transporte', {
+            'fields': ('vehiculo', 'chofer', 'ayudante')
+        }),
+        ('Facturas', {
+            'fields': ('facturas',)
+        }),
+        ('Información Adicional', {
+            'fields': ('observaciones', 'hora_salida', 'hora_llegada', 
+                      'kilometraje_salida', 'kilometraje_llegada')
+        }),
+        ('Auditoría', {
+            'fields': ('creado_por', 'fecha_creacion', 'fecha_modificacion'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_total_facturas(self, obj):
+        return obj.get_total_facturas()
+    get_total_facturas.short_description = 'Facturas'
+    
+    def get_monto_total(self, obj):
+        return f"${obj.get_monto_total():,.0f}"
+    get_monto_total.short_description = 'Monto Total'

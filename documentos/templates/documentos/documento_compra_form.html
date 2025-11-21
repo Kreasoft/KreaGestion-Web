@@ -974,6 +974,9 @@ window.addItemForm = function() {
             
             console.log('Clonando formulario, nuevo índice:', formIndex);
             
+            // Obtener el select original del template para copiar sus opciones
+            const originalSelect = templateForm.querySelector('.articulo-select');
+            
             // Destruir Select2 del elemento clonado si existe
             const clonedSelect = emptyForm.querySelector('.articulo-select');
             if (clonedSelect && $(clonedSelect).data('select2')) {
@@ -984,14 +987,32 @@ window.addItemForm = function() {
             emptyForm.querySelectorAll('input, select, textarea').forEach(function(element) {
                 if (element.name) {
                     const oldName = element.name;
-                    element.name = element.name.replace(/-\d+-/, '-' + formIndex + '-');
+                    // Reemplazar el índice en el nombre del campo
+                    const nameMatch = oldName.match(/^(.+-)(\d+)(-.+)$/);
+                    if (nameMatch) {
+                        element.name = nameMatch[1] + formIndex + nameMatch[3];
+                    } else {
+                        // Si no tiene el formato esperado, intentar reemplazo simple
+                        element.name = element.name.replace(/-\d+-/, '-' + formIndex + '-');
+                    }
                     console.log('Actualizando name:', oldName, '->', element.name);
                 }
                 if (element.id) {
-                    element.id = element.id.replace(/-\d+-/, '-' + formIndex + '-');
+                    const idMatch = element.id.match(/^(.+-)(\d+)(-.+)$/);
+                    if (idMatch) {
+                        element.id = idMatch[1] + formIndex + idMatch[3];
+                    } else {
+                        element.id = element.id.replace(/-\d+-/, '-' + formIndex + '-');
+                    }
                 }
                 if (element.classList.contains('articulo-select')) {
                     element.setAttribute('data-index', formIndex);
+                    // Reconstruir el select con todas las opciones del original
+                    if (originalSelect) {
+                        element.innerHTML = originalSelect.innerHTML;
+                        // Asegurarse de que la primera opción esté seleccionada
+                        element.selectedIndex = 0;
+                    }
                 }
             });
             
@@ -1004,9 +1025,11 @@ window.addItemForm = function() {
                 }
             });
             
-            // Limpiar select y establecer opción por defecto
+            // Limpiar select y establecer opción por defecto (ya se hizo arriba, pero por si acaso)
             emptyForm.querySelectorAll('select').forEach(function(element) {
-                element.selectedIndex = 0;
+                if (!element.classList.contains('articulo-select')) {
+                    element.selectedIndex = 0;
+                }
             });
             
             // Limpiar campos hidden de DELETE
@@ -1028,6 +1051,14 @@ window.addItemForm = function() {
             // Reinicializar Select2 en el nuevo formulario
             const newSelect = emptyForm.querySelector('.articulo-select');
             if (newSelect) {
+                // Asegurarse de que el select tenga todas las opciones disponibles
+                // Si no tiene opciones, copiarlas del primer select disponible
+                if (newSelect.options.length <= 1 && originalSelect) {
+                    newSelect.innerHTML = originalSelect.innerHTML;
+                    newSelect.selectedIndex = 0;
+                }
+                
+                // Inicializar Select2
                 $(newSelect).select2({
                     placeholder: 'Buscar artículo por código o nombre...',
                     allowClear: true,
@@ -1041,6 +1072,8 @@ window.addItemForm = function() {
                     },
                     width: '100%'
                 });
+                
+                console.log('Select2 inicializado en nuevo formulario, opciones:', newSelect.options.length);
             }
             
             // Actualizar contador

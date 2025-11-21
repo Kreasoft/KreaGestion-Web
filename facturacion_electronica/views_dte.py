@@ -177,8 +177,14 @@ def ver_factura_electronica(request, dte_id):
     """
     dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
     
-    # Obtener la venta o la orden de despacho asociada
-    venta = dte.venta
+    # Obtener la venta o la orden de despacho asociada con relaciones cargadas
+    venta = None
+    if dte.venta_id:
+        # Cargar venta con todas las relaciones necesarias
+        venta = Venta.objects.select_related(
+            'cliente', 'vendedor', 'empresa', 'estacion_trabajo', 'forma_pago'
+        ).get(pk=dte.venta_id)
+    
     orden_despacho = dte.orden_despacho.first()
     documento_origen = venta or orden_despacho
 
@@ -186,6 +192,18 @@ def ver_factura_electronica(request, dte_id):
         messages.error(request, 'Este DTE no tiene un documento de origen asociado (Venta u Orden de Despacho).')
         return redirect('facturacion_electronica:dte_detail', pk=dte_id)
 
+    # Crear wrapper de cliente desde DTE si no hay cliente o el cliente no tiene datos
+    class ClienteWrapper:
+        def __init__(self, dte):
+            self.nombre = dte.razon_social_receptor or "Cliente General"
+            self.rut = dte.rut_receptor or ""
+            self.direccion = dte.direccion_receptor or ""
+            self.giro = dte.giro_receptor or ""
+            self.ciudad = dte.ciudad_receptor or ""
+            self.comuna = dte.comuna_receptor or ""
+            self.telefono = ""
+            self.email = ""
+    
     # Si no hay venta pero hay orden de despacho, crear un objeto wrapper para compatibilidad
     if not venta and orden_despacho:
         # Crear un objeto simple que tenga los atributos necesarios para el template
@@ -195,8 +213,9 @@ def ver_factura_electronica(request, dte_id):
                 self.numero_venta = dte.folio or getattr(orden_despacho, 'numero_despacho', 'N/A')
                 # Empresa
                 self.empresa = orden_despacho.empresa if hasattr(orden_despacho, 'empresa') else dte.empresa
-                # Cliente desde orden_pedido
-                self.cliente = orden_despacho.orden_pedido.cliente if hasattr(orden_despacho, 'orden_pedido') and orden_despacho.orden_pedido else None
+                # Cliente desde orden_pedido o DTE como fallback
+                cliente_real = orden_despacho.orden_pedido.cliente if hasattr(orden_despacho, 'orden_pedido') and orden_despacho.orden_pedido else None
+                self.cliente = cliente_real if cliente_real else ClienteWrapper(dte)
                 # Vendedor desde orden_pedido si existe
                 self.vendedor = getattr(orden_despacho.orden_pedido, 'vendedor', None) if hasattr(orden_despacho, 'orden_pedido') and orden_despacho.orden_pedido else None
                 # Fecha: usar fecha_despacho o fecha_emision del DTE
@@ -222,6 +241,9 @@ def ver_factura_electronica(request, dte_id):
                 self.observaciones = getattr(orden_despacho, 'observaciones', '')
         
         venta = VentaWrapper(orden_despacho, dte)
+    elif venta and (not venta.cliente or not venta.cliente.nombre):
+        # Si la venta existe pero no tiene cliente o el cliente no tiene nombre, usar DTE como fallback
+        venta.cliente = ClienteWrapper(dte)
 
     # Obtener detalles del documento
     detalles = []
@@ -282,29 +304,84 @@ def ver_factura_electronica(request, dte_id):
         
         # Solo buscar formas de pago si venta es una instancia real de Venta (no wrapper)
         if venta and hasattr(venta, 'id') and isinstance(venta, Venta):
-            # Buscar VentaProcesada para esta venta
-            venta_procesada = VentaProcesada.objects.filter(venta_final=venta).first()
+            # Método 1: Buscar desde VentaProcesada.movimiento_caja (relación directa)
+            venta_procesada = VentaProcesada.objects.filter(venta_final=venta).select_related('movimiento_caja__forma_pago').first()
             
-            if venta_procesada and venta_procesada.apertura_caja:
-                # Obtener todos los movimientos de caja asociados a esta venta
+            if venta_procesada and venta_procesada.movimiento_caja:
+                mov = venta_procesada.movimiento_caja
+                if mov.forma_pago:
+                    formas_pago_list.append({
+                        'forma_pago': mov.forma_pago.nombre,
+                        'monto': abs(float(mov.monto)) if mov.monto else float(venta.total)
+                    })
+                    print(f"[PRINT] Forma de pago encontrada desde VentaProcesada.movimiento_caja: {mov.forma_pago.nombre}")
+            
+            # Método 2: Buscar directamente en MovimientoCaja por venta
+            if not formas_pago_list:
+                movimientos_directos = MovimientoCaja.objects.filter(
+                    venta=venta,
+                    tipo__in=['venta', 'ingreso']
+                ).select_related('forma_pago')
+                
+                for mov in movimientos_directos:
+                    if mov.forma_pago:
+                        formas_pago_list.append({
+                            'forma_pago': mov.forma_pago.nombre,
+                            'monto': abs(float(mov.monto))
+                        })
+                        print(f"[PRINT] Forma de pago encontrada desde MovimientoCaja directo: {mov.forma_pago.nombre}")
+            
+            # Método 3: Buscar desde VentaProcesada.apertura_caja por descripción
+            if not formas_pago_list and venta_procesada and venta_procesada.apertura_caja:
                 movimientos = MovimientoCaja.objects.filter(
                     apertura_caja=venta_procesada.apertura_caja,
                     descripcion__icontains=venta.numero_venta
                 ).select_related('forma_pago')
                 
                 for mov in movimientos:
-                    if mov.forma_pago and mov.tipo == 'ingreso':
+                    if mov.forma_pago and mov.tipo in ['venta', 'ingreso']:
                         formas_pago_list.append({
                             'forma_pago': mov.forma_pago.nombre,
-                            'monto': abs(mov.monto)
+                            'monto': abs(float(mov.monto))
                         })
-                
-                if formas_pago_list:
-                    print(f"[PRINT] Formas de pago encontradas: {len(formas_pago_list)}")
-                    for fp in formas_pago_list:
-                        print(f"   - {fp['forma_pago']}: ${fp['monto']}")
+                        print(f"[PRINT] Forma de pago encontrada desde MovimientoCaja por descripción: {mov.forma_pago.nombre}")
+            
+            # Método 4: Si no hay formas de pago múltiples pero la venta tiene forma_pago, usarla
+            if not formas_pago_list and venta.forma_pago:
+                formas_pago_list.append({
+                    'forma_pago': venta.forma_pago.nombre,
+                    'monto': float(venta.total)
+                })
+                print(f"[PRINT] Usando forma de pago de la venta: {venta.forma_pago.nombre}")
+            
+            if formas_pago_list:
+                print(f"[PRINT] Formas de pago encontradas: {len(formas_pago_list)}")
+                for fp in formas_pago_list:
+                    print(f"   - {fp['forma_pago']}: ${fp['monto']}")
+            else:
+                print(f"[WARN] No se encontraron formas de pago para venta ID {venta.id}")
     except Exception as e:
         print(f"[WARN] Error al obtener formas de pago: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        # Fallback: si hay venta con forma_pago, usarla
+        if venta and hasattr(venta, 'forma_pago') and venta.forma_pago:
+            formas_pago_list.append({
+                'forma_pago': venta.forma_pago.nombre,
+                'monto': float(getattr(venta, 'total', 0))
+            })
+    
+    # Debug: verificar forma de pago
+    if venta:
+        print(f"[DEBUG] Venta ID: {getattr(venta, 'id', 'N/A')}")
+        print(f"[DEBUG] Venta tiene forma_pago: {hasattr(venta, 'forma_pago')}")
+        if hasattr(venta, 'forma_pago') and venta.forma_pago:
+            print(f"[DEBUG] Forma de pago de venta: {venta.forma_pago.nombre}")
+        else:
+            print(f"[DEBUG] Venta NO tiene forma_pago")
+        print(f"[DEBUG] Formas de pago list: {len(formas_pago_list)}")
+        for fp in formas_pago_list:
+            print(f"[DEBUG]   - {fp['forma_pago']}: ${fp['monto']}")
     
     context = {
         'dte': dte,

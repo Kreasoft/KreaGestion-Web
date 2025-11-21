@@ -828,8 +828,8 @@ def pos_view(request):
         activo=True
     ).prefetch_related('items__articulo').order_by('-destacado', 'nombre')
     
-    # Filtrar solo kits vigentes y con stock
-    kits_disponibles = [kit for kit in kits if kit.esta_disponible]
+    # Filtrar solo kits vigentes (sin requerir stock - el stock se valida al agregar al carrito)
+    kits_disponibles = [kit for kit in kits if kit.activo and kit.esta_vigente]
     
     context = {
         'articulos': articulos,
@@ -1344,33 +1344,121 @@ def pos_procesar_preventa(request):
             
             # Crear detalles
             print("DEBUG - Creando detalles de venta...")
+            from articulos.models import KitOferta, KitOfertaItem
+            
             for i, item in enumerate(data['items']):
                 print(f"DEBUG - Procesando item {i}: {item}")
-                articulo_id_limpio = clean_id(item.get('articuloId'))
-                print(f"DEBUG - Buscando artículo ID: {item.get('articuloId')} -> {articulo_id_limpio}")
-                articulo = Articulo.objects.get(id=articulo_id_limpio, empresa=request.empresa)
-                print(f"DEBUG - Artículo encontrado: {articulo.nombre}")
                 
-                print(f"DEBUG - Creando VentaDetalle...")
-                print(f"DEBUG - Valores a crear:")
-                print(f"  cantidad: {Decimal(str(item['cantidad']))}")
-                print(f"  precio_unitario: {Decimal(str(item['precio']))}")
-                print(f"  precio_total: {Decimal(str(item['total']))}")
-                
-                try:
-                    VentaDetalle.objects.create(
-                        venta=preventa,
-                        articulo=articulo,
-                        cantidad=Decimal(str(item['cantidad'])),
-                        precio_unitario=Decimal(str(item['precio'])),
-                        precio_total=Decimal(str(item['total'])),
-                        impuesto_especifico=Decimal('0.00')
-                    )
-                    print(f"DEBUG - VentaDetalle creado exitosamente")
-                except Exception as e:
-                    print(f"ERROR al crear VentaDetalle: {e}")
-                    print(f"Tipo de error: {type(e)}")
-                    raise e
+                # Verificar si es un kit
+                if item.get('tipo') == 'kit' or item.get('kitId'):
+                    kit_id = clean_id(item.get('kitId'))
+                    cantidad_kit = Decimal(str(item['cantidad']))
+                    precio_kit_total = Decimal(str(item['precio']))
+                    
+                    print(f"DEBUG - Es un KIT. Kit ID: {kit_id}, Cantidad: {cantidad_kit}, Precio total: {precio_kit_total}")
+                    
+                    try:
+                        kit = KitOferta.objects.get(id=kit_id, empresa=request.empresa)
+                        kit_items = kit.items.select_related('articulo').all()
+                        
+                        # Calcular precio total normal de todos los items del kit
+                        precio_total_normal = Decimal('0.00')
+                        for kit_item in kit_items:
+                            try:
+                                precio_articulo = Decimal(str(kit_item.articulo.precio_final_calculado))
+                            except (ValueError, AttributeError, TypeError):
+                                try:
+                                    precio_articulo = Decimal(str(kit_item.articulo.precio_venta))
+                                except:
+                                    precio_articulo = Decimal('0.00')
+                            precio_total_normal += precio_articulo * Decimal(str(kit_item.cantidad))
+                        
+                        # Calcular factor de descuento proporcional
+                        if precio_total_normal > 0:
+                            factor_descuento = precio_kit_total / precio_total_normal
+                        else:
+                            factor_descuento = Decimal('1.00')
+                        
+                        print(f"DEBUG - Precio total normal del kit: {precio_total_normal}")
+                        print(f"DEBUG - Factor descuento: {factor_descuento}")
+                        
+                        # Crear detalles para cada artículo del kit
+                        for kit_item in kit_items:
+                            try:
+                                precio_articulo_normal = Decimal(str(kit_item.articulo.precio_final_calculado))
+                            except (ValueError, AttributeError, TypeError):
+                                try:
+                                    precio_articulo_normal = Decimal(str(kit_item.articulo.precio_venta))
+                                except:
+                                    precio_articulo_normal = Decimal('0.00')
+                            
+                            # Precio proporcional del artículo
+                            precio_proporcional = precio_articulo_normal * factor_descuento
+                            cantidad_articulo = Decimal(str(kit_item.cantidad)) * cantidad_kit
+                            precio_total_articulo = precio_proporcional * cantidad_articulo
+                            
+                            print(f"DEBUG - Artículo del kit: {kit_item.articulo.nombre}")
+                            print(f"DEBUG -   Precio normal: {precio_articulo_normal}")
+                            print(f"DEBUG -   Precio proporcional: {precio_proporcional}")
+                            print(f"DEBUG -   Cantidad: {cantidad_articulo}")
+                            print(f"DEBUG -   Precio total: {precio_total_articulo}")
+                            
+                            VentaDetalle.objects.create(
+                                venta=preventa,
+                                articulo=kit_item.articulo,
+                                cantidad=cantidad_articulo,
+                                precio_unitario=precio_proporcional,
+                                precio_total=precio_total_articulo,
+                                impuesto_especifico=Decimal('0.00')
+                            )
+                            print(f"DEBUG - VentaDetalle creado para artículo del kit")
+                            
+                    except KitOferta.DoesNotExist:
+                        print(f"ERROR - Kit con ID {kit_id} no encontrado")
+                        raise Exception(f"Kit con ID {kit_id} no encontrado")
+                    except Exception as e:
+                        print(f"ERROR al procesar kit: {e}")
+                        import traceback
+                        print(traceback.format_exc())
+                        raise e
+                        
+                else:
+                    # Es un artículo normal
+                    articulo_id_limpio = clean_id(item.get('articuloId'))
+                    print(f"DEBUG - Es un ARTÍCULO. ID: {item.get('articuloId')} -> {articulo_id_limpio}")
+                    
+                    if not articulo_id_limpio:
+                        print(f"ERROR - Item sin articuloId: {item}")
+                        raise Exception(f"Item sin articuloId válido: {item}")
+                    
+                    try:
+                        articulo = Articulo.objects.get(id=articulo_id_limpio, empresa=request.empresa)
+                        print(f"DEBUG - Artículo encontrado: {articulo.nombre}")
+                        
+                        print(f"DEBUG - Creando VentaDetalle...")
+                        print(f"DEBUG - Valores a crear:")
+                        print(f"  cantidad: {Decimal(str(item['cantidad']))}")
+                        print(f"  precio_unitario: {Decimal(str(item['precio']))}")
+                        print(f"  precio_total: {Decimal(str(item.get('total', item['precio'] * item['cantidad'])))}")
+                        
+                        VentaDetalle.objects.create(
+                            venta=preventa,
+                            articulo=articulo,
+                            cantidad=Decimal(str(item['cantidad'])),
+                            precio_unitario=Decimal(str(item['precio'])),
+                            precio_total=Decimal(str(item.get('total', float(item['precio']) * float(item['cantidad'])))),
+                            impuesto_especifico=Decimal('0.00')
+                        )
+                        print(f"DEBUG - VentaDetalle creado exitosamente")
+                    except Articulo.DoesNotExist:
+                        print(f"ERROR - Artículo con ID {articulo_id_limpio} no encontrado")
+                        raise Exception(f"Artículo con ID {articulo_id_limpio} no encontrado")
+                    except Exception as e:
+                        print(f"ERROR al crear VentaDetalle: {e}")
+                        print(f"Tipo de error: {type(e)}")
+                        import traceback
+                        print(traceback.format_exc())
+                        raise e
             
             # Crear referencias si existen
             if data.get('referencias'):
@@ -1441,25 +1529,110 @@ def pos_procesar_preventa(request):
 
                 # Crear detalles del vale
                 for item in data['items']:
-                    articulo_id_limpio = clean_id(item.get('articuloId'))
-                    articulo = Articulo.objects.get(id=articulo_id_limpio, empresa=request.empresa)
-                    
-                    # Obtener impuesto específico del item (viene del carrito del POS)
-                    impuesto_esp_item = Decimal(str(item.get('impuesto_especifico', 0)))
-                    
-                    print(f"DEBUG - Item: {item.get('nombre', 'Sin nombre')}")
-                    print(f"DEBUG - Impuesto específico unitario: {impuesto_esp_item}")
-                    print(f"DEBUG - Cantidad: {item['cantidad']}")
-                    print(f"DEBUG - Impuesto específico total: {impuesto_esp_item * Decimal(str(item['cantidad']))}")
-                    
-                    VentaDetalle.objects.create(
-                        venta=ticket_vale,
-                        articulo=articulo,
-                        cantidad=Decimal(str(item['cantidad'])),
-                        precio_unitario=Decimal(str(item['precio'])),
-                        precio_total=Decimal(str(item['total'])),
-                        impuesto_especifico=impuesto_esp_item * Decimal(str(item['cantidad']))
-                    )
+                    # Verificar si es un kit
+                    if item.get('tipo') == 'kit' or item.get('kitId'):
+                        kit_id = clean_id(item.get('kitId'))
+                        cantidad_kit = Decimal(str(item['cantidad']))
+                        precio_kit_total = Decimal(str(item['precio']))
+                        
+                        print(f"DEBUG - Vale: Es un KIT. Kit ID: {kit_id}, Cantidad: {cantidad_kit}, Precio total: {precio_kit_total}")
+                        
+                        try:
+                            kit = KitOferta.objects.get(id=kit_id, empresa=request.empresa)
+                            kit_items = kit.items.select_related('articulo').all()
+                            
+                            # Calcular precio total normal de todos los items del kit
+                            precio_total_normal = Decimal('0.00')
+                            for kit_item in kit_items:
+                                try:
+                                    precio_articulo = Decimal(str(kit_item.articulo.precio_final_calculado))
+                                except (ValueError, AttributeError, TypeError):
+                                    try:
+                                        precio_articulo = Decimal(str(kit_item.articulo.precio_venta))
+                                    except:
+                                        precio_articulo = Decimal('0.00')
+                                precio_total_normal += precio_articulo * Decimal(str(kit_item.cantidad))
+                            
+                            # Calcular factor de descuento proporcional
+                            if precio_total_normal > 0:
+                                factor_descuento = precio_kit_total / precio_total_normal
+                            else:
+                                factor_descuento = Decimal('1.00')
+                            
+                            # Crear detalles para cada artículo del kit
+                            for kit_item in kit_items:
+                                try:
+                                    precio_articulo_normal = Decimal(str(kit_item.articulo.precio_final_calculado))
+                                except (ValueError, AttributeError, TypeError):
+                                    try:
+                                        precio_articulo_normal = Decimal(str(kit_item.articulo.precio_venta))
+                                    except:
+                                        precio_articulo_normal = Decimal('0.00')
+                                
+                                # Precio proporcional del artículo
+                                precio_proporcional = precio_articulo_normal * factor_descuento
+                                cantidad_articulo = Decimal(str(kit_item.cantidad)) * cantidad_kit
+                                precio_total_articulo = precio_proporcional * cantidad_articulo
+                                
+                                # Obtener impuesto específico del item (viene del carrito del POS)
+                                impuesto_esp_item = Decimal(str(item.get('impuesto_especifico', 0)))
+                                
+                                print(f"DEBUG - Vale: Artículo del kit: {kit_item.articulo.nombre}")
+                                print(f"DEBUG - Vale:   Precio proporcional: {precio_proporcional}")
+                                print(f"DEBUG - Vale:   Cantidad: {cantidad_articulo}")
+                                
+                                VentaDetalle.objects.create(
+                                    venta=ticket_vale,
+                                    articulo=kit_item.articulo,
+                                    cantidad=cantidad_articulo,
+                                    precio_unitario=precio_proporcional,
+                                    precio_total=precio_total_articulo,
+                                    impuesto_especifico=impuesto_esp_item * cantidad_articulo
+                                )
+                                
+                        except KitOferta.DoesNotExist:
+                            print(f"ERROR - Vale: Kit con ID {kit_id} no encontrado")
+                            raise Exception(f"Kit con ID {kit_id} no encontrado")
+                        except Exception as e:
+                            print(f"ERROR al procesar kit en vale: {e}")
+                            import traceback
+                            print(traceback.format_exc())
+                            raise e
+                    else:
+                        # Es un artículo normal
+                        articulo_id_limpio = clean_id(item.get('articuloId'))
+                        
+                        if not articulo_id_limpio:
+                            print(f"ERROR - Vale: Item sin articuloId: {item}")
+                            raise Exception(f"Item sin articuloId válido: {item}")
+                        
+                        try:
+                            articulo = Articulo.objects.get(id=articulo_id_limpio, empresa=request.empresa)
+                            
+                            # Obtener impuesto específico del item (viene del carrito del POS)
+                            impuesto_esp_item = Decimal(str(item.get('impuesto_especifico', 0)))
+                            
+                            print(f"DEBUG - Vale: Item: {item.get('nombre', 'Sin nombre')}")
+                            print(f"DEBUG - Vale: Impuesto específico unitario: {impuesto_esp_item}")
+                            print(f"DEBUG - Vale: Cantidad: {item['cantidad']}")
+                            print(f"DEBUG - Vale: Impuesto específico total: {impuesto_esp_item * Decimal(str(item['cantidad']))}")
+                            
+                            VentaDetalle.objects.create(
+                                venta=ticket_vale,
+                                articulo=articulo,
+                                cantidad=Decimal(str(item['cantidad'])),
+                                precio_unitario=Decimal(str(item['precio'])),
+                                precio_total=Decimal(str(item['total'])),
+                                impuesto_especifico=impuesto_esp_item * Decimal(str(item['cantidad']))
+                            )
+                        except Articulo.DoesNotExist:
+                            print(f"ERROR - Vale: Artículo con ID {articulo_id_limpio} no encontrado")
+                            raise Exception(f"Artículo con ID {articulo_id_limpio} no encontrado")
+                        except Exception as e:
+                            print(f"ERROR al crear VentaDetalle en vale: {e}")
+                            import traceback
+                            print(traceback.format_exc())
+                            raise e
 
                 ticket_vale_id = ticket_vale.id
                 ticket_vale_numero = numero_vale
@@ -1679,6 +1852,18 @@ def pos_procesar_preventa(request):
                             if dte:
                                 dte.venta = venta_final
                                 dte.save()
+                                
+                                # Generar hoja de ruta automáticamente si aplica
+                                if data['tipo_documento'] == 'factura' and venta_final.cliente and venta_final.vehiculo and venta_final.chofer:
+                                    try:
+                                        from pedidos.utils_hoja_ruta import generar_hoja_ruta_automatica
+                                        hoja_ruta = generar_hoja_ruta_automatica(dte, venta_final, request.empresa)
+                                        if hoja_ruta:
+                                            print(f"[OK] CIERRE DIRECTO: Hoja de ruta generada automáticamente: {hoja_ruta.numero_ruta}")
+                                    except Exception as e_hr:
+                                        print(f"[WARN] CIERRE DIRECTO: Error al generar hoja de ruta automática: {e_hr}")
+                                        import traceback
+                                        traceback.print_exc()
                             
                             # Crear movimiento de caja (solo si no es guía de despacho)
                             movimiento_caja = None
@@ -2496,6 +2681,11 @@ def venta_html(request, pk):
                 raise Http404("No tiene permisos para acceder a esta venta")
     except Venta.DoesNotExist:
         raise Http404("Venta no encontrada")
+    
+    # Cargar relaciones necesarias para evitar consultas adicionales
+    venta = Venta.objects.select_related(
+        'cliente', 'vendedor', 'empresa', 'estacion_trabajo', 'forma_pago'
+    ).get(pk=venta.pk)
     
     detalles = VentaDetalle.objects.filter(venta=venta).select_related('articulo')
     

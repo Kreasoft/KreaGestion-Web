@@ -161,6 +161,11 @@ def documento_compra_create(request):
         form = DocumentoCompraForm(request.POST, request.FILES, empresa=empresa)
         formset = ItemDocumentoCompraFormSet(request.POST)
         
+        # Configurar el queryset de artículos para cada formulario del formset
+        articulos_empresa = Articulo.objects.filter(empresa=empresa) if empresa else Articulo.objects.none()
+        for form_item in formset.forms:
+            form_item.fields['articulo'].queryset = articulos_empresa
+        
         # Debug: verificar errores
         if not form.is_valid():
             print("ERRORES EN FORM:")
@@ -215,6 +220,11 @@ def documento_compra_create(request):
     else:
         form = DocumentoCompraForm(empresa=empresa)
         formset = ItemDocumentoCompraFormSet()
+        
+        # Configurar el queryset de artículos para cada formulario del formset
+        articulos_empresa = Articulo.objects.filter(empresa=empresa) if empresa else Articulo.objects.none()
+        for form_item in formset.forms:
+            form_item.fields['articulo'].queryset = articulos_empresa
     
     context = {
         'form': form,
@@ -280,6 +290,11 @@ def documento_compra_update(request, pk):
         form = DocumentoCompraForm(request.POST, request.FILES, instance=documento, empresa=documento.empresa)
         formset = ItemDocumentoCompraFormSet(request.POST, instance=documento)
         
+        # Configurar el queryset de artículos para cada formulario del formset
+        articulos_empresa = Articulo.objects.filter(empresa=documento.empresa)
+        for form_item in formset.forms:
+            form_item.fields['articulo'].queryset = articulos_empresa
+        
         if form.is_valid() and formset.is_valid():
             documento = form.save()
             
@@ -298,6 +313,11 @@ def documento_compra_update(request, pk):
         # Si no hay items, agregar uno vacío
         if not formset.forms:
             formset = ItemDocumentoCompraFormSet(instance=documento, queryset=documento.items.all())
+        
+        # Configurar el queryset de artículos para cada formulario del formset
+        articulos_empresa = Articulo.objects.filter(empresa=documento.empresa)
+        for form_item in formset.forms:
+            form_item.fields['articulo'].queryset = articulos_empresa
     
     context = {
         'form': form,
