@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load format_filters %}
 
 {% block title %}Cotización #{{ cotizacion.numero_venta }} - GestionCloud{% endblock %}
 
@@ -125,11 +126,11 @@
                                     <tbody>
                                         {% for detalle in detalles %}
                                         <tr style="border-bottom: 1px solid #F5F1E8;">
-                                            <td style="font-size: 0.75rem; color: #6c757d;">{{ detalle.articulo.codigo }}</td>
-                                            <td style="font-size: 0.75rem;">{{ detalle.articulo.descripcion }}</td>
+                                            <td style="font-size: 0.75rem; color: #6c757d;">{{ detalle.articulo.codigo|default:detalle.articulo.id }}</td>
+                                            <td style="font-size: 0.75rem;"><strong>{{ detalle.articulo.nombre }}</strong>{% if detalle.articulo.descripcion %}<br><small class="text-muted">{{ detalle.articulo.descripcion }}</small>{% endif %}</td>
                                             <td style="font-size: 0.75rem; text-align: center; color: #6c757d;">{{ detalle.cantidad }}</td>
-                                            <td style="font-size: 0.75rem; text-align: right; color: #6c757d;">${{ detalle.precio_unitario|floatformat:0 }}</td>
-                                            <td style="font-size: 0.8rem; text-align: right; font-weight: 600; color: #6F5B44;">${{ detalle.precio_total|floatformat:0 }}</td>
+                                            <td style="font-size: 0.75rem; text-align: right; color: #6c757d;">${{ detalle.precio_unitario|format_miles }}</td>
+                                            <td style="font-size: 0.8rem; text-align: right; font-weight: 600; color: #6F5B44;">${{ detalle.precio_total|format_miles }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -145,27 +146,27 @@
                                 <div class="card-body" style="padding: 12px;">
                                     <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
                                         <span style="color: #6c757d;">Subtotal:</span>
-                                        <strong style="color: #6F5B44;">${{ cotizacion.subtotal|floatformat:0 }}</strong>
+                                        <strong style="color: #6F5B44;">${{ cotizacion.subtotal|format_miles }}</strong>
                                     </div>
                                     <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
                                         <span style="color: #6c757d;">Descuento:</span>
-                                        <strong style="color: #dc3545;">${{ cotizacion.descuento|floatformat:0 }}</strong>
+                                        <strong style="color: #dc3545;">${{ cotizacion.descuento|format_miles }}</strong>
                                     </div>
                                     <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
                                         <span style="color: #6c757d;">Neto:</span>
-                                        <strong style="color: #6F5B44;">${{ cotizacion.neto|floatformat:0 }}</strong>
+                                        <strong style="color: #6F5B44;">${{ cotizacion.neto|format_miles }}</strong>
                                     </div>
                                     <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
                                         <span style="color: #6c757d;">IVA (19%):</span>
-                                        <strong style="color: #6F5B44;">${{ cotizacion.iva|floatformat:0 }}</strong>
+                                        <strong style="color: #6F5B44;">${{ cotizacion.iva|format_miles }}</strong>
                                     </div>
                                     <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
                                         <span style="color: #6c757d;">Imp. Específico:</span>
-                                        <strong style="color: #6F5B44;">${{ cotizacion.impuesto_especifico|floatformat:0 }}</strong>
+                                        <strong style="color: #6F5B44;">${{ cotizacion.impuesto_especifico|format_miles }}</strong>
                                     </div>
                                     <div class="d-flex justify-content-between pt-2 mt-2" style="border-top: 2px solid #8B7355; font-size: 1rem;">
                                         <strong style="color: #6F5B44;">TOTAL:</strong>
-                                        <strong style="color: #8B7355; font-size: 1.2rem;">${{ cotizacion.total|floatformat:0 }}</strong>
+                                        <strong style="color: #8B7355; font-size: 1.2rem;">${{ cotizacion.total|format_miles }}</strong>
                                     </div>
                                 </div>
                             </div>

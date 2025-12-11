@@ -226,6 +226,70 @@ class Empresa(models.Model):
         verbose_name="Email de Contacto SII"
     )
     
+    # Configuración API DTE
+    api_url = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name="API URL",
+        help_text="URL del servicio API para envío de documentos electrónicos"
+    )
+    api_key = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="API KEY",
+        help_text="Clave API para autenticación en el servicio de documentos electrónicos"
+    )
+    
+    # Configuración DTEBox (Timbraje Offline)
+    dtebox_habilitado = models.BooleanField(
+        default=False,
+        verbose_name="DTEBox Habilitado",
+        help_text="Activar timbraje offline mediante DTEBox"
+    )
+    dtebox_url = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name="DTEBox URL",
+        help_text="URL del servidor DTEBox (ej: http://192.168.1.100/api/Core.svc/core/SendDocumentAsXML)"
+    )
+    dtebox_auth_key = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="DTEBox Auth Key",
+        help_text="Llave de autenticación para DTEBox"
+    )
+    dtebox_ambiente = models.CharField(
+        max_length=1,
+        choices=[('T', 'Homologación (T)'), ('P', 'Producción (P)')],
+        default='T',
+        blank=True,
+        verbose_name="Ambiente DTEBox",
+        help_text="T para Homologación, P para Producción"
+    )
+    dtebox_pdf417_columns = models.IntegerField(
+        default=5,
+        blank=True,
+        null=True,
+        verbose_name="PDF417 Columns",
+        help_text="Número de columnas para el código PDF417"
+    )
+    dtebox_pdf417_level = models.IntegerField(
+        default=2,
+        blank=True,
+        null=True,
+        verbose_name="PDF417 Level",
+        help_text="Nivel del código PDF417"
+    )
+    dtebox_pdf417_type = models.IntegerField(
+        default=1,
+        blank=True,
+        null=True,
+        verbose_name="PDF417 Type",
+        help_text="Tipo del código PDF417"
+    )
+    
     # Configuración de Alertas CAF
     alerta_folios_minimos = models.IntegerField(
         default=10,

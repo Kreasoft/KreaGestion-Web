@@ -32,4 +32,8 @@ urlpatterns = [
     # Pagos de movimientos de cuenta corriente
     path('registrar-pago-movimiento/', views.registrar_pago_movimiento, name='registrar_pago_movimiento'),
     path('historial-pagos-movimiento/<int:movimiento_id>/', views.historial_pagos_movimiento, name='historial_pagos_movimiento'),
+    
+    # Exportaciones
+    path('exportar-cuenta-corriente-cliente-excel/', views.exportar_cuenta_corriente_cliente_excel, name='exportar_cuenta_corriente_cliente_excel'),
+    path('exportar-cuenta-corriente-proveedor-excel/', views.exportar_cuenta_corriente_proveedor_excel, name='exportar_cuenta_corriente_proveedor_excel'),
 ]

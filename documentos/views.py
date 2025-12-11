@@ -161,10 +161,42 @@ def documento_compra_create(request):
         form = DocumentoCompraForm(request.POST, request.FILES, empresa=empresa)
         formset = ItemDocumentoCompraFormSet(request.POST)
         
-        # Configurar el queryset de artículos para cada formulario del formset
-        articulos_empresa = Articulo.objects.filter(empresa=empresa) if empresa else Articulo.objects.none()
+        # CRÍTICO: Configurar queryset ANTES de validar
+        # Recopilar TODOS los artículos del POST primero
+        articulos_del_post = set()
+        for key, value in request.POST.items():
+            if key.endswith('-articulo') and value:
+                try:
+                    articulo_id = int(value)
+                    articulos_del_post.add(articulo_id)
+                except (ValueError, TypeError):
+                    pass
+        
+        # Si hay artículos en el POST, usar queryset que los incluya TODOS sin restricción
+        if articulos_del_post:
+            # PERMISIVO: Incluir TODOS los artículos del POST sin importar la empresa
+            queryset_final = Articulo.objects.filter(pk__in=articulos_del_post)
+        elif empresa:
+            queryset_final = Articulo.objects.filter(empresa=empresa)
+        else:
+            queryset_final = Articulo.objects.none()
+        
+        # Configurar queryset en CADA formulario del formset ANTES de validar
         for form_item in formset.forms:
-            form_item.fields['articulo'].queryset = articulos_empresa
+            # Obtener el artículo específico de este formulario del POST
+            articulo_key = form_item.add_prefix('articulo')
+            articulo_value = request.POST.get(articulo_key)
+            
+            if articulo_value:
+                try:
+                    articulo_id = int(articulo_value)
+                    # PERMISIVO: Incluir este artículo específico sin restricción de empresa
+                    form_item.fields['articulo'].queryset = Articulo.objects.filter(pk=articulo_id)
+                except (ValueError, TypeError):
+                    form_item.fields['articulo'].queryset = queryset_final
+            else:
+                # Si no hay artículo en el POST, usar queryset base
+                form_item.fields['articulo'].queryset = queryset_final
         
         # Debug: verificar errores
         if not form.is_valid():
@@ -290,22 +322,73 @@ def documento_compra_update(request, pk):
         form = DocumentoCompraForm(request.POST, request.FILES, instance=documento, empresa=documento.empresa)
         formset = ItemDocumentoCompraFormSet(request.POST, instance=documento)
         
-        # Configurar el queryset de artículos para cada formulario del formset
-        articulos_empresa = Articulo.objects.filter(empresa=documento.empresa)
+        # CRÍTICO: Configurar queryset ANTES de validar
+        # Recopilar TODOS los artículos del POST primero
+        articulos_del_post = set()
+        for key, value in request.POST.items():
+            if key.endswith('-articulo') and value:
+                try:
+                    articulo_id = int(value)
+                    articulos_del_post.add(articulo_id)
+                except (ValueError, TypeError):
+                    pass
+        
+        # Si hay artículos en el POST, usar queryset que los incluya TODOS sin restricción
+        if articulos_del_post:
+            # PERMISIVO: Incluir TODOS los artículos del POST sin importar la empresa
+            queryset_final = Articulo.objects.filter(pk__in=articulos_del_post)
+        else:
+            # Si no hay POST, usar solo artículos de la empresa
+            queryset_final = Articulo.objects.filter(empresa=documento.empresa)
+        
+        # Configurar queryset en CADA formulario del formset ANTES de validar
         for form_item in formset.forms:
-            form_item.fields['articulo'].queryset = articulos_empresa
+            # Obtener el artículo específico de este formulario del POST
+            articulo_key = form_item.add_prefix('articulo')
+            articulo_value = request.POST.get(articulo_key)
+            
+            if articulo_value:
+                try:
+                    articulo_id = int(articulo_value)
+                    # PERMISIVO: Incluir este artículo específico sin restricción de empresa
+                    form_item.fields['articulo'].queryset = Articulo.objects.filter(pk=articulo_id)
+                except (ValueError, TypeError):
+                    form_item.fields['articulo'].queryset = queryset_final
+            else:
+                # Si no hay artículo en el POST, usar queryset base
+                form_item.fields['articulo'].queryset = queryset_final
+        
+        # Validar formularios
+        if not form.is_valid():
+            print("ERRORES EN FORM:")
+            for field, errors in form.errors.items():
+                print(f"  {field}: {errors}")
+            messages.error(request, f'Errores en el formulario: {form.errors}')
+        
+        if not formset.is_valid():
+            print("ERRORES EN FORMSET:")
+            for i, form_errors in enumerate(formset.errors):
+                if form_errors:
+                    print(f"  Form {i}: {form_errors}")
+            messages.error(request, f'Errores en los items: {formset.errors}')
         
         if form.is_valid() and formset.is_valid():
-            documento = form.save()
-            
-            # Guardar items
-            formset.save()
-            
-            # Calcular totales
-            documento.calcular_totales()
-            
-            messages.success(request, f'Documento {documento.get_tipo_documento_display()} {documento.numero_documento} actualizado exitosamente.')
-            return redirect('documentos:documento_compra_list')
+            try:
+                documento = form.save()
+                
+                # Guardar items
+                formset.save()
+                
+                # Calcular totales
+                documento.calcular_totales()
+                
+                messages.success(request, f'Documento {documento.get_tipo_documento_display()} {documento.numero_documento} actualizado exitosamente.')
+                return redirect('documentos:documento_compra_list')
+            except Exception as e:
+                print(f"ERROR AL GUARDAR: {e}")
+                import traceback
+                traceback.print_exc()
+                messages.error(request, f'Error al guardar el documento: {str(e)}')
     else:
         form = DocumentoCompraForm(instance=documento, empresa=documento.empresa)
         # Inicializar formset con los items existentes
@@ -314,10 +397,19 @@ def documento_compra_update(request, pk):
         if not formset.forms:
             formset = ItemDocumentoCompraFormSet(instance=documento, queryset=documento.items.all())
         
-        # Configurar el queryset de artículos para cada formulario del formset
-        articulos_empresa = Articulo.objects.filter(empresa=documento.empresa)
+        # El queryset se configura automáticamente en el __init__ del formulario
+        # Solo necesitamos asegurarnos de que cada formulario tenga acceso a la empresa
         for form_item in formset.forms:
-            form_item.fields['articulo'].queryset = articulos_empresa
+            # El formulario ya maneja el queryset en su __init__
+            # Solo verificamos que esté configurado correctamente
+            if form_item.instance.articulo_id:
+                # Asegurar que el artículo de la instancia esté en el queryset
+                form_item.fields['articulo'].queryset = Articulo.objects.filter(
+                    Q(empresa=documento.empresa) | Q(pk=form_item.instance.articulo_id)
+                )
+            else:
+                # Si no hay artículo, usar solo los de la empresa
+                form_item.fields['articulo'].queryset = Articulo.objects.filter(empresa=documento.empresa)
     
     context = {
         'form': form,

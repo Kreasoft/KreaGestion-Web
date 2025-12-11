@@ -59,6 +59,41 @@
         color: #6F5B44;
     }
 
+    /* Tabla compacta - líneas de 33px */
+    .table-compact tbody tr {
+        height: 33px;
+        line-height: 33px;
+    }
+
+    .table-compact tbody td {
+        padding: 4px 8px !important;
+        vertical-align: middle;
+        font-size: 0.85rem;
+    }
+
+    .table-compact thead th {
+        padding: 6px 8px !important;
+        font-size: 0.8rem;
+        font-weight: 600;
+        vertical-align: middle;
+    }
+
+    .table-compact .badge {
+        font-size: 0.7rem !important;
+        padding: 2px 6px !important;
+        line-height: 1.2;
+    }
+
+    .table-compact .btn {
+        padding: 4px 10px !important;
+        font-size: 0.75rem !important;
+        line-height: 1.2;
+    }
+
+    .table-compact .fw-bold {
+        font-size: 0.9rem !important;
+    }
+
     .text-terroso {
         color: #8B7355;
     }
@@ -72,16 +107,15 @@
 
 {% block content %}
 <!-- Banner superior -->
-<div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #F5F1E8 0%, #E8DED5 100%); color: #6F5B44; text-align: center; padding: 8px; font-size: 0.8rem; font-weight: 500; font-family: 'Poppins', sans-serif; z-index: 9999; border-bottom: 1px solid #D4C4A8;">
-    Procesar Venta - Buscar Ticket
+<div style="display: none;">
 </div>
-<div class="container-fluid" style="margin-top: 80px;">
+<div class="container-fluid" style="margin-top: 20px;">
     <div class="row justify-content-center">
         <div class="col-md-10">
             <div class="card shadow-lg" style="border: none; border-radius: 15px; overflow: hidden;">
                 <div class="card-header-terroso">
                     <h5 class="mb-0" style="font-size: 1.1rem; font-weight: 600;">
-                        <i class="fas fa-search me-2"></i>Procesar Venta - Buscar Ticket
+                        <i class="fas fa-search me-2"></i>Buscar Ticket
                     </h5>
                     <small style="opacity: 0.9;">
                         {% if apertura_activa %}
@@ -143,7 +177,7 @@
 
                     {% if tickets_pendientes %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover table-compact">
                             <thead>
                                 <tr>
                                     <th>N° Ticket</th>
@@ -159,52 +193,57 @@
                                 {% for ticket in tickets_pendientes %}
                                 <tr>
                                     <td>
-                                        <span class="fw-bold text-terroso" style="font-size: 1.1rem;">
+                                        <span class="fw-bold text-terroso">
                                             #{{ ticket.numero_venta }}
                                         </span>
                                     </td>
                                     <td>{{ ticket.fecha_creacion|time:"H:i" }}</td>
                                     <td>
                                         {% if ticket.tipo_documento_planeado == 'factura' %}
-                                            <span class="badge" style="background: #007bff; color: white; font-size: 0.75rem;">
+                                            <span class="badge" style="background: #007bff; color: white;">
                                                 <i class="fas fa-file-invoice me-1"></i>Factura
                                             </span>
                                         {% elif ticket.tipo_documento_planeado == 'boleta' %}
-                                            <span class="badge" style="background: #28a745; color: white; font-size: 0.75rem;">
+                                            <span class="badge" style="background: #28a745; color: white;">
                                                 <i class="fas fa-receipt me-1"></i>Boleta
                                             </span>
                                         {% elif ticket.tipo_documento_planeado == 'guia' %}
-                                            <span class="badge" style="background: #ffc107; color: #333; font-size: 0.75rem;">
+                                            <span class="badge" style="background: #ffc107; color: #333;">
                                                 <i class="fas fa-truck me-1"></i>Guía
                                             </span>
                                         {% elif ticket.tipo_documento_planeado == 'cotizacion' %}
-                                            <span class="badge" style="background: #17a2b8; color: white; font-size: 0.75rem;">
+                                            <span class="badge" style="background: #17a2b8; color: white;">
                                                 <i class="fas fa-file-alt me-1"></i>Cotización
                                             </span>
                                         {% elif ticket.tipo_documento_planeado == 'vale' %}
-                                            <span class="badge" style="background: #6c757d; color: white; font-size: 0.75rem;">
+                                            <span class="badge" style="background: #6c757d; color: white;">
+                                                <i class="fas fa-ticket-alt me-1"></i>Vale
+                                            </span>
+                                        {% elif not ticket.tipo_documento_planeado %}
+                                            {# Si no tiene tipo_documento_planeado, mostrar "Vale" como tipo por defecto #}
+                                            <span class="badge" style="background: #6c757d; color: white;">
                                                 <i class="fas fa-ticket-alt me-1"></i>Vale
                                             </span>
                                         {% else %}
-                                            <span class="badge bg-secondary" style="font-size: 0.75rem;">
-                                                <i class="fas fa-question me-1"></i>{{ ticket.tipo_documento_planeado|default:"N/A" }}
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-question me-1"></i>{{ ticket.tipo_documento_planeado }}
                                             </span>
                                         {% endif %}
                                     </td>
                                     <td>{{ ticket.cliente.nombre|default:"Sin cliente" }}</td>
                                     <td>{{ ticket.vendedor.nombre|default:"-" }}</td>
                                     <td style="text-align: right;">
-                                        <span class="fw-bold text-terroso" style="font-size: 1.1rem;">
+                                        <span class="fw-bold text-terroso">
                                             ${{ ticket.total|format_price }}
                                         </span>
                                     </td>
                                     <td style="text-align: center;">
                                         {% if apertura_activa %}
-                                            <a href="{% url 'caja:procesar_venta' ticket.pk %}" class="btn btn-terroso">
+                                            <a href="{% url 'caja:procesar_venta' ticket.pk %}" class="btn btn-terroso btn-sm">
                                                 <i class="fas fa-cash-register me-1"></i>Procesar
                                             </a>
                                         {% else %}
-                                            <button class="btn btn-secondary" disabled title="Debes abrir una caja primero">
+                                            <button class="btn btn-secondary btn-sm" disabled title="Debes abrir una caja primero">
                                                 <i class="fas fa-lock me-1"></i>Bloqueado
                                             </button>
                                         {% endif %}
@@ -360,6 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
 
 
 

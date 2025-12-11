@@ -199,6 +199,7 @@
                                             </div>
                                             {{ form.region }}
                                         </div>
+                                        <div class="form-text" style="color: #6c757d;">Opcional</div>
                                         {% if form.region.errors %}
                                             <div class="text-danger mt-1">{{ form.region.errors.0 }}</div>
                                         {% endif %}
@@ -293,6 +294,22 @@
                                         </div>
                                         {% if form.descuento_porcentaje.errors %}
                                             <div class="text-danger mt-1">{{ form.descuento_porcentaje.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-4">
+                                        <label for="{{ form.ruta.id_for_label }}" class="form-label" style="color: #495057; font-weight: bold;">
+                                            <i class="fas fa-route me-2" style="color: #8B7355;"></i>Ruta de Despacho
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
+                                                <i class="fas fa-route" style="color: #6c757d;"></i>
+                                            </div>
+                                            {{ form.ruta }}
+                                        </div>
+                                        <div class="form-text" style="color: #6c757d;">Ruta asignada para el despacho de productos a este cliente</div>
+                                        {% if form.ruta.errors %}
+                                            <div class="text-danger mt-1">{{ form.ruta.errors.0 }}</div>
                                         {% endif %}
                                     </div>
                                     
@@ -692,13 +709,14 @@ document.addEventListener('DOMContentLoaded', function() {
             btnSubmit.disabled = true;
         }
         
-        // Validar campos requeridos en la primera pestaña
-        const requiredFields = ['rut', 'nombre', 'direccion', 'comuna', 'ciudad', 'region', 'telefono'];
+        // Validar campos requeridos en la primera pestaña (excluyendo region que es opcional)
+        const requiredFields = ['rut', 'nombre', 'direccion', 'comuna', 'ciudad', 'telefono'];
         let firstInvalidField = null;
         
         requiredFields.forEach(fieldName => {
             const field = document.querySelector(`[name="${fieldName}"]`);
-            if (field && !field.value.trim()) {
+            // Solo validar campos visibles (en pestaña activa)
+            if (field && field.offsetParent !== null && !field.value.trim()) {
                 if (!firstInvalidField) {
                     firstInvalidField = field;
                 }

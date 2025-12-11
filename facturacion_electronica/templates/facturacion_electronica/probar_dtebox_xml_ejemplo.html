@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Probar DTEBox con XML de Ejemplo{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-flask me-2"></i>Probar DTEBox con XML de Ejemplo
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Prueba de diagnóstico:</strong> Esta vista envía el XML de ejemplo exacto que compartiste 
+                        para determinar si el problema es el formato del XML o algo más.
+                    </div>
+                    
+                    {% if resultado %}
+                        {% if resultado.success %}
+                            <div class="alert alert-success">
+                                <h5><i class="fas fa-check-circle me-2"></i>¡Éxito!</h5>
+                                <p><strong>TED obtenido:</strong> {{ resultado.ted|length }} caracteres</p>
+                                <pre class="bg-light p-3 mt-2" style="max-height: 300px; overflow-y: auto;">{{ resultado.ted|truncatewords:100 }}</pre>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger">
+                                <h5><i class="fas fa-times-circle me-2"></i>Error</h5>
+                                <p>{{ resultado.error }}</p>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% if error %}
+                        <div class="alert alert-danger">
+                            <h5><i class="fas fa-exclamation-triangle me-2"></i>Error</h5>
+                            <p>{{ error }}</p>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mb-4">
+                        <h5>Configuración DTEBox</h5>
+                        <table class="table table-sm">
+                            <tr>
+                                <th>URL:</th>
+                                <td>{{ empresa.dtebox_url }}</td>
+                            </tr>
+                            <tr>
+                                <th>Ambiente:</th>
+                                <td>{{ empresa.dtebox_ambiente }}</td>
+                            </tr>
+                            <tr>
+                                <th>Resolución Fecha:</th>
+                                <td>{{ empresa.resolucion_fecha|date:"Y-m-d" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Resolución Número:</th>
+                                <td>{{ empresa.resolucion_numero }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>XML de Ejemplo (primeros 500 caracteres)</h5>
+                        <pre class="bg-light p-3" style="max-height: 200px; overflow-y: auto; font-size: 0.8rem;">{{ xml_ejemplo_preview }}</pre>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Enviar XML de Ejemplo a DTEBox
+                        </button>
+                        <a href="{% url 'facturacion_electronica:dte_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Volver
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

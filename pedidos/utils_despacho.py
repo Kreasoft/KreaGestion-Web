@@ -125,9 +125,9 @@ def generar_guia_desde_orden_despacho(orden_despacho, usuario):
         # --- PROCESAMIENTO COMPLETO DEL DTE ---
         empresa = orden_despacho.empresa
         
-        # 1. Generar XML
-        generator = DTEXMLGenerator(empresa, dte, dte.tipo_dte, dte.folio, dte.caf_utilizado)
-        xml_sin_firmar = generator.generar_xml_desde_dte()
+        # 1. Generar XML - Pasar la orden de despacho directamente para que pueda obtener los items
+        generator = DTEXMLGenerator(empresa, orden_despacho, dte.tipo_dte, dte.folio, dte.caf_utilizado)
+        xml_sin_firmar = generator.generar_xml()
 
         # 2. Firmar XML
         firmador = FirmadorDTE(empresa.certificado_digital.path, empresa.password_certificado)
@@ -249,9 +249,9 @@ def generar_factura_desde_orden_despacho(orden_despacho, usuario):
         # --- PROCESAMIENTO COMPLETO DEL DTE ---
         empresa = orden_despacho.empresa
         
-        # 1. Generar XML
-        generator = DTEXMLGenerator(empresa, dte, dte.tipo_dte, dte.folio, dte.caf_utilizado)
-        xml_sin_firmar = generator.generar_xml_desde_dte()
+        # 1. Generar XML - Pasar la orden de despacho directamente para que pueda obtener los items
+        generator = DTEXMLGenerator(empresa, orden_despacho, dte.tipo_dte, dte.folio, dte.caf_utilizado)
+        xml_sin_firmar = generator.generar_xml()
 
         # 2. Firmar XML
         firmador = FirmadorDTE(empresa.certificado_digital.path, empresa.password_certificado)

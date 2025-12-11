@@ -14,6 +14,12 @@ from .dte_service import DTEService
 from ventas.models import Venta, NotaCredito
 from clientes.models import Cliente
 
+# Importar OrdenDespacho si existe (puede no estar disponible en todos los proyectos)
+try:
+    from pedidos.models import OrdenDespacho
+except ImportError:
+    OrdenDespacho = None
+
 
 @login_required
 @requiere_empresa
@@ -247,10 +253,47 @@ def ver_factura_electronica(request, dte_id):
 
     # Obtener detalles del documento
     detalles = []
+    print(f"[DEBUG] documento_origen tipo: {type(documento_origen)}")
+    print(f"[DEBUG] documento_origen es Venta: {isinstance(documento_origen, Venta)}")
+    print(f"[DEBUG] documento_origen es OrdenDespacho: {isinstance(documento_origen, OrdenDespacho) if OrdenDespacho else False}")
+    
     if isinstance(documento_origen, Venta):
         detalles = list(documento_origen.ventadetalle_set.all().select_related('articulo', 'articulo__unidad_medida'))
-    elif isinstance(documento_origen, OrdenDespacho):
-        detalles = list(documento_origen.detalleordendespacho_set.all().select_related('item_pedido__articulo', 'item_pedido__articulo__unidad_medida'))
+        print(f"[DEBUG] Detalles desde Venta: {len(detalles)}")
+    elif OrdenDespacho and isinstance(documento_origen, OrdenDespacho):
+        # Crear wrappers para los detalles de orden de despacho para compatibilidad con el template
+        detalles_despacho = documento_origen.items.all().select_related('item_pedido__articulo', 'item_pedido__articulo__unidad_medida')
+        print(f"[DEBUG] Detalles desde OrdenDespacho (raw): {detalles_despacho.count()}")
+        
+        class DetalleWrapper:
+            """Wrapper para convertir DetalleOrdenDespacho a formato compatible con VentaDetalle"""
+            def __init__(self, detalle_despacho):
+                self.detalle_despacho = detalle_despacho
+                # Crear un objeto articulo wrapper
+                class ArticuloWrapper:
+                    def __init__(self, articulo):
+                        self.codigo = articulo.codigo
+                        self.nombre = articulo.nombre
+                        self.unidad_medida = articulo.unidad_medida
+                
+                self.articulo = ArticuloWrapper(detalle_despacho.item_pedido.articulo)
+                self.cantidad = detalle_despacho.cantidad
+                self.precio_unitario = detalle_despacho.item_pedido.precio_unitario
+                # Calcular descuento
+                subtotal = float(detalle_despacho.cantidad) * float(detalle_despacho.item_pedido.precio_unitario)
+                descuento_pct = float(detalle_despacho.item_pedido.descuento_porcentaje or 0)
+                self.descuento = subtotal * (descuento_pct / 100)
+                # Precio total después de descuento
+                self.precio_total = subtotal - self.descuento
+        
+        detalles = [DetalleWrapper(d) for d in detalles_despacho]
+        print(f"[DEBUG] Detalles wrappeados: {len(detalles)}")
+        for i, d in enumerate(detalles):
+            print(f"[DEBUG] Detalle {i+1}: {d.articulo.nombre}, cantidad: {d.cantidad}, precio: {d.precio_unitario}")
+    else:
+        print(f"[DEBUG] documento_origen no es Venta ni OrdenDespacho, tipo: {type(documento_origen)}")
+    
+    print(f"[DEBUG] Total detalles finales: {len(detalles)}")
     
     # Obtener configuración de impresora
     empresa = request.empresa
@@ -302,8 +345,28 @@ def ver_factura_electronica(request, dte_id):
     try:
         from caja.models import VentaProcesada, MovimientoCaja
         
-        # Solo buscar formas de pago si venta es una instancia real de Venta (no wrapper)
-        if venta and hasattr(venta, 'id') and isinstance(venta, Venta):
+        print(f"[FORMAS PAGO] Buscando para DTE {dte.id} (Folio: {dte.folio})")
+        
+        # MÉTODO 0: Buscar desde DTE directamente (MÁS CONFIABLE)
+        venta_procesada_dte = VentaProcesada.objects.filter(dte_generado=dte).select_related('venta_final').first()
+        if venta_procesada_dte and venta_procesada_dte.venta_final:
+            print(f"[FORMAS PAGO] Venta final encontrada: {venta_procesada_dte.venta_final.numero_venta}")
+            # Buscar TODOS los movimientos de caja de esa venta
+            movs = MovimientoCaja.objects.filter(
+                venta=venta_procesada_dte.venta_final,
+                tipo__in=['venta', 'ingreso']
+            ).select_related('forma_pago')
+            print(f"[FORMAS PAGO] Movimientos encontrados: {movs.count()}")
+            for mov in movs:
+                if mov.forma_pago:
+                    formas_pago_list.append({
+                        'forma_pago': mov.forma_pago.nombre,
+                        'monto': abs(float(mov.monto))
+                    })
+                    print(f"[FORMAS PAGO] ✅ {mov.forma_pago.nombre}: ${mov.monto}")
+        
+        # Solo buscar formas de pago si venta es una instancia real de Venta (no wrapper) Y no se encontraron ya
+        if not formas_pago_list and venta and hasattr(venta, 'id') and isinstance(venta, Venta):
             # Método 1: Buscar desde VentaProcesada.movimiento_caja (relación directa)
             venta_procesada = VentaProcesada.objects.filter(venta_final=venta).select_related('movimiento_caja__forma_pago').first()
             
@@ -533,6 +596,269 @@ def dte_list(request):
         'clientes': clientes,
         'tipos_dte': tipos_dte_dict,
         'estados_sii': estados_sii,
+        'dtebox_habilitado': request.empresa.dtebox_habilitado if hasattr(request, 'empresa') else False,
     }
-
+    
     return render(request, 'facturacion_electronica/dte_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def probar_dtebox(request, dte_id):
+    """
+    Vista de prueba para probar DTEBox con un DTE existente
+    """
+    dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
+    
+    if not request.empresa.dtebox_habilitado:
+        messages.error(request, 'DTEBox no está habilitado para esta empresa.')
+        return redirect('facturacion_electronica:dte_detail', pk=dte_id)
+    
+    if not dte.xml_firmado:
+        messages.error(request, 'Este DTE no tiene XML firmado. Debe generar el DTE primero.')
+        return redirect('facturacion_electronica:dte_detail', pk=dte_id)
+    
+    resultado = None
+    error = None
+    
+    if request.method == 'POST':
+        try:
+            from facturacion_electronica.dtebox_service import DTEBoxService
+            
+            dtebox = DTEBoxService(request.empresa)
+            resultado = dtebox.timbrar_dte(dte.xml_firmado)
+            
+            if resultado['success']:
+                # Actualizar el TED en el DTE
+                dte.timbre_electronico = resultado['ted']
+                
+                # Regenerar PDF417 con el nuevo TED
+                from facturacion_electronica.firma_electronica import FirmadorDTE
+                firmador = FirmadorDTE(
+                    request.empresa.certificado_digital.path,
+                    request.empresa.password_certificado
+                )
+                pdf417_data = firmador.generar_datos_pdf417(resultado['ted'])
+                dte.datos_pdf417 = pdf417_data
+                
+                # Regenerar imagen PDF417
+                from facturacion_electronica.pdf417_generator import PDF417Generator
+                PDF417Generator.guardar_pdf417_en_dte(dte)
+                
+                dte.save()
+                
+                messages.success(request, '✅ TED obtenido exitosamente desde DTEBox y actualizado en el DTE.')
+            else:
+                error = resultado['error']
+                messages.error(request, f'❌ Error al obtener TED desde DTEBox: {error}')
+                
+        except Exception as e:
+            error = str(e)
+            messages.error(request, f'❌ Error inesperado: {error}')
+            import traceback
+            traceback.print_exc()
+    
+    context = {
+        'dte': dte,
+        'resultado': resultado,
+        'error': error,
+        'empresa': request.empresa,
+    }
+    
+    return render(request, 'facturacion_electronica/probar_dtebox.html', context)
+
+
+@login_required
+@requiere_empresa
+def probar_dtebox_xml_ejemplo(request):
+    """
+    Vista para probar DTEBox con el XML de ejemplo exacto que el usuario compartió
+    """
+    if not request.empresa.dtebox_habilitado:
+        messages.error(request, 'DTEBox no está habilitado para esta empresa.')
+        return redirect('facturacion_electronica:dte_list')
+    
+    resultado = None
+    error = None
+    
+    # XML de ejemplo válido y timbrado que el usuario compartió
+    xml_ejemplo = '''<EnvioDTE xmlns="http://www.sii.cl/SiiDte" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.0" xsi:schemaLocation="http://www.sii.cl/SiiDte EnvioDTE_v10.xsd">
+<SetDTE ID="ID74b2e30033e64606b9a1d4d54bd6b05f">
+<Caratula version="1.0">
+<RutEmisor>77117239-3</RutEmisor>
+<RutEnvia>10974377-1</RutEnvia>
+<RutReceptor>78421900-3</RutReceptor>
+<FchResol>2014-08-22</FchResol>
+<NroResol>80</NroResol>
+<TmstFirmaEnv>2025-11-03T12:26:50</TmstFirmaEnv>
+<SubTotDTE>
+<TpoDTE>33</TpoDTE>
+<NroDTE>1</NroDTE>
+</SubTotDTE>
+</Caratula>
+<DTE xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns="http://www.sii.cl/SiiDte" version="1.0">
+<Documento ID="F3220T33">
+<Encabezado>
+<IdDoc>
+<TipoDTE>33</TipoDTE>
+<Folio>3220</Folio>
+<FchEmis>2025-11-03</FchEmis>
+<FmaPago>1</FmaPago>
+</IdDoc>
+<Emisor>
+<RUTEmisor>77117239-3</RUTEmisor>
+<RznSoc>SOCIEDAD INFORMATICA KREASOFT SPA</RznSoc>
+<GiroEmis>.COMPUTACION</GiroEmis>
+<Telefono>963697225</Telefono>
+<Acteco>523930</Acteco>
+<DirOrigen>VICTOR PLAZA MAYORGA 887</DirOrigen>
+<CmnaOrigen>EL BOSQUE</CmnaOrigen>
+<CiudadOrigen>SANTIAGO</CiudadOrigen>
+<CdgVendedor>OFICINA</CdgVendedor>
+</Emisor>
+<Receptor>
+<RUTRecep>78421900-3</RUTRecep>
+<RznSocRecep>JPF CINE S.A.</RznSocRecep>
+<GiroRecep>PRODUCCIONES AUDIOVISUALES.</GiroRecep>
+<Contacto>.</Contacto>
+<DirRecep>CALLE NUEVA 1757.</DirRecep>
+<CmnaRecep>HUECHURABA.</CmnaRecep>
+<CiudadRecep>SANTIAGO.</CiudadRecep>
+</Receptor>
+<Totales>
+<MntNeto>186181</MntNeto>
+<MntExe>0</MntExe>
+<TasaIVA>19</TasaIVA>
+<IVA>35374</IVA>
+<MntTotal>221555</MntTotal>
+</Totales>
+</Encabezado>
+<Detalle>
+<NroLinDet>1</NroLinDet>
+<CdgItem>
+<TpoCodigo>INT</TpoCodigo>
+<VlrCodigo>SER001</VlrCodigo>
+</CdgItem>
+<NmbItem>SERVICIO MENSUAL</NmbItem>
+<DscItem>SERVICIO DE MANTENCION SISTEMAS N O V I E M B R E - 2025 </DscItem>
+<QtyItem>1</QtyItem>
+<PrcItem>186181</PrcItem>
+<MontoItem>186181</MontoItem>
+</Detalle>
+<TED version="1.0">
+<DD>
+<RE>77117239-3</RE>
+<TD>33</TD>
+<F>3220</F>
+<FE>2025-11-03</FE>
+<RR>78421900-3</RR>
+<RSR>JPF CINE S.A.</RSR>
+<MNT>221555</MNT>
+<IT1>SERVICIO MENSUAL</IT1>
+<CAF version="1.0">
+<DA>
+<RE>77117239-3</RE>
+<RS>SOCIEDAD INFORMÁTICA KREASOFT SPA</RS>
+<TD>33</TD>
+<RNG>
+<D>3150</D>
+<H>3227</H>
+</RNG>
+<FA>2025-05-05</FA>
+<RSAPK>
+<M>uYWbTHGa7MxLNibxh9WcGUObQQ+R+Jftd5Oxt4XKOl2Br/Dvo3MRSqUWatRH0x7CF7H2hCZbifaj+FGLJnuP9Q==</M>
+<E>Aw==</E>
+</RSAPK>
+<IDK>300</IDK>
+</DA>
+<FRMA algoritmo="SHA1withRSA">lmeB07XNTlAH7022i7xjKGPRaTrjRbJQuKH2qp7PwaWdUq5m7At5d0P9c7dXrDjF7gAresSLoeExxg0wtUeBiQ==</FRMA>
+</CAF>
+<TSTED>2025-11-03T12:26:45</TSTED>
+</DD>
+<FRMT algoritmo="SHA1withRSA">KHvM01ziigCDTlSeNcnyWHjRbMVuWHQ1va+Y7tc5TV7QC9uM3fu4y2gjvEzhJpBAwhRio0kvgMIpWIZb/L5AKw==</FRMT>
+</TED>
+<TmstFirma>2025-11-03T12:26:45</TmstFirma>
+</Documento>
+<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+<SignedInfo>
+<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+<Reference URI="#F3220T33">
+<Transforms>
+<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+</Transforms>
+<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+<DigestValue>jjWEeksyW8B3whSe2dXZTWqYfRI=</DigestValue>
+</Reference>
+</SignedInfo>
+<SignatureValue> cs7egu7YkL5hoD1rtIECgAE2SVuiheFdpPgh+CsJFTF9HMHSb4kMiEh4r5f4XFsA 9QoV3yJB/AnGrTIKXKtL0sjj38XzxiPxo6po4Wr0L4xM5EP+JyR7nFHYt7i19U7k QKVoO8A8xgfS0BPhRh4Ah8tn2iRzWakZTISPB6tzT3jPwmmvWjM8tY9PD4IK4nIG WD9LVhJnBkhXjfYkkMGHRMnQdYagklATbBQEDv36w0Syw9eu/ddlUoNMM6n0tCSE 46N8C3Syu3kDf+VxX2OGyV4HDDrxKIrxkYkzpuutkzXO9dLvlbSPfMYvrwNspcsz J9ZUb35sTj7wf8tnFAZgFA== </SignatureValue>
+<KeyInfo>
+<KeyValue>
+<RSAKeyValue>
+<Modulus> nMxFllg/ae7Awo2T+2/6mMFfebVoTC4vBfqV5feMkAQ4YevKqh2nhBtjB4HKhMd4 GEVn3O57BTRkjEdQIGy/lVQBgBdZzaTW8e0YDqIXZQSh9qKRQqL9tQ7nhNl8Cq1e BMJqLInQVvlC0UYmvUEFe3t6/ws4QwdhRMK5WxNpb/r2WAeymQD0k9+jKnRda6zh gwyCMNrOifWAwG6vMNGwr+NZA2FHV9/6ecs6jfmKaVfDALjG4u9PW4ZH+GDrEWB8 fwWsWj6e4umicxnbLIqWWwUxxM5PacSSahvpdk22oDjJWK1xuAFZkO/2mhKlnRaS hh27GZgMRd9TxigV4QI/3Q== </Modulus>
+<Exponent>AQAB</Exponent>
+</RSAKeyValue>
+</KeyValue>
+<X509Data>
+<X509Certificate> MIIGEDCCBPigAwIBAgIIS9+A8qleqEEwDQYJKoZIhvcNAQELBQAwgboxHjAcBgkq hkiG9w0BCQEWD3NvcG9ydGVAaWRvay5jbDEiMCAGA1UEAwwZSURPSyBGSVJNQSBF TEVDVFJPTklDQSBWNDEXMBUGA1UECwwOUlVULTc2NjEwNzE4LTQxIDAeBgNVBAsM F0F1dG9yaWRhZCBDZXJ0aWZpY2Fkb3JhMRkwFwYDVQQKDBBCUE8gQWR2aXNvcnMg U3BBMREwDwYDVQQHDAhTYW50aWFnbzELMAkGA1UEBhMCQ0wwHhcNMjQwMTE4MjEy NzE2WhcNMjYwMTE3MjEyNzE2WjB7MScwJQYDVQQDDB5SSUNBUkRPIEFOVE9OSU8g R09OWkFMRVogR0FFVEUxITAfBgkqhkiG9w0BCQEWEmtyZWFzb2Z0QGdtYWlsLmNv bTETMBEGA1UEBRMKMTEzMTQ3NTUtNTELMAkGA1UEBhMCQ0wxCzAJBgNVBAcMAlJN MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnMxFllg/ae7Awo2T+2/6 mMFfebVoTC4vBfqV5feMkAQ4YevKqh2nhBtjB4HKhMd4GEVn3O57BTRkjEdQIGy/ lVQBgBdZzaTW8e0YDqIXZQSh9qKRQqL9tQ7nhNl8Cq1eBMJqLInQVvlC0UYmvUEF e3t6/ws4QwdhRMK5WxNpb/r2WAeymQD0k9+jKnRda6zhgwyCMNrOifWAwG6vMNGw r+NZA2FHV9/6ecs6jfmKaVfDALjG4u9PW4ZH+GDrEWB8fwWsWj6e4umicxnbLIqW WwUxxM5PacSSahvpdk22oDjJWK1xuAFZkO/2mhKlnRaShh27GZgMRd9TxigV4QI/ 3QIDAQABo4ICVjCCAlIwCQYDVR0TBAIwADAfBgNVHSMEGDAWgBS73UrbfxA3iHRn RbLKuRKE4MZ4FjCBmAYDVR0gBIGQMIGNMIGKBgorBgEEAYOMHgEEMHwwLAYIKwYB BQUHAgEWIGh0dHBzOi8vcHNjLmlkb2suY2wvb3Blbi9jcHMucGRmMEwGCCsGAQUF BwICMEAePgBDAGUAcgB0AGkAZgBpAGMAYQBkAG8AIABwAGEAcgBhACAAdQBzAG8A IABUAHIAaQBiAHUAdABhAHIAaQBvMIIBEQYDVR0fBIIBCDCCAQQwggEAoDmgN4Y1 aHR0cHM6Ly9wc2MuaWRvay5jbC9vcGVuL0lET0tfRklSTUFfRUxFQ1RST05JQ0Ff NC5jcmyigcKkgb8wgbwxHjAcBgkqhkiG9w0BCQEWD3NvcG9ydGVAaWRvay5jbDEk MCIGA1UEAwwbSURPSyBGSVJNQSBFTEVDVFJPTklDQSAyMDIyMRcwFQYDVQQLDA5S VVQtNzY2MTA3MTgtNDEgMB4GA1UECwwXQXV0b3JpZGFkIENlcnRpZmljYWRvcmEx GTAXBgNVBAoMEEJQTyBBZHZpc29ycyBTcEExETAPBgNVBAcMCFNhbnRpYWdvMQsw CQYDVQQGEwJDTDAdBgNVHQ4EFgQUR1ca1G+NYS4s9jhYXYQDS5D/nDowCwYDVR0P BAQDAgSQMCMGA1UdEgQcMBqgGAYIKwYBBAHBAQKgDBYKNzY2MTA3MTgtNDAjBgNV HREEHDAaoBgGCCsGAQQBwQEBoAwWCjExMzE0NzU1LTUwDQYJKoZIhvcNAQELBQAD ggEBAG1cRq5yYhudo5t+mxvGDH8TbNrWyu7Tbvw8HFqBdQGnfJJu/Q04PGIjZzCz AFpYlT7FEGj6CKm0lsxkdbgTEficazP/XClwu7L6LprhB4HmGywJf9p40NOP/S8r 4NgQqzI9uRLrrnHzSB9pYmP9rTsqXNTXN/GC8faj0pdgSmwwotKcT95CVMHoVTuI irvbOiD7/lAy/znLRKDSDHiiNgCz80+/hkkDYmXuqIgteurC0NZ6NIzC5W3p2SC7 PQt9euX1gmx7a3mmz6aEgJbHjxvFx5+8uCsSEwQXqrXu3hz3mqeeA804bwU9rMIG Cg1jxEvGSraeRRX9btsOAWEZ0hk= </X509Certificate>
+</X509Data>
+</KeyInfo>
+</Signature>
+</DTE>
+</SetDTE>
+<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+<SignedInfo>
+<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+<Reference URI="#ID74b2e30033e64606b9a1d4d54bd6b05f">
+<Transforms>
+<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+</Transforms>
+<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+<DigestValue>hIN6XB5CxQW3NbXoAZxhj7JPWCQ=</DigestValue>
+</Reference>
+</SignedInfo>
+<SignatureValue> EgUz0KMyNg3JUnVXsvIeMJWJrx29WTrAPutCY5hHCao7MoeRQY6zcW2RkmxOjCKW 2VyTrsUoJ3XOibQRjgZOIaSAzd8iMbtvQ59GQMQbLUMpc/rKk0hAQA50qMgGFYdw mbsXtA+9kHJIzk7N7JdJTprBdb1P+cDBA54hD5FKODBvIY+RjlPsnE5FyMCi6rOF uxntZSEvChFZA2aShILOik2OLvoH2FeZJSIJ7s9Uso0SZmlAfjlAM4pqXz7jiVLl sDwoBETX6VLhhAcqnMJqKSmT80iPn3yxR20PW9rD1fqYif+z/jByZJ5ozdeHG1te KzcVf7pQTYVdMTw+sytozA== </SignatureValue>
+<KeyInfo>
+<KeyValue>
+<RSAKeyValue>
+<Modulus> mZyNOZGHPazOujYza5bj8qjBUwShdlmdABF+CJO5S1iGAMBXoyb+UTc5tqKaqLQr hxOJxZSZwpuMVbc2cJ+JtDwXsEj2asqB9GXjHGUH4HhJu7PI7qWw2YivtQm2p4R3 hsd+un1QECsfAyL8DQ4v8ulm7URFuOimYA8YK2ML8EmiBJ2AzXu9MTxIUBUkhxsv A3tffFuDudOtIK12FpHSM0jseAFvZJY7HSfV/oybdeUDeKX10rrgnIrsOHfwZQ9E TQ3lzbTZms1WCu40cG30aMn1o8c1TLMdfNPT8f2PULshH4TuykwHli4MVk8LD2TR 4hDdNt6JK2BUQJT2VeL8Fw== </Modulus>
+<Exponent>AQAB</Exponent>
+</RSAKeyValue>
+</KeyValue>
+<X509Data>
+<X509Certificate> MIIGEDCCBPigAwIBAgIINo2mVCGpjRYwDQYJKoZIhvcNAQELBQAwgboxHjAcBgkq hkiG9w0BCQEWD3NvcG9ydGVAaWRvay5jbDEiMCAGA1UEAwwZSURPSyBGSVJNQSBF TEVDVFJPTklDQSBWMjEXMBUGA1UECwwOUlVULTc2NjEwNzE4LTQxIDAeBgNVBAsM F0F1dG9yaWRhZCBDZXJ0aWZpY2Fkb3JhMRkwFwYDVQQKDBBCUE8gQWR2aXNvcnMg U3BBMREwDwYDVQQHDAhTYW50aWFnbzELMAkGA1UEBhMCQ0wwHhcNMjIwNTIzMjI0 OTM1WhcNMjUwNTIyMjI0OTM1WjB9MSgwJgYDVQQDDB9DUklTVElBTiBVTElTRVMg Uk9KQVMgR1VUSUVSUkVaMSIwIAYJKoZIhvcNAQkBFhNjcm9qYXNAZ2RleHByZXNz LmNsMRMwEQYDVQQFEwoxMDk3NDM3Ny0xMQswCQYDVQQGEwJDTDELMAkGA1UEBwwC Uk0wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCZnI05kYc9rM66NjNr luPyqMFTBKF2WZ0AEX4Ik7lLWIYAwFejJv5RNzm2opqotCuHE4nFlJnCm4xVtzZw n4m0PBewSPZqyoH0ZeMcZQfgeEm7s8jupbDZiK+1CbanhHeGx366fVAQKx8DIvwN Di/y6WbtREW46KZgDxgrYwvwSaIEnYDNe70xPEhQFSSHGy8De198W4O5060grXYW kdIzSOx4AW9kljsdJ9X+jJt15QN4pfXSuuCciuw4d/BlD0RNDeXNtNmazVYK7jRw bfRoyfWjxzVMsx1809Px/Y9QuyEfhO7KTAeWLgxWTwsPZNHiEN023okrYFRAlPZV 4vwXAgMBAAGjggJUMIICUDAJBgNVHRMEAjAAMB8GA1UdIwQYMBaAFPBsM7+sl5NY eqHgzp7s6N77ZT76MIGYBgNVHSAEgZAwgY0wgYoGCisGAQQBg4weAQQwfDAsBggr BgEFBQcCARYgaHR0cHM6Ly9wc2MuaWRvay5jbC9vcGVuL2Nwcy5wZGYwTAYIKwYB BQUHAgIwQB4+AEMAZQByAHQAaQBmAGkAYwBhAGQAbwAgAHAAYQByAGEAIAB1AHMA bwAgAFQAcgBpAGIAdQB0AGEAcgBpAG8wggEPBgNVHR8EggEGMIIBAjCB/6A6oDiG Nmh0dHBzOi8vcHNjLmlkb2suY2wvb3Blbi9JRE9LX0ZJUk1BX0VMRUNUUk9OSUNB X1YyLmNybKKBwKSBvTCBujEeMBwGCSqGSIb3DQEJARYPc29wb3J0ZUBpZG9rLmNs MSIwIAYDVQQDDBlJRE9LIEZJUk1BIEVMRUNUUk9OSUNBIFYyMRcwFQYDVQQLDA5S VVQtNzY2MTA3MTgtNDEgMB4GA1UECwwXQXV0b3JpZGFkIENlcnRpZmljYWRvcmEx GTAXBgNVBAoMEEJQTyBBZHZpc29ycyBTcEExETAPBgNVBAcMCFNhbnRpYWdvMQsw CQYDVQQGEwJDTDAdBgNVHQ4EFgQUnR78AetPsNDqFh+h8AeExJY4aOgwCwYDVR0P BAQDAgSQMCMGA1UdEgQcMBqgGAYIKwYBBAHBAQKgDBYKNzY2MTA3MTgtNDAjBgNV HREEHDAaoBgGCCsGAQQBwQEBoAwWCjEwOTc0Mzc3LTEwDQYJKoZIhvcNAQELBQAD ggEBAA6KTv23rQSdvQrJMy1jxE/+gYgMDsPqx6VcSRrsDVl+tUjf4Bld1zBLmBak dtMPiyNhQ0kaOgEjo3QU8kQ/SV6fWysnmwwAutagLJvX5cix9YPrhAnGxe31kdR7 nj8h/xMTetxxgmOQ/+sKwM6GDPCyzVMZ0JuXr9rn3ozViDx0+Lu1tegCE0CMZgLi ynwZXrtR5bjbJH01QrxErY8GoFIY7BO8Iah/iBS0SfClWYaEH6JOjcGUSIwDapa3 Th0+GYEUgSektb8aHqyl2XEDJtAem4PSWmsdOBZZaXA07eUVxI20qq4FeKdl38Mi t/WiFQvQ0chqv6iEPJZqx/3FVIU= </X509Certificate>
+</X509Data>
+</KeyInfo>
+</Signature>
+</EnvioDTE>'''
+    
+    if request.method == 'POST':
+        try:
+            from facturacion_electronica.dtebox_service import DTEBoxService
+            
+            dtebox = DTEBoxService(request.empresa)
+            
+            # Enviar el XML de ejemplo exacto
+            resultado = dtebox.timbrar_dte(xml_ejemplo)
+            
+            if resultado['success']:
+                messages.success(request, f'✅ Éxito! TED obtenido: {len(resultado["ted"])} caracteres')
+            else:
+                error = resultado['error']
+                messages.error(request, f'❌ Error: {error}')
+                
+        except Exception as e:
+            error = str(e)
+            messages.error(request, f'❌ Error inesperado: {error}')
+            import traceback
+            traceback.print_exc()
+    
+    context = {
+        'resultado': resultado,
+        'error': error,
+        'empresa': request.empresa,
+        'xml_ejemplo_preview': xml_ejemplo[:500] + '...' if len(xml_ejemplo) > 500 else xml_ejemplo,
+    }
+    
+    return render(request, 'facturacion_electronica/probar_dtebox_xml_ejemplo.html', context)

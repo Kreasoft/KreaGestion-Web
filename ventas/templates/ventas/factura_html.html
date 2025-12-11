@@ -284,21 +284,29 @@
         <div class="client-info">
             <div class="client-title">DATOS DEL CLIENTE - FACTURACIÓN</div>
             <div class="client-details">
-                <strong>{{ venta.cliente.nombre|default:"Cliente General" }}</strong><br>
-                {% if venta.cliente.rut %}
-                    <strong>RUT: {{ venta.cliente.rut }}</strong><br>
-                {% endif %}
-                {% if venta.cliente.giro %}
-                    Giro: {{ venta.cliente.giro }}<br>
-                {% endif %}
-                {% if venta.cliente.direccion %}
-                    Dirección: {{ venta.cliente.direccion }}<br>
-                {% endif %}
-                {% if venta.cliente.telefono %}
-                    Tel: {{ venta.cliente.telefono }}<br>
-                {% endif %}
-                {% if venta.cliente.email %}
-                    Email: {{ venta.cliente.email }}
+                {% if venta.cliente %}
+                    <strong>{{ venta.cliente.nombre|default:"Cliente General" }}</strong><br>
+                    {% if venta.cliente.rut %}
+                        <strong>RUT: {{ venta.cliente.rut }}</strong><br>
+                    {% endif %}
+                    {% if venta.cliente.giro %}
+                        Giro: {{ venta.cliente.giro }}<br>
+                    {% endif %}
+                    {% if venta.cliente.direccion %}
+                        Dirección: {{ venta.cliente.direccion }}<br>
+                    {% endif %}
+                    {% if venta.cliente.ciudad or venta.cliente.comuna %}
+                        Ciudad: {{ venta.cliente.comuna|default:"" }}{% if venta.cliente.comuna and venta.cliente.ciudad %}, {% endif %}{{ venta.cliente.ciudad|default:"" }}<br>
+                    {% endif %}
+                    {% if venta.cliente.telefono %}
+                        Tel: {{ venta.cliente.telefono }}<br>
+                    {% endif %}
+                    {% if venta.cliente.email %}
+                        Email: {{ venta.cliente.email }}
+                    {% endif %}
+                {% else %}
+                    <strong>Cliente General</strong><br>
+                    <span style="color: #ff0000;">⚠️ No se encontró información del cliente</span>
                 {% endif %}
             </div>
         </div>
@@ -383,12 +391,112 @@
         <button onclick="window.print()" class="btn btn-primary">
             <i class="fas fa-print me-2"></i>Imprimir Factura
         </button>
-        <button onclick="if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) { window.history.back(); } else { window.location.href = '/'; }" class="btn btn-secondary ms-2">
+        <button onclick="safeCloseWindow()" class="btn btn-secondary ms-2">
             <i class="fas fa-arrow-left me-2"></i>Volver
         </button>
     </div>
     
     <script>
+        // Función universal para cerrar/volver desde templates de impresión
+        function safeCloseWindow() {
+            console.log('safeCloseWindow llamado');
+            
+            const posUrl = "{% url 'ventas:pos_view' %}";
+            
+            // Intentar notificar al padre si existe
+            try {
+                if (window.opener && window.opener !== window && !window.opener.closed) {
+                    window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
+                }
+            } catch (e) {
+                console.log('No se pudo notificar al padre:', e);
+            }
+            
+            // Intentar cerrar la ventana si fue abierta por otra ventana
+            if (window.opener && window.opener !== window && !window.opener.closed) {
+                try {
+                    window.close();
+                    console.log('Ventana cerrada');
+                    return;
+                } catch (e) {
+                    console.log('No se pudo cerrar la ventana:', e);
+                }
+            }
+            
+            // Intentar obtener la URL de referencia guardada o desde parámetros URL
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            const refererUrl = returnUrl || sessionStorage.getItem('print_referer') || localStorage.getItem('print_referer');
+            
+            if (refererUrl && refererUrl !== window.location.href) {
+                console.log('Redirigiendo a:', refererUrl);
+                window.location.href = refererUrl;
+                return;
+            }
+            
+            // Si no hay referrer guardado, intentar volver atrás
+            if (window.history.length > 1) {
+                try {
+                    console.log('Intentando volver atrás');
+                    window.history.back();
+                    return;
+                } catch (e) {
+                    console.log('No se pudo volver atrás:', e);
+                }
+            }
+            
+            // Fallback: redirigir al POS si viene con auto=1 o return_url (desde POS), sino al dashboard
+            if (params.get('auto') === '1' || returnUrl) {
+                // Si viene con auto=1 o return_url, siempre es desde el POS
+                console.log('Redirigiendo al POS (auto=1 o return_url detectado)');
+                window.location.href = posUrl;
+            } else {
+                // Si no viene con auto=1, intentar detectar si viene del POS por el referrer
+                const fromPos = document.referrer && (document.referrer.includes('/ventas/pos') || document.referrer.includes('/caja/procesar-venta'));
+                if (fromPos) {
+                    console.log('Redirigiendo al POS (detectado por referrer)');
+                    window.location.href = posUrl;
+                } else {
+                    console.log('Redirigiendo al dashboard');
+                    window.location.href = '/';
+                }
+            }
+        }
+        
+        // Guardar la URL de referencia cuando se carga la página
+        window.addEventListener('load', function() {
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            
+            // Guardar la URL de referencia si existe
+            if (returnUrl) {
+                sessionStorage.setItem('print_referer', returnUrl);
+                console.log('Return URL guardado:', returnUrl);
+            } else if (document.referrer && document.referrer !== window.location.href) {
+                sessionStorage.setItem('print_referer', document.referrer);
+                console.log('Referrer guardado:', document.referrer);
+            } else {
+                // Si no hay referrer, guardar el POS como fallback si viene de auto=1
+                if (params.get('auto') === '1') {
+                    sessionStorage.setItem('print_referer', "{% url 'ventas:pos_view' %}");
+                    console.log('Referrer fallback guardado: POS');
+                }
+            }
+        });
+        
+        // Asegurar que el botón funcione
+        document.addEventListener('DOMContentLoaded', function() {
+            const backBtn = document.querySelector('button[onclick*="safeCloseWindow"]');
+            if (backBtn) {
+                backBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    safeCloseWindow();
+                });
+                console.log('Event listener agregado al botón volver');
+            }
+        });
+        
         // Generar código de barras
         document.addEventListener('DOMContentLoaded', function() {
             try {

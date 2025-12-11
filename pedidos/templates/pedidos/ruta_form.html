@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }} - {{ block.super }}{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
+    .btn-guardar {
+        background: linear-gradient(135deg, #A8957A 0%, #8B7355 100%);
+        border: none;
+        color: white;
+        font-weight: 500;
+    }
+    .btn-guardar:hover {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+    }
+    .btn-cancelar {
+        background: linear-gradient(135deg, #D4C4A8 0%, #C4B299 100%);
+        border: none;
+        color: #6F5B44;
+        font-weight: 500;
+    }
+    .btn-cancelar:hover {
+        background: linear-gradient(135deg, #C4B299 0%, #B8A082 100%);
+        color: #6F5B44;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(184, 160, 130, 0.4);
+    }
+    .form-control, .form-select {
+        border: 1px solid #D4C4A8;
+        border-radius: 8px;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #8B7355;
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid" style="margin-top: 0; padding-top: 10px;">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-route fa-lg me-2" style="color: #6F5B44;"></i>
+                        <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                            {{ titulo }}
+                        </h5>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+
+                        <!-- Información Básica -->
+                        <div class="mb-4">
+                            <h6 class="mb-3" style="color: #6F5B44; font-weight: 600; border-bottom: 2px solid #E8DCC8; padding-bottom: 8px;">
+                                <i class="fas fa-info-circle me-2"></i>Información Básica
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.codigo.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
+                                        Código <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.codigo }}
+                                    {% if form.codigo.errors %}
+                                        <div class="text-danger small mt-1">{{ form.codigo.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.nombre.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
+                                        Nombre <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.nombre }}
+                                    {% if form.nombre.errors %}
+                                        <div class="text-danger small mt-1">{{ form.nombre.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.descripcion.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
+                                    Descripción
+                                </label>
+                                {{ form.descripcion }}
+                                {% if form.descripcion.errors %}
+                                    <div class="text-danger small mt-1">{{ form.descripcion.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Información de Transporte -->
+                        <div class="mb-4">
+                            <h6 class="mb-3" style="color: #6F5B44; font-weight: 600; border-bottom: 2px solid #E8DCC8; padding-bottom: 8px;">
+                                <i class="fas fa-truck me-2"></i>Transporte (Ruta Diaria por Móvil)
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.vehiculo.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
+                                        Vehículo <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.vehiculo }}
+                                    {% if form.vehiculo.errors %}
+                                        <div class="text-danger small mt-1">{{ form.vehiculo.errors }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Vehículo asignado a esta ruta</small>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.chofer.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
+                                        Chofer <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.chofer }}
+                                    {% if form.chofer.errors %}
+                                        <div class="text-danger small mt-1">{{ form.chofer.errors }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Chofer asignado a esta ruta</small>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.acompanante.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
+                                        Acompañante
+                                    </label>
+                                    {{ form.acompanante }}
+                                    {% if form.acompanante.errors %}
+                                        <div class="text-danger small mt-1">{{ form.acompanante.errors }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Acompañante (opcional)</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración de la Ruta -->
+                        <div class="mb-4">
+                            <h6 class="mb-3" style="color: #6F5B44; font-weight: 600; border-bottom: 2px solid #E8DCC8; padding-bottom: 8px;">
+                                <i class="fas fa-cog me-2"></i>Configuración
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.dias_visita.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
+                                        Días de Visita
+                                    </label>
+                                    {{ form.dias_visita }}
+                                    {% if form.dias_visita.errors %}
+                                        <div class="text-danger small mt-1">{{ form.dias_visita.errors }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Ej: Lunes, Miércoles, Viernes</small>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.orden_visita.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
+                                        Orden de Visita
+                                    </label>
+                                    {{ form.orden_visita }}
+                                    {% if form.orden_visita.errors %}
+                                        <div class="text-danger small mt-1">{{ form.orden_visita.errors }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Orden en que se visita esta ruta (1, 2, 3...)</small>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    {{ form.activo }}
+                                    <label class="form-check-label fw-bold" for="{{ form.activo.id_for_label }}" style="color: #6F5B44;">
+                                        Ruta Activa
+                                    </label>
+                                </div>
+                                {% if form.activo.errors %}
+                                    <div class="text-danger small mt-1">{{ form.activo.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr style="border-color: #E8DCC8;">
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'pedidos:ruta_list' %}" class="btn btn-cancelar">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-guardar">
+                                <i class="fas fa-save"></i> Guardar Ruta
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

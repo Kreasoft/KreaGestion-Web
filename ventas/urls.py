@@ -34,6 +34,7 @@ urlpatterns = [
     # POS (Punto de Venta)
     path('pos/', views.pos_seleccion_estacion, name='pos_seleccion'),
     path('pos/iniciar/', views.pos_iniciar, name='pos_iniciar'),
+    path('pos/cambiar-estacion/', views.pos_cambiar_estacion, name='pos_cambiar_estacion'),
     path('pos/session-info/', views.pos_session_info, name='pos_session_info'),
     path('pos/venta/', views.pos_view, name='pos_view'),
     path('pos/buscar-articulo/', views.pos_buscar_articulo, name='pos_buscar_articulo'),

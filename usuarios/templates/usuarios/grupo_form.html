@@ -89,20 +89,21 @@
                         
                         <!-- Permisos por aplicación -->
                         <div class="accordion" id="permisosAccordion">
-                            {% for app_label, permisos in permisos_por_app.items %}
+                            {% for nombre_app, datos_app in permisos_por_app.items %}
+                            {% with app_slug=datos_app.app_label_slug permisos=datos_app.permisos nombre=datos_app.nombre %}
                             <div class="accordion-item" style="border-radius: 10px; margin-bottom: 10px; border: 1px solid #e3e6f0;">
-                                <h2 class="accordion-header" id="heading{{ app_label }}">
+                                <h2 class="accordion-header" id="heading{{ app_slug }}">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                            data-bs-target="#collapse{{ app_label }}" aria-expanded="false" 
-                                            aria-controls="collapse{{ app_label }}"
+                                            data-bs-target="#collapse{{ app_slug }}" aria-expanded="false" 
+                                            aria-controls="collapse{{ app_slug }}"
                                             style="background: #f8f9fa; font-family: 'Poppins', sans-serif; font-weight: 600;">
                                         <i class="fas fa-folder-open me-2" style="color: #8B7355;"></i>
-                                        {{ app_label|title }}
+                                        {{ nombre }}
                                         <span class="badge bg-info ms-2">{{ permisos|length }} permisos</span>
                                     </button>
                                 </h2>
-                                <div id="collapse{{ app_label }}" class="accordion-collapse collapse" 
-                                     aria-labelledby="heading{{ app_label }}" data-bs-parent="#permisosAccordion">
+                                <div id="collapse{{ app_slug }}" class="accordion-collapse collapse" 
+                                     aria-labelledby="heading{{ app_slug }}" data-bs-parent="#permisosAccordion">
                                     <div class="accordion-body">
                                         <div class="row">
                                             {% for permiso in permisos %}
@@ -125,6 +126,7 @@
                                     </div>
                                 </div>
                             </div>
+                            {% endwith %}
                             {% endfor %}
                         </div>
                         {% endif %}

@@ -375,9 +375,9 @@
         <button onclick="window.print()" class="btn btn-success">
             <i class="fas fa-print me-2"></i>Imprimir Boleta
         </button>
-        <a id="btnBackPOS" href="{% url 'ventas:pos_view' %}" class="btn btn-secondary ms-2">
-            <i class="fas fa-arrow-left me-2"></i>Volver al POS
-        </a>
+        <button id="btnBackPOS" onclick="safeCloseWindow()" class="btn btn-secondary ms-2">
+            <i class="fas fa-arrow-left me-2"></i>Volver
+        </button>
     </div>
     
     <script>
@@ -397,48 +397,115 @@
             }
         });
         
-        // Auto-impresión y retorno rápido al POS cuando la URL trae ?auto=1
-        window.addEventListener('load', function() {
+        // Función universal para cerrar/volver desde templates de impresión
+        function safeCloseWindow() {
+            console.log('safeCloseWindow llamado');
+            
+            const posUrl = "{% url 'ventas:pos_view' %}";
+            
+            // Intentar notificar al padre si existe
             try {
-                const params = new URLSearchParams(window.location.search);
-                const auto = params.get('auto');
-                const posUrl = "{% url 'ventas:pos_view' %}";
-
-                const notifyParent = () => {
-                    try {
-                        if (window.opener && window.opener !== window) {
-                            window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
-                        }
-                    } catch (e) {}
-                    // Solo cerrar si la ventana fue abierta por el script
-                    if (window.opener && window.opener !== window) {
-                        try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
-                    } else {
-                        // Si no se puede cerrar, redirigir al POS
-                        try { window.location.href = posUrl; } catch (e2) {}
-                    }
-                };
-
-                // Botón volver notifica al padre
+                if (window.opener && window.opener !== window && !window.opener.closed) {
+                    window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
+                }
+            } catch (e) {
+                console.log('No se pudo notificar al padre:', e);
+            }
+            
+            // Intentar cerrar la ventana si fue abierta por otra ventana
+            if (window.opener && window.opener !== window && !window.opener.closed) {
                 try {
-                    const backBtn = document.getElementById('btnBackPOS');
-                    if (backBtn) backBtn.addEventListener('click', function() { try { notifyParent(); } catch (e) {} });
-                } catch (e) {}
-
+                    window.close();
+                    console.log('Ventana cerrada');
+                    return;
+                } catch (e) {
+                    console.log('No se pudo cerrar la ventana:', e);
+                }
+            }
+            
+            // Intentar obtener la URL de referencia guardada o desde parámetros URL
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            const refererUrl = returnUrl || sessionStorage.getItem('print_referer') || localStorage.getItem('print_referer');
+            
+            if (refererUrl && refererUrl !== window.location.href) {
+                console.log('Redirigiendo a:', refererUrl);
+                window.location.href = refererUrl;
+                return;
+            }
+            
+            // Si no hay referrer guardado, intentar volver atrás
+            if (window.history.length > 1) {
+                try {
+                    console.log('Intentando volver atrás');
+                    window.history.back();
+                    return;
+                } catch (e) {
+                    console.log('No se pudo volver atrás:', e);
+                }
+            }
+            
+            // Fallback: redirigir al POS si viene con auto=1 (desde POS), sino al dashboard
+            if (params.get('auto') === '1') {
+                // Si viene con auto=1, siempre es desde el POS
+                console.log('Redirigiendo al POS (auto=1 detectado)');
+                window.location.href = posUrl;
+            } else {
+                // Si no viene con auto=1, intentar detectar si viene del POS por el referrer
+                const fromPos = document.referrer && document.referrer.includes('/ventas/pos');
+                if (fromPos) {
+                    console.log('Redirigiendo al POS (detectado por referrer)');
+                    window.location.href = posUrl;
+                } else {
+                    console.log('Redirigiendo al dashboard');
+                    window.location.href = '/';
+                }
+            }
+        }
+        
+        // Guardar la URL de referencia cuando se carga la página
+        window.addEventListener('load', function() {
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            
+            // Guardar la URL de referencia si existe
+            if (returnUrl) {
+                sessionStorage.setItem('print_referer', returnUrl);
+                console.log('Return URL guardado:', returnUrl);
+            } else if (document.referrer && document.referrer !== window.location.href) {
+                sessionStorage.setItem('print_referer', document.referrer);
+                console.log('Referrer guardado:', document.referrer);
+            } else {
+                // Si no hay referrer, guardar el POS como fallback si viene de auto=1
+                if (params.get('auto') === '1') {
+                    sessionStorage.setItem('print_referer', "{% url 'ventas:pos_view' %}");
+                    console.log('Referrer fallback guardado: POS');
+                }
+            }
+            
+            // Auto-impresión
+            try {
+                const auto = params.get('auto');
                 if (auto === '1') {
                     setTimeout(function() { try { window.print(); } catch (e) {} }, 150);
-                    if ('onafterprint' in window) {
-                        window.addEventListener('afterprint', function() { setTimeout(notifyParent, 100); }, { once: true });
-                    }
-                    // Fallback rápido por si afterprint no dispara
-                    setTimeout(notifyParent, 1000);
                 } else {
-                    // Comportamiento original: auto-imprimir sin redirigir
                     setTimeout(function() { try { window.print(); } catch (e) {} }, 300);
                 }
             } catch (e) {
-                // fallback mínimo
                 setTimeout(function() { try { window.print(); } catch (e) {} }, 300);
+            }
+        });
+        
+        // Asegurar que el botón funcione
+        document.addEventListener('DOMContentLoaded', function() {
+            const backBtn = document.getElementById('btnBackPOS');
+            if (backBtn) {
+                backBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    safeCloseWindow();
+                });
+                console.log('Event listener agregado al botón volver');
             }
         });
     </script>

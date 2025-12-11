@@ -44,6 +44,39 @@ class Ruta(models.Model):
         help_text="Descripción detallada de la ruta, zonas que cubre, etc."
     )
     
+    # Información de la ruta - Ruta diaria por móvil
+    vehiculo = models.ForeignKey(
+        'pedidos.Vehiculo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='rutas',
+        verbose_name="Vehículo",
+        help_text="Vehículo asignado a esta ruta"
+    )
+    
+    chofer = models.ForeignKey(
+        'pedidos.Chofer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='rutas_como_chofer',
+        verbose_name="Chofer",
+        help_text="Chofer asignado a esta ruta",
+        limit_choices_to={'tipo': 'chofer', 'activo': True}
+    )
+    
+    acompanante = models.ForeignKey(
+        'pedidos.Chofer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='rutas_como_acompanante',
+        verbose_name="Acompañante",
+        help_text="Acompañante asignado a esta ruta (opcional)",
+        limit_choices_to={'tipo': 'acompanante', 'activo': True}
+    )
+    
     # Información de la ruta
     dias_visita = models.CharField(
         max_length=50,
@@ -160,11 +193,22 @@ class HojaRuta(models.Model):
         verbose_name="Chofer"
     )
     
+    acompanante = models.ForeignKey(
+        'pedidos.Chofer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='hojas_ruta_como_acompanante',
+        verbose_name="Acompañante",
+        help_text="Acompañante asignado a esta hoja de ruta",
+        limit_choices_to={'tipo': 'acompanante', 'activo': True}
+    )
+    
     ayudante = models.CharField(
         max_length=200,
         blank=True,
         verbose_name="Ayudante",
-        help_text="Nombre del ayudante si aplica"
+        help_text="Nombre del ayudante si aplica (campo adicional)"
     )
     
     # Facturas asociadas (DTEs)

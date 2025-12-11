@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hoja de Ruta {{ hoja_ruta.numero_ruta }}</title>
+    
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm 2.5cm 1.5cm 2.5cm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 10pt;
+            line-height: 1.4;
+            color: #000;
+            background: white;
+            padding: 0;
+            margin: 0;
+        }
+
+        .no-print {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+        }
+
+        .no-print button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: #8B7355;
+            color: white;
+        }
+
+        .no-print button:hover {
+            background: #6F5B44;
+        }
+
+        .hoja-ruta-container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        .header {
+            border-bottom: 3px solid #6F5B44;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .company-info {
+            flex: 1;
+        }
+
+        .company-name {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #6F5B44;
+            margin-bottom: 5px;
+        }
+
+        .company-details {
+            font-size: 9pt;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .document-title {
+            text-align: center;
+            font-size: 24pt;
+            font-weight: bold;
+            color: #6F5B44;
+            margin: 15px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .document-info {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-top: 15px;
+            padding: 10px;
+            background: #F5F1E8;
+            border-radius: 5px;
+        }
+
+        .info-item {
+            flex: 1;
+            min-width: 150px;
+            margin: 5px 0;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #6F5B44;
+            display: block;
+            font-size: 9pt;
+            margin-bottom: 3px;
+        }
+
+        .info-value {
+            font-size: 11pt;
+            color: #000;
+        }
+
+        /* Sección de Transporte */
+        .transporte-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #F5F1E8;
+            border-left: 4px solid #8B7355;
+            border-radius: 5px;
+        }
+
+        .transporte-title {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #6F5B44;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .transporte-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .transporte-item {
+            padding: 8px;
+            background: white;
+            border-radius: 3px;
+        }
+
+        .transporte-label {
+            font-size: 8pt;
+            color: #8B7355;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .transporte-value {
+            font-size: 10pt;
+            color: #000;
+            font-weight: 600;
+        }
+
+        /* Tabla de Facturas */
+        .facturas-section {
+            margin: 25px 0;
+        }
+
+        .facturas-title {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #6F5B44;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #8B7355;
+            padding-bottom: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 9pt;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+            color: white;
+        }
+
+        th {
+            padding: 8px 5px;
+            text-align: left;
+            font-weight: bold;
+            font-size: 8pt;
+            text-transform: uppercase;
+            border: 1px solid #6F5B44;
+        }
+
+        th.text-right {
+            text-align: right;
+        }
+
+        td {
+            padding: 6px 5px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+
+        td.text-right {
+            text-align: right;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #FAFAF8;
+        }
+
+        tbody tr:hover {
+            background-color: #F5F1E8;
+        }
+
+        .total-row {
+            background: #F5F1E8 !important;
+            font-weight: bold;
+            border-top: 2px solid #8B7355;
+            border-bottom: 2px solid #8B7355;
+        }
+
+        .total-row td {
+            padding: 10px 5px;
+            font-size: 10pt;
+            color: #6F5B44;
+        }
+
+        /* Observaciones */
+        .observaciones-section {
+            margin: 20px 0;
+            padding: 10px;
+            background: #F5F1E8;
+            border-left: 4px solid #8B7355;
+            border-radius: 5px;
+        }
+
+        .observaciones-title {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #6F5B44;
+            margin-bottom: 5px;
+        }
+
+        .observaciones-text {
+            font-size: 9pt;
+            color: #000;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #E8DCC8;
+            text-align: center;
+            font-size: 8pt;
+            color: #666;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                margin: 0;
+                padding: 0;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .hoja-ruta-container {
+                page-break-inside: avoid;
+                padding: 0 30px !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+            }
+
+            table {
+                page-break-inside: auto;
+            }
+
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tfoot {
+                display: table-footer-group;
+            }
+
+            @page {
+                size: A4;
+                margin: 1.5cm 2.5cm 1.5cm 2.5cm !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hoja-ruta-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-top">
+                <div class="company-info">
+                    <div class="company-name">{{ hoja_ruta.empresa.nombre }}</div>
+                    <div class="company-details">
+                        {% if hoja_ruta.empresa.rut %}RUT: {{ hoja_ruta.empresa.rut }}<br>{% endif %}
+                        {% if hoja_ruta.empresa.direccion %}{{ hoja_ruta.empresa.direccion }}<br>{% endif %}
+                        {% if hoja_ruta.empresa.telefono %}Tel: {{ hoja_ruta.empresa.telefono }}<br>{% endif %}
+                        {% if hoja_ruta.empresa.email %}Email: {{ hoja_ruta.empresa.email }}{% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="document-title">HOJA DE RUTA</div>
+            
+            <div class="document-info">
+                <div class="info-item">
+                    <span class="info-label">N° Hoja de Ruta:</span>
+                    <span class="info-value">{{ hoja_ruta.numero_ruta }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Fecha:</span>
+                    <span class="info-value">{{ hoja_ruta.fecha|date:"d/m/Y" }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Estado:</span>
+                    <span class="info-value">{{ hoja_ruta.get_estado_display }}</span>
+                </div>
+                {% if hoja_ruta.ruta %}
+                <div class="info-item">
+                    <span class="info-label">Ruta:</span>
+                    <span class="info-value">{{ hoja_ruta.ruta.nombre }} ({{ hoja_ruta.ruta.codigo }})</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Información de Transporte -->
+        <div class="transporte-section">
+            <div class="transporte-title">Información de Transporte</div>
+            <div class="transporte-grid">
+                <div class="transporte-item">
+                    <div class="transporte-label">Vehículo (Móvil)</div>
+                    <div class="transporte-value">
+                        {% if hoja_ruta.vehiculo %}
+                            {{ hoja_ruta.vehiculo.patente }}
+                            {% if hoja_ruta.vehiculo.descripcion %}<br><small style="font-size: 8pt; color: #666;">{{ hoja_ruta.vehiculo.descripcion }}</small>{% endif %}
+                        {% else %}
+                            No asignado
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="transporte-item">
+                    <div class="transporte-label">Chofer</div>
+                    <div class="transporte-value">
+                        {% if hoja_ruta.chofer %}
+                            {{ hoja_ruta.chofer.nombre }}
+                            {% if hoja_ruta.chofer.rut %}<br><small style="font-size: 8pt; color: #666;">RUT: {{ hoja_ruta.chofer.rut }}</small>{% endif %}
+                        {% else %}
+                            No asignado
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="transporte-item">
+                    <div class="transporte-label">Acompañante</div>
+                    <div class="transporte-value">
+                        {% if hoja_ruta.acompanante %}
+                            {{ hoja_ruta.acompanante.nombre }}
+                            {% if hoja_ruta.acompanante.rut %}<br><small style="font-size: 8pt; color: #666;">RUT: {{ hoja_ruta.acompanante.rut }}</small>{% endif %}
+                        {% elif hoja_ruta.ayudante %}
+                            {{ hoja_ruta.ayudante }}
+                        {% else %}
+                            No asignado
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Facturas -->
+        <div class="facturas-section">
+            <div class="facturas-title">Facturas Incluidas ({{ facturas.count }})</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>N° Factura</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>RUT</th>
+                        <th>Vendedor</th>
+                        <th class="text-right">Neto</th>
+                        <th class="text-right">IVA</th>
+                        <th class="text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for factura in facturas %}
+                    <tr>
+                        <td><strong>{{ factura.folio }}</strong></td>
+                        <td>{{ factura.fecha_emision|date:"d/m/Y" }}</td>
+                        <td>{{ factura.razon_social_receptor }}</td>
+                        <td>{{ factura.rut_receptor }}</td>
+                        <td>
+                            {% if factura.vendedor %}
+                                {{ factura.vendedor.nombre }}
+                            {% elif factura.venta and factura.venta.vendedor %}
+                                {{ factura.venta.vendedor.nombre }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="text-right">${{ factura.monto_neto|floatformat:0 }}</td>
+                        <td class="text-right">${{ factura.monto_iva|floatformat:0 }}</td>
+                        <td class="text-right"><strong>${{ factura.monto_total|floatformat:0 }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 20px; color: #666;">
+                            No hay facturas en esta hoja de ruta.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if facturas %}
+                    <tr class="total-row">
+                        <td colspan="5" class="text-right"><strong>TOTALES:</strong></td>
+                        <td class="text-right"><strong>${{ total_neto|floatformat:0 }}</strong></td>
+                        <td class="text-right"><strong>${{ total_iva|floatformat:0 }}</strong></td>
+                        <td class="text-right"><strong>${{ total_total|floatformat:0 }}</strong></td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Observaciones -->
+        {% if hoja_ruta.observaciones %}
+        <div class="observaciones-section">
+            <div class="observaciones-title">Observaciones:</div>
+            <div class="observaciones-text">{{ hoja_ruta.observaciones }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Hoja de Ruta generada el {{ hoja_ruta.fecha_creacion|date:"d/m/Y H:i" }}</strong></p>
+            {% if hoja_ruta.creado_por %}
+            <p>Generada por: {{ hoja_ruta.creado_por.get_full_name|default:hoja_ruta.creado_por.username }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Botones de acción (no se imprimen) -->
+    <div class="no-print">
+        <button onclick="window.print()">
+            <i class="fas fa-print"></i> Imprimir Hoja de Ruta
+        </button>
+        <button onclick="window.close()">
+            <i class="fas fa-times"></i> Cerrar
+        </button>
+    </div>
+
+    <script>
+        // Función para cerrar ventana de forma segura
+        function safeCloseWindow() {
+            if (window.opener) {
+                window.close();
+            } else {
+                window.history.back();
+            }
+        }
+
+        // Auto-imprimir si se abre en nueva ventana (opcional, comentado)
+        // if (window.opener) {
+        //     window.onload = function() {
+        //         setTimeout(function() {
+        //             window.print();
+        //         }, 500);
+        //     };
+        // }
+    </script>
+</body>
+</html>
+

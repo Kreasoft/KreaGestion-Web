@@ -240,7 +240,7 @@
 
         <!-- Columna Derecha: Formulario de Procesamiento -->
         <div class="col-md-8">
-            <form method="post" id="formProcesar" novalidate>
+            <form method="post" id="formProcesar" action="{% url 'caja:procesar_venta' ticket.id %}" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
 
@@ -249,56 +249,56 @@
                         <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Tipo de Documento</h5>
                     </div>
                     <div class="card-body">
+                        {# CAJA SOLO MUESTRA EL TIPO DE DOCUMENTO - NO PERMITE CAMBIARLO #}
+                        {# CRÍTICO: Campo oculto con el tipo de documento del vale #}
+                        <input type="hidden" name="tipo_documento" id="tipo_documento_hidden" value="{{ ticket.tipo_documento_planeado|default:'boleta' }}">
+                        <script>
+                            // Asegurar que el campo oculto siempre tenga un valor válido
+                            const tipoDocHidden = document.getElementById('tipo_documento_hidden');
+                            if (tipoDocHidden && (!tipoDocHidden.value || tipoDocHidden.value === '')) {
+                                tipoDocHidden.value = '{{ ticket.tipo_documento_planeado|default:"boleta" }}';
+                            }
+                            console.log('[DEBUG] Campo oculto tipo_documento:', tipoDocHidden ? tipoDocHidden.value : 'NO ENCONTRADO');
+                        </script>
                         <div class="row g-3">
-                            <div class="col-md-4">
-                                <div class="tipo-doc-option">
-                                    <input type="radio" name="tipo_documento" value="boleta" id="tipo_boleta" 
-                                           {% if ticket.tipo_documento_planeado == 'boleta' or not ticket.tipo_documento_planeado %}checked{% endif %}>
-                                    <label for="tipo_boleta" class="d-block text-center mb-0 cursor-pointer">
-                                        <i class="fas fa-receipt fa-2x d-block mb-2"></i>
-                                        <strong>Boleta</strong>
-                                        <small class="d-block text-muted">
-                                            {% if disponibilidad_folios and disponibilidad_folios.boleta %}
-                                                {{ disponibilidad_folios.boleta.folios_disponibles }} folios
-                                            {% else %}
-                                                Disponible
-                                            {% endif %}
-                                        </small>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="tipo-doc-option">
-                                    <input type="radio" name="tipo_documento" value="factura" id="tipo_factura"
-                                           {% if ticket.tipo_documento_planeado == 'factura' %}checked{% endif %}>
-                                    <label for="tipo_factura" class="d-block text-center mb-0 cursor-pointer">
-                                        <i class="fas fa-file-invoice fa-2x d-block mb-2"></i>
-                                        <strong>Factura</strong>
-                                        <small class="d-block text-muted">
-                                            {% if disponibilidad_folios and disponibilidad_folios.factura %}
-                                                {{ disponibilidad_folios.factura.folios_disponibles }} folios
-                                            {% else %}
-                                                Disponible
-                                            {% endif %}
-                                        </small>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="tipo-doc-option">
-                                    <input type="radio" name="tipo_documento" value="guia" id="tipo_guia"
-                                           {% if ticket.tipo_documento_planeado == 'guia' %}checked{% endif %}>
-                                    <label for="tipo_guia" class="d-block text-center mb-0 cursor-pointer">
-                                        <i class="fas fa-truck fa-2x d-block mb-2"></i>
-                                        <strong>Guía Despacho</strong>
-                                        <small class="d-block text-muted">
-                                            {% if disponibilidad_folios and disponibilidad_folios.guia %}
-                                                {{ disponibilidad_folios.guia.folios_disponibles }} folios
-                                            {% else %}
-                                                Disponible
-                                            {% endif %}
-                                        </small>
-                                    </label>
+                            <div class="col-md-12">
+                                <div class="alert alert-info mb-0" style="background: #e7f3ff; border-left: 4px solid #007bff;">
+                                    <div class="d-flex align-items-center">
+                                        {% if ticket.tipo_documento_planeado == 'factura' %}
+                                            <i class="fas fa-file-invoice fa-3x me-3" style="color: #28a745;"></i>
+                                            <div>
+                                                <h5 class="mb-1"><strong>Factura</strong></h5>
+                                                <small class="text-muted">Tipo de documento definido desde el POS</small>
+                                            </div>
+                                        {% elif ticket.tipo_documento_planeado == 'guia' %}
+                                            <i class="fas fa-truck fa-3x me-3" style="color: #ffc107;"></i>
+                                            <div>
+                                                <h5 class="mb-1"><strong>Guía de Despacho</strong></h5>
+                                                <small class="text-muted">Tipo de documento definido desde el POS</small>
+                                            </div>
+                                        {% else %}
+                                            <i class="fas fa-receipt fa-3x me-3" style="color: #007bff;"></i>
+                                            <div>
+                                                <h5 class="mb-1"><strong>Boleta</strong></h5>
+                                                <small class="text-muted">Tipo de documento definido desde el POS</small>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    {% if disponibilidad_folios %}
+                                        {% if ticket.tipo_documento_planeado == 'factura' and disponibilidad_folios.factura %}
+                                            <div class="mt-2">
+                                                <small><strong>Folios disponibles:</strong> {{ disponibilidad_folios.factura.folios_disponibles }}</small>
+                                            </div>
+                                        {% elif ticket.tipo_documento_planeado == 'guia' and disponibilidad_folios.guia %}
+                                            <div class="mt-2">
+                                                <small><strong>Folios disponibles:</strong> {{ disponibilidad_folios.guia.folios_disponibles }}</small>
+                                            </div>
+                                        {% elif disponibilidad_folios.boleta %}
+                                            <div class="mt-2">
+                                                <small><strong>Folios disponibles:</strong> {{ disponibilidad_folios.boleta.folios_disponibles }}</small>
+                                            </div>
+                                        {% endif %}
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -375,6 +375,7 @@
                     </div>
                 </div>
 
+                {% if mostrar_formas_pago %}
                 <div class="card card-terroso mb-3" id="formasPagoCard">
                     <div class="card-header-terroso">
                         <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Formas de Pago</h5>
@@ -426,6 +427,12 @@
                         </div>
                     </div>
                 </div>
+                {% else %}
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Modo Ticket/Vale Facturable:</strong> El pago se procesará en la caja cuando se emita el documento final.
+                </div>
+                {% endif %}
 
                 <div class="card card-terroso mb-3">
                     <div class="card-body">
@@ -441,9 +448,15 @@
                     <a href="{% url 'caja:procesar_venta_buscar' %}" class="btn btn-outline-secondary">
                         <i class="fas fa-times me-1"></i>Cancelar
                     </a>
-                    <button type="button" class="btn btn-terroso btn-lg" id="btnProcesar">
+                    <button type="submit" class="btn btn-terroso btn-lg" id="btnProcesar">
                         <i class="fas fa-check me-2"></i>Procesar Venta
                     </button>
+                    <div id="loadingIndicator" style="display: none; margin-top: 10px;">
+                        <div class="spinner-border text-terroso" role="status">
+                            <span class="visually-hidden">Procesando...</span>
+                        </div>
+                        <span class="ms-2">Procesando venta...</span>
+                    </div>
                 </div>
             </form>
         </div>
@@ -464,6 +477,19 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('[DEBUG] Boton:', btn);
     console.log('[DEBUG] Boton type:', btn.type);
     console.log('[DEBUG] Boton disabled:', btn.disabled);
+    
+    // Verificar que el botón existe antes de agregar listener
+    if (!btn) {
+        console.error('[ERROR] Botón btnProcesar no encontrado!');
+        return;
+    }
+    
+    if (!form) {
+        console.error('[ERROR] Formulario formProcesar no encontrado!');
+        return;
+    }
+    
+    console.log('[OK] Formulario y botón encontrados correctamente');
     
     // Función para actualizar required según tipo de documento
     function actualizarRequiredDespacho() {
@@ -508,48 +534,174 @@ document.addEventListener('DOMContentLoaded', function() {
         radio.addEventListener('change', actualizarRequiredDespacho);
     });
     
-    form.addEventListener('submit', function(e) {
-        console.log('[SUBMIT] SUBMIT DISPARADO');
-        console.log('Form action:', this.action);
-        console.log('Form method:', this.method);
-        // NO PREVENIR EL SUBMIT
-    });
+    // Cargar chofer automáticamente cuando se selecciona un vehículo
+    const vehiculoSelect = document.getElementById('vehiculo_id');
+    const choferSelect = document.getElementById('chofer_id');
     
-    btn.addEventListener('click', function(e) {
-        console.log('[CLICK] CLICK EN BOTON - FORZANDO SUBMIT');
-        e.preventDefault();
+    if (vehiculoSelect && choferSelect) {
+        vehiculoSelect.addEventListener('change', function() {
+            const vehiculoId = this.value;
+            if (vehiculoId) {
+                // Hacer llamada AJAX para obtener el chofer del vehículo
+                fetch(`/pedidos/ajax/vehiculo/${vehiculoId}/chofer/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.chofer_id) {
+                            // Establecer el chofer solo si el campo está vacío o si el usuario no ha seleccionado uno manualmente
+                            if (!choferSelect.value || choferSelect.value === '') {
+                                choferSelect.value = data.chofer_id;
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error al cargar chofer del vehículo:', error);
+                    });
+            }
+        });
+    }
+    
+    // Registrar listener del submit ANTES de cualquier otra cosa
+    console.log('[DEBUG] Registrando listener de submit...');
+    
+    form.addEventListener('submit', function(e) {
+        console.log('[SUBMIT] ========== SUBMIT DISPARADO ==========');
+        console.log('[SUBMIT] Event:', e);
+        console.log('[SUBMIT] Form action:', this.action);
+        console.log('[SUBMIT] Form method:', this.method);
+        console.log('[SUBMIT] Default prevented:', e.defaultPrevented);
         
-        // Validar que haya un tipo de documento seleccionado
-        const tipoDoc = document.querySelector('input[name="tipo_documento"]:checked');
-        if (!tipoDoc) {
-            alert('Debe seleccionar un tipo de documento');
-            return;
-        }
+        // Validar que haya un tipo de documento
+        // CRÍTICO: Como ahora el tipo viene del vale (solo lectura), usar el campo oculto o el tipo_documento_planeado
+        let tipoDoc = document.querySelector('input[name="tipo_documento"]:checked');
+        let tipoDocValue = null;
         
-        // Validar formas de pago (excepto para guías)
-        if (tipoDoc.value !== 'guia') {
-            const montos = document.querySelectorAll('.monto-pago');
-            let totalPagado = 0;
-            montos.forEach(input => {
-                totalPagado += parseFloat(input.value) || 0;
-            });
-            
-            if (totalPagado < totalVenta) {
-                alert(`Falta pago. Total: $${Math.round(totalVenta).toLocaleString('es-CL')}, Pagado: $${Math.round(totalPagado).toLocaleString('es-CL')}`);
-                return;
+        if (tipoDoc) {
+            // Modo antiguo: radio button seleccionado
+            tipoDocValue = tipoDoc.value;
+            console.log('[DEBUG] Tipo documento seleccionado (radio):', tipoDocValue);
+        } else {
+            // Modo nuevo: campo oculto (solo lectura)
+            tipoDoc = document.getElementById('tipo_documento_hidden') || document.querySelector('input[name="tipo_documento"][type="hidden"]');
+            if (tipoDoc && tipoDoc.value) {
+                tipoDocValue = tipoDoc.value;
+                console.log('[DEBUG] Usando campo oculto tipo_documento:', tipoDocValue);
+            } else {
+                // Fallback: usar el tipo_documento_planeado del ticket
+                tipoDocValue = '{{ ticket.tipo_documento_planeado|default:"boleta" }}';
+                console.log('[DEBUG] Usando tipo_documento_planeado del ticket (fallback):', tipoDocValue);
             }
         }
         
-        console.log('[OK] Validaciones OK');
+        // Validar que tengamos un tipo válido
+        if (!tipoDocValue || tipoDocValue === '') {
+            console.log('[ERROR] No hay tipo de documento definido');
+            e.preventDefault();
+            alert('Error: No se pudo determinar el tipo de documento del vale. Por favor, contacte al administrador.');
+            return false;
+        }
         
-        // Ya no se usa modal de despacho - los datos están en el formulario principal
-        console.log('[SUBMIT] Enviando formulario...');
-        form.submit();
+        console.log('[DEBUG] Tipo documento final:', tipoDocValue);
+        console.log('[DEBUG] mostrar_formas_pago:', {% if mostrar_formas_pago %}true{% else %}false{% endif %});
+        
+        // Validar formas de pago SOLO si están habilitadas y NO es guía
+        {% if mostrar_formas_pago %}
+        if (tipoDocValue !== 'guia') {
+            const montos = document.querySelectorAll('.monto-pago');
+            console.log('[DEBUG] Montos encontrados:', montos.length);
+            let totalPagado = 0;
+            montos.forEach(input => {
+                const valor = parseFloat(input.value) || 0;
+                totalPagado += valor;
+                console.log('[DEBUG] Monto:', valor);
+            });
+            
+            console.log('[DEBUG] Total venta:', totalVenta);
+            console.log('[DEBUG] Total pagado:', totalPagado);
+            
+            if (totalPagado < totalVenta) {
+                console.log('[ERROR] Total pagado insuficiente');
+                e.preventDefault();
+                alert(`Falta pago. Total: $${Math.round(totalVenta).toLocaleString('es-CL')}, Pagado: $${Math.round(totalPagado).toLocaleString('es-CL')}`);
+                return false;
+            }
+        }
+        {% else %}
+        // Modo ticket/vale facturable - No se validan formas de pago
+        console.log('[INFO] Modo ticket/vale facturable - No se validan formas de pago');
+        {% endif %}
+        
+        console.log('[OK] Validaciones OK - Enviando formulario...');
+        
+        // Mostrar indicador de carga
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const btnProcesar = document.getElementById('btnProcesar');
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'block';
+        }
+        if (btnProcesar) {
+            btnProcesar.disabled = true;
+            btnProcesar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando...';
+        }
+        
+        // NO prevenir el envío - permitir que el formulario se envíe normalmente
+        // El formulario se enviará automáticamente después de pasar las validaciones
+        console.log('[OK] Validaciones completadas - El formulario se enviará normalmente');
+        console.log('[DEBUG] Formulario action:', this.action || 'current URL');
+        console.log('[DEBUG] Formulario method:', this.method);
+        console.log('[DEBUG] NO se está previniendo el envío - El formulario debería enviarse ahora');
+        
+        // Asegurar que NO se previene el envío
+        // NO llamar e.preventDefault() ni return false
+        // El formulario se enviará automáticamente
+        // NO retornar false - permitir que el submit continúe
     });
+    
+    console.log('[OK] Listener de submit registrado');
+    
+    // Agregar listener directo al botón como respaldo
+    btn.addEventListener('click', function(e) {
+        console.log('[CLICK] Botón clickeado directamente');
+        
+        // Validar tipo de documento antes de enviar
+        // CRÍTICO: Como ahora el tipo viene del vale (solo lectura), usar el campo oculto o el tipo_documento_planeado
+        let tipoDoc = document.querySelector('input[name="tipo_documento"]:checked');
+        let tipoDocValue = null;
+        
+        if (tipoDoc) {
+            // Modo antiguo: radio button seleccionado
+            tipoDocValue = tipoDoc.value;
+            console.log('[CLICK] Tipo documento seleccionado (radio):', tipoDocValue);
+        } else {
+            // Modo nuevo: campo oculto (solo lectura)
+            tipoDoc = document.getElementById('tipo_documento_hidden') || document.querySelector('input[name="tipo_documento"][type="hidden"]');
+            if (tipoDoc && tipoDoc.value) {
+                tipoDocValue = tipoDoc.value;
+                console.log('[CLICK] Usando campo oculto tipo_documento:', tipoDocValue);
+            } else {
+                // Fallback: usar el tipo_documento_planeado del ticket
+                tipoDocValue = '{{ ticket.tipo_documento_planeado|default:"boleta" }}';
+                console.log('[CLICK] Usando tipo_documento_planeado del ticket (fallback):', tipoDocValue);
+            }
+        }
+        
+        // Validar que tengamos un tipo válido
+        if (!tipoDocValue || tipoDocValue === '') {
+            e.preventDefault();
+            alert('Error: No se pudo determinar el tipo de documento del vale. Por favor, contacte al administrador.');
+            return false;
+        }
+        
+        // Si el botón es type="submit", el formulario se enviará automáticamente
+        // Solo necesitamos asegurarnos de que las validaciones pasen
+        console.log('[CLICK] Tipo documento válido:', tipoDocValue, '- El formulario se enviará');
+    });
+    
+    console.log('[OK] Botón configurado como type="submit" - El formulario se enviará automáticamente al hacer clic');
 });
 
-// Actualizar resumen de pagos
+// Actualizar resumen de pagos (solo si existe el contenedor)
 function actualizarResumen() {
+    {% if mostrar_formas_pago %}
     const montos = document.querySelectorAll('.monto-pago');
     let totalPagado = 0;
     
@@ -560,75 +712,115 @@ function actualizarResumen() {
     
     const diferencia = totalVenta - totalPagado;
     
-    document.getElementById('totalPagado').textContent = '$' + Math.round(totalPagado).toLocaleString('es-CL');
-    document.getElementById('diferencia').textContent = '$' + Math.round(diferencia).toLocaleString('es-CL');
-    document.getElementById('diferencia').style.color = diferencia <= 0 ? '#28a745' : '#dc3545';
+    const totalPagadoEl = document.getElementById('totalPagado');
+    const diferenciaEl = document.getElementById('diferencia');
+    
+    if (totalPagadoEl) {
+        totalPagadoEl.textContent = '$' + Math.round(totalPagado).toLocaleString('es-CL');
+    }
+    if (diferenciaEl) {
+        diferenciaEl.textContent = '$' + Math.round(diferencia).toLocaleString('es-CL');
+        diferenciaEl.style.color = diferencia <= 0 ? '#28a745' : '#dc3545';
+    }
+    {% else %}
+    // No hay formas de pago - no actualizar resumen
+    console.log('[INFO] No hay formas de pago - No se actualiza resumen');
+    {% endif %}
 }
 
-// Agregar forma de pago
-document.getElementById('btnAgregarPago').addEventListener('click', function() {
-    contadorFormasPago++;
-    const container = document.getElementById('formas-pago-container');
-    const nuevaFila = document.createElement('div');
-    nuevaFila.className = 'forma-pago-item';
-    nuevaFila.innerHTML = `
-        <div class="row g-2 align-items-end">
-            <div class="col-md-6">
-                <label class="form-label mb-1">Forma de Pago</label>
-                <select name="forma_pago_${contadorFormasPago}" class="form-select form-select-sm">
-                    {% for fp in form.fields.forma_pago.queryset %}
-                    <option value="{{ fp.id }}" {% if fp.codigo == 'EF' or fp.nombre|upper == 'EFECTIVO' %}selected{% endif %}>{{ fp.nombre }}</option>
-                    {% endfor %}
-                </select>
+// Agregar forma de pago (solo si existe el botón)
+{% if mostrar_formas_pago %}
+const btnAgregarPago = document.getElementById('btnAgregarPago');
+if (btnAgregarPago) {
+    btnAgregarPago.addEventListener('click', function() {
+        contadorFormasPago++;
+        const container = document.getElementById('formas-pago-container');
+        const nuevaFila = document.createElement('div');
+        nuevaFila.className = 'forma-pago-item';
+        nuevaFila.innerHTML = `
+            <div class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label mb-1">Forma de Pago</label>
+                    <select name="forma_pago_${contadorFormasPago}" class="form-select form-select-sm">
+                        {% for fp in form.fields.forma_pago.queryset %}
+                        <option value="{{ fp.id }}" {% if fp.codigo == 'EF' or fp.nombre|upper == 'EFECTIVO' %}selected{% endif %}>{{ fp.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label mb-1">Monto</label>
+                    <input type="number" name="monto_pago_${contadorFormasPago}" class="form-control form-control-sm monto-pago" 
+                           step="1" min="0" value="0">
+                </div>
+                <div class="col-md-1 text-end">
+                    <button type="button" class="btn btn-sm btn-danger remove-pago">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
-            <div class="col-md-5">
-                <label class="form-label mb-1">Monto</label>
-                <input type="number" name="monto_pago_${contadorFormasPago}" class="form-control form-control-sm monto-pago" 
-                       step="1" min="0" value="0">
-            </div>
-            <div class="col-md-1 text-end">
-                <button type="button" class="btn btn-sm btn-danger remove-pago">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `;
-    container.appendChild(nuevaFila);
-    
-    // Event listener para eliminar
-    nuevaFila.querySelector('.remove-pago').addEventListener('click', function() {
-        nuevaFila.remove();
+        `;
+        container.appendChild(nuevaFila);
+        
+        // Event listener para eliminar
+        nuevaFila.querySelector('.remove-pago').addEventListener('click', function() {
+            nuevaFila.remove();
+            actualizarResumen();
+        });
+        
+        // Event listener para actualizar totales
+        nuevaFila.querySelector('.monto-pago').addEventListener('input', actualizarResumen);
+        
         actualizarResumen();
     });
-    
-    // Event listener para actualizar totales
-    nuevaFila.querySelector('.monto-pago').addEventListener('input', actualizarResumen);
-    
-    actualizarResumen();
-});
+}
+{% endif %}
 
-// Listeners iniciales
+// Listeners iniciales (solo si hay formas de pago)
+{% if mostrar_formas_pago %}
 document.querySelectorAll('.monto-pago').forEach(input => {
     input.addEventListener('input', actualizarResumen);
 });
+{% endif %}
 
-// Mostrar/ocultar formas de pago según tipo de documento
+// Mostrar/ocultar formas de pago según tipo de documento (solo si están habilitadas)
+{% if mostrar_formas_pago %}
+// CRÍTICO: Como ahora el tipo de documento viene del vale (solo lectura),
+// debemos verificar el tipo_documento_planeado del ticket
+const tipoDocPlaneado = '{{ ticket.tipo_documento_planeado|default:"boleta" }}';
+const card = document.getElementById('formasPagoCard');
+
+if (card) {
+    // Las guías NO tienen formas de pago
+    if (tipoDocPlaneado === 'guia') {
+        card.style.display = 'none';
+        console.log('[INFO] Guía de despacho - Ocultando formas de pago');
+    } else {
+        // Facturas y boletas SÍ tienen formas de pago
+        card.style.display = 'block';
+        console.log('[INFO] Tipo documento:', tipoDocPlaneado, '- Mostrando formas de pago');
+    }
+}
+
+// Si hay radio buttons (modo antiguo), mantener compatibilidad
 document.querySelectorAll('input[name="tipo_documento"]').forEach(radio => {
     radio.addEventListener('change', function() {
         const card = document.getElementById('formasPagoCard');
-        if (this.value === 'guia') {
-            card.style.display = 'none';
-        } else {
-            card.style.display = 'block';
+        if (card) {
+            if (this.value === 'guia') {
+                card.style.display = 'none';
+            } else {
+                card.style.display = 'block';
+            }
         }
     });
 });
 
 // Inicializar
 actualizarResumen();
-if (document.querySelector('input[name="tipo_documento"]:checked')?.value === 'guia') {
-    document.getElementById('formasPagoCard').style.display = 'none';
-}
+{% else %}
+// Modo ticket/vale facturable sin tipo definido - No mostrar formas de pago
+console.log('[INFO] Modo ticket/vale facturable - Formas de pago deshabilitadas');
+{% endif %}
 </script>
 
 <!-- Modal de Confirmación de Despacho -->

@@ -1,0 +1,315 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Detalle Ruta - {{ block.super }}{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
+    .btn-volver {
+        background: linear-gradient(135deg, #D4C4A8 0%, #C4B299 100%);
+        border: none;
+        color: #6F5B44;
+        font-weight: 500;
+    }
+    .btn-volver:hover {
+        background: linear-gradient(135deg, #C4B299 0%, #B8A082 100%);
+        color: #6F5B44;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(184, 160, 130, 0.4);
+    }
+    .btn-editar {
+        background: linear-gradient(135deg, #A8957A 0%, #8B7355 100%);
+        border: none;
+        color: white;
+        font-weight: 500;
+    }
+    .btn-editar:hover {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+    }
+    .btn-ver {
+        background: linear-gradient(135deg, #B8A082 0%, #9B8B6F 100%);
+        border: none;
+        color: white;
+        font-weight: 500;
+    }
+    .btn-ver:hover {
+        background: linear-gradient(135deg, #9B8B6F 0%, #8B7355 100%);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(155, 139, 111, 0.4);
+    }
+    .table-compact {
+        font-size: 0.75rem;
+    }
+    .table-compact thead th {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        padding: 8px 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid" style="margin-top: 0; padding-top: 10px;">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Información Principal -->
+            <div class="card shadow-sm mb-4" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-route fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Ruta: <span style="color: #8B7355;">{{ ruta.nombre }}</span>
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Código: {{ ruta.codigo }}
+                                </small>
+                            </div>
+                        </div>
+                        <div>
+                            <a href="{% url 'pedidos:ruta_list' %}" class="btn btn-volver btn-sm">
+                                <i class="fas fa-arrow-left"></i> Volver a la Lista
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-4">
+                    <div class="row">
+                        <!-- Panel Lateral -->
+                        <div class="col-md-4">
+                            <div class="p-3 rounded" style="background-color: #F5F1E8;">
+                                <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Código</p>
+                                <h4 class="fw-bold" style="color: #6F5B44;">{{ ruta.codigo }}</h4>
+                                <hr style="border-color: #D4C4A8;">
+                                
+                                <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Estado</p>
+                                {% if ruta.activo %}
+                                    <span class="badge bg-success fs-6"><i class="fas fa-check-circle"></i> Activa</span>
+                                {% else %}
+                                    <span class="badge bg-secondary fs-6"><i class="fas fa-times-circle"></i> Inactiva</span>
+                                {% endif %}
+                                
+                                <hr style="border-color: #D4C4A8;">
+                                
+                                <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Orden de Visita</p>
+                                <h5 style="color: #6F5B44;">{{ ruta.orden_visita }}</h5>
+                                
+                                <hr style="border-color: #D4C4A8;">
+                                
+                                <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Clientes Asignados</p>
+                                <h5 style="color: #6F5B44;"><i class="fas fa-users me-1"></i>{{ clientes.count }}</h5>
+                            </div>
+                        </div>
+                        
+                        <!-- Información Principal -->
+                        <div class="col-md-8">
+                            <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Nombre de la Ruta</p>
+                            <p style="color: #6F5B44; font-size: 1.1rem;">{{ ruta.nombre }}</p>
+
+                            {% if ruta.descripcion %}
+                            <p class="small text-uppercase fw-bold mb-1 mt-3" style="color: #8B7355;">Descripción</p>
+                            <p style="color: #6F5B44;">{{ ruta.descripcion }}</p>
+                            {% endif %}
+
+                            <hr style="border-color: #E8DCC8;">
+
+                            <!-- Información de Transporte -->
+                            <div class="row mt-3">
+                                <div class="col-md-4">
+                                    <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Vehículo</p>
+                                    {% if ruta.vehiculo %}
+                                        <p style="color: #6F5B44;">
+                                            <i class="fas fa-car me-2"></i><strong>{{ ruta.vehiculo.patente }}</strong><br>
+                                            <small style="color: #8B7355;">{{ ruta.vehiculo.descripcion }}</small>
+                                        </p>
+                                    {% else %}
+                                        <p class="text-muted"><i class="fas fa-car me-2"></i>No asignado</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Chofer</p>
+                                    {% if ruta.chofer %}
+                                        <p style="color: #6F5B44;">
+                                            <i class="fas fa-user-tie me-2"></i><strong>{{ ruta.chofer.nombre }}</strong><br>
+                                            <small style="color: #8B7355;">{{ ruta.chofer.rut }}</small>
+                                        </p>
+                                    {% else %}
+                                        <p class="text-muted"><i class="fas fa-user-tie me-2"></i>No asignado</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Acompañante</p>
+                                    {% if ruta.acompanante %}
+                                        <p style="color: #6F5B44;">
+                                            <i class="fas fa-user me-2"></i><strong>{{ ruta.acompanante.nombre }}</strong><br>
+                                            <small style="color: #8B7355;">{{ ruta.acompanante.rut }}</small>
+                                        </p>
+                                    {% else %}
+                                        <p class="text-muted"><i class="fas fa-user me-2"></i>No asignado</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if ruta.dias_visita %}
+                            <hr style="border-color: #E8DCC8;">
+                            <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Días de Visita</p>
+                            <p style="color: #6F5B44;"><i class="fas fa-calendar-alt me-2"></i>{{ ruta.dias_visita }}</p>
+                            {% endif %}
+
+                            <hr style="border-color: #E8DCC8;">
+
+                            <div class="row small" style="color: #8B7355;">
+                                <div class="col-6">
+                                    <p class="mb-1"><i class="fas fa-calendar-plus me-2"></i><strong>Creado:</strong> {{ ruta.fecha_creacion|date:"d/m/Y H:i" }}</p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-1"><i class="fas fa-calendar-check me-2"></i><strong>Modificado:</strong> {{ ruta.fecha_modificacion|date:"d/m/Y H:i" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer text-end" style="background-color: #F5F1E8; border-top: 1px solid #E8DCC8;">
+                    {% if perms.pedidos.change_ruta or user.is_superuser %}
+                    <a href="{% url 'pedidos:ruta_edit' ruta.pk %}" class="btn btn-editar btn-sm">
+                        <i class="fas fa-edit"></i> Editar Ruta
+                    </a>
+                    {% endif %}
+                    {% if perms.pedidos.delete_ruta or user.is_superuser %}
+                    <a href="{% url 'pedidos:ruta_delete' ruta.pk %}" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Clientes Asignados -->
+            {% if clientes %}
+            <div class="card shadow-sm mb-4" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px;">
+                    <h6 class="mb-0" style="font-size: 0.9rem; font-weight: 600; color: #6F5B44;">
+                        <i class="fas fa-users me-2"></i>Clientes Asignados ({{ clientes.count }})
+                    </h6>
+                </div>
+                <div class="card-body p-3">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th>RUT</th>
+                                    <th>Nombre</th>
+                                    <th>Dirección</th>
+                                    <th>Comuna</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cliente in clientes %}
+                                <tr>
+                                    <td>{{ cliente.rut|default:"-" }}</td>
+                                    <td><strong style="color: #6F5B44;">{{ cliente.nombre }}</strong></td>
+                                    <td>{{ cliente.direccion }}</td>
+                                    <td>{{ cliente.comuna }}</td>
+                                    <td>
+                                        {% if cliente.estado == 'activo' %}
+                                            <span class="badge bg-success" style="font-size: 0.65rem;">Activo</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary" style="font-size: 0.65rem;">{{ cliente.get_estado_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Hojas de Ruta Recientes -->
+            {% if hojas_ruta %}
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px;">
+                    <h6 class="mb-0" style="font-size: 0.9rem; font-weight: 600; color: #6F5B44;">
+                        <i class="fas fa-clipboard-list me-2"></i>Hojas de Ruta Recientes
+                    </h6>
+                </div>
+                <div class="card-body p-3">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Número</th>
+                                    <th>Fecha</th>
+                                    <th>Vehículo</th>
+                                    <th>Chofer</th>
+                                    <th>Estado</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for hoja in hojas_ruta %}
+                                <tr>
+                                    <td><strong style="color: #6F5B44;">{{ hoja.numero_ruta }}</strong></td>
+                                    <td>{{ hoja.fecha|date:"d/m/Y" }}</td>
+                                    <td>
+                                        {% if hoja.vehiculo %}
+                                            <span style="color: #6F5B44;"><i class="fas fa-car me-1"></i>{{ hoja.vehiculo.patente }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if hoja.chofer %}
+                                            <span style="color: #6F5B44;">{{ hoja.chofer.nombre }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if hoja.estado == 'pendiente' %}
+                                            <span class="badge bg-warning" style="font-size: 0.65rem;">Pendiente</span>
+                                        {% elif hoja.estado == 'en_ruta' %}
+                                            <span class="badge bg-info" style="font-size: 0.65rem;">En Ruta</span>
+                                        {% elif hoja.estado == 'completada' %}
+                                            <span class="badge bg-success" style="font-size: 0.65rem;">Completada</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary" style="font-size: 0.65rem;">{{ hoja.get_estado_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'pedidos:hoja_ruta_detail' hoja.pk %}" class="btn btn-ver btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="Ver detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+

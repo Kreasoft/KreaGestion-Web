@@ -503,6 +503,10 @@ def traducir_permiso(permission):
         # Facturación Electrónica
         'archivocaf': 'Archivos CAF',
         'documentotributarioelectronico': 'Documentos Tributarios Electrónicos',
+        'detalledocumentotributarioelectronico': 'Detalles de Documentos Tributarios Electrónicos',
+        'acuserecibo': 'Acuses de Recibo',
+        'enviodte': 'Envíos de DTE',
+        'configuracionalertafolios': 'Configuración de Alertas de Folios',
         
         # Pedidos
         'pedido': 'Pedidos',
@@ -614,7 +618,14 @@ def grupo_create(request):
                 permiso.nombre_traducido = traducir_permiso(permiso)
                 permisos_traducidos.append(permiso)
             
-            permisos_por_app[nombres_apps.get(app_label, app_label.title())] = permisos_traducidos
+            # Usar el nombre traducido de la app como clave, pero guardar también el app_label original
+            nombre_app = nombres_apps.get(app_label, app_label.title())
+            # Crear un diccionario con nombre y app_label para el template
+            permisos_por_app[nombre_app] = {
+                'permisos': permisos_traducidos,
+                'app_label_slug': app_label,  # Para usar en IDs del acordeón
+                'nombre': nombre_app  # Nombre traducido para mostrar
+            }
     
     context = {
         'form': form,
@@ -706,7 +717,14 @@ def grupo_edit(request, grupo_id):
                 permiso.nombre_traducido = traducir_permiso(permiso)
                 permisos_traducidos.append(permiso)
             
-            permisos_por_app[nombres_apps.get(app_label, app_label.title())] = permisos_traducidos
+            # Usar el nombre traducido de la app como clave, pero guardar también el app_label original
+            nombre_app = nombres_apps.get(app_label, app_label.title())
+            # Crear un diccionario con nombre y app_label para el template
+            permisos_por_app[nombre_app] = {
+                'permisos': permisos_traducidos,
+                'app_label_slug': app_label,  # Para usar en IDs del acordeón
+                'nombre': nombre_app  # Nombre traducido para mostrar
+            }
     
     # Obtener permisos actuales del grupo
     permisos_actuales = grupo.permissions.values_list('id', flat=True)

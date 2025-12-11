@@ -31,32 +31,72 @@
         line-height: 1.2;
         font-size: 0.75rem;
     }
-    .btn-principal {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    .btn-nueva {
+        background: linear-gradient(135deg, #A8957A 0%, #8B7355 100%);
         border: none;
         color: white;
-        transition: all 0.3s ease;
+        font-weight: 500;
     }
-    .btn-principal:hover {
+    .btn-nueva:hover {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
         transform: translateY(-2px);
         box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+    }
+    .btn-buscar {
+        background: linear-gradient(135deg, #9B8B6F 0%, #7A6B55 100%);
+        border: none;
         color: white;
+        font-weight: 500;
     }
-    .btn-secundario {
-        background-color: rgba(111, 91, 68, 0.15);
-        border: 1px solid rgba(111, 91, 68, 0.25);
-        color: #6F5B44;
+    .btn-buscar:hover {
+        background: linear-gradient(135deg, #7A6B55 0%, #6F5B44 100%);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(122, 107, 85, 0.4);
     }
-    .btn-secundario:hover {
-        background-color: rgba(111, 91, 68, 0.25);
+    .btn-limpiar {
+        background: linear-gradient(135deg, #D4C4A8 0%, #C4B299 100%);
+        border: none;
         color: #6F5B44;
+        font-weight: 500;
+    }
+    .btn-limpiar:hover {
+        background: linear-gradient(135deg, #C4B299 0%, #B8A082 100%);
+        color: #6F5B44;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(184, 160, 130, 0.4);
+    }
+    .btn-ver {
+        background: linear-gradient(135deg, #B8A082 0%, #9B8B6F 100%);
+        border: none;
+        color: white;
+        font-weight: 500;
+    }
+    .btn-ver:hover {
+        background: linear-gradient(135deg, #9B8B6F 0%, #8B7355 100%);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(155, 139, 111, 0.4);
+    }
+    .btn-editar {
+        background: linear-gradient(135deg, #D4C4A8 0%, #C4B299 100%);
+        border: none;
+        color: #6F5B44;
+        font-weight: 500;
+    }
+    .btn-editar:hover {
+        background: linear-gradient(135deg, #C4B299 0%, #B8A082 100%);
+        color: #6F5B44;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(184, 160, 130, 0.4);
     }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<div class="container-fluid" style="margin-top: 60px;">
+<div class="container-fluid" style="margin-top: 0; padding-top: 10px;">
     <div class="row">
         <div class="col-12">
             <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
@@ -73,7 +113,7 @@
                                 </small>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-principal btn-sm" id="btnNuevoChofer">
+                        <button type="button" class="btn btn-nueva btn-sm" id="btnNuevoChofer">
                             <i class="fas fa-plus"></i> Nuevo Chofer
                         </button>
                     </div>
@@ -95,8 +135,8 @@
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <button type="submit" class="btn btn-principal btn-sm me-2"><i class="fas fa-search"></i> Buscar</button>
-                                <a href="{% url 'pedidos:chofer_list' %}" class="btn btn-secundario btn-sm"><i class="fas fa-times"></i> Limpiar</a>
+                                <button type="submit" class="btn btn-buscar btn-sm me-2"><i class="fas fa-search"></i> Buscar</button>
+                                <a href="{% url 'pedidos:chofer_list' %}" class="btn btn-limpiar btn-sm"><i class="fas fa-times"></i> Limpiar</a>
                             </div>
                         </form>
                     </div>
@@ -109,6 +149,7 @@
                                         <th>Código</th>
                                         <th>Nombre</th>
                                         <th>RUT</th>
+                                        <th>Tipo</th>
                                         <th>Estado</th>
                                         <th class="text-center">Acciones</th>
                                     </tr>
@@ -120,6 +161,15 @@
                                         <td>{{ chofer.nombre }}</td>
                                         <td>{{ chofer.rut }}</td>
                                         <td>
+                                            {% if chofer.tipo == 'chofer' %}
+                                                <span class="badge" style="background-color: #8B7355; font-size: 0.65rem;"><i class="fas fa-car"></i> Chofer</span>
+                                            {% elif chofer.tipo == 'acompanante' %}
+                                                <span class="badge" style="background-color: #D4A574; font-size: 0.65rem;"><i class="fas fa-user"></i> Acompañante</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary" style="font-size: 0.65rem;">{{ chofer.get_tipo_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
                                             {% if chofer.activo %}
                                                 <span class="badge bg-success" style="font-size: 0.65rem;"><i class="fas fa-check-circle"></i> Activo</span>
                                             {% else %}
@@ -127,8 +177,8 @@
                                             {% endif %}
                                         </td>
                                         <td class="text-center">
-                                            <a href="{% url 'pedidos:chofer_detail' chofer.pk %}" class="btn btn-secundario btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="Ver detalle"><i class="fas fa-eye"></i></a>
-                                            <button type="button" class="btn btn-secundario btn-sm btn-editar-chofer" data-id="{{ chofer.pk }}" style="padding: 2px 6px; font-size: 0.7rem;" title="Editar"><i class="fas fa-edit"></i></button>
+                                            <a href="{% url 'pedidos:chofer_detail' chofer.pk %}" class="btn btn-ver btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="Ver detalle"><i class="fas fa-eye"></i></a>
+                                            <button type="button" class="btn btn-editar btn-sm btn-editar-chofer" data-id="{{ chofer.pk }}" style="padding: 2px 6px; font-size: 0.7rem;" title="Editar"><i class="fas fa-edit"></i></button>
                                             <a href="{% url 'pedidos:chofer_delete' chofer.pk %}" class="btn btn-danger btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="Eliminar"><i class="fas fa-trash"></i></a>
                                         </td>
                                     </tr>
@@ -141,13 +191,13 @@
                         <nav aria-label="Paginación" class="mt-3">
                             <ul class="pagination justify-content-center">
                                 {% if page_obj.has_previous %}
-                                    <li class="page-item"><a class="page-link btn-secundario" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-double-left"></i></a></li>
-                                    <li class="page-item"><a class="page-link btn-secundario" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-left"></i></a></li>
+                                    <li class="page-item"><a class="page-link btn-limpiar" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-double-left"></i></a></li>
+                                    <li class="page-item"><a class="page-link btn-limpiar" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-left"></i></a></li>
                                 {% endif %}
-                                <li class="page-item active"><span class="page-link btn-principal">{{ page_obj.number }}</span></li>
+                                <li class="page-item active"><span class="page-link btn-nueva">{{ page_obj.number }}</span></li>
                                 {% if page_obj.has_next %}
-                                    <li class="page-item"><a class="page-link btn-secundario" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-right"></i></a></li>
-                                    <li class="page-item"><a class="page-link btn-secundario" href="?page={{ page_obj.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-double-right"></i></a></li>
+                                    <li class="page-item"><a class="page-link btn-limpiar" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-right"></i></a></li>
+                                    <li class="page-item"><a class="page-link btn-limpiar" href="?page={{ page_obj.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-double-right"></i></a></li>
                                 {% endif %}
                             </ul>
                         </nav>

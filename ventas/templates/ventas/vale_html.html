@@ -228,6 +228,15 @@
         <!-- Título del Vale -->
         <div class="vale-title">
             TICKET FACTURABLE
+            {% if tipo_documento_final %}
+            <div style="font-size: 12px; margin-top: 5px; color: #28a745;">
+                Se cerró como: <strong>{{ venta_procesada.venta_final.get_tipo_documento_display|upper }}</strong>
+            </div>
+            {% elif venta.tipo_documento_planeado %}
+            <div style="font-size: 12px; margin-top: 5px; color: #666;">
+                Se cerrará como: <strong>{{ venta.get_tipo_documento_planeado_display|upper }}</strong>
+            </div>
+            {% endif %}
         </div>
         
         <!-- Información del Vale -->
@@ -240,6 +249,17 @@
                 <span class="info-label">Fecha:</span>
                 <span>{{ venta.fecha|date:"d/m/Y" }}</span>
             </div>
+            {% if tipo_documento_final %}
+            <div class="info-row" style="background: #d4edda; padding: 5px; border: 1px solid #28a745; border-radius: 3px; margin-top: 5px;">
+                <span class="info-label" style="color: #155724;">Se cerró como:</span>
+                <span style="font-weight: bold; color: #155724; text-transform: uppercase;">{{ venta_procesada.venta_final.get_tipo_documento_display }}</span>
+            </div>
+            {% elif venta.tipo_documento_planeado %}
+            <div class="info-row" style="background: #fff3cd; padding: 5px; border: 1px solid #ffc107; border-radius: 3px; margin-top: 5px;">
+                <span class="info-label" style="color: #856404;">Se cerrará como:</span>
+                <span style="font-weight: bold; color: #856404; text-transform: uppercase;">{{ venta.get_tipo_documento_planeado_display }}</span>
+            </div>
+            {% endif %}
             <div class="info-row">
                 <span class="info-label">Estación:</span>
                 <span>{{ venta.estacion_trabajo.nombre|default:"N/A" }}</span>
@@ -313,6 +333,25 @@
             </div>
         </div>
         
+        <!-- Información de Pago (solo si el vale fue procesado) -->
+        {% if formas_pago_list %}
+        <div class="payment-info" style="background: #f8f9fa; padding: 8px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px;">
+            <div class="payment-title" style="font-weight: bold; font-size: 11px; margin-bottom: 5px; text-align: center;">
+                FORMAS DE PAGO
+            </div>
+            {% for fp in formas_pago_list %}
+            <div class="payment-method" style="font-size: 10px; margin-bottom: 3px;">
+                <strong>{{ fp.forma_pago.nombre }}:</strong> ${{ fp.monto|format_price }}
+            </div>
+            {% endfor %}
+            {% if venta_procesada and venta_procesada.monto_cambio > 0 %}
+            <div style="font-size: 10px; margin-top: 5px; padding-top: 5px; border-top: 1px solid #ddd;">
+                <strong>Cambio:</strong> ${{ venta_procesada.monto_cambio|format_price }}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
         <!-- Código de Barras -->
         <div class="barcode-section">
             <div class="barcode-title">CÓDIGO DE BARRAS</div>
@@ -337,22 +376,64 @@
         <button onclick="window.print()" class="btn btn-primary">
             <i class="fas fa-print me-2"></i>Imprimir Ticket Facturable
         </button>
-        <button onclick="safeCloseWindow()" class="btn btn-secondary ms-2">
+        <button id="btnCerrar" class="btn btn-secondary ms-2">
             <i class="fas fa-times me-2"></i>Cerrar
         </button>
     </div>
     
     <script>
-        function safeCloseWindow() {
-            // Solo cerrar si la ventana fue abierta por el script
-            if (window.opener && window.opener !== window) {
+        // Función para cerrar/volver - SOLUCIÓN DIRECTA
+        function cerrarVentana() {
+            console.log('cerrarVentana llamado');
+            
+            // Intentar cerrar si fue abierta por otra ventana
+            if (window.opener && window.opener !== window && !window.opener.closed) {
                 try {
                     window.close();
+                    return;
                 } catch(e) {
-                    // Si no se puede cerrar, no hacer nada
+                    console.log('No se pudo cerrar ventana:', e);
                 }
             }
+            
+            // Obtener parámetros URL
+            const params = new URLSearchParams(window.location.search);
+            const volverCaja = params.get('volver_caja') === '1';
+            const returnUrl = params.get('return_url');
+            
+            // URL de caja y POS
+            const cajaUrl = "{% url 'caja:procesar_venta_buscar' %}";
+            const posUrl = "{% url 'ventas:pos_view' %}";
+            
+            // CRÍTICO: Los vales facturables SIEMPRE deben retornar al POS, no a la caja
+            // Si hay return_url, usarlo (debería ser POS cuando viene desde caja procesando un vale)
+            if (returnUrl) {
+                console.log('Redirigiendo a return_url:', returnUrl);
+                window.location.href = decodeURIComponent(returnUrl);
+            } else if (volverCaja) {
+                // Si viene con volver_caja=1 pero no hay return_url, ir a POS (vales siempre van al POS)
+                console.log('Redirigiendo al POS (vale facturable)');
+                window.location.href = posUrl;
+            } else {
+                // Fallback: ir al POS (vales siempre van al POS)
+                console.log('Redirigiendo al POS (fallback)');
+                window.location.href = posUrl;
+            }
         }
+        
+        // Configurar botón cerrar
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnCerrar = document.getElementById('btnCerrar');
+            if (btnCerrar) {
+                btnCerrar.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    cerrarVentana();
+                    return false;
+                };
+                console.log('Botón cerrar configurado');
+            }
+        });
         
         // Generar código de barras
         document.addEventListener('DOMContentLoaded', function() {
@@ -370,10 +451,19 @@
             }
         });
         
-        // Auto-imprimir al cargar (opcional)
+        // Auto-imprimir al cargar si viene con auto=1
         window.addEventListener('load', function() {
-            // Descomenta la siguiente línea si quieres que se imprima automáticamente
-            // window.print();
+            const params = new URLSearchParams(window.location.search);
+            const auto = params.get('auto');
+            if (auto === '1') {
+                setTimeout(function() {
+                    try {
+                        window.print();
+                    } catch(e) {
+                        console.log('Error al imprimir:', e);
+                    }
+                }, 150);
+            }
         });
     </script>
 </body>

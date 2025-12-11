@@ -95,19 +95,26 @@
 
         <!-- Tabla de tickets -->
         <div class="card-body p-0">
-            {% if tickets %}
+            <!-- Debug info -->
+            <div class="alert alert-info m-3" style="font-size: 0.8rem;">
+                <strong>Total tickets encontrados:</strong> {{ total_tickets }} | 
+                <strong>Monto total:</strong> ${{ total_monto|format_price }} |
+                <strong>Rango:</strong> {{ fecha_desde|date:"d/m/Y" }} - {{ fecha_hasta|date:"d/m/Y" }}
+            </div>
+            {% if tickets|length > 0 %}
             <div class="table-responsive" style="background: white; border-radius: 0 0 15px 15px;">
                 <table class="table table-hover mb-0 table-compact">
                     <thead>
                         <tr>
                             <th style="width: 8%;">N° Ticket</th>
+                            <th style="width: 10%;">Fecha</th>
                             <th style="width: 8%;">Hora</th>
-                            <th style="width: 20%;">Cliente</th>
-                            <th style="width: 15%;">Vendedor</th>
-                            <th style="width: 15%;">Estación</th>
+                            <th style="width: 18%;">Cliente</th>
+                            <th style="width: 13%;">Vendedor</th>
+                            <th style="width: 13%;">Estación</th>
                             <th style="width: 12%; text-align: right;">Total</th>
                             <th style="width: 10%;">Estado</th>
-                            <th style="width: 12%; text-align: center;">Acciones</th>
+                            <th style="width: 8%; text-align: center;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -117,6 +124,9 @@
                                 <span style="font-weight: 600; color: #8B7355;">
                                     #{{ ticket.numero_venta }}
                                 </span>
+                            </td>
+                            <td style="font-size: 0.7rem; color: #6c757d;">
+                                {{ ticket.fecha|date:"d/m/Y" }}
                             </td>
                             <td style="font-size: 0.7rem; color: #6c757d;">
                                 {{ ticket.fecha_creacion|time:"H:i:s" }}
@@ -139,12 +149,12 @@
                                 </span>
                             </td>
                             <td style="font-size: 0.7rem;">
-                                {% if ticket.estado == 'confirmada' %}
-                                <span class="badge bg-success" style="font-size: 0.65rem;">Confirmada</span>
-                                {% elif ticket.estado == 'anulada' %}
+                                {% if ticket.estado == 'anulada' %}
                                 <span class="badge bg-danger" style="font-size: 0.65rem;">Anulada</span>
+                                {% elif ticket.facturado %}
+                                <span class="badge bg-info" style="font-size: 0.65rem;">Facturado</span>
                                 {% else %}
-                                <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Borrador</span>
+                                <span class="badge bg-success" style="font-size: 0.65rem;">Disponible</span>
                                 {% endif %}
                             </td>
                             <td style="text-align: center;">
@@ -218,6 +228,7 @@
 }
 </style>
 {% endblock %}
+
 
 
 

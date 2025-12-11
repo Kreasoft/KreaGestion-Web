@@ -58,10 +58,14 @@ urlpatterns = [
     
     # Gestión de Hojas de Ruta
     path('hojas-ruta/', views_rutas.hoja_ruta_list, name='hoja_ruta_list'),
+    path('hojas-ruta/crear/', views_rutas.hoja_ruta_create, name='hoja_ruta_create'),
     path('hojas-ruta/<int:pk>/', views_rutas.hoja_ruta_detail, name='hoja_ruta_detail'),
     path('hojas-ruta/<int:pk>/editar/', views_rutas.hoja_ruta_edit, name='hoja_ruta_edit'),
     path('hojas-ruta/<int:pk>/imprimir/', views_rutas.hoja_ruta_imprimir, name='hoja_ruta_imprimir'),
+    path('hojas-ruta/<int:pk>/exportar-excel/', views_rutas.hoja_ruta_exportar_excel, name='hoja_ruta_exportar_excel'),
     
     # AJAX
     path('ajax/items-pedido/', views_despacho.ajax_items_pedido, name='ajax_items_pedido'),
+    path('ajax/ruta/<int:ruta_id>/datos/', views_rutas.ajax_ruta_datos, name='ajax_ruta_datos'),
+    path('ajax/vehiculo/<int:vehiculo_id>/chofer/', views_rutas.ajax_vehiculo_chofer, name='ajax_vehiculo_chofer'),
 ]

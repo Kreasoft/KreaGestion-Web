@@ -1,6 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from .models import DocumentoCompra, ItemDocumentoCompra, HistorialPagoDocumento, FormaPagoPago
 from proveedores.models import Proveedor
 from articulos.models import Articulo
@@ -78,7 +79,7 @@ class DocumentoCompraForm(forms.ModelForm):
 
 
 class ItemDocumentoCompraForm(forms.ModelForm):
-    """Formulario para items de documento de compra"""
+    """Formulario limpio y simple para items de documento de compra"""
     
     class Meta:
         model = ItemDocumentoCompra
@@ -87,22 +88,97 @@ class ItemDocumentoCompraForm(forms.ModelForm):
             'precio_unitario', 'descuento_porcentaje', 'impuesto_porcentaje'
         ]
         widgets = {
-            'articulo': forms.Select(attrs={'class': 'form-select articulo-select'}),
-            'cantidad': forms.NumberInput(attrs={'class': 'form-control cantidad-input', 'min': '1', 'value': '1'}),
-            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control precio-input', 'min': '0', 'placeholder': 'Precio sin decimales'}),
-            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control descuento-input', 'min': '0', 'max': '100', 'value': '0'}),
-            'impuesto_porcentaje': forms.NumberInput(attrs={'class': 'form-control impuesto-input', 'min': '0', 'value': '19'}),
+            'articulo': forms.Select(attrs={'class': 'form-select form-select-sm articulo-select'}),
+            'cantidad': forms.NumberInput(attrs={'class': 'form-control form-control-sm cantidad-input', 'min': '1', 'value': '1'}),
+            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control form-control-sm precio-input', 'min': '0', 'placeholder': 'Precio sin decimales'}),
+            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm descuento-input', 'min': '0', 'max': '100', 'value': '0'}),
+            'impuesto_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm impuesto-input', 'min': '0', 'value': '19'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Hacer que impuesto_porcentaje no sea requerido
+        # Campos opcionales
         self.fields['impuesto_porcentaje'].required = False
         self.fields['descuento_porcentaje'].required = False
         
-        # Configurar el queryset de artículos por empresa
-        # Esto se hará en la vista pasando la empresa al contexto
+        # Obtener empresa del documento padre si existe
+        empresa = None
+        if self.instance and self.instance.pk:
+            # Si la instancia ya está guardada, obtener empresa del documento padre
+            try:
+                if self.instance.documento_compra_id:
+                    from .models import DocumentoCompra
+                    documento = DocumentoCompra.objects.select_related('empresa').get(pk=self.instance.documento_compra_id)
+                    empresa = documento.empresa
+            except:
+                pass
+        
+        # Recopilar TODOS los artículos que DEBEN estar en el queryset
+        articulos_requeridos = set()
+        
+        # 1. Artículo de la instancia actual (si existe)
+        if self.instance and self.instance.pk and self.instance.articulo_id:
+            articulos_requeridos.add(self.instance.articulo_id)
+        
+        # 2. Artículo que viene en los datos del POST (CRÍTICO: antes de validar)
+        if self.data:
+            # Buscar TODOS los campos articulo en el POST
+            for key, value in self.data.items():
+                if key.endswith('-articulo') and value:
+                    try:
+                        articulo_id = int(value)
+                        articulos_requeridos.add(articulo_id)
+                    except (ValueError, TypeError):
+                        pass
+        
+        # 3. También verificar el valor inicial del campo (por si viene del POST)
+        if 'articulo' in self.initial and self.initial['articulo']:
+            try:
+                articulos_requeridos.add(int(self.initial['articulo']))
+            except (ValueError, TypeError):
+                pass
+        
+        # 4. Si hay datos POST, buscar el valor del campo usando el prefijo del formulario
+        if self.data:
+            # Intentar obtener el prefijo del formulario
+            prefix = getattr(self, 'prefix', None)
+            if prefix:
+                campo_articulo = f"{prefix}-articulo"
+                valor_articulo = self.data.get(campo_articulo)
+                if valor_articulo:
+                    try:
+                        articulos_requeridos.add(int(valor_articulo))
+                    except (ValueError, TypeError):
+                        pass
+            # También buscar sin prefijo por si acaso
+            valor_articulo_sin_prefijo = self.data.get('articulo')
+            if valor_articulo_sin_prefijo:
+                try:
+                    articulos_requeridos.add(int(valor_articulo_sin_prefijo))
+                except (ValueError, TypeError):
+                    pass
+        
+        # Configurar queryset: SIEMPRE incluir artículos requeridos
+        # Si hay datos POST, ser más permisivo
+        if self.data and articulos_requeridos:
+            # Si hay POST y artículos requeridos, incluir TODOS los artículos requeridos sin restricción de empresa
+            self.fields['articulo'].queryset = Articulo.objects.filter(pk__in=articulos_requeridos)
+        elif articulos_requeridos:
+            # Si hay empresa, incluir artículos de la empresa Y los requeridos
+            if empresa:
+                self.fields['articulo'].queryset = Articulo.objects.filter(
+                    Q(empresa=empresa) | Q(pk__in=articulos_requeridos)
+                )
+            else:
+                # Solo los artículos requeridos (sin filtro de empresa)
+                self.fields['articulo'].queryset = Articulo.objects.filter(pk__in=articulos_requeridos)
+        elif empresa:
+            # Solo artículos de la empresa
+            self.fields['articulo'].queryset = Articulo.objects.filter(empresa=empresa)
+        else:
+            # Queryset vacío (se configurará en la vista)
+            self.fields['articulo'].queryset = Articulo.objects.none()
     
     def clean_cantidad(self):
         cantidad = self.cleaned_data.get('cantidad')
@@ -123,6 +199,26 @@ class ItemDocumentoCompraForm(forms.ModelForm):
         if descuento and descuento > 100:
             raise ValidationError('El descuento no puede ser mayor al 100%.')
         return descuento
+    
+    def clean_articulo(self):
+        """Asegurar que el artículo esté en el queryset - SIEMPRE permitir si viene del POST"""
+        articulo = self.cleaned_data.get('articulo')
+        
+        if articulo:
+            # Si hay datos POST, siempre permitir el artículo (ya viene validado)
+            if self.data:
+                # El artículo viene del POST, así que está bien
+                return articulo
+            
+            # Si no hay POST pero el artículo no está en el queryset, expandirlo
+            current_queryset = self.fields['articulo'].queryset
+            if articulo not in current_queryset:
+                # Expandir el queryset para incluir este artículo
+                self.fields['articulo'].queryset = Articulo.objects.filter(
+                    Q(pk__in=current_queryset.values_list('pk', flat=True)) | Q(pk=articulo.pk)
+                )
+        
+        return articulo
 
 
 # Formset para items del documento

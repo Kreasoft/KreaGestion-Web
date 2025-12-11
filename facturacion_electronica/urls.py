@@ -25,5 +25,9 @@ urlpatterns = [
     path('dte/<int:dte_id>/consultar-estado/', views_dte.consultar_estado_dte, name='consultar_estado_dte'),
     path('dte/<int:dte_id>/ver-factura/', views_dte.ver_factura_electronica, name='ver_factura_electronica'),
     path('nota-credito/<int:notacredito_id>/ver/', views_dte.ver_notacredito_electronica, name='ver_notacredito_electronica'),
+    
+    # DTEBox - Prueba
+    path('dte/<int:dte_id>/probar-dtebox/', views_dte.probar_dtebox, name='probar_dtebox'),
+    path('dtebox/probar-xml-ejemplo/', views_dte.probar_dtebox_xml_ejemplo, name='probar_dtebox_xml_ejemplo'),
 ]
 

@@ -1,3 +1,4 @@
+{% load format_filters %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -406,9 +407,14 @@
     </style>
 </head>
 <body>
-    <button class="print-button no-print" onclick="window.print()">
-        <i class="fas fa-print"></i> Imprimir
-    </button>
+    <div class="no-print" style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 10px;">
+        <button class="print-button" onclick="window.print()" style="background: #17a2b8; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <i class="fas fa-print"></i> Imprimir
+        </button>
+        <button class="print-button" onclick="safeCloseWindow()" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <i class="fas fa-arrow-left"></i> Volver
+        </button>
+    </div>
     
     <div class="quotation-container">
         <!-- Header -->
@@ -512,8 +518,8 @@
                         <td>{{ detalle.articulo.codigo|default:detalle.articulo.id }}</td>
                         <td class="product-description">{{ detalle.articulo.nombre }}</td>
                         <td>{{ detalle.cantidad }}</td>
-                        <td class="product-price">${{ detalle.precio_unitario|floatformat:0 }}</td>
-                        <td class="product-price">${{ detalle.precio_total|floatformat:0 }}</td>
+                        <td class="product-price">${{ detalle.precio_unitario|format_miles }}</td>
+                        <td class="product-price">${{ detalle.precio_total|format_miles }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -526,31 +532,31 @@
             <div class="totals-table">
                 <div class="totals-row">
                     <span class="totals-label">Subtotal:</span>
-                    <span class="totals-value">${{ cotizacion.subtotal|floatformat:0 }}</span>
+                    <span class="totals-value">${{ cotizacion.subtotal|format_miles }}</span>
                 </div>
                 {% if cotizacion.descuento > 0 %}
                 <div class="totals-row">
                     <span class="totals-label">Descuento:</span>
-                    <span class="totals-value">${{ cotizacion.descuento|floatformat:0 }}</span>
+                    <span class="totals-value">${{ cotizacion.descuento|format_miles }}</span>
                 </div>
                 {% endif %}
                 <div class="totals-row">
                     <span class="totals-label">Neto:</span>
-                    <span class="totals-value">${{ cotizacion.neto|floatformat:0 }}</span>
+                    <span class="totals-value">${{ cotizacion.neto|format_miles }}</span>
                 </div>
                 <div class="totals-row">
                     <span class="totals-label">IVA (19%):</span>
-                    <span class="totals-value">${{ cotizacion.iva|floatformat:0 }}</span>
+                    <span class="totals-value">${{ cotizacion.iva|format_miles }}</span>
                 </div>
                 {% if cotizacion.impuesto_especifico > 0 %}
                 <div class="totals-row">
                     <span class="totals-label">Imp. Específico:</span>
-                    <span class="totals-value">${{ cotizacion.impuesto_especifico|floatformat:0 }}</span>
+                    <span class="totals-value">${{ cotizacion.impuesto_especifico|format_miles }}</span>
                 </div>
                 {% endif %}
                 <div class="totals-row">
                     <span class="totals-label">TOTAL:</span>
-                    <span class="totals-value">${{ cotizacion.total|floatformat:0 }}</span>
+                    <span class="totals-value">${{ cotizacion.total|format_miles }}</span>
                 </div>
             </div>
         </div>
@@ -579,12 +585,78 @@
     </div>
     
     <script>
-        // Auto-print when page loads
+        function safeCloseWindow() {
+            console.log('safeCloseWindow llamado');
+            
+            // Intentar cerrar la ventana si fue abierta por otra ventana
+            if (window.opener && window.opener !== window && !window.opener.closed) {
+                try {
+                    window.close();
+                    console.log('Ventana cerrada');
+                    return;
+                } catch (e) {
+                    console.log('No se pudo cerrar la ventana:', e);
+                }
+            }
+            
+            // Intentar obtener la URL de referencia guardada
+            const refererUrl = sessionStorage.getItem('cotizacion_referer') || localStorage.getItem('cotizacion_referer');
+            if (refererUrl && refererUrl !== window.location.href) {
+                console.log('Redirigiendo a:', refererUrl);
+                window.location.href = refererUrl;
+                return;
+            }
+            
+            // Si no hay referrer guardado, intentar volver atrás
+            if (window.history.length > 1) {
+                try {
+                    console.log('Intentando volver atrás');
+                    window.history.back();
+                    return;
+                } catch (e) {
+                    console.log('No se pudo volver atrás:', e);
+                }
+            }
+            
+            // Fallback: redirigir a la lista de cotizaciones
+            console.log('Redirigiendo a lista de cotizaciones');
+            window.location.href = '/ventas/cotizaciones/';
+        }
+        
+        // Guardar la URL de referencia cuando se carga la página
         window.onload = function() {
+            // Guardar la URL de referencia si existe
+            if (document.referrer && document.referrer !== window.location.href) {
+                sessionStorage.setItem('cotizacion_referer', document.referrer);
+                console.log('Referrer guardado:', document.referrer);
+            } else {
+                // Si no hay referrer, guardar la URL de la lista de cotizaciones como fallback
+                sessionStorage.setItem('cotizacion_referer', '/ventas/cotizaciones/');
+                console.log('Referrer fallback guardado: /ventas/cotizaciones/');
+            }
+            
+            // Auto-print when page loads
             setTimeout(function() {
                 window.print();
             }, 1000);
         };
+        
+        // Asegurar que el botón funcione incluso si hay problemas con onclick
+        document.addEventListener('DOMContentLoaded', function() {
+            const volverBtn = document.querySelector('button[onclick*="safeCloseWindow"]');
+            if (volverBtn) {
+                // Remover el onclick y agregar event listener
+                volverBtn.removeAttribute('onclick');
+                volverBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Botón volver clickeado');
+                    safeCloseWindow();
+                });
+                console.log('Event listener agregado al botón volver');
+            }
+        });
     </script>
 </body>
 </html>
+

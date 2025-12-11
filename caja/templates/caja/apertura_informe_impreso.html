@@ -432,13 +432,28 @@
 
     <script>
         function safeCloseWindow() {
-            // Solo cerrar si la ventana fue abierta por el script
-            if (window.opener && window.opener !== window) {
-                try {
+            // Intentar cerrar la ventana
+            try {
+                // Si la ventana fue abierta por un script (window.opener existe)
+                if (window.opener && window.opener !== window) {
                     window.close();
-                } catch(e) {
-                    // Si no se puede cerrar, no hacer nada
+                    return;
                 }
+                
+                // Si es una nueva pestaña/ventana (target="_blank"), intentar cerrar
+                // Nota: Los navegadores modernos solo permiten cerrar ventanas abiertas por script
+                // Si no se puede cerrar, redirigir a la página de detalle de la apertura
+                if (window.history.length > 1) {
+                    // Intentar ir hacia atrás
+                    window.history.back();
+                } else {
+                    // Si no hay historial, redirigir a la lista de aperturas
+                    window.location.href = '{% url "caja:apertura_detail" apertura.pk %}';
+                }
+            } catch(e) {
+                // Si hay algún error, redirigir a la página de detalle
+                console.log('No se pudo cerrar la ventana, redirigiendo...');
+                window.location.href = '{% url "caja:apertura_detail" apertura.pk %}';
             }
         }
         

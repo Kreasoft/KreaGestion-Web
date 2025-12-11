@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load format_filters %}
 
 {% block title %}Convertir Cotización - #{{ cotizacion.numero_venta }}{% endblock %}
 
@@ -22,7 +23,7 @@
                                 <p><strong>Número:</strong> #{{ cotizacion.numero_venta }}</p>
                                 <p><strong>Cliente:</strong> {{ cotizacion.cliente.nombre|default:"Sin cliente" }}</p>
                                 <p><strong>Vendedor:</strong> {{ cotizacion.vendedor.nombre|default:"Sin vendedor" }}</p>
-                                <p><strong>Total:</strong> ${{ cotizacion.total|floatformat:0 }}</p>
+                                <p><strong>Total:</strong> ${{ cotizacion.total|format_miles }}</p>
                                 <p><strong>Items:</strong> {{ cotizacion.ventadetalle_set.count }}</p>
                             </div>
                         </div>
@@ -41,9 +42,9 @@
                                     <tbody>
                                         {% for detalle in cotizacion.ventadetalle_set.all %}
                                         <tr>
-                                            <td>{{ detalle.articulo.descripcion|truncatechars:30 }}</td>
+                                            <td>{{ detalle.articulo.nombre|truncatechars:30 }}</td>
                                             <td>{{ detalle.cantidad }}</td>
-                                            <td>${{ detalle.precio_total|floatformat:0 }}</td>
+                                            <td>${{ detalle.precio_total|format_miles }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>

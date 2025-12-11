@@ -13,14 +13,14 @@ from .models import (
 # ===== CHOFERES =====
 @admin.register(Chofer)
 class ChoferAdmin(admin.ModelAdmin):
-    list_display = ('codigo', 'nombre', 'rut', 'activo', 'empresa')
-    list_filter = ('activo', 'empresa')
+    list_display = ('codigo', 'nombre', 'rut', 'tipo', 'activo', 'empresa')
+    list_filter = ('tipo', 'activo', 'empresa')
     search_fields = ('codigo', 'nombre', 'rut')
     ordering = ['codigo']
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('empresa', 'codigo', 'nombre', 'rut')
+            'fields': ('empresa', 'codigo', 'nombre', 'rut', 'tipo')
         }),
         ('Estado', {
             'fields': ('activo',)
@@ -31,14 +31,18 @@ class ChoferAdmin(admin.ModelAdmin):
 # ===== VEHÍCULOS =====
 @admin.register(Vehiculo)
 class VehiculoAdmin(admin.ModelAdmin):
-    list_display = ('patente', 'descripcion', 'capacidad', 'activo', 'empresa')
-    list_filter = ('activo', 'empresa')
-    search_fields = ('patente', 'descripcion')
+    list_display = ('patente', 'descripcion', 'chofer', 'capacidad', 'activo', 'empresa')
+    list_filter = ('activo', 'empresa', 'chofer')
+    search_fields = ('patente', 'descripcion', 'chofer__nombre')
     ordering = ['patente']
     
     fieldsets = (
         ('Información Básica', {
             'fields': ('empresa', 'patente', 'descripcion', 'capacidad')
+        }),
+        ('Chofer Asignado', {
+            'fields': ('chofer',),
+            'description': 'Chofer asignado por defecto a este vehículo'
         }),
         ('Estado', {
             'fields': ('activo',)

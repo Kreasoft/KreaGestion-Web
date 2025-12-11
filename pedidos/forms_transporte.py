@@ -12,7 +12,7 @@ class VehiculoForm(forms.ModelForm):
     
     class Meta:
         model = Vehiculo
-        fields = ['patente', 'descripcion', 'capacidad', 'activo']
+        fields = ['patente', 'descripcion', 'capacidad', 'chofer', 'activo']
         widgets = {
             'patente': forms.TextInput(attrs={
                 'class': 'form-control text-uppercase',
@@ -28,6 +28,9 @@ class VehiculoForm(forms.ModelForm):
                 'placeholder': 'Capacidad en kg',
                 'step': '0.01'
             }),
+            'chofer': forms.Select(attrs={
+                'class': 'form-control'
+            }),
             'activo': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
@@ -36,6 +39,17 @@ class VehiculoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.empresa = kwargs.pop('empresa', None)
         super().__init__(*args, **kwargs)
+        
+        # Filtrar choferes por empresa y solo choferes activos
+        if self.empresa:
+            self.fields['chofer'].queryset = Chofer.objects.filter(
+                empresa=self.empresa,
+                tipo='chofer',
+                activo=True
+            ).order_by('codigo')
+        
+        # Hacer chofer opcional
+        self.fields['chofer'].required = False
         
         # Convertir patente a mayúsculas
         if 'patente' in self.data:
@@ -75,7 +89,7 @@ class ChoferForm(forms.ModelForm):
     
     class Meta:
         model = Chofer
-        fields = ['codigo', 'nombre', 'rut', 'activo']
+        fields = ['codigo', 'nombre', 'rut', 'tipo', 'activo']
         widgets = {
             'codigo': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -89,6 +103,9 @@ class ChoferForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Ej: 12345678-9',
                 'maxlength': '12'
+            }),
+            'tipo': forms.Select(attrs={
+                'class': 'form-control'
             }),
             'activo': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'

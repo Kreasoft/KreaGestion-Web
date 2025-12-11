@@ -139,6 +139,18 @@ class FacturacionElectronicaForm(forms.ModelForm):
                 # Recuperar el password anterior de la BD
                 original = Empresa.objects.get(pk=self.instance.pk)
                 instance.password_certificado = original.password_certificado
+        # Si no se proporcionó api_key, mantener el existente
+        if not self.cleaned_data.get('api_key'):
+            if self.instance.pk:  # Si es edición
+                # Recuperar el api_key anterior de la BD
+                original = Empresa.objects.get(pk=self.instance.pk)
+                instance.api_key = original.api_key
+        # Si no se proporcionó dtebox_auth_key, mantener el existente
+        if not self.cleaned_data.get('dtebox_auth_key'):
+            if self.instance.pk:  # Si es edición
+                # Recuperar el dtebox_auth_key anterior de la BD
+                original = Empresa.objects.get(pk=self.instance.pk)
+                instance.dtebox_auth_key = original.dtebox_auth_key
         if commit:
             instance.save()
         return instance
@@ -150,6 +162,8 @@ class FacturacionElectronicaForm(forms.ModelForm):
             'ambiente_sii',
             'certificado_digital',
             'password_certificado',
+            'api_url',
+            'api_key',
             'razon_social_sii',
             'giro_sii',
             'codigo_actividad_economica',
@@ -161,6 +175,14 @@ class FacturacionElectronicaForm(forms.ModelForm):
             'resolucion_numero',
             'email_intercambio',
             'email_contacto_sii',
+            # Campos DTEBox
+            'dtebox_habilitado',
+            'dtebox_url',
+            'dtebox_auth_key',
+            'dtebox_ambiente',
+            'dtebox_pdf417_columns',
+            'dtebox_pdf417_level',
+            'dtebox_pdf417_type',
         ]
         widgets = {
             'facturacion_electronica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -181,6 +203,16 @@ class FacturacionElectronicaForm(forms.ModelForm):
             'resolucion_numero': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Número de resolución'}),
             'email_intercambio': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email para recibir acuses'}),
             'email_contacto_sii': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email registrado en SII'}),
+            'api_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://api.ejemplo.com/dte'}),
+            'api_key': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingrese su API KEY', 'type': 'password', 'autocomplete': 'off'}),
+            # Widgets DTEBox
+            'dtebox_habilitado': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'dtebox_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'http://192.168.1.100/api/Core.svc/core/SendDocumentAsXML'}),
+            'dtebox_auth_key': forms.TextInput(attrs={'class': 'form-control', 'type': 'password', 'placeholder': 'Llave de autenticación DTEBox', 'autocomplete': 'off'}),
+            'dtebox_ambiente': forms.Select(attrs={'class': 'form-select'}),
+            'dtebox_pdf417_columns': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 10}),
+            'dtebox_pdf417_level': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 8}),
+            'dtebox_pdf417_type': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 10}),
         }
         labels = {
             # labels dict remains

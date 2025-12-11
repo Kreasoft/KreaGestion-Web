@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Probar DTEBox - DTE #{{ dte.folio }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-flask me-2"></i>Probar DTEBox - DTE #{{ dte.folio }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Información del DTE -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Información del DTE</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Tipo:</th>
+                                    <td>{{ dte.get_tipo_dte_display }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Folio:</th>
+                                    <td>{{ dte.folio }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Fecha Emisión:</th>
+                                    <td>{{ dte.fecha_emision|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Receptor:</th>
+                                    <td>{{ dte.razon_social_receptor }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Total:</th>
+                                    <td>${{ dte.monto_total|floatformat:0 }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Configuración DTEBox</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Habilitado:</th>
+                                    <td>
+                                        {% if empresa.dtebox_habilitado %}
+                                            <span class="badge bg-success">Sí</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">No</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>URL:</th>
+                                    <td>{{ empresa.dtebox_url|default:"No configurado" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Ambiente:</th>
+                                    <td>{{ empresa.get_dtebox_ambiente_display|default:"No configurado" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Resolución:</th>
+                                    <td>{{ empresa.resolucion_numero|default:"No configurado" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Fecha Resolución:</th>
+                                    <td>{{ empresa.resolucion_fecha|date:"d/m/Y"|default:"No configurado" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Estado actual del TED -->
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle me-2"></i>Estado Actual</h5>
+                        {% if dte.timbre_electronico %}
+                            <p><strong>TED:</strong> Presente ({{ dte.timbre_electronico|length }} caracteres)</p>
+                        {% else %}
+                            <p><strong>TED:</strong> No generado</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Formulario de prueba -->
+                    <form method="post" class="mb-4">
+                        {% csrf_token %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Advertencia:</strong> Esta acción enviará el XML del DTE a DTEBox y actualizará el TED si la operación es exitosa.
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Enviar a DTEBox y Obtener TED
+                        </button>
+                        <a href="{% url 'facturacion_electronica:dte_detail' dte.id %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Volver al DTE
+                        </a>
+                    </form>
+
+                    <!-- Resultado -->
+                    {% if resultado %}
+                        {% if resultado.success %}
+                            <div class="alert alert-success">
+                                <h5><i class="fas fa-check-circle me-2"></i>Éxito</h5>
+                                <p><strong>TED obtenido exitosamente:</strong></p>
+                                <pre class="bg-light p-3" style="max-height: 300px; overflow-y: auto;">{{ resultado.ted|truncatewords:50 }}</pre>
+                                <p class="mt-2"><small>TED actualizado en el DTE. Puedes ver el documento completo en el detalle.</small></p>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger">
+                                <h5><i class="fas fa-times-circle me-2"></i>Error</h5>
+                                <p><strong>Error al obtener TED:</strong></p>
+                                <p class="mb-2">{{ resultado.error }}</p>
+                                
+                                {% if "404" in resultado.error %}
+                                    <div class="alert alert-warning mt-3">
+                                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Posibles causas del error 404:</h6>
+                                        <ul class="mb-0">
+                                            <li>La URL del servidor DTEBox no es correcta</li>
+                                            <li>El servidor DTEBox no está accesible desde este equipo</li>
+                                            <li>El endpoint no existe en el servidor</li>
+                                        </ul>
+                                        <p class="mt-2 mb-0"><strong>URL configurada:</strong> <code>{{ empresa.dtebox_url }}</code></p>
+                                        <p class="mt-1 mb-0"><small>La URL debería ser algo como: <code>http://192.168.1.100/api/Core.svc/core/SendDocumentAsXML</code></small></p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if error %}
+                        <div class="alert alert-danger">
+                            <h5><i class="fas fa-exclamation-triangle me-2"></i>Error</h5>
+                            <p>{{ error }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

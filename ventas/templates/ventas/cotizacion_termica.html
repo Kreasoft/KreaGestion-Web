@@ -273,7 +273,7 @@
                 <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
                 <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
                 <div class="producto-detalle">
-                    <span class="producto-cantidad">{{ detalle.cantidad|floatformat:0 }} x ${{ detalle.precio_unitario|format_miles }}</span>
+                    <span class="producto-cantidad">{{ detalle.cantidad|format_miles }} x ${{ detalle.precio_unitario|format_miles }}</span>
                     <span class="producto-precio">${{ detalle.precio_total|format_miles }}</span>
                 </div>
                 {% if detalle.descuento > 0 %}
@@ -365,12 +365,79 @@
         <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             🖨️ Imprimir
         </button>
-        <a href="javascript:history.back()" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
+        <button onclick="safeCloseWindow()" style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             ← Volver
-        </a>
+        </button>
     </div>
 
     <script>
+        function safeCloseWindow() {
+            console.log('safeCloseWindow llamado');
+            
+            // Intentar cerrar la ventana si fue abierta por otra ventana
+            if (window.opener && window.opener !== window && !window.opener.closed) {
+                try {
+                    window.close();
+                    console.log('Ventana cerrada');
+                    return;
+                } catch (e) {
+                    console.log('No se pudo cerrar la ventana:', e);
+                }
+            }
+            
+            // Intentar obtener la URL de referencia guardada
+            const refererUrl = sessionStorage.getItem('cotizacion_referer') || localStorage.getItem('cotizacion_referer');
+            if (refererUrl && refererUrl !== window.location.href) {
+                console.log('Redirigiendo a:', refererUrl);
+                window.location.href = refererUrl;
+                return;
+            }
+            
+            // Si no hay referrer guardado, intentar volver atrás
+            if (window.history.length > 1) {
+                try {
+                    console.log('Intentando volver atrás');
+                    window.history.back();
+                    return;
+                } catch (e) {
+                    console.log('No se pudo volver atrás:', e);
+                }
+            }
+            
+            // Fallback: redirigir a la lista de cotizaciones
+            console.log('Redirigiendo a lista de cotizaciones');
+            window.location.href = '/ventas/cotizaciones/';
+        }
+        
+        // Guardar la URL de referencia cuando se carga la página
+        window.addEventListener('load', function() {
+            // Guardar la URL de referencia si existe
+            if (document.referrer && document.referrer !== window.location.href) {
+                sessionStorage.setItem('cotizacion_referer', document.referrer);
+                console.log('Referrer guardado:', document.referrer);
+            } else {
+                // Si no hay referrer, guardar la URL de la lista de cotizaciones como fallback
+                sessionStorage.setItem('cotizacion_referer', '/ventas/cotizaciones/');
+                console.log('Referrer fallback guardado: /ventas/cotizaciones/');
+            }
+        });
+        
+        // Asegurar que el botón funcione incluso si hay problemas con onclick
+        document.addEventListener('DOMContentLoaded', function() {
+            const volverBtn = document.querySelector('button[onclick*="safeCloseWindow"]');
+            if (volverBtn) {
+                // Remover el onclick y agregar event listener
+                volverBtn.removeAttribute('onclick');
+                volverBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Botón volver clickeado');
+                    safeCloseWindow();
+                });
+                console.log('Event listener agregado al botón volver');
+            }
+        });
+        
       (function() {
         try {
           const params = new URLSearchParams(window.location.search);

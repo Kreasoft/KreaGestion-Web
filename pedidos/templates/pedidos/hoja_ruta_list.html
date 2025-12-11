@@ -1,76 +1,209 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Hojas de Ruta{% endblock %}
+{% block title %}Hojas de Ruta - {{ block.super }}{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+    .table-compact thead th {
+        padding: 8px 5px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+    .table-compact tbody td {
+        padding: 5px 5px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.75rem;
+    }
+    .btn-principal {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    .btn-principal:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+        background: linear-gradient(135deg, #6F5B44 0%, #5A4A3A 100%);
+    }
+    .btn-nueva {
+        background: linear-gradient(135deg, #A8957A 0%, #8B7355 100%);
+        border: none;
+        color: white;
+        font-weight: 500;
+    }
+    .btn-nueva:hover {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+    }
+    .btn-ver {
+        background: linear-gradient(135deg, #B8A082 0%, #9B8B6F 100%);
+        border: none;
+        color: white;
+        font-weight: 500;
+    }
+    .btn-ver:hover {
+        background: linear-gradient(135deg, #9B8B6F 0%, #8B7355 100%);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(155, 139, 111, 0.4);
+    }
+    .btn-editar {
+        background: linear-gradient(135deg, #D4C4A8 0%, #C4B299 100%);
+        border: none;
+        color: #6F5B44;
+        font-weight: 500;
+    }
+    .btn-editar:hover {
+        background: linear-gradient(135deg, #C4B299 0%, #B8A082 100%);
+        color: #6F5B44;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(184, 160, 130, 0.4);
+    }
+    .btn-imprimir {
+        background: linear-gradient(135deg, #9B8B6F 0%, #7A6B55 100%);
+        border: none;
+        color: white;
+        font-weight: 500;
+    }
+    .btn-imprimir:hover {
+        background: linear-gradient(135deg, #7A6B55 0%, #6F5B44 100%);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(122, 107, 85, 0.4);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Hojas de Ruta</h1>
-        <div>
-            <span class="text-muted small me-3">
-                <i class="fas fa-info-circle"></i> Las hojas de ruta se generan automáticamente al emitir facturas
-            </span>
-        </div>
-    </div>
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Listado de Hojas de Ruta</h6>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>N° Ruta</th>
-                            <th>Fecha</th>
-                            <th>Vehículo</th>
-                            <th>Chofer</th>
-                            <th>Documentos</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for hoja in hojas_ruta %}
-                        <tr>
-                            <td>{{ hoja.numero_ruta }}</td>
-                            <td>{{ hoja.fecha|date:"d/m/Y" }}</td>
-                            <td>{{ hoja.vehiculo }}</td>
-                            <td>{{ hoja.chofer }}</td>
-                            <td>{{ hoja.get_total_facturas }}</td>
-                            <td>
-                                {% if hoja.estado == 'pendiente' %}
-                                    <span class="badge badge-warning">Pendiente</span>
-                                {% elif hoja.estado == 'en_ruta' %}
-                                    <span class="badge badge-info">En Ruta</span>
-                                {% elif hoja.estado == 'completada' %}
-                                    <span class="badge badge-success">Completada</span>
-                                {% else %}
-                                    <span class="badge badge-secondary">{{ hoja.get_estado_display }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'pedidos:hoja_ruta_detail' hoja.id %}" class="btn btn-info btn-sm" title="Ver Detalle">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                {% if perms.pedidos.change_hojaruta or user.is_superuser %}
-                                <a href="{% url 'pedidos:hoja_ruta_edit' hoja.id %}" class="btn btn-warning btn-sm" title="Editar">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                {% endif %}
-                                <a href="{% url 'pedidos:hoja_ruta_imprimir' hoja.id %}" class="btn btn-primary btn-sm" title="Imprimir" target="_blank">
-                                    <i class="fas fa-print"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center">No hay hojas de ruta registradas.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<div class="container-fluid" style="margin-top: 0; padding-top: 10px;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-clipboard-list fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Gestión de Hojas de Ruta
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Hojas de ruta diarias por móvil. Se generan automáticamente al emitir facturas.
+                                </small>
+                            </div>
+                        </div>
+                        {% if perms.pedidos.add_hojaruta or user.is_superuser %}
+                        <a href="{% url 'pedidos:hoja_ruta_create' %}" class="btn btn-nueva btn-sm">
+                            <i class="fas fa-plus"></i> Nueva Hoja de Ruta
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card-body p-3">
+                    {% if hojas_ruta %}
+                        <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                            <table class="table table-hover table-compact mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>N° Ruta</th>
+                                        <th>Fecha</th>
+                                        <th>Ruta</th>
+                                        <th>Vehículo</th>
+                                        <th>Chofer</th>
+                                        <th>Acompañante</th>
+                                        <th>Facturas</th>
+                                        <th>Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for hoja in hojas_ruta %}
+                                    <tr>
+                                        <td><strong style="color: #6F5B44; font-size: 0.8rem;">{{ hoja.numero_ruta }}</strong></td>
+                                        <td>{{ hoja.fecha|date:"d/m/Y" }}</td>
+                                        <td>
+                                            {% if hoja.ruta %}
+                                                <span style="color: #6F5B44; font-size: 0.75rem;">{{ hoja.ruta.codigo }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if hoja.vehiculo %}
+                                                <span style="color: #6F5B44; font-size: 0.75rem;"><i class="fas fa-car me-1"></i>{{ hoja.vehiculo.patente }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if hoja.chofer %}
+                                                <span style="color: #6F5B44; font-size: 0.75rem;">{{ hoja.chofer.nombre }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if hoja.acompanante %}
+                                                <span style="color: #6F5B44; font-size: 0.75rem;">{{ hoja.acompanante.nombre }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge" style="background-color: #D4A574; font-size: 0.65rem;">{{ hoja.get_total_facturas }}</span>
+                                        </td>
+                                        <td>
+                                            {% if hoja.estado == 'pendiente' %}
+                                                <span class="badge bg-warning" style="font-size: 0.65rem;">Pendiente</span>
+                                            {% elif hoja.estado == 'en_ruta' %}
+                                                <span class="badge bg-info" style="font-size: 0.65rem;">En Ruta</span>
+                                            {% elif hoja.estado == 'completada' %}
+                                                <span class="badge bg-success" style="font-size: 0.65rem;">Completada</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary" style="font-size: 0.65rem;">{{ hoja.get_estado_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <a href="{% url 'pedidos:hoja_ruta_detail' hoja.id %}" class="btn btn-ver btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="Ver detalle"><i class="fas fa-eye"></i></a>
+                                            {% if perms.pedidos.change_hojaruta or user.is_superuser %}
+                                            <a href="{% url 'pedidos:hoja_ruta_edit' hoja.id %}" class="btn btn-editar btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="Editar"><i class="fas fa-edit"></i></a>
+                                            {% endif %}
+                                            <a href="{% url 'pedidos:hoja_ruta_imprimir' hoja.id %}" class="btn btn-imprimir btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="Imprimir" target="_blank"><i class="fas fa-print"></i></a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-light text-center" style="background-color: #F5F1E8; border: 1px solid #E8DCC8; color: #8B7355;">
+                            <i class="fas fa-info-circle fa-lg me-2"></i>No se encontraron hojas de ruta. Utilice el botón <strong>"Nueva Hoja de Ruta"</strong> para agregar una.
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

@@ -528,33 +528,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const form = document.getElementById('usuarioFormModal');
                     if (form) {
                         form.addEventListener('submit', handleFormSubmit);
-                        // Agregar listener para actualizar sucursales cuando cambie la empresa
-                        const empresaSelect = form.querySelector('#id_empresa');
-                        if (empresaSelect) {
-                            empresaSelect.addEventListener('change', function() {
-                        const empresaId = this.value;
-                        const sucursalSelect = form.querySelector('#id_sucursal');
-                        if (sucursalSelect && empresaId) {
-                            // Cargar sucursales de la empresa seleccionada
-                            fetch(`/empresas/${empresaId}/sucursales/json/`)
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        sucursalSelect.innerHTML = '<option value="">--------- (Todas las sucursales)</option>';
-                                        data.sucursales.forEach(sucursal => {
-                                            const option = document.createElement('option');
-                                            option.value = sucursal.id;
-                                            option.textContent = sucursal.nombre;
-                                            sucursalSelect.appendChild(option);
-                                        });
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('Error al cargar sucursales:', error);
-                                });
-                        }
-                    });
-                        }
                         setupSucursalDropdown(form); // Setup dynamic sucursal loading
                     }
                 });
@@ -636,6 +609,54 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+    
+    // Función para configurar el dropdown de sucursales dinámicamente
+    function setupSucursalDropdown(form) {
+        const empresaSelect = form.querySelector('#id_empresa');
+        const sucursalSelect = form.querySelector('#id_sucursal');
+
+        if (empresaSelect && sucursalSelect) {
+            const originalSucursalValue = sucursalSelect.value; // Store original value for edit mode
+
+            const loadSucursales = (empresaId, selectedSucursalId) => {
+                if (empresaId) {
+                    fetch(`/empresas/${empresaId}/sucursales/json/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                sucursalSelect.innerHTML = '<option value="">--------- (Todas las sucursales)</option>';
+                                data.sucursales.forEach(sucursal => {
+                                    const option = document.createElement('option');
+                                    option.value = sucursal.id;
+                                    option.textContent = sucursal.nombre;
+                                    if (sucursal.id == selectedSucursalId) {
+                                        option.selected = true;
+                                    }
+                                    sucursalSelect.appendChild(option);
+                                });
+                            }
+                        })
+                        .catch(error => console.error('Error fetching sucursales:', error));
+                } else {
+                    sucursalSelect.innerHTML = '<option value="">--------- (Todas las sucursales)</option>';
+                }
+            };
+
+            // Initial load for edit mode
+            if (empresaSelect.value) {
+                loadSucursales(empresaSelect.value, originalSucursalValue);
+            }
+
+            // Remove existing listeners to avoid duplicates
+            const newEmpresaSelect = empresaSelect.cloneNode(true);
+            empresaSelect.parentNode.replaceChild(newEmpresaSelect, empresaSelect);
+            
+            // Add new listener
+            newEmpresaSelect.addEventListener('change', function() {
+                loadSucursales(this.value, null); // Clear selection on company change
+            });
+        }
+    }
     
     // Manejar envío del formulario
     function handleFormSubmit(e) {

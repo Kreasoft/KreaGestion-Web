@@ -670,8 +670,8 @@
         <button onclick="window.print()" style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
             🖨️ Imprimir Factura
         </button>
-        <button id="btnBackPOS" onclick="safeCloseWindow()" style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
-            ← Volver
+        <button onclick="window.location.href='{% url 'caja:procesar_venta_buscar' %}'; return false;" style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
+            ← Cerrar
         </button>
     </div>
 
@@ -681,15 +681,6 @@
             console.log('safeCloseWindow llamado');
             
             const posUrl = "{% url 'ventas:pos_view' %}";
-            
-            // Intentar notificar al padre si existe
-            try {
-                if (window.opener && window.opener !== window && !window.opener.closed) {
-                    window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
-                }
-            } catch (e) {
-                console.log('No se pudo notificar al padre:', e);
-            }
             
             // Intentar cerrar la ventana si fue abierta por otra ventana
             if (window.opener && window.opener !== window && !window.opener.closed) {
@@ -707,40 +698,45 @@
             const returnUrl = params.get('return_url');
             const auto = params.get('auto');
             
-            // Detectar si viene desde POS o caja
+            // CRÍTICO: Detectar si viene desde caja usando parámetro from_caja
+            const fromCajaParam = params.get('from_caja') === '1';
             const referrer = document.referrer || '';
-            const fromPos = referrer.includes('/ventas/pos');
-            const fromCaja = referrer.includes('/caja/procesar-venta') || referrer.includes('/caja/');
-            const fromGestionCajas = referrer.includes('/caja/gestion') || referrer.includes('/caja/apertura');
+            const fromCajaReferrer = referrer.includes('/caja/procesar-venta') || referrer.includes('/caja/');
+            const fromCaja = fromCajaParam || fromCajaReferrer;
+            const fromPos = referrer.includes('/ventas/pos') && !fromCaja;
             
-            // SIEMPRE ir al POS si:
-            // 1. Viene con auto=1 (desde POS)
-            // 2. Viene con return_url que apunta al POS
-            // 3. Viene desde POS o caja/procesar-venta
-            // 4. NO usar referrer si es de gestión de cajas (siempre ir al POS)
-            if (auto === '1' || fromPos || fromCaja || (returnUrl && returnUrl.includes('/ventas/pos'))) {
-                console.log('Redirigiendo al POS (desde POS/caja)');
-                window.location.href = posUrl;
+            console.log('from_caja param:', fromCajaParam);
+            console.log('fromCaja referrer:', fromCajaReferrer);
+            console.log('fromCaja final:', fromCaja);
+            console.log('returnUrl:', returnUrl);
+            
+            // URL de caja
+            const cajaUrl = "{% url 'caja:procesar_venta_buscar' %}";
+            
+            // PRIORIDAD 1: Si viene desde caja (parámetro o referrer), ir a caja
+            if (fromCaja || (returnUrl && returnUrl.includes('/caja/'))) {
+                console.log('Redirigiendo a CAJA');
+                window.location.href = cajaUrl;
                 return;
             }
             
-            // Si viene desde gestión de cajas, SIEMPRE ir al POS (no volver a gestión)
-            if (fromGestionCajas) {
-                console.log('Redirigiendo al POS (venía desde gestión de cajas)');
-                window.location.href = posUrl;
-                return;
-            }
-            
-            // Si hay return_url válido y no es gestión de cajas, usarlo
-            if (returnUrl && !returnUrl.includes('/caja/gestion') && !returnUrl.includes('/caja/apertura')) {
+            // PRIORIDAD 2: Si hay return_url válido, usarlo
+            if (returnUrl) {
                 console.log('Redirigiendo a return_url:', returnUrl);
-                window.location.href = returnUrl;
+                window.location.href = decodeURIComponent(returnUrl);
                 return;
             }
             
-            // Fallback: siempre ir al POS
-            console.log('Redirigiendo al POS (fallback)');
-            window.location.href = posUrl;
+            // PRIORIDAD 3: Si viene desde POS, ir al POS
+            if (fromPos) {
+                console.log('Redirigiendo al POS');
+                window.location.href = posUrl;
+                return;
+            }
+            
+            // FALLBACK: ir a caja (más seguro)
+            console.log('Redirigiendo a CAJA (fallback)');
+            window.location.href = cajaUrl;
         }
         
         // Guardar la URL de referencia cuando se carga la página
@@ -764,54 +760,36 @@
             }
         });
         
-        // Asegurar que el botón funcione
+        // Configurar botón cerrar - SOLUCIÓN DIRECTA
         document.addEventListener('DOMContentLoaded', function() {
-            const backBtn = document.getElementById('btnBackPOS');
-            if (backBtn) {
-                backBtn.addEventListener('click', function(e) {
+            const btnCerrar = document.getElementById('btnCerrar');
+            if (btnCerrar) {
+                btnCerrar.onclick = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     safeCloseWindow();
-                });
-                console.log('Event listener agregado al botón volver');
+                    return false;
+                };
+                console.log('Botón cerrar configurado correctamente');
+            } else {
+                console.error('ERROR: No se encontró btnCerrar');
             }
         });
         
-        // Auto-print cuando viene con auto=1
-        (function() {
-            try {
-                const params = new URLSearchParams(window.location.search);
-                const auto = params.get('auto');
-                
-                if (auto === '1') {
-                    // Disparar impresión
-                    setTimeout(() => { 
-                        try { 
-                            window.print(); 
-                        } catch(e) {
-                            console.log('Error al imprimir:', e);
-                        }
-                    }, 150);
-                    
-                    // Volver tras afterprint solo si fue abierto por script
-                    if ('onafterprint' in window && window.opener && window.opener !== window) {
-                        window.addEventListener('afterprint', () => {
-                            setTimeout(() => {
-                                try {
-                                    if (window.opener && !window.opener.closed) {
-                                        window.close();
-                                    }
-                                } catch (e) {
-                                    safeCloseWindow();
-                                }
-                            }, 100);
-                        });
+        // Auto-print cuando viene con auto=1 - SOLUCIÓN ULTRA SIMPLE
+        // Usar window.onload para asegurar que todo esté cargado
+        window.onload = function() {
+            if (window.location.search.indexOf('auto=1') !== -1) {
+                // Esperar un momento y luego imprimir
+                setTimeout(function() {
+                    try {
+                        window.print();
+                    } catch(e) {
+                        console.error('Error al imprimir:', e);
                     }
-                }
-            } catch (e) {
-                console.log('Error en auto-print:', e);
+                }, 1000);
             }
-        })();
+        };
     </script>
 
 </body>

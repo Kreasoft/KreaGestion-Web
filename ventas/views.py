@@ -799,17 +799,6 @@ def pos_view(request):
     formas_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
     estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True).order_by('numero')
     
-    # Generar próximo número de venta
-    ultima_venta = Venta.objects.filter(empresa=request.empresa).order_by('-numero_venta').first()
-    if ultima_venta:
-        try:
-            numero_actual = int(ultima_venta.numero_venta)
-            proximo_numero = f"{numero_actual + 1:06d}"
-        except ValueError:
-            proximo_numero = "000001"
-    else:
-        proximo_numero = "000001"
-    
     # Detectar modo POS de la estación activa
     modo_pos = 'normal'  # Default
     estacion_activa = None
@@ -819,8 +808,44 @@ def pos_view(request):
         try:
             estacion_activa = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa)
             modo_pos = estacion_activa.modo_pos
+            # Actualizar configuraciones de la estación en la sesión si no están o si han cambiado
+            if 'pos_cierre_directo' not in request.session or request.session.get('pos_estacion_id') != estacion_id:
+                request.session['pos_cierre_directo'] = bool(estacion_activa.cierre_directo)
+                request.session['pos_flujo_directo'] = str(estacion_activa.flujo_cierre_directo)
+                request.session['pos_enviar_sii_directo'] = bool(estacion_activa.enviar_sii_directo)
+                request.session.modified = True
         except EstacionTrabajo.DoesNotExist:
             pass
+    
+    # Generar próximo número de venta basado en el correlativo de la estación actual
+    # CRÍTICO: Debe mostrar el siguiente número que se asignará al próximo vale de esta estación
+    print(f"[DEBUG POS] Estación ID en sesión: {estacion_id}")
+    print(f"[DEBUG POS] Estación activa encontrada: {estacion_activa}")
+    
+    if estacion_activa:
+        # Usar el correlativo actual de la estación (sin incrementar, solo para mostrar)
+        # IMPORTANTE: Refrescar desde la BD para asegurar que tenemos el valor más actualizado
+        estacion_activa.refresh_from_db()
+        correlativo_actual = estacion_activa.correlativo_ticket
+        proximo_numero = f"{correlativo_actual:06d}"
+        print(f"[DEBUG POS] Estación: {estacion_activa.nombre}, Correlativo actual: {correlativo_actual}, Próximo número mostrado: {proximo_numero}")
+    else:
+        # Fallback si no hay estación activa - usar último vale de la empresa
+        print(f"[DEBUG POS] No hay estación activa, usando fallback")
+        ultima_venta = Venta.objects.filter(empresa=request.empresa, tipo_documento='vale').order_by('-numero_venta').first()
+        if ultima_venta:
+            try:
+                numero_actual = int(ultima_venta.numero_venta)
+                proximo_numero = f"{numero_actual + 1:06d}"
+                print(f"[DEBUG POS] Fallback: Último vale encontrado: {ultima_venta.numero_venta}, Próximo: {proximo_numero}")
+            except ValueError:
+                proximo_numero = "000001"
+                print(f"[DEBUG POS] Fallback: Error al convertir número, usando 000001")
+        else:
+            proximo_numero = "000001"
+            print(f"[DEBUG POS] Fallback: No hay vales, usando 000001")
+    
+    print(f"[DEBUG POS] NÚMERO FINAL QUE SE MOSTRARÁ EN EL POS: {proximo_numero}")
     
     # Cargar kits de ofertas disponibles
     kits = KitOferta.objects.filter(
@@ -941,6 +966,107 @@ def pos_iniciar(request):
 
 @login_required
 @requiere_empresa
+def pos_cambiar_estacion(request):
+    """Cambiar la estación de trabajo en el POS sin reiniciar"""
+    if request.method == 'POST':
+        estacion_id = request.POST.get('estacion_id')
+        
+        if not estacion_id:
+            return JsonResponse({'success': False, 'message': 'Debe seleccionar una estación'})
+        
+        try:
+            estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa, activo=True)
+            
+            # Actualizar solo la estación en la sesión (mantener el vendedor)
+            request.session['pos_estacion_id'] = int(estacion.id)
+            request.session['pos_estacion_nombre'] = str(estacion.nombre)
+            request.session['pos_cierre_directo'] = bool(getattr(estacion, 'cierre_directo', False))
+            request.session['pos_flujo_directo'] = str(getattr(estacion, 'flujo_cierre_directo', 'rut_final'))
+            request.session['pos_enviar_sii_directo'] = bool(getattr(estacion, 'enviar_sii_directo', True))
+            
+            request.session.modified = True
+            request.session.save()
+            
+            # Obtener información completa de la estación para el frontend
+            from facturacion_electronica.models import ArchivoCAF
+            
+            folios_factura = 0
+            folios_boleta = 0
+            folios_guia = 0
+            
+            try:
+                caf_factura = ArchivoCAF.objects.filter(
+                    empresa=request.empresa,
+                    tipo_documento='33',
+                    estado='activo'
+                ).first()
+                if caf_factura:
+                    folios_factura = caf_factura.folio_hasta - caf_factura.folio_actual + 1
+                
+                caf_boleta = ArchivoCAF.objects.filter(
+                    empresa=request.empresa,
+                    tipo_documento='39',
+                    estado='activo'
+                ).first()
+                if caf_boleta:
+                    folios_boleta = caf_boleta.folio_hasta - caf_boleta.folio_actual + 1
+                
+                caf_guia = ArchivoCAF.objects.filter(
+                    empresa=request.empresa,
+                    tipo_documento='52',
+                    estado='activo'
+                ).first()
+                if caf_guia:
+                    folios_guia = caf_guia.folio_hasta - caf_guia.folio_actual + 1
+            except Exception:
+                pass
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Estación cambiada a: {estacion.nombre}',
+                'cierre_directo': request.session.get('pos_cierre_directo', False),
+                'enviar_sii_directo': request.session.get('pos_enviar_sii_directo', True),
+                'flujo_directo': request.session.get('pos_flujo_directo', 'rut_final'),
+                'estacion': {
+                    'id': estacion.id,
+                    'numero': estacion.numero,
+                    'nombre': estacion.nombre,
+                    'modo_pos': estacion.modo_pos,
+                    'cierre_directo': estacion.cierre_directo,
+                    'enviar_sii_directo': estacion.enviar_sii_directo,
+                    'flujo_cierre_directo': estacion.flujo_cierre_directo,
+                    'tipos_documentos': estacion.get_tipos_documentos_permitidos(),
+                    'folios_factura': folios_factura,
+                    'folios_boleta': folios_boleta,
+                    'folios_guia': folios_guia,
+                },
+                'estacion_nombre': estacion.nombre,
+            })
+        except EstacionTrabajo.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Estación no válida'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+    
+    # GET: Devolver lista de estaciones disponibles
+    estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True).order_by('numero')
+    estaciones_data = []
+    for est in estaciones:
+        estaciones_data.append({
+            'id': est.id,
+            'numero': est.numero,
+            'nombre': est.nombre,
+            'modo_pos': est.get_modo_pos_display(),
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'estaciones': estaciones_data,
+        'estacion_actual_id': request.session.get('pos_estacion_id')
+    })
+
+
+@login_required
+@requiere_empresa
 def pos_session_info(request):
     """Obtener información de la sesión del POS"""
     try:
@@ -1008,16 +1134,30 @@ def pos_session_info(request):
             print(f"[DEBUG] Folios disponibles - Factura: {folios_factura}, Boleta: {folios_boleta}, Guia: {folios_guia}")
             print("[OK] Sesion POS valida - Devolviendo datos al frontend")
             
+            # Asegurar que las configuraciones de la estación estén en la sesión
+            if 'pos_cierre_directo' not in request.session or request.session.get('pos_estacion_id') != estacion.id:
+                request.session['pos_cierre_directo'] = bool(estacion.cierre_directo)
+                request.session['pos_flujo_directo'] = str(estacion.flujo_cierre_directo)
+                request.session['pos_enviar_sii_directo'] = bool(estacion.enviar_sii_directo)
+                request.session.modified = True
+            
             return JsonResponse({
                 'success': True,
                 'estacion_id': estacion.id,
                 'vendedor_id': vendedor.id,
                 'estacion_nombre': estacion_nombre,
                 'vendedor_nombre': vendedor_nombre,
+                'cierre_directo': request.session.get('pos_cierre_directo', False),
+                'enviar_sii_directo': request.session.get('pos_enviar_sii_directo', True),
+                'flujo_directo': request.session.get('pos_flujo_directo', 'rut_final'),
                 'estacion': {
                     'id': estacion.id,
                     'numero': estacion.numero,
                     'nombre': estacion.nombre,
+                    'modo_pos': estacion.modo_pos,
+                    'cierre_directo': estacion.cierre_directo,
+                    'enviar_sii_directo': estacion.enviar_sii_directo,
+                    'flujo_cierre_directo': estacion.flujo_cierre_directo,
                     'tipos_documentos': estacion.get_tipos_documentos_permitidos(),
                     'correlativo_ticket': estacion.correlativo_ticket,
                     'max_items': {
@@ -1248,6 +1388,21 @@ def pos_procesar_preventa(request):
             vendedor = Vendedor.objects.get(id=vendedor_id, empresa=request.empresa)
             cliente = Cliente.objects.get(id=cliente_id, empresa=request.empresa)
             
+            # Asegurar que las configuraciones de la estación estén actualizadas en la sesión
+            if 'pos_cierre_directo' not in request.session or request.session.get('pos_estacion_id') != estacion_id:
+                request.session['pos_cierre_directo'] = bool(estacion.cierre_directo)
+                request.session['pos_flujo_directo'] = str(estacion.flujo_cierre_directo)
+                request.session['pos_enviar_sii_directo'] = bool(estacion.enviar_sii_directo)
+                request.session['pos_estacion_id'] = estacion_id
+                request.session.modified = True
+            
+            # Debug: verificar configuración de cierre directo
+            print(f"[DEBUG] Configuración de cierre directo:")
+            print(f"  Estación.cierre_directo (BD): {estacion.cierre_directo}")
+            print(f"  Sesión pos_cierre_directo: {request.session.get('pos_cierre_directo', False)}")
+            print(f"  Sesión pos_estacion_id: {request.session.get('pos_estacion_id')}")
+            print(f"  Estación ID actual: {estacion_id}")
+            
             # Obtener vehículo y chofer si están presentes
             vehiculo = None
             chofer = None
@@ -1259,24 +1414,67 @@ def pos_procesar_preventa(request):
                 chofer = Chofer.objects.get(id=chofer_id, empresa=request.empresa)
             
             # Generar número de preventa único
-            # Buscar el último número de venta de la empresa
-            ultima_venta = Venta.objects.filter(empresa=request.empresa).order_by('-id').first()
-            if ultima_venta and ultima_venta.numero_venta and ultima_venta.numero_venta != 'TEMP':
-                try:
-                    ultimo_numero = int(ultima_venta.numero_venta)
-                    proximo_numero = f"{ultimo_numero + 1:06d}"
-                except ValueError:
-                    # Si el número no es convertible, usar correlativo de ticket
+            # IMPORTANTE: Los vales usan SOLO el correlativo de ticket de la estación (independiente de folios CAF)
+            # Las facturas/boletas/guías usan números temporales que se reemplazan por folios CAF al procesar
+            if data['tipo_documento'] == 'vale':
+                # Para vales: usar SOLO el correlativo de ticket de la estación
+                # CRÍTICO: Usar bloqueo select_for_update para evitar condiciones de carrera
+                from django.db import transaction
+                
+                with transaction.atomic():
+                    # Bloquear la estación para evitar condiciones de carrera
+                    estacion_bloqueada = EstacionTrabajo.objects.select_for_update().get(pk=estacion.pk)
+                    print(f"[DEBUG] Estación bloqueada: {estacion_bloqueada.nombre}, correlativo ANTES: {estacion_bloqueada.correlativo_ticket}")
+                    
+                    numero_ticket = estacion_bloqueada.incrementar_correlativo_ticket()
+                    print(f"[DEBUG] Correlativo DESPUÉS de incrementar: {numero_ticket}")
+                    
+                    proximo_numero = f"{numero_ticket:06d}"
+                    
+                    # Verificar que el número no exista (solo entre vales) - por seguridad
+                    existe_numero = Venta.objects.filter(empresa=request.empresa, tipo_documento='vale', numero_venta=proximo_numero).exists()
+                    print(f"[DEBUG] Número generado: {proximo_numero}, ¿existe?: {existe_numero}")
+                    
+                    max_intentos = 100
+                    intento = 0
+                    while existe_numero and intento < max_intentos:
+                        print(f"[WARN] El número de vale {proximo_numero} ya existe, incrementando correlativo...")
+                        numero_ticket = estacion_bloqueada.incrementar_correlativo_ticket()
+                        proximo_numero = f"{numero_ticket:06d}"
+                        existe_numero = Venta.objects.filter(empresa=request.empresa, tipo_documento='vale', numero_venta=proximo_numero).exists()
+                        print(f"[DEBUG] Nuevo número: {proximo_numero}, ¿existe?: {existe_numero}")
+                        intento += 1
+                    
+                    if intento >= max_intentos:
+                        raise Exception(f"No se pudo generar un número único después de {max_intentos} intentos")
+                    
+                    if intento > 0:
+                        print(f"[WARN] Se requirieron {intento} intentos adicionales para encontrar un número disponible")
+                
+                print(f"[DEBUG] Número de vale generado: {proximo_numero} (correlativo estación: {numero_ticket})")
+            else:
+                # Para facturas/boletas/guías: usar números temporales (se reemplazarán por folios CAF al procesar)
+                # Buscar el último número de venta de la empresa (solo para números temporales)
+                ultima_venta = Venta.objects.filter(
+                    empresa=request.empresa
+                ).exclude(tipo_documento='vale').order_by('-id').first()
+                
+                if ultima_venta and ultima_venta.numero_venta and ultima_venta.numero_venta != 'TEMP':
+                    try:
+                        ultimo_numero = int(ultima_venta.numero_venta)
+                        proximo_numero = f"{ultimo_numero + 1:06d}"
+                    except ValueError:
+                        # Si el número no es convertible, usar correlativo de ticket como fallback
+                        numero_ticket = estacion.incrementar_correlativo_ticket()
+                        proximo_numero = f"{int(numero_ticket):06d}"
+                else:
+                    # Si no hay ventas previas, usar correlativo de ticket como fallback
                     numero_ticket = estacion.incrementar_correlativo_ticket()
                     proximo_numero = f"{int(numero_ticket):06d}"
-            else:
-                # Si no hay ventas previas, usar correlativo de ticket
-                numero_ticket = estacion.incrementar_correlativo_ticket()
-                proximo_numero = f"{int(numero_ticket):06d}"
-            
-            # Verificar que el número no exista (por seguridad)
-            while Venta.objects.filter(empresa=request.empresa, numero_venta=proximo_numero).exists():
-                proximo_numero = f"{int(proximo_numero) + 1:06d}"
+                
+                # Verificar que el número no exista (por seguridad, excluyendo vales)
+                while Venta.objects.filter(empresa=request.empresa).exclude(tipo_documento='vale').filter(numero_venta=proximo_numero).exists():
+                    proximo_numero = f"{int(proximo_numero) + 1:06d}"
             
             # Debug: verificar datos recibidos
             print(f"DEBUG - Datos recibidos:")
@@ -1319,6 +1517,28 @@ def pos_procesar_preventa(request):
                 except Exception:
                     pass
             
+            # CRÍTICO: Asegurar que tipo_documento_planeado siempre tenga un valor válido
+            # Si es un vale directo, usar 'boleta' como tipo por defecto (el usuario puede cambiarlo en caja)
+            # Si viene tipo_documento_planeado explícito, usarlo
+            # Si no, usar el tipo_documento (excepto si es 'vale', entonces usar 'boleta')
+            tipo_doc_planeado = data.get('tipo_documento_planeado')
+            if not tipo_doc_planeado:
+                if data['tipo_documento'] == 'vale':
+                    # Vale directo: usar 'boleta' como tipo por defecto (más común)
+                    tipo_doc_planeado = 'boleta'
+                    print(f"[DEBUG] Vale directo creado - usando 'boleta' como tipo_documento_planeado por defecto")
+                else:
+                    # Otros documentos: usar su propio tipo
+                    tipo_doc_planeado = data['tipo_documento']
+            
+            # Validar que sea un tipo válido
+            tipos_validos = ['factura', 'boleta', 'guia', 'cotizacion']
+            if tipo_doc_planeado not in tipos_validos:
+                print(f"[WARN] tipo_documento_planeado inválido: {tipo_doc_planeado}, usando 'boleta' como fallback")
+                tipo_doc_planeado = 'boleta'
+            
+            print(f"[DEBUG] Creando preventa - tipo_documento: {data['tipo_documento']}, tipo_documento_planeado: {tipo_doc_planeado}")
+            
             preventa = Venta.objects.create(
                 empresa=request.empresa,
                 sucursal=sucursal_activa,  # ← ASIGNAR SUCURSAL (puede ser None)
@@ -1329,7 +1549,7 @@ def pos_procesar_preventa(request):
                 chofer=chofer,  # ← GUARDAR CHOFER
                 estacion_trabajo=estacion,
                 tipo_documento=data['tipo_documento'],
-                tipo_documento_planeado=data.get('tipo_documento_planeado', data['tipo_documento']),  # ← GUARDAR TIPO PLANEADO
+                tipo_documento_planeado=tipo_doc_planeado,  # ← SIEMPRE debe tener un valor
                 tipo_despacho=data.get('tipo_despacho'),  # ← GUARDAR TIPO DE DESPACHO
                 subtotal=subtotal,
                 descuento=descuento,
@@ -1337,8 +1557,9 @@ def pos_procesar_preventa(request):
                 iva=iva,
                 impuesto_especifico=impuesto_especifico,
                 total=total,
-                estado='borrador',
+                estado='confirmada' if data['tipo_documento'] == 'vale' else 'borrador',  # Tickets siempre confirmados, otros documentos pueden ser borrador
                 estado_cotizacion='pendiente' if data['tipo_documento'] == 'cotizacion' else None,
+                facturado=False if data['tipo_documento'] == 'vale' else True,  # ← Vales NO facturados, otros documentos ya procesados
                 usuario_creacion=request.user
             )
             
@@ -1486,26 +1707,62 @@ def pos_procesar_preventa(request):
             if data['tipo_documento'] in ['factura', 'boleta', 'guia']:
                 print(f"DEBUG - Generando ticket facturable (vale) para {data['tipo_documento']}...")
                 
-                # Generar número de vale único
-                ultima_venta_vale = Venta.objects.filter(empresa=request.empresa).order_by('-id').first()
-                if ultima_venta_vale and ultima_venta_vale.numero_venta and ultima_venta_vale.numero_venta != 'TEMP':
-                    try:
-                        ultimo_numero_vale = int(ultima_venta_vale.numero_venta)
-                        numero_vale = f"{ultimo_numero_vale + 1:06d}"
-                    except ValueError:
-                        numero_ticket_vale = estacion.incrementar_correlativo_ticket()
-                        numero_vale = f"{int(numero_ticket_vale):06d}"
-                else:
-                    numero_ticket_vale = estacion.incrementar_correlativo_ticket()
-                    numero_vale = f"{int(numero_ticket_vale):06d}"
+                # Generar número de vale usando SOLO el correlativo de ticket de la estación
+                # Este correlativo es independiente de los folios CAF de facturas/boletas/guías
+                # CRÍTICO: Usar bloqueo select_for_update para evitar condiciones de carrera
+                from django.db import transaction
                 
-                # Verificar que el número no exista
-                while Venta.objects.filter(empresa=request.empresa, numero_venta=numero_vale).exists():
-                    numero_vale = f"{int(numero_vale) + 1:06d}"
+                with transaction.atomic():
+                    # Bloquear la estación para evitar condiciones de carrera
+                    estacion_bloqueada = EstacionTrabajo.objects.select_for_update().get(pk=estacion.pk)
+                    print(f"[DEBUG] Estación bloqueada: {estacion_bloqueada.nombre}, correlativo ANTES: {estacion_bloqueada.correlativo_ticket}")
+                    
+                    numero_ticket_vale = estacion_bloqueada.incrementar_correlativo_ticket()
+                    print(f"[DEBUG] Correlativo DESPUÉS de incrementar: {numero_ticket_vale}")
+                    
+                    numero_vale = f"{numero_ticket_vale:06d}"
+                    
+                    # Verificar que el número no exista (solo entre vales) - por seguridad
+                    existe_numero = Venta.objects.filter(empresa=request.empresa, tipo_documento='vale', numero_venta=numero_vale).exists()
+                    print(f"[DEBUG] Número de vale generado: {numero_vale}, ¿existe?: {existe_numero}")
+                    
+                    max_intentos = 100
+                    intento = 0
+                    while existe_numero and intento < max_intentos:
+                        print(f"[WARN] El número de vale {numero_vale} ya existe, incrementando correlativo...")
+                        numero_ticket_vale = estacion_bloqueada.incrementar_correlativo_ticket()
+                        numero_vale = f"{numero_ticket_vale:06d}"
+                        existe_numero = Venta.objects.filter(empresa=request.empresa, tipo_documento='vale', numero_venta=numero_vale).exists()
+                        print(f"[DEBUG] Nuevo número de vale: {numero_vale}, ¿existe?: {existe_numero}")
+                        intento += 1
+                    
+                    if intento >= max_intentos:
+                        raise Exception(f"No se pudo generar un número único después de {max_intentos} intentos")
+                    
+                    if intento > 0:
+                        print(f"[WARN] Se requirieron {intento} intentos adicionales para encontrar un número disponible")
+                
+                print(f"[DEBUG] Número de vale generado: {numero_vale} (correlativo estación: {numero_ticket_vale})")
                 
                 # Crear el vale
                 print(f"DEBUG - Creando ticket vale...")
                 print(f"DEBUG - Items recibidos: {len(data['items'])}")
+                
+                # CRÍTICO: Validar que tipo_documento_planeado siempre tenga un valor válido
+                # Este vale facturable viene de factura/boleta/guía, así que debe tener ese tipo
+                tipo_doc_planeado_vale = data.get('tipo_documento')
+                tipos_validos = ['factura', 'boleta', 'guia', 'cotizacion']
+                
+                if not tipo_doc_planeado_vale or tipo_doc_planeado_vale not in tipos_validos:
+                    print(f"[ERROR] tipo_documento inválido para vale facturable: {tipo_doc_planeado_vale}, usando 'boleta' como fallback")
+                    tipo_doc_planeado_vale = 'boleta'
+                
+                # NUNCA debe ser 'vale' porque un vale no se convierte en otro vale
+                if tipo_doc_planeado_vale == 'vale':
+                    print(f"[ERROR] tipo_documento_planeado no puede ser 'vale', corrigiendo a 'boleta'")
+                    tipo_doc_planeado_vale = 'boleta'
+                
+                print(f"[DEBUG] Vale facturable - tipo_documento_planeado: {tipo_doc_planeado_vale}")
                 
                 ticket_vale = Venta.objects.create(
                     empresa=request.empresa,
@@ -1515,16 +1772,17 @@ def pos_procesar_preventa(request):
                     vendedor=vendedor,
                     estacion_trabajo=estacion,
                     tipo_documento='vale',
-                    tipo_documento_planeado=data['tipo_documento'],  # ← GUARDAR TIPO PLANEADO
+                    tipo_documento_planeado=tipo_doc_planeado_vale,  # ← SIEMPRE debe tener un valor válido
                     subtotal=subtotal,
                     descuento=descuento,
                     neto=neto,
                     iva=iva,
                     impuesto_especifico=impuesto_especifico,
                     total=total,
-                    estado='borrador',
+                    estado='confirmada',  # Tickets impresos siempre están confirmados y disponibles para facturar
+                    facturado=False,  # ← NO facturado aún, aparecerá en caja para procesar
                     usuario_creacion=request.user,
-                    observaciones=f"Ticket generado automáticamente para {data['tipo_documento']} #{proximo_numero}"
+                    observaciones=f"Ticket generado automáticamente para {tipo_doc_planeado_vale} #{proximo_numero}"
                 )
 
                 # Crear detalles del vale
@@ -1639,7 +1897,28 @@ def pos_procesar_preventa(request):
                 print(f"DEBUG - Ticket facturable (vale) #{numero_vale} generado exitosamente")
                 
                 # CIERRE DIRECTO: Procesar automáticamente el ticket y generar DTE
-                if estacion.cierre_directo:
+                # CRÍTICO: Refrescar desde BD para obtener la configuración más reciente
+                estacion.refresh_from_db()
+                cierre_directo_activo = bool(estacion.cierre_directo)
+                cierre_directo_sesion = request.session.get('pos_cierre_directo', False)
+                
+                print("=" * 80)
+                print("[DEBUG CIERRE DIRECTO] Verificando configuración:")
+                print(f"  Estación ID: {estacion.id}")
+                print(f"  Estación Nombre: {estacion.nombre}")
+                print(f"  Estación.cierre_directo (BD refrescado): {estacion.cierre_directo} (tipo: {type(estacion.cierre_directo)})")
+                print(f"  cierre_directo_activo (bool): {cierre_directo_activo} (tipo: {type(cierre_directo_activo)})")
+                print(f"  Sesión pos_cierre_directo: {cierre_directo_sesion}")
+                print(f"  Sesión pos_estacion_id: {request.session.get('pos_estacion_id')}")
+                print(f"  ¿Entrará en cierre directo?: {cierre_directo_activo}")
+                print("=" * 80)
+                
+                if cierre_directo_activo:
+                    print("[✓] CIERRE DIRECTO ACTIVO - Procesando automáticamente")
+                else:
+                    print("[✗] CIERRE DIRECTO DESACTIVADO - NO procesará automáticamente")
+                
+                if cierre_directo_activo:
                     print(f"[CIERRE DIRECTO] Procesando ticket automaticamente")
                     
                     # Procesar el ticket automáticamente
@@ -1777,6 +2056,7 @@ def pos_procesar_preventa(request):
                                         ticket_vale.numero_venta = numero_venta_final
                                         ticket_vale.tipo_documento = data['tipo_documento']
                                         ticket_vale.estado = 'confirmada'
+                                        ticket_vale.facturado = True  # ← Marcar como facturado
                                         ticket_vale.save()
                                     else:
                                         # No existe DTE, generar uno nuevo
@@ -1786,6 +2066,7 @@ def pos_procesar_preventa(request):
                                         ticket_vale.numero_venta = numero_venta_temp
                                         ticket_vale.tipo_documento = data['tipo_documento']
                                         ticket_vale.estado = 'confirmada'
+                                        ticket_vale.facturado = True  # ← Marcar como facturado
                                         ticket_vale.save()
                                         
                                         # Generar DTE
@@ -1929,8 +2210,9 @@ def pos_procesar_preventa(request):
                                     except Exception as e_envio:
                                         print(f"[WARN] CIERRE DIRECTO: Error al enviar DTE al SII: {e_envio}")
                             
-                            # Marcar ticket como procesado
+                            # Marcar ticket como procesado y facturado
                             ticket_vale.estado = 'confirmada'
+                            ticket_vale.facturado = True  # ← Marcar como facturado
                             ticket_vale.save()
                             
                             print("=" * 80)
@@ -1971,14 +2253,22 @@ def pos_procesar_preventa(request):
                         })
             
             # Retorno normal (sin cierre directo)
-            return JsonResponse({
+            respuesta_normal = {
                 'success': True,
                 'numero_preventa': proximo_numero,
                 'tipo_documento': data['tipo_documento'],
                 'preventa_id': preventa.id,
                 'ticket_vale_id': ticket_vale_id,
-                'ticket_vale_numero': ticket_vale_numero
-            })
+                'ticket_vale_numero': ticket_vale_numero,
+                'cierre_directo': False  # EXPLÍCITAMENTE False para evitar ambigüedad
+            }
+            print("=" * 80)
+            print("[RETORNO NORMAL] Sin cierre directo - Respuesta JSON:")
+            print(f"  cierre_directo: {respuesta_normal.get('cierre_directo')}")
+            print(f"  ticket_vale_id: {respuesta_normal.get('ticket_vale_id')}")
+            print(f"  tipo_documento: {respuesta_normal.get('tipo_documento')}")
+            print("=" * 80)
+            return JsonResponse(respuesta_normal)
             
         except Exception as e:
             import traceback
@@ -2068,7 +2358,27 @@ def estaciontrabajo_edit(request, pk):
         if request.method == 'POST':
             form = EstacionTrabajoForm(request.POST, instance=estacion)
             if form.is_valid():
-                form.save()
+                estacion = form.save()  # Guardar y obtener la instancia actualizada
+                
+                # CRÍTICO: Refrescar desde BD para asegurar que tenemos los valores más recientes
+                estacion.refresh_from_db()
+                
+                # Si esta estación está activa en el POS, actualizar la sesión
+                if request.session.get('pos_estacion_id') == estacion.id:
+                    request.session['pos_cierre_directo'] = bool(estacion.cierre_directo)
+                    request.session['pos_flujo_directo'] = str(estacion.flujo_cierre_directo)
+                    request.session['pos_enviar_sii_directo'] = bool(estacion.enviar_sii_directo)
+                    request.session.modified = True
+                    request.session.save()  # Forzar guardado
+                    print("=" * 80)
+                    print(f"[DEBUG] Sesión POS actualizada para estación activa ID {estacion.id}")
+                    print(f"  Estación Nombre: {estacion.nombre}")
+                    print(f"  cierre_directo (BD): {estacion.cierre_directo}")
+                    print(f"  cierre_directo (Sesión): {request.session.get('pos_cierre_directo')}")
+                    print(f"  enviar_sii_directo (BD): {estacion.enviar_sii_directo}")
+                    print(f"  enviar_sii_directo (Sesión): {request.session.get('pos_enviar_sii_directo')}")
+                    print("=" * 80)
+                
                 response = JsonResponse({'success': True, 'message': 'Estación de trabajo actualizada exitosamente'})
                 response['Content-Type'] = 'application/json'
                 return response
@@ -2294,10 +2604,57 @@ def vale_html(request, pk):
         
         detalles = VentaDetalle.objects.filter(venta=venta)
         
+        # Verificar si el vale ya fue procesado para mostrar el tipo de documento final
+        tipo_documento_final = None
+        venta_procesada = None
+        formas_pago_list = []
+        
+        if venta.tipo_documento == 'vale':
+            from caja.models import VentaProcesada, MovimientoCaja
+            try:
+                venta_procesada = VentaProcesada.objects.get(venta_preventa=venta)
+                tipo_documento_final = venta_procesada.venta_final.tipo_documento
+                
+                # Obtener formas de pago de los movimientos de caja asociados a la venta final
+                movimientos = MovimientoCaja.objects.filter(
+                    venta=venta_procesada.venta_final,
+                    tipo='venta'
+                ).select_related('forma_pago').order_by('id')
+                
+                # Agrupar por forma de pago y sumar montos
+                from decimal import Decimal
+                formas_pago_dict = {}
+                for mov in movimientos:
+                    if mov.forma_pago:
+                        fp_nombre = mov.forma_pago.nombre
+                        if fp_nombre not in formas_pago_dict:
+                            formas_pago_dict[fp_nombre] = {
+                                'forma_pago': mov.forma_pago,
+                                'monto': Decimal('0.00'),
+                                'movimientos': []
+                            }
+                        formas_pago_dict[fp_nombre]['monto'] += mov.monto
+                        formas_pago_dict[fp_nombre]['movimientos'].append(mov)
+                
+                # Convertir a lista para el template
+                formas_pago_list = [
+                    {
+                        'forma_pago': fp_data['forma_pago'],
+                        'monto': fp_data['monto'],
+                        'movimientos': fp_data['movimientos']
+                    }
+                    for fp_data in formas_pago_dict.values()
+                ]
+            except VentaProcesada.DoesNotExist:
+                pass
+        
         context = {
             'venta': venta,
             'detalles': detalles,
             'empresa': request.empresa,
+            'tipo_documento_final': tipo_documento_final,
+            'venta_procesada': venta_procesada,
+            'formas_pago_list': formas_pago_list,
         }
         
         return render(request, 'ventas/vale_html.html', context)
@@ -3055,46 +3412,134 @@ def cotizacion_convertir_venta(request, pk):
 @requiere_empresa
 @permission_required('ventas.view_venta', raise_exception=True)
 def ticket_list(request):
-    """Lista de todos los tickets/vales"""
+    """Lista de todos los tickets/vales facturables"""
     from datetime import datetime, timedelta
+    
+    print("=" * 80)
+    print("[TICKET_LIST] INICIANDO VISTA ticket_list")
+    print(f"[TICKET_LIST] URL: {request.path}")
+    print(f"[TICKET_LIST] GET params: {request.GET}")
+    print(f"[TICKET_LIST] Empresa: {request.empresa.nombre} (ID: {request.empresa.id})")
     
     # Obtener parámetros de filtro
     fecha_desde = request.GET.get('fecha_desde')
     fecha_hasta = request.GET.get('fecha_hasta')
     estacion_id = request.GET.get('estacion')
     
-    # Por defecto, mostrar tickets del día actual
+    # Por defecto, mostrar tickets de los últimos 180 días (6 meses) para incluir más tickets
     if not fecha_desde:
-        fecha_desde = timezone.now().date()
+        fecha_desde = timezone.now().date() - timedelta(days=180)
+        print(f"[TICKET_LIST] fecha_desde NO proporcionada, usando por defecto: {fecha_desde}")
     else:
         fecha_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+        print(f"[TICKET_LIST] fecha_desde proporcionada: {fecha_desde}")
     
     if not fecha_hasta:
-        fecha_hasta = fecha_desde
+        fecha_hasta = timezone.now().date()
+        print(f"[TICKET_LIST] fecha_hasta NO proporcionada, usando por defecto: {fecha_hasta}")
     else:
         fecha_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+        print(f"[TICKET_LIST] fecha_hasta proporcionada: {fecha_hasta}")
     
-    # Consultar tickets
+    # Ajustar fecha_hasta para incluir todo el día
+    fecha_hasta_datetime = timezone.make_aware(datetime.combine(fecha_hasta, datetime.max.time()))
+    fecha_desde_datetime = timezone.make_aware(datetime.combine(fecha_desde, datetime.min.time()))
+    print(f"[TICKET_LIST] Rango datetime: {fecha_desde_datetime} a {fecha_hasta_datetime}")
+    
+    # CORRECCIÓN: Primero corregir TODOS los tickets invertidos sin restricción de fecha
+    tickets_invertidos = Venta.objects.filter(
+        empresa=request.empresa,
+        tipo_documento__in=['boleta', 'factura', 'guia'],
+        tipo_documento_planeado='vale',
+        facturado=False,
+        estado__in=['borrador', 'confirmada']
+    )
+    
+    if tickets_invertidos.exists():
+        for ticket in tickets_invertidos:
+            tipo_original = ticket.tipo_documento
+            ticket.tipo_documento = 'vale'
+            ticket.tipo_documento_planeado = tipo_original
+            ticket.save()
+    
+    # CONSULTA FINAL SIMPLIFICADA: Solo condiciones esenciales
+    # Un ticket es facturable si:
+    # 1. Es un vale (tipo_documento='vale')
+    # 2. No está facturado (facturado=False)
+    # 3. No está anulado (estado != 'anulada')
+    # 4. Tiene tipo_documento_planeado válido (no 'vale')
+    
+    # Primero corregir tickets sin tipo_documento_planeado válido (sin restricción de fecha)
+    tickets_a_corregir = Venta.objects.filter(
+        empresa=request.empresa,
+        tipo_documento='vale',
+        facturado=False,
+        estado__in=['borrador', 'confirmada']
+    ).filter(
+        Q(tipo_documento_planeado__isnull=True) | 
+        Q(tipo_documento_planeado='') |
+        Q(tipo_documento_planeado='vale')
+    )
+    if tickets_a_corregir.exists():
+        tickets_a_corregir.update(tipo_documento_planeado='boleta')
+    
+    # CONSULTA SIMPLIFICADA AL MÁXIMO: Solo condiciones esenciales
+    print(f"[TICKET_LIST] Construyendo consulta...")
     tickets = Venta.objects.filter(
         empresa=request.empresa,
         tipo_documento='vale',
-        fecha__gte=fecha_desde,
-        fecha__lte=fecha_hasta
-    ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')
+        facturado=False,
+        fecha_creacion__gte=fecha_desde_datetime,
+        fecha_creacion__lte=fecha_hasta_datetime
+    ).exclude(
+        tipo_documento_planeado='vale'
+    ).exclude(
+        tipo_documento_planeado__isnull=True
+    ).exclude(
+        tipo_documento_planeado=''
+    )
+    
+    print(f"[TICKET_LIST] Consulta inicial (sin select_related): {tickets.count()} tickets")
     
     # Filtrar por estación si se especifica
     if estacion_id:
         tickets = tickets.filter(estacion_trabajo_id=estacion_id)
+        print(f"[TICKET_LIST] Después de filtrar por estación {estacion_id}: {tickets.count()} tickets")
     
     # Obtener estaciones para el filtro
     estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True)
     
+    # Ordenar y seleccionar relaciones
+    tickets = tickets.select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')
+    
+    print(f"[TICKET_LIST] Consulta final antes de evaluar: {tickets.count()} tickets")
+    
+    # CRÍTICO: Evaluar el queryset ANTES de calcular totales
+    print(f"[TICKET_LIST] Evaluando queryset a lista...")
+    tickets_list = list(tickets)
+    print(f"[TICKET_LIST] Lista evaluada: {len(tickets_list)} tickets")
+    
     # Calcular totales
-    total_tickets = tickets.count()
-    total_monto = sum(ticket.total for ticket in tickets)
+    total_tickets = len(tickets_list)
+    total_monto = sum(float(ticket.total) for ticket in tickets_list)
+    
+    # DEBUG: Imprimir información de depuración
+    print(f"[TICKET_LIST DEBUG] Empresa: {request.empresa.nombre} (ID: {request.empresa.id})")
+    print(f"[TICKET_LIST DEBUG] Rango fechas: {fecha_desde} a {fecha_hasta}")
+    print(f"[TICKET_LIST DEBUG] Tickets encontrados: {total_tickets}")
+    print(f"[TICKET_LIST DEBUG] Monto total: ${total_monto}")
+    if tickets_list:
+        print(f"[TICKET_LIST DEBUG] Primer ticket: #{tickets_list[0].numero_venta}")
+        print(f"[TICKET_LIST DEBUG] Último ticket: #{tickets_list[-1].numero_venta}")
+        # Verificar si el 000225 está en la lista
+        ticket_225 = [t for t in tickets_list if '0225' in str(t.numero_venta)]
+        if ticket_225:
+            print(f"[TICKET_LIST DEBUG] ✓ Ticket 000225 encontrado en la lista")
+        else:
+            print(f"[TICKET_LIST DEBUG] ✗ Ticket 000225 NO encontrado en la lista")
     
     context = {
-        'tickets': tickets,
+        'tickets': tickets_list,  # Pasar como lista evaluada
         'estaciones': estaciones,
         'fecha_desde': fecha_desde,
         'fecha_hasta': fecha_hasta,
@@ -3154,7 +3599,9 @@ def pos_tickets_hoy(request):
     tickets_data = []
     for ticket in tickets:
         # Determinar el tipo de documento de cierre
-        tipo_doc = ticket.tipo_documento_planeado or ticket.tipo_documento
+        # Si es un vale facturable, mostrar el tipo de documento planeado (BOL/FACT/GUÍA)
+        # Si no tiene tipo_documento_planeado, mostrar VALE
+        tipo_doc = ticket.tipo_documento_planeado if ticket.tipo_documento == 'vale' and ticket.tipo_documento_planeado else ticket.tipo_documento
         tipo_doc_display = {
             'boleta': 'BOL',
             'factura': 'FACT',

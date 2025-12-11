@@ -8,8 +8,13 @@ from empresas.models import Empresa
 
 class Chofer(models.Model):
     """
-    Modelo para gestionar choferes/conductores
+    Modelo para gestionar choferes/conductores y acompañantes
     """
+    TIPO_CHOICES = [
+        ('chofer', 'Chofer'),
+        ('acompanante', 'Acompañante'),
+    ]
+    
     empresa = models.ForeignKey(
         Empresa,
         on_delete=models.CASCADE,
@@ -38,6 +43,15 @@ class Chofer(models.Model):
                 message='Formato de RUT inválido. Ejemplo: 12345678-9'
             )
         ]
+    )
+    
+    # Tipo de persona
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default='chofer',
+        verbose_name="Tipo",
+        help_text="Indica si es chofer o acompañante"
     )
     
     # Estado
@@ -100,6 +114,18 @@ class Vehiculo(models.Model):
         null=True,
         verbose_name="Capacidad (kg)",
         help_text="Capacidad de carga en kilogramos"
+    )
+    
+    # Chofer asignado por defecto
+    chofer = models.ForeignKey(
+        Chofer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vehiculos_asignados',
+        limit_choices_to={'tipo': 'chofer', 'activo': True},
+        verbose_name="Chofer Asignado",
+        help_text="Chofer asignado por defecto a este vehículo"
     )
     
     # Estado

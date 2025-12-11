@@ -160,7 +160,26 @@ class DTEXMLGenerator:
         id_doc = etree.SubElement(encabezado, "IdDoc")
         etree.SubElement(id_doc, "TipoDTE").text = self.tipo_dte
         etree.SubElement(id_doc, "Folio").text = str(self.folio)
-        etree.SubElement(id_doc, "FchEmis").text = self.documento.fecha.strftime('%Y-%m-%d')
+        
+        # Obtener fecha de emisión según el tipo de documento
+        from ventas.models import Venta
+        from pedidos.models import OrdenDespacho
+        from facturacion_electronica.models import DocumentoTributarioElectronico
+        
+        if isinstance(self.documento, OrdenDespacho):
+            fecha_emision = self.documento.fecha_despacho
+        elif isinstance(self.documento, DocumentoTributarioElectronico):
+            fecha_emision = self.documento.fecha_emision
+        elif isinstance(self.documento, Venta):
+            fecha_emision = getattr(self.documento, 'fecha', None) or getattr(self.documento, 'fecha_creacion', None)
+        else:
+            fecha_emision = getattr(self.documento, 'fecha', None) or getattr(self.documento, 'fecha_emision', None) or getattr(self.documento, 'fecha_creacion', None)
+        
+        if fecha_emision:
+            etree.SubElement(id_doc, "FchEmis").text = fecha_emision.strftime('%Y-%m-%d')
+        else:
+            from django.utils import timezone
+            etree.SubElement(id_doc, "FchEmis").text = timezone.now().strftime('%Y-%m-%d')
         
         # Indicador de servicio (solo para facturas de servicios)
         if self.tipo_dte in ['33', '34']:
@@ -263,6 +282,17 @@ class DTEXMLGenerator:
         direccion = getattr(self.documento, 'direccion_receptor', '')
         comuna = getattr(self.documento, 'comuna_receptor', '')
 
+        # Si el documento es una OrdenDespacho, obtener datos desde orden_pedido.cliente
+        from pedidos.models import OrdenDespacho
+        if isinstance(self.documento, OrdenDespacho):
+            if hasattr(self.documento, 'orden_pedido') and self.documento.orden_pedido:
+                cliente = self.documento.orden_pedido.cliente
+                rut_receptor = cliente.rut
+                razon_social = cliente.nombre
+                giro = getattr(cliente, 'giro', '')
+                direccion = cliente.direccion or ''
+                comuna = cliente.comuna if isinstance(cliente.comuna, str) else ''
+
         # Si no hay datos en el DTE, intentar obtenerlos desde la relación 'cliente'
         if not rut_receptor and hasattr(self.documento, 'cliente') and self.documento.cliente:
             cliente = self.documento.cliente
@@ -323,17 +353,31 @@ class DTEXMLGenerator:
         """Genera los detalles (items) del documento"""
         from ventas.models import Venta, NotaCredito
         from facturacion_electronica.models import DocumentoTributarioElectronico
+        from pedidos.models import OrdenDespacho
 
         items = []
-        if isinstance(self.documento, Venta):
-            items = self.documento.ventadetalle_set.all()
-        elif isinstance(self.documento, NotaCredito):
-            items = self.documento.items.all()
-        elif isinstance(self.documento, DocumentoTributarioElectronico):
+        # CRÍTICO: Verificar DocumentoTributarioElectronico PRIMERO porque tiene orden_despacho como ManyToMany
+        if isinstance(self.documento, DocumentoTributarioElectronico):
             # Flujo desde POS/Despacho: los items vienen de la venta asociada al DTE
             venta_asociada = self.documento.orden_despacho.first() # Usamos orden_despacho como relación genérica
             if venta_asociada and hasattr(venta_asociada, 'ventadetalle_set'):
                 items = venta_asociada.ventadetalle_set.all()
+        elif isinstance(self.documento, Venta):
+            items = self.documento.ventadetalle_set.all()
+        elif isinstance(self.documento, NotaCredito):
+            items = self.documento.items.all()
+        elif isinstance(self.documento, OrdenDespacho):
+            # Flujo desde orden de despacho: obtener items desde la relación 'items'
+            items = self.documento.items.all()
+        elif hasattr(self.documento, 'orden_despacho'):
+            # Wrapper con orden_despacho (solo si NO es un ManyRelatedManager)
+            # Verificar si orden_despacho es un objeto individual, no un ManyRelatedManager
+            orden_despacho = self.documento.orden_despacho
+            # Si tiene método .all(), es un ManyRelatedManager, usar .first()
+            if hasattr(orden_despacho, 'all'):
+                orden_despacho = orden_despacho.first()
+            if orden_despacho and hasattr(orden_despacho, 'detalleordendespacho_set'):
+                items = orden_despacho.detalleordendespacho_set.all()
         else:
             # Soportar otros objetos genéricos
             if hasattr(self.documento, 'items') and self.documento.items is not None:
@@ -357,8 +401,26 @@ class DTEXMLGenerator:
             if self.tipo_dte in ['34', '41']:
                 etree.SubElement(detalle, "IndExe").text = "1"
             
-            # Nombre del item
-            nombre_item = item.articulo.nombre if hasattr(item, 'articulo') else getattr(item, 'descripcion', '')
+            # Nombre del item - soportar tanto VentaDetalle como DetalleOrdenDespacho
+            if hasattr(item, 'item_pedido') and hasattr(item.item_pedido, 'articulo'):
+                # Es un DetalleOrdenDespacho
+                nombre_item = item.item_pedido.articulo.nombre
+                articulo = item.item_pedido.articulo
+                cantidad = float(item.cantidad)
+                precio_unitario = float(item.item_pedido.precio_unitario)
+            elif hasattr(item, 'articulo'):
+                # Es un VentaDetalle
+                nombre_item = item.articulo.nombre
+                articulo = item.articulo
+                cantidad = float(item.cantidad)
+                precio_unitario = float(item.precio_unitario)
+            else:
+                # Fallback genérico
+                nombre_item = getattr(item, 'descripcion', 'Item sin nombre')
+                articulo = None
+                cantidad = float(getattr(item, 'cantidad', 1))
+                precio_unitario = float(getattr(item, 'precio_unitario', 0))
+            
             etree.SubElement(detalle, "NmbItem").text = nombre_item[:80]
             
             # Descripción adicional (opcional)
@@ -366,25 +428,21 @@ class DTEXMLGenerator:
                 etree.SubElement(detalle, "DscItem").text = item.descripcion[:1000]
             
             # Cantidad
-            cantidad = float(item.cantidad)
             etree.SubElement(detalle, "QtyItem").text = f"{cantidad:.4f}"
             
             # Unidad de medida
             unidad = "UN"  # Por defecto
-            if hasattr(item, 'articulo') and item.articulo and hasattr(item.articulo, 'unidad_medida') and item.articulo.unidad_medida:
-                if hasattr(item.articulo.unidad_medida, 'codigo_sii') and item.articulo.unidad_medida.codigo_sii:
-                    unidad = item.articulo.unidad_medida.codigo_sii
+            if articulo and hasattr(articulo, 'unidad_medida') and articulo.unidad_medida:
+                if hasattr(articulo.unidad_medida, 'codigo_sii') and articulo.unidad_medida.codigo_sii:
+                    unidad = articulo.unidad_medida.codigo_sii
             etree.SubElement(detalle, "UnmdItem").text = unidad
 
             # Precio unitario
-            precio_unitario = int(round(float(item.precio_unitario)))
-            etree.SubElement(detalle, "PrcItem").text = str(precio_unitario)
+            precio_unitario_int = int(round(precio_unitario))
+            etree.SubElement(detalle, "PrcItem").text = str(precio_unitario_int)
 
-            # Monto total del ítem: usar precio_total si existe; si no, cantidad * precio_unitario
-            try:
-                monto_item = int(round(float(getattr(item, 'precio_total', item.cantidad * item.precio_unitario))))
-            except Exception:
-                monto_item = int(round(float(item.cantidad * item.precio_unitario)))
+            # Monto total del ítem: cantidad * precio_unitario
+            monto_item = int(round(cantidad * precio_unitario))
             etree.SubElement(detalle, "MontoItem").text = str(monto_item)
     
     def _generar_referencia(self, documento, obligatorio=False):

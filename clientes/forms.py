@@ -12,7 +12,7 @@ class ClienteForm(forms.ModelForm):
         fields = [
             'rut', 'nombre', 'tipo_cliente', 'giro',
             'direccion', 'comuna', 'ciudad', 'region', 'telefono', 'email', 'sitio_web',
-            'limite_credito', 'plazo_pago', 'descuento_porcentaje', 'estado', 'observaciones'
+            'limite_credito', 'plazo_pago', 'descuento_porcentaje', 'ruta', 'estado', 'observaciones'
         ]
         widgets = {
             'rut': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '12.345.678-9 o 12345678-9', 'id': 'rut-input'}),
@@ -29,6 +29,7 @@ class ClienteForm(forms.ModelForm):
             'limite_credito': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
             'plazo_pago': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '30'}),
             'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
+            'ruta': forms.Select(attrs={'class': 'form-control'}),
             'estado': forms.Select(attrs={'class': 'form-control'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Observaciones adicionales'}),
         }
@@ -37,13 +38,26 @@ class ClienteForm(forms.ModelForm):
         self.empresa = kwargs.pop('empresa', None)
         super().__init__(*args, **kwargs)
         
+        # Filtrar rutas por empresa si está disponible
+        if self.empresa:
+            from pedidos.models_rutas import Ruta
+            self.fields['ruta'].queryset = Ruta.objects.filter(empresa=self.empresa, activo=True).order_by('codigo')
+        else:
+            from pedidos.models_rutas import Ruta
+            self.fields['ruta'].queryset = Ruta.objects.filter(activo=True).order_by('codigo')
+        
+        # Hacer campo ruta opcional
+        self.fields['ruta'].required = False
+        self.fields['ruta'].empty_label = 'Sin ruta asignada'
+        
         # Hacer campos requeridos
         self.fields['rut'].required = True
         self.fields['nombre'].required = True
         self.fields['direccion'].required = True
         self.fields['comuna'].required = True
         self.fields['ciudad'].required = True
-        self.fields['region'].required = True
+        # region no es requerido
+        self.fields['region'].required = False
         self.fields['telefono'].required = True
     
     def clean_rut(self):

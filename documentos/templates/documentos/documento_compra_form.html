@@ -631,6 +631,7 @@
                                             <option value="{{ articulo.id }}" 
                                                     data-codigo="{{ articulo.codigo }}" 
                                                     data-nombre="{{ articulo.nombre }}"
+                                                    data-precio-costo="{% if articulo.precio_costo %}{{ articulo.precio_costo|floatformat:0 }}{% else %}0{% endif %}"
                                                     {% if item_form.articulo.value == articulo.id %}selected{% endif %}>
                                                 {{ articulo.codigo }} - {{ articulo.nombre|truncatechars:50 }}
                                             </option>
@@ -647,7 +648,12 @@
                                     {% endif %}
                                 </div>
                                 <div class="col-md-2">
-                                    {{ item_form.precio_unitario }}
+                                    <div class="position-relative">
+                                        {{ item_form.precio_unitario }}
+                                        <span class="badge badge-costo-actual" style="display: none; position: absolute; top: -18px; right: 0; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; z-index: 10; white-space: nowrap;">
+                                            Costo: $<span class="costo-valor">0</span>
+                                        </span>
+                                    </div>
                                     {% if item_form.precio_unitario.errors %}
                                         <div class="text-danger small" style="font-size: 0.65rem;">{{ item_form.precio_unitario.errors.0 }}</div>
                                     {% endif %}
@@ -947,149 +953,149 @@ document.addEventListener('DOMContentLoaded', function() {
 let formCount = {{ formset.total_form_count }};
 const maxForms = 1000;
 
-// Función para agregar nuevo item - GLOBAL
+// Función para agregar nuevo item - REESCRITA DESDE CERO
 window.addItemForm = function() {
-        console.log('addItemForm ejecutándose, formCount:', formCount);
-        if (formCount < maxForms) {
-            // Buscar la primera forma visible para usar como template
-            const existingForms = document.querySelectorAll('.item-form-compact');
-            let templateForm = null;
-            
-            // Buscar una forma visible para usar como template
-            for (let form of existingForms) {
-                if (form.style.display !== 'none') {
-                    templateForm = form;
-                    break;
-                }
+    if (formCount >= maxForms) {
+        console.warn('Se alcanzó el máximo de formularios permitidos');
+        return;
+    }
+    
+    // Obtener el primer formulario como template
+    const templateForm = document.querySelector('.item-form-compact');
+    if (!templateForm) {
+        console.error('No se encontró template para clonar');
+        return;
+    }
+    
+    // Obtener el select original ANTES de clonar (para copiar opciones después)
+    const originalSelect = templateForm.querySelector('.articulo-select');
+    if (!originalSelect) {
+        console.error('No se encontró select de artículo en el template');
+        return;
+    }
+    
+    // IMPORTANTE: Destruir Select2 del template ANTES de clonar para evitar duplicados
+    if ($(originalSelect).data('select2')) {
+        $(originalSelect).select2('destroy');
+    }
+    
+    // Clonar el formulario SIN eventos ni datos de Select2
+    const emptyForm = templateForm.cloneNode(true);
+    const formIndex = formCount;
+    
+    // Restaurar Select2 en el template original
+    $(originalSelect).select2({
+        placeholder: 'Buscar artículo por código o nombre...',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    // Obtener el select clonado
+    const clonedSelect = emptyForm.querySelector('.articulo-select');
+    
+    // Limpiar completamente el select clonado y reconstruirlo desde cero
+    clonedSelect.innerHTML = originalSelect.innerHTML;
+    clonedSelect.selectedIndex = 0;
+    clonedSelect.removeAttribute('data-select2-id');
+    
+    // Eliminar cualquier elemento de Select2 que se haya clonado
+    emptyForm.querySelectorAll('.select2-container').forEach(function(el) {
+        el.remove();
+    });
+    
+    // Actualizar nombres e IDs de TODOS los campos
+    emptyForm.querySelectorAll('input, select, textarea, button').forEach(function(element) {
+        // Actualizar name
+        if (element.name) {
+            const nameMatch = element.name.match(/^(.+-)(\d+)(-.+)$/);
+            if (nameMatch) {
+                element.name = nameMatch[1] + formIndex + nameMatch[3];
+            } else if (element.name.includes('-')) {
+                element.name = element.name.replace(/-\d+-/, '-' + formIndex + '-');
             }
-            
-            if (!templateForm) {
-                console.error('No se encontró template para clonar');
-                return;
-            }
-            
-            // Clonar el formulario
-            const emptyForm = templateForm.cloneNode(true);
-            const formIndex = formCount;
-            
-            console.log('Clonando formulario, nuevo índice:', formIndex);
-            
-            // Obtener el select original del template para copiar sus opciones
-            const originalSelect = templateForm.querySelector('.articulo-select');
-            
-            // Destruir Select2 del elemento clonado si existe
-            const clonedSelect = emptyForm.querySelector('.articulo-select');
-            if (clonedSelect && $(clonedSelect).data('select2')) {
-                $(clonedSelect).select2('destroy');
-            }
-            
-            // Actualizar nombres e IDs de campos
-            emptyForm.querySelectorAll('input, select, textarea').forEach(function(element) {
-                if (element.name) {
-                    const oldName = element.name;
-                    // Reemplazar el índice en el nombre del campo
-                    const nameMatch = oldName.match(/^(.+-)(\d+)(-.+)$/);
-                    if (nameMatch) {
-                        element.name = nameMatch[1] + formIndex + nameMatch[3];
-                    } else {
-                        // Si no tiene el formato esperado, intentar reemplazo simple
-                        element.name = element.name.replace(/-\d+-/, '-' + formIndex + '-');
-                    }
-                    console.log('Actualizando name:', oldName, '->', element.name);
-                }
-                if (element.id) {
-                    const idMatch = element.id.match(/^(.+-)(\d+)(-.+)$/);
-                    if (idMatch) {
-                        element.id = idMatch[1] + formIndex + idMatch[3];
-                    } else {
-                        element.id = element.id.replace(/-\d+-/, '-' + formIndex + '-');
-                    }
-                }
-                if (element.classList.contains('articulo-select')) {
-                    element.setAttribute('data-index', formIndex);
-                    // Reconstruir el select con todas las opciones del original
-                    if (originalSelect) {
-                        element.innerHTML = originalSelect.innerHTML;
-                        // Asegurarse de que la primera opción esté seleccionada
-                        element.selectedIndex = 0;
-                    }
-                }
-            });
-            
-            // Limpiar valores de todos los campos excepto hidden
-            emptyForm.querySelectorAll('input:not([type="hidden"]), textarea').forEach(function(element) {
-                if (element.classList.contains('item-total')) {
-                    element.value = '$0';
-                } else {
-                    element.value = '';
-                }
-            });
-            
-            // Limpiar select y establecer opción por defecto (ya se hizo arriba, pero por si acaso)
-            emptyForm.querySelectorAll('select').forEach(function(element) {
-                if (!element.classList.contains('articulo-select')) {
-                    element.selectedIndex = 0;
-                }
-            });
-            
-            // Limpiar campos hidden de DELETE
-            const deleteInput = emptyForm.querySelector('input[name*="DELETE"]');
-            if (deleteInput) {
-                deleteInput.value = '';
-            }
-            
-            // Actualizar el botón de eliminar para el nuevo índice
-            const deleteBtn = emptyForm.querySelector('.delete-item-btn');
-            if (deleteBtn) {
-                deleteBtn.setAttribute('data-form-index', formIndex);
-            }
-            
-            // Insertar en el contenedor de items
-            const container = document.querySelector('.items-container');
-            container.appendChild(emptyForm);
-            
-            // Reinicializar Select2 en el nuevo formulario
-            const newSelect = emptyForm.querySelector('.articulo-select');
-            if (newSelect) {
-                // Asegurarse de que el select tenga todas las opciones disponibles
-                // Si no tiene opciones, copiarlas del primer select disponible
-                if (newSelect.options.length <= 1 && originalSelect) {
-                    newSelect.innerHTML = originalSelect.innerHTML;
-                    newSelect.selectedIndex = 0;
-                }
-                
-                // Inicializar Select2
-                $(newSelect).select2({
-                    placeholder: 'Buscar artículo por código o nombre...',
-                    allowClear: true,
-                    language: {
-                        noResults: function() {
-                            return "No se encontraron resultados";
-                        },
-                        searching: function() {
-                            return "Buscando...";
-                        }
-                    },
-                    width: '100%'
-                });
-                
-                console.log('Select2 inicializado en nuevo formulario, opciones:', newSelect.options.length);
-            }
-            
-            // Actualizar contador
-            formCount++;
-            document.getElementById('id_items-TOTAL_FORMS').value = formCount;
-            
-            console.log('Item agregado exitosamente. Total forms:', formCount);
-            
-            // Recalcular totales
-            if (typeof calculateTotals === 'function') {
-                calculateTotals();
-            }
-        } else {
-            console.warn('Se alcanzó el máximo de formularios permitidos');
         }
-    };
+        
+        // Actualizar id
+        if (element.id) {
+            const idMatch = element.id.match(/^(.+-)(\d+)(-.+)$/);
+            if (idMatch) {
+                element.id = idMatch[1] + formIndex + idMatch[3];
+            } else if (element.id.includes('-')) {
+                element.id = element.id.replace(/-\d+-/, '-' + formIndex + '-');
+            }
+        }
+        
+        // Limpiar atributos de Select2
+        if (element.classList.contains('articulo-select')) {
+            element.removeAttribute('data-select2-id');
+            element.setAttribute('data-index', formIndex);
+        }
+    });
+    
+    // Limpiar valores de campos
+    emptyForm.querySelectorAll('input:not([type="hidden"]), textarea').forEach(function(element) {
+        if (element.classList.contains('item-total')) {
+            element.value = '$0';
+        } else if (!element.classList.contains('articulo-select')) {
+            element.value = '';
+        }
+    });
+    
+    // Limpiar campos hidden
+    const deleteInput = emptyForm.querySelector('input[name*="DELETE"]');
+    if (deleteInput) {
+        deleteInput.value = '';
+        deleteInput.checked = false;
+    }
+    
+    // Ocultar badge de costo
+    const badgeCosto = emptyForm.querySelector('.badge-costo-actual');
+    if (badgeCosto) {
+        badgeCosto.style.display = 'none';
+    }
+    
+    // Actualizar botón eliminar
+    const deleteBtn = emptyForm.querySelector('.delete-item-btn');
+    if (deleteBtn) {
+        deleteBtn.setAttribute('data-form-index', formIndex);
+    }
+    
+    // Insertar en el contenedor
+    const container = document.querySelector('.items-container');
+    container.appendChild(emptyForm);
+    
+    // Inicializar Select2 en el nuevo select DESPUÉS de insertarlo
+    setTimeout(function() {
+        const newSelect = emptyForm.querySelector('.articulo-select');
+        if (newSelect && !$(newSelect).data('select2')) {
+            $(newSelect).select2({
+                placeholder: 'Buscar artículo por código o nombre...',
+                allowClear: true,
+                language: {
+                    noResults: function() {
+                        return "No se encontraron resultados";
+                    },
+                    searching: function() {
+                        return "Buscando...";
+                    }
+                },
+                width: '100%'
+            });
+        }
+    }, 100);
+    
+    // Actualizar contador
+    formCount++;
+    const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
+    if (totalFormsInput) {
+        totalFormsInput.value = formCount;
+    }
+    
+    // Recalcular totales
+    if (typeof calculateTotals === 'function') {
+        calculateTotals();
+    }
+};
     
      // Función para calcular totales
      window.calculateTotals = function() {
@@ -1168,6 +1174,26 @@ document.addEventListener('DOMContentLoaded', function() {
          const form = selectElement.closest('.item-form-compact');
          
          if (selectedOption.value) {
+             // Obtener el costo actual del artículo desde el atributo data
+             // El precio_costo viene como string, puede tener formato con puntos/comas
+             let precioCostoStr = selectedOption.getAttribute('data-precio-costo') || '0';
+             // Limpiar el string: remover puntos de miles y reemplazar coma por punto
+             precioCostoStr = precioCostoStr.replace(/\./g, '').replace(',', '.');
+             const precioCosto = parseFloat(precioCostoStr) || 0;
+             
+             // Mostrar badge con costo actual
+             const badgeCosto = form.querySelector('.badge-costo-actual');
+             const costoValor = form.querySelector('.costo-valor');
+             if (badgeCosto && costoValor) {
+                 if (precioCosto > 0) {
+                     // Formatear el número sin decimales para mostrar
+                     costoValor.textContent = Math.round(precioCosto).toLocaleString('es-CL');
+                     badgeCosto.style.display = 'inline-block';
+                 } else {
+                     badgeCosto.style.display = 'none';
+                 }
+             }
+             
              // Auto-calcular total de línea basado en cantidad * precio + descuentos + impuestos
              const cantidadInput = form.querySelector('input[name*="cantidad"]');
              const precioInput = form.querySelector('input[name*="precio_unitario"]');
@@ -1193,6 +1219,12 @@ document.addEventListener('DOMContentLoaded', function() {
              
              // Recalcular totales generales
              calculateTotals();
+         } else {
+             // Ocultar badge si no hay artículo seleccionado
+             const badgeCosto = form.querySelector('.badge-costo-actual');
+             if (badgeCosto) {
+                 badgeCosto.style.display = 'none';
+             }
          }
      }
     
@@ -1405,6 +1437,20 @@ document.addEventListener('DOMContentLoaded', function() {
             updateArticleFields(e.target);
         }
     });
+    
+    // Inicializar badges de costo para items existentes al cargar la página
+    function initializeCostoBadges() {
+        document.querySelectorAll('.articulo-select').forEach(function(select) {
+            if (select.value) {
+                updateArticleFields(select);
+            }
+        });
+    }
+    
+    // Ejecutar inicialización después de que el DOM esté completamente cargado
+    setTimeout(function() {
+        initializeCostoBadges();
+    }, 1000);
     
     // Calcular totales iniciales
     calculateTotals();

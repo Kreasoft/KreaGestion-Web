@@ -706,6 +706,9 @@
                         <div class="pos-info-item">
                             <i class="fas fa-desktop"></i>
                             <span id="estacion-actual">Estación: <span id="estacion-nombre">-</span></span>
+                            <button class="btn btn-sm btn-outline-light ms-2" onclick="mostrarCambiarEstacion()" title="Cambiar estación de trabajo" style="padding: 2px 6px; font-size: 0.7rem;">
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
                         </div>
                         <div class="pos-info-item">
                             <i class="fas fa-user"></i>
@@ -1618,6 +1621,24 @@ async function desglosarKitEnCarrito(kitId) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('*** DOMContentLoaded INICIADO ***');
     
+    // Verificar si hay un vale pendiente de imprimir
+    const urlParams = new URLSearchParams(window.location.search);
+    const valeIdParaImprimir = urlParams.get('imprimir_vale');
+    if (valeIdParaImprimir) {
+        console.log('[IMPRESION] Vale pendiente de imprimir:', valeIdParaImprimir);
+        // Construir URL del vale usando la URL base del template
+        const valeUrlBase = "{% url 'ventas:vale_html' 999999 %}";
+        const valeUrl = valeUrlBase.replace('999999', valeIdParaImprimir) + "?auto=1";
+        console.log('[IMPRESION] Abriendo ventana de impresión:', valeUrl);
+        // Abrir ventana de impresión
+        setTimeout(function() {
+            window.open(valeUrl, '_blank');
+            // Limpiar parámetro de la URL sin recargar la página
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }, 500);
+    }
+    
     // Cargar listas de precios
     cargarListasPrecios();
     
@@ -2492,6 +2513,25 @@ function clearCart() {
                         const disponibles = parseInt(this.getAttribute('data-disponibles') || '0');
                         const tipo = this.getAttribute('data-tipo');
                         
+                        // Si es "vale" y aún no se ha seleccionado el tipo de documento planeado
+                        if (tipo === 'vale' && !window.tipoDocumentoPlaneadoVale) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            // Cerrar el modal actual y mostrar selector de tipo de documento para el vale
+                            Swal.close();
+                            setTimeout(() => {
+                                mostrarSelectorTipoVale();
+                            }, 100);
+                            return;
+                        }
+                        
+                        // Si es "vale" y ya se seleccionó el tipo, continuar normalmente
+                        if (tipo === 'vale' && window.tipoDocumentoPlaneadoVale) {
+                            // El tipo ya está guardado, continuar con el flujo normal
+                            console.log('[VALE] Continuando con tipo_documento_planeado:', window.tipoDocumentoPlaneadoVale);
+                        }
+                        
                         // Bloquear si no hay folios (para facturas, boletas, guías)
                         if (disponibles === 0 && ['factura', 'boleta', 'guia'].includes(tipo)) {
                             e.preventDefault();
@@ -2676,13 +2716,21 @@ function clearCart() {
                     return false;
                 }
                 
-                return {
+                // Si es vale, incluir el tipo_documento_planeado seleccionado previamente
+                const datosRetorno = {
                     tipo_documento: tipoDocumento,
                     rut_cliente: rutCliente,
                     cliente_id: window.clienteSeleccionado.id,
                     tipo_despacho: tipoDespacho || null,
                     referencias: window.referencias || []
                 };
+                
+                // Si es vale, agregar tipo_documento_planeado
+                if (tipoDocumento === 'vale' && window.tipoDocumentoPlaneadoVale) {
+                    datosRetorno.tipo_documento_planeado = window.tipoDocumentoPlaneadoVale;
+                }
+                
+                return datosRetorno;
             }
         }).then((result) => {
             if (result.isConfirmed) {
@@ -2695,6 +2743,114 @@ function clearCart() {
                     chofer_id: null
                 };
                 processPreventaWithData(datosCompletos);
+            }
+        });
+    }
+    
+    // Función para mostrar selector de tipo de documento cuando se selecciona "Vale Facturable"
+    function mostrarSelectorTipoVale() {
+        const tiposFacturables = ['factura', 'boleta', 'guia'];
+        const tiposPermitidos = window.currentEstacion.tipos_documentos.filter(t => tiposFacturables.includes(t));
+        
+        if (tiposPermitidos.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Sin Tipos Disponibles',
+                text: 'No hay tipos de documentos facturables disponibles para este vale',
+                timer: 3000
+            }).then(() => {
+                // Volver al selector principal
+                showDocumentTypeSelector();
+            });
+            return;
+        }
+        
+        const configTipos = {
+            'factura': { nombre: 'Factura', icono: 'fa-file-invoice', color: '#28a745' },
+            'boleta': { nombre: 'Boleta', icono: 'fa-receipt', color: '#007bff' },
+            'guia': { nombre: 'Guía de Despacho', icono: 'fa-truck', color: '#ffc107' }
+        };
+        
+        const opcionesTipos = tiposPermitidos.map(tipo => {
+            const info = configTipos[tipo];
+            return `
+                <button type="button" class="btn-tipo-vale btn btn-lg" 
+                        data-tipo="${tipo}"
+                        style="
+                            width: 100%;
+                            margin-bottom: 10px;
+                            padding: 20px;
+                            border: 3px solid ${info.color};
+                            border-radius: 12px;
+                            background: white;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                        "
+                        onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 16px rgba(0,0,0,0.15)';" 
+                        onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
+                    <i class="fas ${info.icono}" style="font-size: 2rem; color: ${info.color};"></i>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #2c3e50; margin-top: 10px;">${info.nombre}</div>
+                </button>
+            `;
+        }).join('');
+        
+        Swal.fire({
+            title: '<i class="fas fa-ticket-alt me-2"></i>Seleccione Tipo de Documento',
+            html: `
+                <div class="mb-3">
+                    <p style="color: #6c757d; margin-bottom: 20px;">
+                        El vale facturable se convertirá en el tipo de documento seleccionado cuando se procese en caja.
+                    </p>
+                    <div id="botones-tipo-vale">
+                        ${opcionesTipos}
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Continuar',
+            confirmButtonColor: '#8B7355',
+            didOpen: () => {
+                // Manejar clics en botones de tipo para vale
+                document.querySelectorAll('.btn-tipo-vale').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        // Remover selección anterior
+                        document.querySelectorAll('.btn-tipo-vale').forEach(b => {
+                            b.style.background = 'white';
+                            b.style.border = `3px solid ${b.getAttribute('data-tipo') === 'factura' ? '#28a745' : b.getAttribute('data-tipo') === 'boleta' ? '#007bff' : '#ffc107'}`;
+                        });
+                        
+                        // Marcar como seleccionado
+                        this.style.background = this.getAttribute('data-tipo') === 'factura' ? '#e8f5e9' : 
+                                                this.getAttribute('data-tipo') === 'boleta' ? '#e3f2fd' : '#fff8e1';
+                        this.style.border = `3px solid ${this.getAttribute('data-tipo') === 'factura' ? '#28a745' : this.getAttribute('data-tipo') === 'boleta' ? '#007bff' : '#ffc107'}`;
+                        
+                        // Guardar tipo seleccionado
+                        window.tipoValeSeleccionado = this.getAttribute('data-tipo');
+                    });
+                });
+            },
+            preConfirm: () => {
+                if (!window.tipoValeSeleccionado) {
+                    Swal.showValidationMessage('Debe seleccionar un tipo de documento para el vale');
+                    return false;
+                }
+                return window.tipoValeSeleccionado;
+            }
+        }).then((result) => {
+            if (result.isConfirmed && result.value) {
+                // Guardar el tipo de documento planeado para el vale
+                window.tipoDocumentoPlaneadoVale = result.value;
+                window.tipoDocumentoSeleccionado = 'vale';
+                
+                console.log('[VALE] Tipo de documento planeado seleccionado:', window.tipoDocumentoPlaneadoVale);
+                
+                // Continuar con el flujo normal llamando a showDocumentTypeSelector nuevamente
+                // pero esta vez con el tipo 'vale' ya seleccionado
+                showDocumentTypeSelector();
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                // Si cancela, volver al selector principal
+                showDocumentTypeSelector();
             }
         });
     }
@@ -3216,11 +3372,18 @@ function clearCart() {
         
         const total = subtotal;
         
+        // CRÍTICO: Si es un vale, usar el tipo_documento_planeado seleccionado previamente
+        const tipoDocPlaneado = (data.tipo_documento === 'vale' && data.tipo_documento_planeado) 
+            ? data.tipo_documento_planeado 
+            : (data.tipo_documento === 'vale' && window.tipoDocumentoPlaneadoVale)
+            ? window.tipoDocumentoPlaneadoVale 
+            : data.tipo_documento;
+        
         const preventaData = {
             estacion_id: window.currentEstacionId,
             vendedor_id: window.currentVendedorId,
             tipo_documento: data.tipo_documento,
-            tipo_documento_planeado: data.tipo_documento, // ← GUARDAR TIPO PLANEADO
+            tipo_documento_planeado: tipoDocPlaneado, // ← GUARDAR TIPO PLANEADO (para vales, el seleccionado; para otros, su propio tipo)
             cliente_id: window.clienteSeleccionado.id,
             items: cart,
             totales: {
@@ -3232,6 +3395,8 @@ function clearCart() {
                 total: total
             }
         };
+        
+        console.log('[DEBUG] Preventa Data - tipo_documento:', data.tipo_documento, 'tipo_documento_planeado:', tipoDocPlaneado);
         
         console.log('=== DATOS QUE SE ENVÍAN AL SERVIDOR ===');
         console.log('Items del carrito:', cart);
@@ -3264,6 +3429,13 @@ function clearCart() {
             return response.json();
         })
         .then(data => {
+            console.log('='.repeat(80));
+            console.log('[DEBUG] Respuesta del servidor:', data);
+            console.log('[DEBUG] data.cierre_directo:', data.cierre_directo, 'tipo:', typeof data.cierre_directo);
+            console.log('[DEBUG] data.ticket_vale_id:', data.ticket_vale_id);
+            console.log('[DEBUG] ¿Procesará automáticamente?:', data.cierre_directo === true);
+            console.log('='.repeat(80));
+            
             if (data.success) {
                 // Si es cotización, abrir ventana de impresión
                 if (data.tipo_documento === 'cotizacion') {
@@ -3332,7 +3504,37 @@ function clearCart() {
                                           data.tipo_documento === 'boleta' ? 'Boleta' : 'Guía de Despacho';
                     
                     // CIERRE DIRECTO: Si se procesó automáticamente, abrir documento directamente
-                    if (data.cierre_directo) {
+                    console.log('='.repeat(80));
+                    console.log('[DEBUG] Verificando cierre directo...');
+                    console.log('[DEBUG] data.cierre_directo:', data.cierre_directo);
+                    console.log('[DEBUG] typeof data.cierre_directo:', typeof data.cierre_directo);
+                    console.log('[DEBUG] data.cierre_directo === true:', data.cierre_directo === true);
+                    console.log('[DEBUG] data.cierre_directo == true:', data.cierre_directo == true);
+                    console.log('[DEBUG] Boolean(data.cierre_directo):', Boolean(data.cierre_directo));
+                    console.log('[DEBUG] data.cierre_directo === false:', data.cierre_directo === false);
+                    console.log('[DEBUG] data.cierre_directo == false:', data.cierre_directo == false);
+                    console.log('[DEBUG] !data.cierre_directo:', !data.cierre_directo);
+                    console.log('='.repeat(80));
+                    
+                    // VERIFICACIÓN ESTRICTA: Solo procesar automáticamente si cierre_directo es explícitamente true
+                    // IMPORTANTE: Verificar explícitamente que NO sea false, undefined, null, 0, o string vacío
+                    const esCierreDirecto = (
+                        data.cierre_directo === true || 
+                        data.cierre_directo === 'true' || 
+                        data.cierre_directo === 1
+                    ) && (
+                        data.cierre_directo !== false &&
+                        data.cierre_directo !== 'false' &&
+                        data.cierre_directo !== 0 &&
+                        data.cierre_directo !== null &&
+                        data.cierre_directo !== undefined
+                    );
+                    
+                    console.log('[DEBUG] esCierreDirecto calculado:', esCierreDirecto);
+                    console.log('[DEBUG] ¿Procesará automáticamente?:', esCierreDirecto);
+                    
+                    if (esCierreDirecto === true) {
+                        console.log('[✓] CIERRE DIRECTO ACTIVO - Procesando automáticamente');
                         console.log('[CIERRE DIRECTO] Abriendo documento automaticamente');
                         
                         Swal.fire({
@@ -3342,8 +3544,10 @@ function clearCart() {
                             timer: 2000,
                             showConfirmButton: false
                         }).then(() => {
-                            // Abrir documento para impresión
-                            window.open(data.doc_url + '?auto=1', '_blank');
+                            // Abrir documento para impresión con return_url (siempre al POS)
+                            const posUrl = "{% url 'ventas:pos_view' %}";
+                            const separator = data.doc_url.includes('?') ? '&' : '?';
+                            window.open(data.doc_url + separator + 'auto=1&return_url=' + encodeURIComponent(posUrl), '_blank');
                             
                             // Limpiar carrito
                             cart = [];
@@ -3365,15 +3569,22 @@ function clearCart() {
                                 }, 2000);
                             }
                         });
-                        return;
+                        return; // IMPORTANTE: Salir aquí para no continuar
                     }
                     
                     // Sin cierre directo: redirigir a procesar venta normal
+                    console.log('='.repeat(80));
+                    console.log('[✗] CIERRE DIRECTO DESACTIVADO - Redirigiendo a formulario de pago');
+                    console.log('[DEBUG] Sin cierre directo - Verificando ticket_vale_id:', data.ticket_vale_id);
+                    console.log('='.repeat(80));
+                    
                     if (data.ticket_vale_id) {
-                        // Redirigir a Caja para procesar el ticket facturable
+                        console.log('[DEBUG] Redirigiendo a procesar venta:', `/caja/procesar-venta/${data.ticket_vale_id}/`);
+                        // Redirigir a Caja para procesar el ticket facturable (el usuario debe completar el formulario)
                         window.location.href = `/caja/procesar-venta/${data.ticket_vale_id}/`;
-                        return;
+                        return; // IMPORTANTE: Salir aquí
                     } else {
+                        console.log('[DEBUG] No hay ticket_vale_id, mostrando alerta');
                         // Si por algún motivo no hay ticket, mostrar alerta informativa
                         Swal.fire({
                             icon: 'warning',
@@ -4868,6 +5079,136 @@ function eliminarReferencia(index) {
 
 <!-- Modal de Confirmación de Despacho -->
 {% include 'facturacion_electronica/modal_confirmacion_despacho.html' %}
+
+<script>
+// Función para mostrar modal de cambio de estación
+function mostrarCambiarEstacion() {
+    // Cargar lista de estaciones disponibles
+    fetch('{% url "ventas:pos_cambiar_estacion" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Error al cargar las estaciones'
+                });
+                return;
+            }
+            
+            // Crear opciones del select
+            let optionsHtml = '';
+            data.estaciones.forEach(estacion => {
+                const selected = estacion.id == data.estacion_actual_id ? 'selected' : '';
+                optionsHtml += `<option value="${estacion.id}" ${selected}>${estacion.numero} - ${estacion.nombre} (${estacion.modo_pos})</option>`;
+            });
+            
+            Swal.fire({
+                title: 'Cambiar Estación de Trabajo',
+                html: `
+                    <div class="mb-3">
+                        <label class="form-label">Seleccione la nueva estación:</label>
+                        <select id="select-estacion" class="form-select">
+                            ${optionsHtml}
+                        </select>
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-info-circle"></i> Al cambiar la estación, se actualizará el modo de operación del POS.
+                        </small>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-check me-2"></i>Cambiar',
+                cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+                confirmButtonColor: '#8B7355',
+                didOpen: () => {
+                    document.getElementById('select-estacion').focus();
+                },
+                preConfirm: () => {
+                    const estacionId = document.getElementById('select-estacion').value;
+                    if (!estacionId) {
+                        Swal.showValidationMessage('Debe seleccionar una estación');
+                        return false;
+                    }
+                    return estacionId;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    cambiarEstacion(result.value);
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al cargar las estaciones disponibles'
+            });
+        });
+}
+
+// Función para cambiar la estación
+function cambiarEstacion(estacionId) {
+    const formData = new FormData();
+    formData.append('estacion_id', estacionId);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]')?.value || '');
+    
+    fetch('{% url "ventas:pos_cambiar_estacion" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Actualizar información en el header
+            document.getElementById('estacion-nombre').textContent = data.estacion_nombre;
+            
+            // Actualizar variables globales
+            window.currentEstacionId = data.estacion.id;
+            window.currentEstacion = data.estacion;
+            
+            Swal.fire({
+                icon: 'success',
+                title: '¡Estación Cambiada!',
+                text: data.message,
+                timer: 2000,
+                showConfirmButton: false
+            });
+            
+            // Recargar información de sesión para asegurar sincronización
+            // Usar fetch directo en lugar de loadSessionInfo que puede no estar disponible
+            setTimeout(() => {
+                fetch('/ventas/pos/session-info/')
+                    .then(response => response.json())
+                    .then(sessionData => {
+                        if (sessionData.success) {
+                            document.getElementById('estacion-nombre').textContent = sessionData.estacion_nombre;
+                            document.getElementById('vendedor-nombre').textContent = sessionData.vendedor_nombre;
+                            window.currentEstacionId = sessionData.estacion_id;
+                            window.currentVendedorId = sessionData.vendedor_id;
+                            window.currentEstacion = sessionData.estacion;
+                        }
+                    })
+                    .catch(err => console.error('Error al recargar sesión:', err));
+            }, 500);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Error al cambiar la estación'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al cambiar la estación'
+        });
+    });
+}
+</script>
 
 </body>
 </html>

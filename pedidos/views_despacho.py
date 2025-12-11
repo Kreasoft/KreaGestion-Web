@@ -113,6 +113,7 @@ def orden_despacho_create(request):
                     formset.save()
 
                     tipo_documento = form.cleaned_data.get('tipo_documento')
+                    dte = None
                     if tipo_documento == 'guia':
                         from .utils_despacho import generar_guia_desde_orden_despacho
                         dte = generar_guia_desde_orden_despacho(orden, request.user)
@@ -123,7 +124,13 @@ def orden_despacho_create(request):
                         messages.success(request, f'✓ Factura N° {dte.folio} generada.')
 
                     messages.success(request, f'✓ Orden de Despacho {orden.numero_despacho} creada exitosamente.')
-                    return redirect('pedidos:orden_despacho_detail', pk=orden.pk)
+                    
+                    # Redirigir a la vista del DTE generado si existe, sino al detalle de la orden
+                    if dte:
+                        from django.urls import reverse
+                        return redirect('facturacion_electronica:ver_factura_electronica', dte_id=dte.pk)
+                    else:
+                        return redirect('pedidos:orden_despacho_detail', pk=orden.pk)
             
             except Exception as e:
                 error_msg = str(e)
@@ -133,7 +140,8 @@ def orden_despacho_create(request):
         else:
             if form.errors:
                 for field, error_list in form.errors.items():
-                    messages.error(request, f'Error en {form.fields[field].label or field}: {error}')
+                    for error in error_list:
+                        messages.error(request, f'Error en {form.fields[field].label or field}: {error}')
             if formset.errors:
                 for i, form_errors in enumerate(formset.errors):
                     if form_errors:
@@ -393,6 +401,8 @@ def generar_guia_despacho(request, pk):
             messages.success(request, f'Guía de Despacho Electrónica {dte.folio} generada exitosamente.')
             orden.estado = 'despachado'
             orden.save()
+            # Redirigir a la vista del DTE generado
+            return redirect('facturacion_electronica:ver_factura_electronica', dte_id=dte.pk)
         except Exception as e:
             messages.error(request, f'Error al generar Guía de Despacho: {str(e)}')
             
@@ -413,6 +423,8 @@ def generar_factura_despacho(request, pk):
             messages.success(request, f'Factura Electrónica {dte.folio} generada exitosamente.')
             orden.estado = 'despachado'
             orden.save()
+            # Redirigir a la vista del DTE generado
+            return redirect('facturacion_electronica:ver_factura_electronica', dte_id=dte.pk)
         except Exception as e:
             messages.error(request, f'Error al generar Factura: {str(e)}')
             

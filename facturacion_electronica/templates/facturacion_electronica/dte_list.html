@@ -403,39 +403,51 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        {% if dte.tipo_dte == '52' and dte.transferencias.first %}
-                                        <a href="{% url 'inventario:transferencia_imprimir_guia' dte.transferencias.first.pk %}"
-                                           class="btn btn-sm btn-action btn-outline-primary"
-                                           target="_blank"
-                                           title="Ver guía"
-                                           style="padding: 4px 8px; font-size: 0.7rem;">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </a>
-                                        {% elif dte.tipo_dte == '33' or dte.tipo_dte == '34' or dte.tipo_dte == '39' or dte.tipo_dte == '41' %}
-                                        <a href="{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}"
-                                           class="btn btn-sm btn-action btn-outline-primary"
-                                           target="_blank"
-                                           title="Ver documento electrónico"
-                                           style="padding: 4px 8px; font-size: 0.7rem;">
-                                            <i class="fas fa-file-invoice"></i>
-                                        </a>
-                                        {% elif dte.tipo_dte == '61' and dte.notacredito_id %}
-                                        <a href="{% url 'facturacion_electronica:ver_notacredito_electronica' dte.notacredito_id %}"
-                                           class="btn btn-sm btn-action btn-outline-primary"
-                                           target="_blank"
-                                           title="Ver Nota de Crédito"
-                                           style="padding: 4px 8px; font-size: 0.7rem;">
-                                            <i class="fas fa-file-contract"></i>
-                                        </a>
-                                        {% else %}
-                                        <a href="{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}"
-                                           class="btn btn-sm btn-action btn-outline-primary"
-                                           target="_blank"
-                                           title="Ver DTE"
-                                           style="padding: 4px 8px; font-size: 0.7rem;">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        {% endif %}
+                                        <div class="btn-group" role="group">
+                                            {% if dte.tipo_dte == '52' and dte.transferencias.first %}
+                                            <a href="{% url 'inventario:transferencia_imprimir_guia' dte.transferencias.first.pk %}"
+                                               class="btn btn-sm btn-action btn-outline-primary"
+                                               target="_blank"
+                                               title="Ver guía"
+                                               style="padding: 4px 8px; font-size: 0.7rem;">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
+                                            {% elif dte.tipo_dte == '33' or dte.tipo_dte == '34' or dte.tipo_dte == '39' or dte.tipo_dte == '41' %}
+                                            <a href="{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}"
+                                               class="btn btn-sm btn-action btn-outline-primary"
+                                               target="_blank"
+                                               title="Ver documento electrónico"
+                                               style="padding: 4px 8px; font-size: 0.7rem;">
+                                                <i class="fas fa-file-invoice"></i>
+                                            </a>
+                                            {% elif dte.tipo_dte == '61' and dte.notacredito_id %}
+                                            <a href="{% url 'facturacion_electronica:ver_notacredito_electronica' dte.notacredito_id %}"
+                                               class="btn btn-sm btn-action btn-outline-primary"
+                                               target="_blank"
+                                               title="Ver Nota de Crédito"
+                                               style="padding: 4px 8px; font-size: 0.7rem;">
+                                                <i class="fas fa-file-contract"></i>
+                                            </a>
+                                            {% else %}
+                                            <a href="{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}"
+                                               class="btn btn-sm btn-action btn-outline-primary"
+                                               target="_blank"
+                                               title="Ver DTE"
+                                               style="padding: 4px 8px; font-size: 0.7rem;">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% endif %}
+                                            
+                                            <!-- Botón DTEBox (solo si está habilitado y tiene XML firmado) -->
+                                            {% if request.empresa.dtebox_habilitado and dte.xml_firmado %}
+                                            <a href="{% url 'facturacion_electronica:probar_dtebox' dte.pk %}"
+                                               class="btn btn-sm btn-action btn-outline-success"
+                                               title="Enviar a DTEBox"
+                                               style="padding: 4px 8px; font-size: 0.7rem;">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                                 {% empty %}

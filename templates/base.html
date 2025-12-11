@@ -98,22 +98,36 @@
             justify-content: flex-start;
             padding: 8px 0;
             transition: all 0.3s ease;
+            width: 100%;
+            overflow: visible !important;
         }
         
         .logo-container svg {
             transition: all 0.3s ease;
         }
         
-        .logo-container img {
-            transition: all 0.3s ease;
-            max-width: 180px;
-            height: 45px;
-            object-fit: contain;
+        .sidebar-header .logo-container img,
+        .sidebar-header .logo-img {
+            transition: all 0.3s ease !important;
+            max-width: none !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 48px !important;
+            max-height: 50px !important;
+            object-fit: contain !important;
+            object-position: center center !important;
+            transform: scale(2.6) !important;
+            transform-origin: center center !important;
         }
         
-        .sidebar.collapsed .logo-container img {
-            max-width: 45px !important;
-            height: 35px !important;
+        .sidebar.collapsed .sidebar-header .logo-container img,
+        .sidebar.collapsed .sidebar-header .logo-img {
+            max-width: 50px !important;
+            width: 50px !important;
+            height: 50px !important;
+            transform: scale(1) !important;
+            transform-origin: center center !important;
+            object-position: center center !important;
         }
         
         .sidebar.collapsed .logo-container {
@@ -907,7 +921,7 @@
         <div class="sidebar-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="logo-container">
-                    <img src="{% static 'image/logo.png' %}?v=2" alt="GestionCloud" class="logo-img">
+                    <img src="{% static 'image/LogoCloud.png' %}?v=3" alt="GestionCloud" class="logo-img">
                 </div>
                 <button class="toggle-sidebar-mobile d-lg-none" id="toggleSidebarMobile">
                     <i class="fas fa-bars"></i>
@@ -1080,6 +1094,40 @@
                             <i class="fas fa-clipboard-list me-2" style="color: #8B7355;"></i>
                             <span>Órdenes de Pedido</span>
                         </a>
+                        
+                        <!-- Opciones de Despacho (solo si está activado en la empresa) -->
+                        {% if empresa and empresa.usa_sistema_despacho %}
+                        <div class="submenu-separator"></div>
+                        {% if perms.pedidos.view_ordendespacho or user.is_superuser %}
+                        <a href="{% url 'pedidos:orden_despacho_list' %}" class="nav-link submenu-link {% if 'despachos' in request.path %}active{% endif %}" title="Gestiona órdenes de despacho">
+                            <i class="fas fa-truck me-2" style="color: #8B7355;"></i>
+                            <span>Órdenes de Despacho</span>
+                        </a>
+                        {% endif %}
+                        {% if perms.pedidos.view_hojaruta or user.is_superuser %}
+                        <a href="{% url 'pedidos:hoja_ruta_list' %}" class="nav-link submenu-link {% if 'hojas-ruta' in request.path %}active{% endif %}" title="Gestiona hojas de ruta">
+                            <i class="fas fa-route me-2" style="color: #8B7355;"></i>
+                            <span>Hojas de Ruta</span>
+                        </a>
+                        {% endif %}
+                        {% if perms.pedidos.view_ruta or user.is_superuser %}
+                        <a href="{% url 'pedidos:ruta_list' %}" class="nav-link submenu-link {% if 'rutas' in request.path and 'hojas-ruta' not in request.path %}active{% endif %}" title="Gestiona rutas de despacho">
+                            <i class="fas fa-map-marked-alt me-2" style="color: #8B7355;"></i>
+                            <span>Rutas</span>
+                        </a>
+                        {% endif %}
+                        
+                        <!-- Configuración de Transporte -->
+                        <div class="submenu-separator"></div>
+                        <a href="{% url 'pedidos:vehiculo_list' %}" class="nav-link submenu-link {% if 'vehiculos' in request.path %}active{% endif %}" title="Gestiona vehículos">
+                            <i class="fas fa-car me-2" style="color: #D4A574;"></i>
+                            <span>Vehículos</span>
+                        </a>
+                        <a href="{% url 'pedidos:chofer_list' %}" class="nav-link submenu-link {% if 'choferes' in request.path %}active{% endif %}" title="Gestiona choferes">
+                            <i class="fas fa-user-tie me-2" style="color: #D4A574;"></i>
+                            <span>Choferes</span>
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>

@@ -392,62 +392,151 @@
         <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             🖨️ Imprimir
         </button>
-        <a id="btnBackPOS" href="{% url 'ventas:pos_view' %}" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
+        <button id="btnBackPOS" onclick="safeCloseWindow()" style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             ← Volver
-        </a>
+        </button>
     </div>
 
     <script>
-      (function() {
-        try {
-          const params = new URLSearchParams(window.location.search);
-          const auto = params.get('auto');
-          const posUrl = "{% url 'ventas:pos_view' %}";
-          const nombreImpresora = "{{ nombre_impresora|default:'' }}";
-
-          const notifyParent = () => {
-            try {
-              if (window.opener && window.opener !== window) {
-                window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
-              }
-            } catch (e) { /* noop */ }
-            // Solo cerrar si la ventana fue abierta por el script
-            if (window.opener && window.opener !== window) {
-              try { window.close(); } catch (e) { try { window.location.href = posUrl; } catch (e2) {} }
-            } else {
-              // Si no se puede cerrar, redirigir al POS
-              try { window.location.href = posUrl; } catch (e2) {}
-            }
-          };
-
-          document.addEventListener('DOMContentLoaded', function() {
-            try {
-              const backBtn = document.getElementById('btnBackPOS');
-              if (backBtn) backBtn.addEventListener('click', function() { try { notifyParent(); } catch (e) {} });
-            } catch (e) { /* noop */ }
-          });
-
-          if (auto === '1') {
-            setTimeout(() => { 
-              try { 
-                // Si hay nombre de impresora específico, intentar usarlo (requiere extensión o API)
-                if (nombreImpresora) {
-                  console.log('[PRINT] Impresora configurada:', nombreImpresora);
-                  // Aquí podrías integrar con APIs de impresión específicas
-                }
-                window.print(); 
-              } catch(e) {} 
-            }, 150);
+        // Función universal para cerrar/volver desde templates de impresión
+        function safeCloseWindow() {
+            console.log('safeCloseWindow llamado');
             
-            if ('onafterprint' in window) {
-              window.addEventListener('afterprint', () => setTimeout(notifyParent, 100));
+            const posUrl = "{% url 'ventas:pos_view' %}";
+            
+            // Intentar notificar al padre si existe
+            try {
+                if (window.opener && window.opener !== window && !window.opener.closed) {
+                    window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
+                }
+            } catch (e) {
+                console.log('No se pudo notificar al padre:', e);
             }
-            setTimeout(notifyParent, 1000);
-          }
-        } catch (e) {
-          // noop
+            
+            // Intentar cerrar la ventana si fue abierta por otra ventana
+            if (window.opener && window.opener !== window && !window.opener.closed) {
+                try {
+                    window.close();
+                    console.log('Ventana cerrada');
+                    return;
+                } catch (e) {
+                    console.log('No se pudo cerrar la ventana:', e);
+                }
+            }
+            
+            // Intentar obtener la URL de referencia guardada o desde parámetros URL
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            const refererUrl = returnUrl || sessionStorage.getItem('print_referer') || localStorage.getItem('print_referer');
+            
+            if (refererUrl && refererUrl !== window.location.href) {
+                console.log('Redirigiendo a:', refererUrl);
+                window.location.href = refererUrl;
+                return;
+            }
+            
+            // Si no hay referrer guardado, intentar volver atrás
+            if (window.history.length > 1) {
+                try {
+                    console.log('Intentando volver atrás');
+                    window.history.back();
+                    return;
+                } catch (e) {
+                    console.log('No se pudo volver atrás:', e);
+                }
+            }
+            
+            // Fallback: redirigir al POS si viene con auto=1 (desde POS), sino al dashboard
+            if (params.get('auto') === '1') {
+                // Si viene con auto=1, siempre es desde el POS
+                console.log('Redirigiendo al POS (auto=1 detectado)');
+                window.location.href = posUrl;
+            } else {
+                // Si no viene con auto=1, intentar detectar si viene del POS por el referrer
+                const fromPos = document.referrer && document.referrer.includes('/ventas/pos');
+                if (fromPos) {
+                    console.log('Redirigiendo al POS (detectado por referrer)');
+                    window.location.href = posUrl;
+                } else {
+                    console.log('Redirigiendo al dashboard');
+                    window.location.href = '/';
+                }
+            }
         }
-      })();
+        
+        // Guardar la URL de referencia cuando se carga la página
+        window.addEventListener('load', function() {
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            
+            // Guardar la URL de referencia si existe
+            if (returnUrl) {
+                sessionStorage.setItem('print_referer', returnUrl);
+                console.log('Return URL guardado:', returnUrl);
+            } else if (document.referrer && document.referrer !== window.location.href) {
+                sessionStorage.setItem('print_referer', document.referrer);
+                console.log('Referrer guardado:', document.referrer);
+            } else {
+                // Si no hay referrer, guardar el POS como fallback si viene de auto=1
+                if (params.get('auto') === '1') {
+                    sessionStorage.setItem('print_referer', "{% url 'ventas:pos_view' %}");
+                    console.log('Referrer fallback guardado: POS');
+                }
+            }
+        });
+        
+        // Asegurar que el botón funcione
+        document.addEventListener('DOMContentLoaded', function() {
+            const backBtn = document.getElementById('btnBackPOS');
+            if (backBtn) {
+                backBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    safeCloseWindow();
+                });
+                console.log('Event listener agregado al botón volver');
+            }
+        });
+        
+        // Auto-print cuando viene con auto=1
+        (function() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const auto = params.get('auto');
+                const nombreImpresora = "{{ nombre_impresora|default:'' }}";
+                
+                if (auto === '1') {
+                    setTimeout(() => { 
+                        try { 
+                            // Si hay nombre de impresora específico, intentar usarlo (requiere extensión o API)
+                            if (nombreImpresora) {
+                                console.log('[PRINT] Impresora configurada:', nombreImpresora);
+                            }
+                            window.print(); 
+                        } catch(e) {
+                            console.log('Error al imprimir:', e);
+                        }
+                    }, 150);
+                    
+                    // Volver tras afterprint solo si fue abierto por script
+                    if ('onafterprint' in window && window.opener && window.opener !== window) {
+                        window.addEventListener('afterprint', () => {
+                            setTimeout(() => {
+                                try {
+                                    if (window.opener && !window.opener.closed) {
+                                        window.close();
+                                    }
+                                } catch (e) {
+                                    safeCloseWindow();
+                                }
+                            }, 100);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.log('Error en auto-print:', e);
+            }
+        })();
     </script>
 
 </body>

@@ -8,8 +8,11 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
 from django.utils import timezone
+from datetime import datetime
 import json
 from decimal import Decimal
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from .models import CuentaCorrienteProveedor, MovimientoCuentaCorriente
 from documentos.models import DocumentoCompra
@@ -99,6 +102,275 @@ def cuenta_corriente_proveedor_list(request):
     }
     
     return render(request, 'tesoreria/cuenta_corriente_proveedor_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def exportar_cuenta_corriente_proveedor_excel(request):
+    """Exportar cuentas corrientes de proveedores a Excel con formato profesional"""
+    # Obtener la empresa del usuario
+    if request.user.is_superuser:
+        empresa_id = request.session.get('empresa_activa')
+        if empresa_id:
+            try:
+                empresa = Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        else:
+            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
+        
+        if not empresa:
+            empresa = Empresa.objects.first()
+    else:
+        try:
+            empresa = request.user.perfil.empresa
+        except:
+            empresa = Empresa.objects.first()
+    
+    if not empresa:
+        return HttpResponse('No hay empresa configurada', status=400)
+    
+    # Filtros
+    search = request.GET.get('search', '')
+    estado_pago = request.GET.get('estado_pago', '')
+    
+    # Obtener documentos pendientes de pago
+    documentos_query = DocumentoCompra.objects.filter(
+        empresa=empresa,
+        en_cuenta_corriente=True
+    ).select_related('proveedor')
+    
+    # Aplicar filtros
+    if search:
+        documentos_query = documentos_query.filter(
+            Q(numero_documento__icontains=search) |
+            Q(proveedor__nombre__icontains=search) |
+            Q(proveedor__rut__icontains=search)
+        )
+    
+    if estado_pago:
+        documentos_query = documentos_query.filter(estado_pago=estado_pago)
+    
+    documentos_list = list(documentos_query.order_by('-fecha_emision'))
+    
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Cuenta Corriente Proveedores"
+    
+    # Estilos profesionales
+    title_font = Font(name='Poppins', size=18, bold=True, color="6F5B44")
+    subtitle_font = Font(name='Poppins', size=11, color="6F5B44")
+    header_font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
+    data_font = Font(name='Poppins', size=10)
+    
+    header_fill = PatternFill(start_color="8B7355", end_color="6F5B44", fill_type="solid")
+    title_fill = PatternFill(start_color="F5F1E8", end_color="E8DCC8", fill_type="solid")
+    
+    border = Border(
+        left=Side(style='thin', color='D4C4A8'),
+        right=Side(style='thin', color='D4C4A8'),
+        top=Side(style='thin', color='D4C4A8'),
+        bottom=Side(style='thin', color='D4C4A8')
+    )
+    
+    # Título principal
+    ws.merge_cells('A1:I1')
+    cell_title = ws['A1']
+    cell_title.value = f"CUENTA CORRIENTE PROVEEDORES - {empresa.nombre.upper()}"
+    cell_title.font = title_font
+    cell_title.alignment = Alignment(horizontal='center', vertical='center')
+    cell_title.fill = title_fill
+    ws.row_dimensions[1].height = 35
+    
+    # Información de la empresa y fecha
+    ws.merge_cells('A2:I2')
+    cell_info = ws['A2']
+    cell_info.value = f"Fecha de exportación: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    cell_info.font = subtitle_font
+    cell_info.alignment = Alignment(horizontal='center')
+    ws.row_dimensions[2].height = 20
+    
+    # Espacio
+    ws.row_dimensions[3].height = 10
+    
+    # Encabezados
+    headers = [
+        '#', 'N° Documento', 'Proveedor', 'RUT Proveedor', 'Fecha Emisión',
+        'Total Documento', 'Monto Pagado', 'Saldo Pendiente', 'Estado'
+    ]
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_num)
+        cell.value = header
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    ws.row_dimensions[4].height = 25
+    
+    # Datos
+    row_num = 5
+    total_documento = 0
+    total_pagado = 0
+    total_pendiente = 0
+    
+    for idx, doc in enumerate(documentos_list, 1):
+        # Número de fila
+        ws.cell(row=row_num, column=1, value=idx).border = border
+        ws.cell(row=row_num, column=1).alignment = Alignment(horizontal='center')
+        ws.cell(row=row_num, column=1).font = data_font
+        
+        # N° Documento
+        ws.cell(row=row_num, column=2, value=doc.numero_documento).border = border
+        ws.cell(row=row_num, column=2).font = data_font
+        
+        # Proveedor
+        proveedor_nombre = doc.proveedor.nombre if doc.proveedor else '-'
+        ws.cell(row=row_num, column=3, value=proveedor_nombre).border = border
+        ws.cell(row=row_num, column=3).font = data_font
+        
+        # RUT Proveedor
+        proveedor_rut = doc.proveedor.rut if doc.proveedor and doc.proveedor.rut else '-'
+        ws.cell(row=row_num, column=4, value=proveedor_rut).border = border
+        ws.cell(row=row_num, column=4).font = data_font
+        
+        # Fecha Emisión
+        fecha_str = doc.fecha_emision.strftime('%d/%m/%Y') if doc.fecha_emision else '-'
+        ws.cell(row=row_num, column=5, value=fecha_str).border = border
+        ws.cell(row=row_num, column=5).alignment = Alignment(horizontal='center')
+        ws.cell(row=row_num, column=5).font = data_font
+        
+        # Total Documento
+        monto_total = float(doc.total_documento or 0)
+        cell_monto = ws.cell(row=row_num, column=6, value=monto_total)
+        cell_monto.number_format = '$#,##0'
+        cell_monto.border = border
+        cell_monto.alignment = Alignment(horizontal='right')
+        cell_monto.font = data_font
+        total_documento += monto_total
+        
+        # Monto Pagado
+        pagado = float(doc.monto_pagado or 0)
+        cell_pagado = ws.cell(row=row_num, column=7, value=pagado)
+        cell_pagado.number_format = '$#,##0'
+        cell_pagado.border = border
+        cell_pagado.alignment = Alignment(horizontal='right')
+        cell_pagado.font = Font(name='Poppins', size=10, color='28a745')
+        total_pagado += pagado
+        
+        # Saldo Pendiente
+        pendiente = float(doc.saldo_pendiente or 0)
+        cell_pendiente = ws.cell(row=row_num, column=8, value=pendiente)
+        cell_pendiente.number_format = '$#,##0'
+        cell_pendiente.border = border
+        cell_pendiente.alignment = Alignment(horizontal='right')
+        if pendiente > 0:
+            cell_pendiente.font = Font(name='Poppins', size=10, color='dc3545', bold=True)
+        else:
+            cell_pendiente.font = Font(name='Poppins', size=10, color='28a745')
+        total_pendiente += pendiente
+        
+        # Estado
+        estado_texto = {
+            'credito': 'Pendiente',
+            'parcial': 'Pago Parcial',
+            'vencida': 'Vencido',
+            'pagado': 'Pagado'
+        }.get(doc.estado_pago, doc.estado_pago.title() if doc.estado_pago else 'Sin estado')
+        
+        # Determinar estado visual si no está definido
+        if not doc.estado_pago:
+            if pendiente <= 0:
+                estado_texto = 'Pagado'
+            elif pagado > 0:
+                estado_texto = 'Pago Parcial'
+            else:
+                estado_texto = 'Pendiente'
+        
+        cell_estado = ws.cell(row=row_num, column=9, value=estado_texto)
+        cell_estado.border = border
+        cell_estado.alignment = Alignment(horizontal='center')
+        
+        # Color según estado
+        estado_actual = doc.estado_pago or ('pagado' if pendiente <= 0 else ('parcial' if pagado > 0 else 'credito'))
+        
+        if estado_actual == 'pagado' or pendiente <= 0:
+            estado_fill = PatternFill(start_color="D4EDDA", end_color="C3E6CB", fill_type="solid")
+            cell_estado.font = Font(name='Poppins', size=10, bold=True, color='155724')
+        elif estado_actual == 'parcial' or (pagado > 0 and pendiente > 0):
+            estado_fill = PatternFill(start_color="FFF3CD", end_color="FFE69C", fill_type="solid")
+            cell_estado.font = Font(name='Poppins', size=10, bold=True, color='856404')
+        elif estado_actual == 'vencida':
+            estado_fill = PatternFill(start_color="F8D7DA", end_color="F5C6CB", fill_type="solid")
+            cell_estado.font = Font(name='Poppins', size=10, bold=True, color='721C24')
+        else:
+            estado_fill = PatternFill(start_color="D1ECF1", end_color="BEE5EB", fill_type="solid")
+            cell_estado.font = Font(name='Poppins', size=10, bold=True, color='0C5460')
+        
+        cell_estado.fill = estado_fill
+        
+        row_num += 1
+    
+    # Fila de totales
+    ws.merge_cells(f'A{row_num}:E{row_num}')
+    cell_total_label = ws[f'A{row_num}']
+    cell_total_label.value = 'TOTALES'
+    cell_total_label.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
+    cell_total_label.fill = header_fill
+    cell_total_label.alignment = Alignment(horizontal='right', vertical='center')
+    cell_total_label.border = border
+    
+    # Total Documento
+    cell_total_doc = ws.cell(row=row_num, column=6, value=total_documento)
+    cell_total_doc.number_format = '$#,##0'
+    cell_total_doc.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
+    cell_total_doc.fill = header_fill
+    cell_total_doc.alignment = Alignment(horizontal='right')
+    cell_total_doc.border = border
+    
+    # Total Pagado
+    cell_total_pagado = ws.cell(row=row_num, column=7, value=total_pagado)
+    cell_total_pagado.number_format = '$#,##0'
+    cell_total_pagado.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
+    cell_total_pagado.fill = header_fill
+    cell_total_pagado.alignment = Alignment(horizontal='right')
+    cell_total_pagado.border = border
+    
+    # Total Pendiente
+    cell_total_pendiente = ws.cell(row=row_num, column=8, value=total_pendiente)
+    cell_total_pendiente.number_format = '$#,##0'
+    cell_total_pendiente.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
+    cell_total_pendiente.fill = header_fill
+    cell_total_pendiente.alignment = Alignment(horizontal='right')
+    cell_total_pendiente.border = border
+    
+    # Celda vacía para estado
+    ws.cell(row=row_num, column=9).border = border
+    ws.cell(row=row_num, column=9).fill = header_fill
+    
+    ws.row_dimensions[row_num].height = 25
+    
+    # Ajustar anchos de columna
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 35
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 15
+    ws.column_dimensions['G'].width = 15
+    ws.column_dimensions['H'].width = 18
+    ws.column_dimensions['I'].width = 15
+    
+    # Preparar respuesta
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    fecha_export = datetime.now().strftime('%Y%m%d_%H%M%S')
+    response['Content-Disposition'] = f'attachment; filename=cuenta_corriente_proveedores_{fecha_export}.xlsx'
+    wb.save(response)
+    return response
 
 
 @login_required
@@ -263,6 +535,267 @@ def cuenta_corriente_cliente_list(request):
     }
     
     return render(request, 'tesoreria/cuenta_corriente_cliente_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def exportar_cuenta_corriente_cliente_excel(request):
+    """Exportar cuentas corrientes de clientes a Excel con formato profesional"""
+    empresa = request.empresa
+    
+    # Obtener los mismos datos que la vista de lista
+    from .models import MovimientoCuentaCorrienteCliente
+    
+    search = request.GET.get('search', '')
+    estado_pago = request.GET.get('estado_pago', '')
+    
+    # Obtener todos los movimientos de tipo 'debe' de la empresa
+    movimientos_query = MovimientoCuentaCorrienteCliente.objects.filter(
+        cuenta_corriente__empresa=empresa,
+        tipo_movimiento='debe'
+    ).select_related('cuenta_corriente', 'cuenta_corriente__cliente', 'venta').order_by('-fecha_movimiento')
+    
+    # Aplicar filtros
+    if search:
+        movimientos_query = movimientos_query.filter(
+            Q(cuenta_corriente__cliente__nombre__icontains=search) |
+            Q(cuenta_corriente__cliente__rut__icontains=search) |
+            Q(venta__numero_venta__icontains=search)
+        )
+    
+    # Procesar movimientos igual que en la vista de lista
+    movimientos_list = []
+    for mov in movimientos_query:
+        total_pagado_result = MovimientoCuentaCorrienteCliente.objects.filter(
+            cuenta_corriente=mov.cuenta_corriente,
+            venta=mov.venta,
+            tipo_movimiento='haber'
+        ).aggregate(total=Sum('monto'))['total']
+        
+        total_pagado = Decimal(str(total_pagado_result)) if total_pagado_result else Decimal('0')
+        monto_factura = Decimal(str(mov.monto))
+        
+        if total_pagado >= monto_factura:
+            estado_pago_mov = 'pagado'
+        elif total_pagado > 0:
+            estado_pago_mov = 'parcial'
+        else:
+            estado_pago_mov = 'pendiente'
+        
+        # Aplicar filtro de estado si existe
+        if estado_pago and estado_pago_mov != estado_pago:
+            continue
+        
+        mov.estado_pago = estado_pago_mov
+        mov.monto_display = int(monto_factura)
+        mov.total_pagado = int(total_pagado)
+        mov.saldo_pendiente_factura = int(monto_factura - total_pagado)
+        movimientos_list.append(mov)
+    
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Cuenta Corriente Clientes"
+    
+    # Estilos profesionales
+    title_font = Font(name='Poppins', size=18, bold=True, color="6F5B44")
+    subtitle_font = Font(name='Poppins', size=11, color="6F5B44")
+    header_font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
+    data_font = Font(name='Poppins', size=10)
+    
+    header_fill = PatternFill(start_color="8B7355", end_color="6F5B44", fill_type="solid")
+    title_fill = PatternFill(start_color="F5F1E8", end_color="E8DCC8", fill_type="solid")
+    
+    border = Border(
+        left=Side(style='thin', color='D4C4A8'),
+        right=Side(style='thin', color='D4C4A8'),
+        top=Side(style='thin', color='D4C4A8'),
+        bottom=Side(style='thin', color='D4C4A8')
+    )
+    
+    # Título principal
+    ws.merge_cells('A1:I1')
+    cell_title = ws['A1']
+    cell_title.value = f"CUENTA CORRIENTE CLIENTES - {empresa.nombre.upper()}"
+    cell_title.font = title_font
+    cell_title.alignment = Alignment(horizontal='center', vertical='center')
+    cell_title.fill = title_fill
+    ws.row_dimensions[1].height = 35
+    
+    # Información de la empresa y fecha
+    ws.merge_cells('A2:I2')
+    cell_info = ws['A2']
+    cell_info.value = f"Fecha de exportación: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    cell_info.font = subtitle_font
+    cell_info.alignment = Alignment(horizontal='center')
+    ws.row_dimensions[2].height = 20
+    
+    # Espacio
+    ws.row_dimensions[3].height = 10
+    
+    # Encabezados
+    headers = [
+        '#', 'N° Factura', 'Cliente', 'RUT Cliente', 'Fecha',
+        'Monto Total', 'Total Pagado', 'Saldo Pendiente', 'Estado'
+    ]
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_num)
+        cell.value = header
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    ws.row_dimensions[4].height = 25
+    
+    # Datos
+    row_num = 5
+    total_monto = 0
+    total_pagado = 0
+    total_pendiente = 0
+    
+    for idx, mov in enumerate(movimientos_list, 1):
+        # Número de fila
+        ws.cell(row=row_num, column=1, value=idx).border = border
+        ws.cell(row=row_num, column=1).alignment = Alignment(horizontal='center')
+        ws.cell(row=row_num, column=1).font = data_font
+        
+        # N° Factura
+        numero_factura = mov.venta.numero_venta if mov.venta else '-'
+        ws.cell(row=row_num, column=2, value=numero_factura).border = border
+        ws.cell(row=row_num, column=2).font = data_font
+        
+        # Cliente
+        cliente_nombre = mov.cuenta_corriente.cliente.nombre
+        ws.cell(row=row_num, column=3, value=cliente_nombre).border = border
+        ws.cell(row=row_num, column=3).font = data_font
+        
+        # RUT Cliente
+        cliente_rut = mov.cuenta_corriente.cliente.rut or '-'
+        ws.cell(row=row_num, column=4, value=cliente_rut).border = border
+        ws.cell(row=row_num, column=4).font = data_font
+        
+        # Fecha
+        fecha_str = mov.fecha_movimiento.strftime('%d/%m/%Y') if mov.fecha_movimiento else '-'
+        ws.cell(row=row_num, column=5, value=fecha_str).border = border
+        ws.cell(row=row_num, column=5).alignment = Alignment(horizontal='center')
+        ws.cell(row=row_num, column=5).font = data_font
+        
+        # Monto Total
+        monto_total = mov.monto_display
+        cell_monto = ws.cell(row=row_num, column=6, value=monto_total)
+        cell_monto.number_format = '$#,##0'
+        cell_monto.border = border
+        cell_monto.alignment = Alignment(horizontal='right')
+        cell_monto.font = data_font
+        total_monto += monto_total
+        
+        # Total Pagado
+        pagado = mov.total_pagado
+        cell_pagado = ws.cell(row=row_num, column=7, value=pagado)
+        cell_pagado.number_format = '$#,##0'
+        cell_pagado.border = border
+        cell_pagado.alignment = Alignment(horizontal='right')
+        cell_pagado.font = Font(name='Poppins', size=10, color='28a745')
+        total_pagado += pagado
+        
+        # Saldo Pendiente
+        pendiente = mov.saldo_pendiente_factura
+        cell_pendiente = ws.cell(row=row_num, column=8, value=pendiente)
+        cell_pendiente.number_format = '$#,##0'
+        cell_pendiente.border = border
+        cell_pendiente.alignment = Alignment(horizontal='right')
+        if pendiente > 0:
+            cell_pendiente.font = Font(name='Poppins', size=10, color='dc3545', bold=True)
+        else:
+            cell_pendiente.font = Font(name='Poppins', size=10, color='28a745')
+        total_pendiente += pendiente
+        
+        # Estado
+        estado_texto = {
+            'pagado': 'Pagado',
+            'parcial': 'Parcial',
+            'pendiente': 'Pendiente'
+        }.get(mov.estado_pago, mov.estado_pago.title())
+        
+        cell_estado = ws.cell(row=row_num, column=9, value=estado_texto)
+        cell_estado.border = border
+        cell_estado.alignment = Alignment(horizontal='center')
+        
+        # Color según estado
+        if mov.estado_pago == 'pagado':
+            estado_fill = PatternFill(start_color="D4EDDA", end_color="C3E6CB", fill_type="solid")
+            cell_estado.font = Font(name='Poppins', size=10, bold=True, color='155724')
+        elif mov.estado_pago == 'parcial':
+            estado_fill = PatternFill(start_color="FFF3CD", end_color="FFE69C", fill_type="solid")
+            cell_estado.font = Font(name='Poppins', size=10, bold=True, color='856404')
+        else:
+            estado_fill = PatternFill(start_color="F8D7DA", end_color="F5C6CB", fill_type="solid")
+            cell_estado.font = Font(name='Poppins', size=10, bold=True, color='721C24')
+        
+        cell_estado.fill = estado_fill
+        
+        row_num += 1
+    
+    # Fila de totales
+    ws.merge_cells(f'A{row_num}:E{row_num}')
+    cell_total_label = ws[f'A{row_num}']
+    cell_total_label.value = 'TOTALES'
+    cell_total_label.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
+    cell_total_label.fill = header_fill
+    cell_total_label.alignment = Alignment(horizontal='right', vertical='center')
+    cell_total_label.border = border
+    
+    # Total Monto
+    cell_total_monto = ws.cell(row=row_num, column=6, value=total_monto)
+    cell_total_monto.number_format = '$#,##0'
+    cell_total_monto.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
+    cell_total_monto.fill = header_fill
+    cell_total_monto.alignment = Alignment(horizontal='right')
+    cell_total_monto.border = border
+    
+    # Total Pagado
+    cell_total_pagado = ws.cell(row=row_num, column=7, value=total_pagado)
+    cell_total_pagado.number_format = '$#,##0'
+    cell_total_pagado.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
+    cell_total_pagado.fill = header_fill
+    cell_total_pagado.alignment = Alignment(horizontal='right')
+    cell_total_pagado.border = border
+    
+    # Total Pendiente
+    cell_total_pendiente = ws.cell(row=row_num, column=8, value=total_pendiente)
+    cell_total_pendiente.number_format = '$#,##0'
+    cell_total_pendiente.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
+    cell_total_pendiente.fill = header_fill
+    cell_total_pendiente.alignment = Alignment(horizontal='right')
+    cell_total_pendiente.border = border
+    
+    # Celda vacía para estado
+    ws.cell(row=row_num, column=9).border = border
+    ws.cell(row=row_num, column=9).fill = header_fill
+    
+    ws.row_dimensions[row_num].height = 25
+    
+    # Ajustar anchos de columna
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 35
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 15
+    ws.column_dimensions['G'].width = 15
+    ws.column_dimensions['H'].width = 18
+    ws.column_dimensions['I'].width = 15
+    
+    # Preparar respuesta
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    fecha_export = datetime.now().strftime('%Y%m%d_%H%M%S')
+    response['Content-Disposition'] = f'attachment; filename=cuenta_corriente_clientes_{fecha_export}.xlsx'
+    wb.save(response)
+    return response
 
 
 @csrf_exempt

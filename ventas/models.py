@@ -120,7 +120,9 @@ class Venta(models.Model):
     tipo_documento = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, default='boleta', verbose_name="Tipo de Documento")
 
     # Tipo de documento planeado para cuando se procese (útil para tickets)
-    tipo_documento_planeado = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, null=True, blank=True, verbose_name="Tipo de Documento Planeado")
+    # CRÍTICO: Este campo NO debe ser null/blank - siempre debe tener un valor válido (factura/boleta/guia/cotizacion)
+    # NO puede ser 'vale' porque un vale no se convierte en otro vale
+    tipo_documento_planeado = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, default='boleta', verbose_name="Tipo de Documento Planeado", help_text="Tipo de documento que se generará al procesar este vale (factura, boleta, guía o cotización)")
     
     # Tipo de despacho (solo para guías) - Motivo de Traslado según SII
     TIPO_DESPACHO_CHOICES = [
@@ -146,6 +148,9 @@ class Venta(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='borrador', verbose_name="Estado")
     estado_cotizacion = models.CharField(max_length=20, choices=ESTADO_COTIZACION_CHOICES, default='pendiente', verbose_name="Estado Cotización", blank=True, null=True)
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    
+    # Control de facturación para vales facturables
+    facturado = models.BooleanField(default=False, verbose_name="Facturado", help_text="Indica si el vale facturable ya fue procesado en caja")
     
     # Información de pago
     monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Monto Pagado")
@@ -175,7 +180,24 @@ class Venta(models.Model):
         return f"Venta {self.numero_venta} - {self.fecha}"
 
     def save(self, *args, **kwargs):
-        """Calcula automáticamente el saldo pendiente antes de guardar"""
+        """Calcula automáticamente el saldo pendiente antes de guardar y valida tipo_documento_planeado"""
+        # CRÍTICO: Asegurar que tipo_documento_planeado siempre tenga un valor válido
+        if not self.tipo_documento_planeado:
+            if self.tipo_documento == 'vale':
+                # Vale directo: usar 'boleta' como tipo por defecto (más común)
+                self.tipo_documento_planeado = 'boleta'
+                print(f"[WARN] Venta #{self.numero_venta}: Vale sin tipo_documento_planeado, asignado 'boleta' por defecto")
+            else:
+                # Otros documentos: usar su propio tipo
+                self.tipo_documento_planeado = self.tipo_documento or 'boleta'
+                print(f"[WARN] Venta #{self.numero_venta}: tipo_documento_planeado estaba vacío, asignado: {self.tipo_documento_planeado}")
+        
+        # Validar que tipo_documento_planeado sea válido (no puede ser 'vale')
+        tipos_validos = ['factura', 'boleta', 'guia', 'cotizacion']
+        if self.tipo_documento_planeado not in tipos_validos:
+            print(f"[ERROR] Venta #{self.numero_venta}: tipo_documento_planeado inválido '{self.tipo_documento_planeado}', corrigiendo a 'boleta'")
+            self.tipo_documento_planeado = 'boleta'
+        
         # Si es una venta confirmada, calcular saldo pendiente
         if self.estado == 'confirmada' and self.forma_pago:
             if self.forma_pago.es_cuenta_corriente:
@@ -376,9 +398,39 @@ class EstacionTrabajo(models.Model):
         return self.correlativo_ticket
     
     def incrementar_correlativo_ticket(self):
-        """Incrementa el correlativo de ticket de la estación"""
-        self.correlativo_ticket += 1
-        self.save()
+        """Incrementa el correlativo de ticket de la estación de forma atómica"""
+        from django.db.models import F
+        import traceback
+        
+        # Obtener el valor actual ANTES de incrementar para logging
+        valor_antes = self.correlativo_ticket
+        # Obtener stack trace para ver desde dónde se llama
+        stack = ''.join(traceback.format_stack()[-3:-1])
+        print(f"[DEBUG INCREMENTAR] Estación {self.pk}: Valor ANTES = {valor_antes}")
+        print(f"[DEBUG INCREMENTAR] Llamado desde:\n{stack}")
+        
+        # Usar F() para hacer un incremento atómico y evitar condiciones de carrera
+        # CRÍTICO: Usar update() que retorna el número de filas afectadas
+        filas_afectadas = EstacionTrabajo.objects.filter(pk=self.pk).update(correlativo_ticket=F('correlativo_ticket') + 1)
+        print(f"[DEBUG INCREMENTAR] Filas afectadas por update: {filas_afectadas}")
+        
+        if filas_afectadas != 1:
+            print(f"[ERROR CRÍTICO] Se afectaron {filas_afectadas} filas en lugar de 1")
+        
+        # Refrescar desde la BD para obtener el valor actualizado
+        self.refresh_from_db()
+        valor_despues = self.correlativo_ticket
+        print(f"[DEBUG INCREMENTAR] Estación {self.pk}: Valor DESPUÉS = {valor_despues}")
+        
+        # Verificar que solo se incrementó en 1
+        if valor_despues != valor_antes + 1:
+            print(f"[ERROR CRÍTICO] El correlativo se incrementó incorrectamente: {valor_antes} -> {valor_despues} (esperado: {valor_antes + 1})")
+            # Forzar corrección
+            EstacionTrabajo.objects.filter(pk=self.pk).update(correlativo_ticket=valor_antes + 1)
+            self.refresh_from_db()
+            valor_despues = self.correlativo_ticket
+            print(f"[DEBUG INCREMENTAR] Corregido a: {valor_despues}")
+        
         return self.correlativo_ticket
 
 

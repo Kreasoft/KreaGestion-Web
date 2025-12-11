@@ -1,81 +1,295 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Detalle Hoja de Ruta N° {{ hoja_ruta.numero_ruta }}{% endblock %}
+{% block title %}Detalle Hoja de Ruta N° {{ hoja_ruta.numero_ruta }} - {{ block.super }}{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
+    .btn-principal {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        border: none;
+        color: white;
+        transition: all 0.3s ease;
+    }
+    .btn-principal:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+        color: white;
+    }
+    .btn-secundario {
+        background: linear-gradient(135deg, #D4C4A8 0%, #C4B299 100%);
+        border: 1px solid #B8A082;
+        color: #6F5B44;
+        font-weight: 500;
+    }
+    .btn-secundario:hover {
+        background: linear-gradient(135deg, #C4B299 0%, #B8A082 100%);
+        color: #6F5B44;
+        border-color: #A8957A;
+    }
+    .btn-editar {
+        background: linear-gradient(135deg, #A8957A 0%, #8B7355 100%);
+        border: none;
+        color: white;
+    }
+    .btn-editar:hover {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+    }
+    .btn-imprimir {
+        background: linear-gradient(135deg, #9B8B6F 0%, #7A6B55 100%);
+        border: none;
+        color: white;
+    }
+    .btn-imprimir:hover {
+        background: linear-gradient(135deg, #7A6B55 0%, #6F5B44 100%);
+        color: white;
+    }
+    .btn-excel {
+        background: linear-gradient(135deg, #B8A082 0%, #9B8B6F 100%);
+        border: none;
+        color: white;
+    }
+    .btn-excel:hover {
+        background: linear-gradient(135deg, #9B8B6F 0%, #8B7355 100%);
+        color: white;
+    }
+    .table-compact {
+        font-size: 0.75rem;
+        line-height: 1.1;
+    }
+    .table-compact thead th {
+        padding: 8px 5px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white;
+        border: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+    .table-compact tbody td {
+        padding: 5px 5px;
+        vertical-align: middle;
+        line-height: 1.2;
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Detalle Hoja de Ruta: <strong>{{ hoja_ruta.numero_ruta }}</strong></h1>
-        <div>
-            <a href="{% url 'pedidos:hoja_ruta_list' %}" class="btn btn-secondary btn-sm">
-                <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver al Listado
-            </a>
-            <a href="#" class="btn btn-primary btn-sm">
-                <i class="fas fa-print fa-sm text-white-50"></i> Imprimir Hoja de Ruta
-            </a>
-        </div>
-    </div>
 
-    <!-- Datos Principales -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Información General</h6>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-3">
-                    <p class="mb-1"><strong>Fecha:</strong></p>
-                    <p>{{ hoja_ruta.fecha|date:"d/m/Y" }}</p>
+<div class="container-fluid" style="margin-top: 0; padding-top: 10px;">
+    <div class="row justify-content-center">
+        <div class="col-lg-11">
+            <!-- Información Principal -->
+            <div class="card shadow-sm mb-4" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-clipboard-list fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div>
+                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                    Hoja de Ruta: <span style="color: #8B7355;">{{ hoja_ruta.numero_ruta }}</span>
+                                </h5>
+                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
+                                    Fecha: {{ hoja_ruta.fecha|date:"d/m/Y" }}
+                                </small>
+                            </div>
+                        </div>
+                        <div>
+                            <a href="{% url 'pedidos:hoja_ruta_list' %}" class="btn btn-secundario btn-sm me-2">
+                                <i class="fas fa-arrow-left"></i> Volver al Listado
+                            </a>
+                            {% if perms.pedidos.change_hojaruta or user.is_superuser %}
+                            <a href="{% url 'pedidos:hoja_ruta_edit' hoja_ruta.pk %}" class="btn btn-editar btn-sm me-2">
+                                <i class="fas fa-edit"></i> Editar
+                            </a>
+                            {% endif %}
+                            <a href="{% url 'pedidos:hoja_ruta_imprimir' hoja_ruta.pk %}" class="btn btn-imprimir btn-sm me-2" target="_blank">
+                                <i class="fas fa-print"></i> Imprimir
+                            </a>
+                            <a href="{% url 'pedidos:hoja_ruta_exportar_excel' hoja_ruta.pk %}" class="btn btn-excel btn-sm">
+                                <i class="fas fa-file-excel"></i> Exportar Excel
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <p class="mb-1"><strong>Vehículo:</strong></p>
-                    <p>{{ hoja_ruta.vehiculo }}</p>
-                </div>
-                <div class="col-md-3">
-                    <p class="mb-1"><strong>Chofer:</strong></p>
-                    <p>{{ hoja_ruta.chofer }}</p>
-                </div>
-                <div class="col-md-3">
-                    <p class="mb-1"><strong>Ayudante:</strong></p>
-                    <p>{{ hoja_ruta.ayudante|default:"-" }}</p>
+                
+                <div class="card-body p-4">
+                    <div class="row">
+                        <!-- Panel Lateral -->
+                        <div class="col-md-4">
+                            <div class="p-3 rounded" style="background-color: #F5F1E8;">
+                                <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">N° Hoja de Ruta</p>
+                                <h4 class="fw-bold" style="color: #6F5B44;">{{ hoja_ruta.numero_ruta }}</h4>
+                                <hr style="border-color: #D4C4A8;">
+                                
+                                <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Fecha</p>
+                                <h5 style="color: #6F5B44;"><i class="fas fa-calendar-alt me-1"></i>{{ hoja_ruta.fecha|date:"d/m/Y" }}</h5>
+                                
+                                <hr style="border-color: #D4C4A8;">
+                                
+                                <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Estado</p>
+                                {% if hoja_ruta.estado == 'pendiente' %}
+                                    <span class="badge bg-warning fs-6"><i class="fas fa-clock"></i> Pendiente</span>
+                                {% elif hoja_ruta.estado == 'en_ruta' %}
+                                    <span class="badge bg-info fs-6"><i class="fas fa-truck"></i> En Ruta</span>
+                                {% elif hoja_ruta.estado == 'completada' %}
+                                    <span class="badge bg-success fs-6"><i class="fas fa-check-circle"></i> Completada</span>
+                                {% else %}
+                                    <span class="badge bg-secondary fs-6">{{ hoja_ruta.get_estado_display }}</span>
+                                {% endif %}
+                                
+                                <hr style="border-color: #D4C4A8;">
+                                
+                                <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Facturas</p>
+                                <h5 style="color: #6F5B44;"><i class="fas fa-file-invoice me-1"></i>{{ facturas.count }}</h5>
+                            </div>
+                        </div>
+                        
+                        <!-- Información Principal -->
+                        <div class="col-md-8">
+                            {% if hoja_ruta.ruta %}
+                            <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Ruta</p>
+                            <p style="color: #6F5B44; font-size: 1.1rem;">
+                                <i class="fas fa-route me-2"></i><strong>{{ hoja_ruta.ruta.nombre }}</strong> ({{ hoja_ruta.ruta.codigo }})
+                            </p>
+                            {% endif %}
+
+                            <hr style="border-color: #E8DCC8;">
+
+                            <!-- Información de Transporte -->
+                            <div class="row mt-3">
+                                <div class="col-md-4">
+                                    <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Vehículo (Móvil)</p>
+                                    {% if hoja_ruta.vehiculo %}
+                                        <p style="color: #6F5B44;">
+                                            <i class="fas fa-car me-2"></i><strong>{{ hoja_ruta.vehiculo.patente }}</strong><br>
+                                            <small style="color: #8B7355;">{{ hoja_ruta.vehiculo.descripcion }}</small>
+                                        </p>
+                                    {% else %}
+                                        <p class="text-muted"><i class="fas fa-car me-2"></i>No asignado</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Chofer</p>
+                                    {% if hoja_ruta.chofer %}
+                                        <p style="color: #6F5B44;">
+                                            <i class="fas fa-user-tie me-2"></i><strong>{{ hoja_ruta.chofer.nombre }}</strong><br>
+                                            <small style="color: #8B7355;">{{ hoja_ruta.chofer.rut }}</small>
+                                        </p>
+                                    {% else %}
+                                        <p class="text-muted"><i class="fas fa-user-tie me-2"></i>No asignado</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Acompañante</p>
+                                    {% if hoja_ruta.acompanante %}
+                                        <p style="color: #6F5B44;">
+                                            <i class="fas fa-user me-2"></i><strong>{{ hoja_ruta.acompanante.nombre }}</strong><br>
+                                            <small style="color: #8B7355;">{{ hoja_ruta.acompanante.rut }}</small>
+                                        </p>
+                                    {% elif hoja_ruta.ayudante %}
+                                        <p style="color: #6F5B44;">
+                                            <i class="fas fa-user me-2"></i><strong>{{ hoja_ruta.ayudante }}</strong>
+                                        </p>
+                                    {% else %}
+                                        <p class="text-muted"><i class="fas fa-user me-2"></i>No asignado</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if hoja_ruta.observaciones %}
+                            <hr style="border-color: #E8DCC8;">
+                            <p class="small text-uppercase fw-bold mb-1" style="color: #8B7355;">Observaciones</p>
+                            <p style="color: #6F5B44;">{{ hoja_ruta.observaciones }}</p>
+                            {% endif %}
+
+                            <hr style="border-color: #E8DCC8;">
+
+                            <div class="row small" style="color: #8B7355;">
+                                <div class="col-6">
+                                    <p class="mb-1"><i class="fas fa-calendar-plus me-2"></i><strong>Creado:</strong> {{ hoja_ruta.fecha_creacion|date:"d/m/Y H:i" }}</p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-1"><i class="fas fa-calendar-check me-2"></i><strong>Modificado:</strong> {{ hoja_ruta.fecha_modificacion|date:"d/m/Y H:i" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Documentos en Ruta -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Documentos Incluidos ({{ documentos.count }})</h6>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>Tipo Doc.</th>
-                            <th>N° Documento</th>
-                            <th>Cliente</th>
-                            <th>Dirección</th>
-                            <th>Monto</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for doc in documentos %}
-                        <tr>
-                            <td>{{ doc.get_tipo_documento_display }}</td>
-                            <td><a href="{% url 'ventas:venta_html' doc.id %}" target="_blank">{{ doc.numero_venta }}</a></td>
-                            <td>{{ doc.cliente.nombre }}</td>
-                            <td>{{ doc.cliente.direccion|default:"-" }}</td>
-                            <td class="text-right">${{ doc.total|floatformat:0 }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center">No hay documentos en esta hoja de ruta.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <!-- Facturas en Ruta -->
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
+                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px;">
+                    <h6 class="mb-0" style="font-size: 0.9rem; font-weight: 600; color: #6F5B44;">
+                        <i class="fas fa-file-invoice me-2"></i>Facturas Incluidas ({{ facturas.count }})
+                    </h6>
+                </div>
+                <div class="card-body p-3">
+                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <table class="table table-hover table-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th>N° Factura</th>
+                                    <th>Fecha</th>
+                                    <th>Cliente</th>
+                                    <th>RUT</th>
+                                    <th>Vendedor</th>
+                                    <th class="text-end">Neto</th>
+                                    <th class="text-end">IVA</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for factura in facturas %}
+                                <tr>
+                                    <td><strong style="color: #6F5B44; font-size: 0.8rem;">{{ factura.folio }}</strong></td>
+                                    <td>{{ factura.fecha_emision|date:"d/m/Y" }}</td>
+                                    <td>{{ factura.razon_social_receptor }}</td>
+                                    <td>{{ factura.rut_receptor }}</td>
+                                    <td>
+                                        {% if factura.vendedor %}
+                                            <span style="color: #6F5B44; font-size: 0.75rem;">{{ factura.vendedor.nombre }}</span>
+                                        {% elif factura.venta and factura.venta.vendedor %}
+                                            <span style="color: #6F5B44; font-size: 0.75rem;">{{ factura.venta.vendedor.nombre }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end" style="color: #6F5B44;">${{ factura.monto_neto|floatformat:0 }}</td>
+                                    <td class="text-end" style="color: #6F5B44;">${{ factura.monto_iva|floatformat:0 }}</td>
+                                    <td class="text-end"><strong style="color: #6F5B44;">${{ factura.monto_total|floatformat:0 }}</strong></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center" style="color: #8B7355; padding: 20px;">
+                                        <i class="fas fa-info-circle me-2"></i>No hay facturas en esta hoja de ruta.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% if facturas %}
+                                <tr style="background-color: #F5F1E8; font-weight: bold; border-top: 2px solid #D4C4A8;">
+                                    <td colspan="5" class="text-end" style="color: #6F5B44;">TOTALES:</td>
+                                    <td class="text-end" style="color: #6F5B44;">${{ total_neto|floatformat:0 }}</td>
+                                    <td class="text-end" style="color: #6F5B44;">${{ total_iva|floatformat:0 }}</td>
+                                    <td class="text-end" style="color: #6F5B44;">${{ total_total|floatformat:0 }}</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
