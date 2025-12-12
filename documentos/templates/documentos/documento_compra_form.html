@@ -1502,64 +1502,88 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Cargar OC btn:', cargarOcBtn);
     console.log('Help text:', ocHelpText);
     
-    // Cuando cambie el proveedor, buscar OCs disponibles
-    if (proveedorSelect) {
-        console.log('✅ Evento change agregado al selector de proveedor');
+    // Función para buscar OCs disponibles cuando cambia el proveedor
+    function buscarOCsDisponibles(proveedorId) {
+        console.log('🔄 Buscando OCs para proveedor:', proveedorId);
         
-        // Agregar evento tanto con JavaScript nativo como con jQuery (por compatibilidad)
-        proveedorSelect.addEventListener('change', function() {
-            const proveedorId = this.value;
-            console.log('🔄 Proveedor cambiado:', proveedorId);
-            
-            // Guardar OCs disponibles en variable global
-            window.ordenesDisponibles = [];
+        // Guardar OCs disponibles en variable global
+        window.ordenesDisponibles = [];
+        if (ordenCompraIdInput) {
             ordenCompraIdInput.value = '';
-            
-            if (!proveedorId) {
+        }
+        
+        if (!proveedorId) {
+            if (cargarOcBtn) {
                 cargarOcBtn.disabled = true;
-                if (ocHelpText) {
-                    ocHelpText.innerHTML = '<i class="fas fa-info-circle me-1"></i>Selecciona un proveedor primero';
-                    ocHelpText.className = 'text-muted';
-                }
-                console.log('⚠️ No hay proveedor seleccionado');
-                return;
             }
-            
-            console.log('📡 Buscando OCs para proveedor:', proveedorId);
-            
-            // Buscar OCs del proveedor
-            fetch(`/documentos/ajax/ordenes-compra-disponibles/?proveedor_id=${proveedorId}`)
-                .then(response => response.json())
-                .then(data => {
-                    console.log('📦 Respuesta del servidor:', data);
-                    if (data.success && data.count > 0) {
-                        console.log(`✅ Se encontraron ${data.count} OCs disponibles`);
-                        window.ordenesDisponibles = data.ordenes;
+            if (ocHelpText) {
+                ocHelpText.innerHTML = '<i class="fas fa-info-circle me-1"></i>Selecciona un proveedor primero';
+                ocHelpText.className = 'text-muted';
+            }
+            console.log('⚠️ No hay proveedor seleccionado');
+            return;
+        }
+        
+        console.log('📡 Buscando OCs para proveedor:', proveedorId);
+        
+        // Buscar OCs del proveedor
+        fetch(`/documentos/ajax/ordenes-compra-disponibles/?proveedor_id=${proveedorId}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('📦 Respuesta del servidor:', data);
+                if (data.success && data.count > 0) {
+                    console.log(`✅ Se encontraron ${data.count} OCs disponibles`);
+                    window.ordenesDisponibles = data.ordenes;
+                    if (cargarOcBtn) {
                         cargarOcBtn.disabled = false;
                         cargarOcBtn.innerHTML = `<i class="fas fa-file-invoice me-2"></i>Cargar desde OC (${data.count} disponible${data.count > 1 ? 's' : ''})`;
-                        if (ocHelpText) {
-                            ocHelpText.innerHTML = `<i class="fas fa-check-circle me-1"></i>${data.count} orden(es) de compra disponible(s)`;
-                            ocHelpText.className = 'text-success';
-                        }
-                        console.log('✅ Botón de OC habilitado');
-                    } else {
-                        console.log('⚠️ No se encontraron OCs disponibles para este proveedor');
-                        window.ordenesDisponibles = [];
+                    }
+                    if (ocHelpText) {
+                        ocHelpText.innerHTML = `<i class="fas fa-check-circle me-1"></i>${data.count} orden(es) de compra disponible(s)`;
+                        ocHelpText.className = 'text-success';
+                    }
+                    console.log('✅ Botón de OC habilitado');
+                } else {
+                    console.log('⚠️ No se encontraron OCs disponibles para este proveedor');
+                    window.ordenesDisponibles = [];
+                    if (cargarOcBtn) {
                         cargarOcBtn.disabled = true;
                         cargarOcBtn.innerHTML = '<i class="fas fa-file-invoice me-2"></i>Cargar desde Orden de Compra';
-                        if (ocHelpText) {
-                            ocHelpText.innerHTML = '<i class="fas fa-info-circle me-1"></i>No hay órdenes disponibles';
-                            ocHelpText.className = 'text-muted';
-                        }
                     }
-                })
-                .catch(error => {
-                    console.error('❌ Error cargando OCs:', error);
+                    if (ocHelpText) {
+                        ocHelpText.innerHTML = '<i class="fas fa-info-circle me-1"></i>No hay órdenes disponibles';
+                        ocHelpText.className = 'text-muted';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error cargando OCs:', error);
+                if (cargarOcBtn) {
                     cargarOcBtn.disabled = true;
-                });
+                }
+            });
+    }
+    
+    // Cuando cambie el proveedor, buscar OCs disponibles
+    // Evento nativo para el select
+    if (proveedorSelect) {
+        console.log('✅ Evento change agregado al selector de proveedor (nativo)');
+        proveedorSelect.addEventListener('change', function() {
+            const proveedorId = this.value;
+            buscarOCsDisponibles(proveedorId);
         });
     } else {
         console.error('❌ No se encontró el selector de proveedor #id_proveedor');
+    }
+    
+    // También escuchar eventos de Select2 si está disponible
+    if (typeof jQuery !== 'undefined' && jQuery('#{{ form.proveedor.id_for_label }}').length) {
+        console.log('✅ Configurando evento para Select2');
+        jQuery('#{{ form.proveedor.id_for_label }}').on('select2:select select2:clear change', function() {
+            const proveedorId = jQuery(this).val();
+            console.log('🔄 Select2 - Proveedor cambiado:', proveedorId);
+            buscarOCsDisponibles(proveedorId);
+        });
     }
     
     // Cuando se hace clic en "Cargar OC"
@@ -1765,7 +1789,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('🔧 Inicializando Select2...');
         
         // Inicializar Select2 para el selector de proveedor
-        $('#{{ form.proveedor.id_for_label }}').select2({
+        const proveedorSelect2 = $('#{{ form.proveedor.id_for_label }}').select2({
             placeholder: 'Buscar proveedor por RUT, razón social o nombre...',
             allowClear: true,
             language: {
@@ -1778,6 +1802,20 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             width: '100%'
         });
+        
+        // Agregar evento de Select2 para buscar OCs cuando se selecciona un proveedor
+        proveedorSelect2.on('select2:select select2:clear change', function(e) {
+            const proveedorId = $(this).val();
+            console.log('🔄 Select2 - Proveedor cambiado:', proveedorId);
+            buscarOCsDisponibles(proveedorId);
+        });
+        
+        // También verificar si ya hay un proveedor seleccionado al cargar la página
+        const proveedorInicial = proveedorSelect2.val();
+        if (proveedorInicial) {
+            console.log('🔍 Proveedor inicial encontrado:', proveedorInicial);
+            buscarOCsDisponibles(proveedorInicial);
+        }
 
         // Inicializar Select2 para todos los selectores de artículos
         $('.articulo-select').select2({

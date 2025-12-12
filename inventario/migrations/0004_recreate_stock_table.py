@@ -1,18 +1,14 @@
-from django.db import migrations, models
+from django.db import migrations, models, connection
 import django.db.models.deletion
 
 
-class Migration(migrations.Migration):
-
-    dependencies = [
-        ("inventario", "0003_make_bodega_required"),
-        ("bodegas", "0001_initial"),
-    ]
-
-    operations = [
-        # Recrear la tabla stock sin sucursal_id
-        migrations.RunSQL(
-            """
+def recreate_stock_table_forward(apps, schema_editor):
+    """Recrear tabla stock - compatible con SQLite y PostgreSQL"""
+    vendor = schema_editor.connection.vendor
+    
+    if vendor == 'sqlite':
+        # SQLite
+        schema_editor.execute("""
             CREATE TABLE inventario_stock_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 cantidad decimal NOT NULL,
@@ -29,9 +25,44 @@ class Migration(migrations.Migration):
                 FOREIGN KEY (empresa_id) REFERENCES empresas_empresa (id),
                 FOREIGN KEY (bodega_id) REFERENCES bodegas_bodega (id)
             );
-            """,
-            reverse_sql="DROP TABLE inventario_stock_new;"
-        ),
+        """)
+    else:
+        # PostgreSQL y otros
+        schema_editor.execute("""
+            CREATE TABLE inventario_stock_new (
+                id BIGSERIAL PRIMARY KEY,
+                cantidad NUMERIC NOT NULL,
+                stock_minimo NUMERIC NOT NULL,
+                stock_maximo NUMERIC NOT NULL,
+                precio_promedio NUMERIC NOT NULL,
+                fecha_actualizacion TIMESTAMP NOT NULL,
+                actualizado_por_id INTEGER NULL,
+                articulo_id BIGINT NOT NULL,
+                empresa_id BIGINT NOT NULL,
+                bodega_id BIGINT NOT NULL,
+                FOREIGN KEY (actualizado_por_id) REFERENCES auth_user (id),
+                FOREIGN KEY (articulo_id) REFERENCES articulos_articulo (id),
+                FOREIGN KEY (empresa_id) REFERENCES empresas_empresa (id),
+                FOREIGN KEY (bodega_id) REFERENCES bodegas_bodega (id)
+            );
+        """)
+
+
+def recreate_stock_table_reverse(apps, schema_editor):
+    """Reversar la recreación de tabla"""
+    schema_editor.execute("DROP TABLE IF EXISTS inventario_stock_new;")
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("inventario", "0003_make_bodega_required"),
+        ("bodegas", "0001_initial"),
+    ]
+
+    operations = [
+        # Recrear la tabla stock sin sucursal_id
+        migrations.RunPython(recreate_stock_table_forward, recreate_stock_table_reverse),
         
         # Copiar datos existentes (solo los que tienen bodega_id)
         migrations.RunSQL(

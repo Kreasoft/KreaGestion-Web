@@ -55,7 +55,7 @@ class EstacionTrabajoForm(forms.ModelForm):
         model = EstacionTrabajo
         fields = [
             'numero', 'nombre', 'descripcion',
-            'modo_pos', 'correlativo_ticket',
+            'modo_pos', 'correlativo_ticket', 'codigo_comodin',
             'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale',
             'cierre_directo', 'flujo_cierre_directo', 'enviar_sii_directo',
             'max_items_factura', 'max_items_boleta', 'max_items_guia', 'max_items_cotizacion', 'max_items_vale',
@@ -67,6 +67,7 @@ class EstacionTrabajoForm(forms.ModelForm):
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción opcional'}),
             'modo_pos': forms.Select(attrs={'class': 'form-select'}),
             'correlativo_ticket': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'codigo_comodin': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 999999 o COMODIN'}),
             'puede_facturar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'puede_boletar': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'puede_guia': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -88,6 +89,7 @@ class EstacionTrabajoForm(forms.ModelForm):
             'descripcion': 'Descripción',
             'modo_pos': 'Modo de Operación POS',
             'correlativo_ticket': 'Correlativo de Ticket',
+            'codigo_comodin': 'Código Comodín',
             'puede_facturar': 'Puede Emitir Facturas',
             'puede_boletar': 'Puede Emitir Boletas',
             'puede_guia': 'Puede Emitir Guías',

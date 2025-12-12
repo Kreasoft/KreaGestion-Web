@@ -3,6 +3,7 @@
 
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,7 +12,8 @@
     <!-- Font Poppins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -22,399 +24,432 @@
     <style>
         * {
             font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+        }
+
+        .login-container {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            overflow: hidden !important;
+            z-index: 1;
+        }
+
+        /* Usar pseudo-elemento para el fondo con garantía de cobertura total */
+        .login-container::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 100vh;
+            background-image: url('{% static "image/FondoCloud.png" %}?v=202512102326');
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            z-index: -1;
+            /* Forzar que cubra al menos el 100% en ambas dimensiones */
+            min-width: 100vw;
+            min-height: 100vh;
+        }
+
+        /* Ajuste para pantallas panorámicas (más anchas que 16:9) */
+        @media screen and (min-aspect-ratio: 16/9) {
+            .login-container::before {
+                width: 100vw;
+                height: auto;
+                min-height: 100vh;
+            }
+        }
+
+        /* Ajuste para pantallas verticales (más altas que 16:9) */
+        @media screen and (max-aspect-ratio: 16/9) {
+            .login-container::before {
+                width: auto;
+                height: 100vh;
+                min-width: 100vw;
+            }
         }
     </style>
 </head>
-<body>
 
-{% block content %}
-<!-- Pantalla exclusiva de Login - Diseño 60/40 -->
-<div class="login-container d-flex min-vh-100">
-    <!-- Panel Izquierdo (60%) - Logo y Branding -->
-    <div class="login-brand-panel d-flex flex-column justify-content-center align-items-center" style="position: relative; overflow: hidden; width: 60%; background-image: url('{% static 'image/fondogestion.jpg' %}?v=20251202'); background-size: 100% 100%; background-position: center center; background-repeat: no-repeat;">
+<body style="margin: 0; padding: 0; overflow: hidden;">
 
-        <!-- Overlay oscuro para mejorar legibilidad -->
-        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.3); z-index: 1;"></div>
+    {% block content %}
+    <!-- Pantalla exclusiva de Login - Diseño con fondo único -->
+    <div class="login-container">
 
-        <!-- Elementos decorativos de fondo -->
-        <div class="brand-bg-elements">
-            <div class="bg-circle bg-circle-1"></div>
-            <div class="bg-circle bg-circle-2"></div>
-            <div class="bg-circle bg-circle-3"></div>
-        </div>
+        <!-- Contenedor principal -->
+        <div class="d-flex min-vh-100 position-relative" style="z-index: 2;">
 
-        <!-- Frase alusiva al sistema - Centrada -->
-        <div class="brand-slogan" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; padding: 0 4rem; z-index: 3; width: 100%;">
-            <h1 style="font-size: 3.5rem; font-weight: 700; margin: 0; line-height: 1.3; text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.5);">
-                <span style="color: #ffffff;">Control total de tu</span> <span style="color: #FF8C42;">negocio</span>
-            </h1>
-            <h2 style="font-size: 3.5rem; font-weight: 700; margin-top: 1rem; line-height: 1.3; text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.5);">
-                <span style="color: #ffffff;">desde una sola</span> <span style="color: #FF8C42;">plataforma</span>
-            </h2>
-            <p style="font-size: 2rem; font-weight: 600; margin-top: 1rem; line-height: 1.3; text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.5);">
-                <span style="color: #ffffff;">Simplifica tu gestión</span> <span style="color: #FF8C42;">empresarial</span>
-            </p>
-        </div>
-        
-        <!-- Características destacadas - Abajo -->
-        <div class="brand-features" style="position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; z-index: 2;">
-            <div class="row g-2 justify-content-center">
-                <div class="col-4">
-                    <div class="feature-item text-center">
-                        <div class="feature-icon mb-2" style="width: 50px; height: 50px; background: rgba(210, 180, 140, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 1.3rem;">
-                            <i class="fas fa-chart-line" style="color: #D2B48C;"></i>
-                        </div>
-                        <h6 class="feature-title" style="font-size: 0.75rem; font-weight: 600; opacity: 0.9; color: white;">Análisis Inteligente</h6>
+            <!-- Frase alusiva al sistema - Lado izquierdo -->
+            <div class="brand-slogan"
+                style="position: absolute; top: 25%; left: 10%; transform: translateY(-50%); text-align: left; padding: 0 2rem; z-index: 3; max-width: 600px;">
+                <h1 style="font-size: 3rem; font-weight: 700; margin: 0; line-height: 1.2; color: #ffffff; white-space: nowrap; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);">
+                    <span style="color: #ffffff; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);">Control total de tu</span> <span style="color: #FF8C42; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);">negocio</span>
+                </h1>
+                <h1 style="font-size: 3rem; font-weight: 700; margin: 0; margin-top: 0.5rem; line-height: 1.2; white-space: nowrap; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);">
+                    <span style="color: #ffffff; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);">desde una sola</span> <span style="color: #FF8C42; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);">plataforma</span>
+                </h1>
+            </div>
+
+            <!-- Formulario de Login - Lado derecho -->
+            <div class="login-form-panel d-flex flex-column justify-content-center align-items-center ms-auto"
+                style="width: 550px; padding: 3rem; position: relative;">
+
+                <!-- Tarjeta translúcida -->
+                <div class="login-form-container"
+                    style="width: 100%; background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(15px); border-radius: 20px; padding: 3.5rem; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.4); position: relative; z-index: 2;">
+
+                    <!-- Logo dentro de la tarjeta -->
+                    <div class="text-center mb-4">
+                        <img src="{% static 'image/LogoCloud.png' %}" alt="GestionCloud Logo" 
+                             style="height: 150px; width: auto; filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.2));">
                     </div>
-                </div>
-                <div class="col-4">
-                    <div class="feature-item text-center">
-                        <div class="feature-icon mb-2" style="width: 50px; height: 50px; background: rgba(210, 180, 140, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 1.3rem;">
-                            <i class="fas fa-shield-alt" style="color: #D2B48C;"></i>
-                        </div>
-                        <h6 class="feature-title" style="font-size: 0.75rem; font-weight: 600; opacity: 0.9; color: white;">Seguridad Total</h6>
+
+                    <!-- Header del formulario -->
+                    <div class="form-header text-center mb-5">
+                        <h3 class="form-title"
+                            style="color: #8B6F47; font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);">
+                            Bienvenido de vuelta
+                        </h3>
+                        <p class="form-subtitle"
+                            style="color: #8B6F47; font-size: 1rem; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);">
+                            Ingresa tus credenciales para acceder al sistema
+                        </p>
                     </div>
-                </div>
-                <div class="col-4">
-                    <div class="feature-item text-center">
-                        <div class="feature-icon mb-2" style="width: 50px; height: 50px; background: rgba(210, 180, 140, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 1.3rem;">
-                            <i class="fas fa-rocket" style="color: #D2B48C;"></i>
+
+                    <!-- Formulario de Login -->
+                    <form method="post" novalidate class="login-form">
+                        {% csrf_token %}
+
+                        <!-- Mensajes de error -->
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger border-0"
+                            style="background-color: rgba(220, 53, 69, 0.9); color: white; border-radius: 0.5rem; padding: 1rem; backdrop-filter: blur(10px);"
+                            role="alert">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <div>{{ form.non_field_errors.0 }}</div>
+                            </div>
                         </div>
-                        <h6 class="feature-title" style="font-size: 0.75rem; font-weight: 600; opacity: 0.9; color: white;">Rápido & Eficiente</h6>
-                    </div>
+                        {% endif %}
+
+                        <!-- Campo de usuario -->
+                        <div class="mb-4">
+                            <label for="{{ form.username.id_for_label }}" class="form-label"
+                                style="color: #8B6F47; font-weight: 500; margin-bottom: 0.5rem; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);">
+                                <i class="fas fa-user me-2"></i>Usuario
+                            </label>
+                            <div class="input-group">
+                                {{ form.username|add_class:"form-control" }}
+                            </div>
+                            {% if form.username.errors %}
+                            <div class="small mt-1"
+                                style="color: #ffcccc; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);">
+                                <i class="fas fa-exclamation-circle me-1"></i>{{ form.username.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Campo de contraseña -->
+                        <div class="mb-4">
+                            <label for="{{ form.password.id_for_label }}" class="form-label"
+                                style="color: #8B6F47; font-weight: 500; margin-bottom: 0.5rem; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);">
+                                <i class="fas fa-lock me-2"></i>Contraseña
+                            </label>
+                            <div class="input-group">
+                                {{ form.password|add_class:"form-control" }}
+                            </div>
+                            {% if form.password.errors %}
+                            <div class="small mt-1"
+                                style="color: #ffcccc; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);">
+                                <i class="fas fa-exclamation-circle me-1"></i>{{ form.password.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Botón de inicio de sesión -->
+                        <div class="d-grid mb-4">
+                            <button type="submit" class="btn btn-lg fw-semibold login-btn"
+                                style="background: linear-gradient(135deg, #CD853F 0%, #A0522D 100%); border: none; color: white; border-radius: 0.5rem; padding: 1rem; font-size: 1rem;">
+                                <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
+                            </button>
+                        </div>
+
+                        <!-- Enlaces adicionales -->
+                        <div class="form-links text-center">
+                            <div class="row">
+                                <div class="col-12">
+                                    <a href="#" class="text-decoration-none"
+                                        style="color: #8B6F47; font-size: 0.85rem; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);">
+                                        <i class="fas fa-question-circle me-1"></i>¿Olvidaste tu contraseña?
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Input hidden para next -->
+                        <input type="hidden" name="next" value="{{ next }}" />
+                    </form>
                 </div>
             </div>
         </div>
 
-        <!-- Footer del panel izquierdo -->
-        <div class="brand-footer" style="position: absolute; bottom: 0.5rem; left: 50%; transform: translateX(-50%); text-align: center; z-index: 3;">
-            <small style="color: rgba(255, 255, 255, 0.6); font-size: 0.7rem;">
+        <!-- Iconos con características del sistema -->
+        <div class="system-features"
+            style="position: absolute; bottom: 4rem; left: 50%; transform: translateX(-50%); text-align: center; z-index: 3; display: flex; justify-content: center; align-items: center; gap: 3rem; flex-wrap: nowrap; white-space: nowrap;">
+            <div class="feature-item" style="display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-chart-line" style="font-size: 1.8rem; color: #FF8C42; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);"></i>
+                <span style="color: #ffffff; font-size: 1rem; font-weight: 500; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);">Gestión Completa</span>
+            </div>
+            <div class="feature-item" style="display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-cloud" style="font-size: 1.8rem; color: #FF8C42; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);"></i>
+                <span style="color: #ffffff; font-size: 1rem; font-weight: 500; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);">En la Nube</span>
+            </div>
+            <div class="feature-item" style="display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-shield-alt" style="font-size: 1.8rem; color: #FF8C42; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);"></i>
+                <span style="color: #ffffff; font-size: 1rem; font-weight: 500; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);">Seguro</span>
+            </div>
+            <div class="feature-item" style="display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-bolt" style="font-size: 1.8rem; color: #FF8C42; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);"></i>
+                <span style="color: #ffffff; font-size: 1rem; font-weight: 500; text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.5);">Rápido</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="brand-footer"
+            style="position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); text-align: center; z-index: 3;">
+            <small
+                style="color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);">
                 © 2025 GestionCloud - Todos los derechos reservados
             </small>
         </div>
     </div>
 
-    <!-- Panel Derecho (40%) - Formulario de Login -->
-    <div class="login-form-panel d-flex flex-column justify-content-center align-items-center" style="width: 40%; background: linear-gradient(135deg, #F5E6D3 0%, #E8D5C4 25%, #D4C4A8 50%, #C9A882 75%, #B8956A 100%); position: relative; padding: 3rem;">
-        
-        <!-- Tarjeta translúcida -->
-        <div class="login-form-container" style="width: 100%; max-width: 450px; background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(20px); border-radius: 20px; padding: 3rem; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.3); position: relative; z-index: 2;">
+    <style>
+        /* Estilos para el nuevo diseño de login con fondo único */
 
-            <!-- Header del formulario -->
-            <div class="form-header text-center mb-4">
-                <h3 class="form-title" style="color: #8B6F47; font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5rem; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);">
-                    Bienvenido de vuelta
-                </h3>
-                <p class="form-subtitle" style="color: #8B6F47; font-size: 0.9rem; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);">
-                    Ingresa tus credenciales para acceder al sistema
-                </p>
-            </div>
+        /* Layout principal - Ya está definido en el head */
 
-            <!-- Formulario de Login -->
-            <form method="post" novalidate class="login-form">
-		{% csrf_token %}
+        /* Panel de formulario */
+        .login-form-panel {
+            min-height: 100vh;
+        }
 
-                <!-- Mensajes de error -->
-                {% if form.non_field_errors %}
-                    <div class="alert alert-danger border-0" style="background-color: rgba(220, 53, 69, 0.9); color: white; border-radius: 0.5rem; padding: 1rem; backdrop-filter: blur(10px);" role="alert">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <div>{{ form.non_field_errors.0 }}</div>
-                        </div>
-                    </div>
-                {% endif %}
+        /* Estilos del formulario */
+        .form-control {
+            height: calc(3.5rem + 2px);
+            padding: 1rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 2px solid rgba(139, 111, 71, 0.4);
+            background: rgba(255, 255, 255, 0.9);
+            color: #8B6F47;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            font-size: 1rem;
+        }
 
-                <!-- Campo de usuario -->
-                <div class="mb-4">
-                    <label for="{{ form.username.id_for_label }}" class="form-label" style="color: #8B6F47; font-weight: 500; margin-bottom: 0.5rem; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);">
-                        <i class="fas fa-user me-2"></i>Usuario
-                    </label>
-                    <div class="input-group">
-                        {{ form.username|add_class:"form-control" }}
-                    </div>
-                    {% if form.username.errors %}
-                        <div class="small mt-1" style="color: #ffcccc; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);">
-                            <i class="fas fa-exclamation-circle me-1"></i>{{ form.username.errors.0 }}
-                        </div>
-                    {% endif %}
-                </div>
+        .form-control::placeholder {
+            color: rgba(139, 111, 71, 0.6);
+        }
 
-                <!-- Campo de contraseña -->
-                <div class="mb-4">
-                    <label for="{{ form.password.id_for_label }}" class="form-label" style="color: #8B6F47; font-weight: 500; margin-bottom: 0.5rem; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);">
-                        <i class="fas fa-lock me-2"></i>Contraseña
-                    </label>
-                    <div class="input-group">
-                        {{ form.password|add_class:"form-control" }}
-                    </div>
-                    {% if form.password.errors %}
-                        <div class="small mt-1" style="color: #ffcccc; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);">
-                            <i class="fas fa-exclamation-circle me-1"></i>{{ form.password.errors.0 }}
-                        </div>
-                    {% endif %}
-                </div>
+        .form-control:focus {
+            border-color: rgba(139, 111, 71, 0.9);
+            box-shadow: 0 0 0 0.2rem rgba(139, 111, 71, 0.3);
+            background: rgba(255, 255, 255, 1);
+            color: #8B6F47;
+            outline: none;
+        }
 
-                <!-- Botón de inicio de sesión -->
-                <div class="d-grid mb-4">
-                    <button type="submit" class="btn btn-lg fw-semibold login-btn" style="background: linear-gradient(135deg, #CD853F 0%, #A0522D 100%); border: none; color: white; border-radius: 0.5rem; padding: 1rem; font-size: 1rem;">
-                        <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
-                    </button>
-                </div>
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
 
-                <!-- Enlaces adicionales -->
-                <div class="form-links text-center">
-                    <div class="row">
-                        <div class="col-12">
-                            <a href="#" class="text-decoration-none" style="color: #8B6F47; font-size: 0.85rem; text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);">
-                                <i class="fas fa-question-circle me-1"></i>¿Olvidaste tu contraseña?
-                            </a>
-                        </div>
-		</div>
-		</div>
+        /* Botón de login */
+        .login-btn {
+            transition: all 0.3s ease;
+        }
 
-                <!-- Input hidden para next -->
-		<input type="hidden" name="next" value="{{ next }}" />
-	</form>
-</div>
-    </div>
-</div>
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(205, 133, 63, 0.3);
+        }
 
-<style>
-/* Estilos para el nuevo diseño de login 60/40 */
+        /* Estilos para el logo dentro de la tarjeta */
+        .login-form-container img {
+            transition: transform 0.3s ease;
+        }
 
-/* Layout principal */
-.login-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 9999;
-}
+        .login-form-container img:hover {
+            transform: scale(1.05);
+        }
 
-/* Panel de branding (60%) */
-.login-brand-panel {
-    position: relative;
-    min-height: 100vh;
-}
+        /* Asegurar que la frase se muestre en solo 2 líneas */
+        .brand-slogan h1 {
+            display: block;
+            white-space: nowrap;
+            overflow: visible;
+        }
 
-.brand-bg-elements {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow: hidden;
-    z-index: 1;
-}
+        /* Responsive Design */
+        /* Estilos responsivos para el logo dentro de la tarjeta */
+        @media (max-width: 768px) {
+            .login-form-container img {
+                height: 120px !important;
+            }
+        }
 
-.bg-circle {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
-    animation: float 6s ease-in-out infinite;
-}
+        @media (max-width: 576px) {
+            .login-form-container img {
+                height: 100px !important;
+            }
+        }
 
-.bg-circle-1 {
-    width: 300px;
-    height: 300px;
-    top: -50px;
-    right: -100px;
-    animation-delay: 0s;
-}
+        @media (max-width: 992px) {
+            .brand-slogan {
+                left: 5% !important;
+                max-width: 400px !important;
+            }
 
-.bg-circle-2 {
-    width: 200px;
-    height: 200px;
-    bottom: 100px;
-    left: -50px;
-    animation-delay: 2s;
-}
+            .brand-slogan h1 {
+                font-size: 2.5rem !important;
+                white-space: normal !important;
+            }
 
-.bg-circle-3 {
-    width: 150px;
-    height: 150px;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    animation-delay: 4s;
-}
+            .brand-slogan h2 {
+                font-size: 2.5rem !important;
+            }
 
-@keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-20px); }
-}
+            .brand-slogan p {
+                font-size: 1.8rem !important;
+            }
 
-/* Panel de formulario (40%) */
-.login-form-panel {
-    min-height: 100vh;
-    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
-}
+            .login-form-panel {
+                width: 100% !important;
+                max-width: 550px !important;
+                margin: 0 auto !important;
+            }
+        }
 
-/* Estilos del formulario */
-.form-control {
-    height: calc(3.5rem + 2px);
-    padding: 1rem 0.75rem;
-    border-radius: 0.5rem;
-    border: 2px solid rgba(139, 111, 71, 0.4);
-    background: rgba(255, 255, 255, 0.9);
-    color: #8B6F47;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
-    font-size: 1rem;
-}
+        @media (max-width: 768px) {
+            .brand-slogan {
+                position: relative !important;
+                top: auto !important;
+                left: auto !important;
+                transform: none !important;
+                text-align: center !important;
+                padding: 2rem 1rem !important;
+                max-width: 100% !important;
+                margin-bottom: 2rem;
+            }
 
-.form-control::placeholder {
-    color: rgba(139, 111, 71, 0.6);
-}
+            .system-features {
+                position: relative !important;
+                bottom: auto !important;
+                left: auto !important;
+                transform: none !important;
+                justify-content: center !important;
+                gap: 1.5rem !important;
+                margin-top: 2rem !important;
+                margin-bottom: 1rem !important;
+            }
 
-.form-control:focus {
-    border-color: rgba(139, 111, 71, 0.9);
-    box-shadow: 0 0 0 0.2rem rgba(139, 111, 71, 0.3);
-    background: rgba(255, 255, 255, 1);
-    color: #8B6F47;
-    outline: none;
-}
+            .feature-item {
+                flex-direction: column !important;
+                text-align: center !important;
+                gap: 0.5rem !important;
+            }
 
-.form-label {
-    display: block;
-    margin-bottom: 0.5rem;
-}
+            .feature-item i {
+                font-size: 1.5rem !important;
+            }
 
-/* Botón de login */
-.login-btn {
-    transition: all 0.3s ease;
-}
+            .feature-item span {
+                font-size: 0.9rem !important;
+            }
 
-.login-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(205, 133, 63, 0.3);
-}
+            .login-form-panel {
+                width: 100% !important;
+                padding: 2rem 1rem !important;
+            }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .login-container {
-        flex-direction: column;
-    }
+            .brand-slogan h1 {
+                font-size: 1.8rem !important;
+            }
 
-    .login-brand-panel {
-        width: 100%;
-        height: 60vh;
-        min-height: auto;
-    }
+            .brand-slogan h2 {
+                font-size: 1.8rem !important;
+            }
 
-    .login-form-panel {
-        width: 100%;
-        height: 40vh;
-        min-height: auto;
-        padding: 2rem 1rem;
-    }
+            .brand-slogan p {
+                font-size: 1rem !important;
+            }
+        }
 
-    .brand-title {
-        font-size: 2.5rem !important;
-    }
+        @media (max-width: 576px) {
+            .login-form-panel {
+                padding: 1.5rem 1rem !important;
+            }
 
-    .brand-subtitle {
-        font-size: 1.2rem !important;
-    }
+            .form-title {
+                font-size: 1.5rem !important;
+            }
 
-    .tagline-text {
-        font-size: 1rem !important;
-    }
+            .form-subtitle {
+                font-size: 0.8rem !important;
+            }
 
-    .brand-logo img {
-        max-width: 320px !important;
-    }
-    
-    .brand-slogan h1 {
-        font-size: 2.5rem !important;
-    }
-    
-    .brand-slogan h2 {
-        font-size: 2.5rem !important;
-    }
-    
-    .brand-slogan p {
-        font-size: 1.8rem !important;
-    }
-}
+            .brand-slogan h1 {
+                font-size: 1.5rem !important;
+            }
 
-@media (max-width: 576px) {
-    .login-form-panel {
-        padding: 1.5rem 1rem;
-    }
+            .brand-slogan h2 {
+                font-size: 1.5rem !important;
+            }
 
-    .form-title {
-        font-size: 1.5rem !important;
-    }
+            .brand-slogan p {
+                font-size: 0.9rem !important;
+            }
+        }
+    </style>
 
-    .form-subtitle {
-        font-size: 0.8rem !important;
-    }
+    <script>
+        // Animación de carga del formulario
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.querySelector('.login-form');
+            if (form) {
+                const submitBtn = form.querySelector('.login-btn');
+                if (submitBtn) {
+                    form.addEventListener('submit', function (e) {
+                        // Animación de botón al enviar
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando...';
+                        submitBtn.disabled = true;
+                    });
+                }
+            }
 
-    .brand-title {
-        font-size: 2rem !important;
-    }
-
-    .brand-subtitle {
-        font-size: 1rem !important;
-    }
-    
-    .brand-logo img {
-        max-width: 280px !important;
-    }
-    
-    .brand-slogan h1 {
-        font-size: 2rem !important;
-    }
-    
-    .brand-slogan h2 {
-        font-size: 2rem !important;
-    }
-    
-    .brand-slogan p {
-        font-size: 1.5rem !important;
-    }
-    
-    .brand-slogan {
-        padding: 0 2rem !important;
-    }
-}
-
-/* Animaciones adicionales */
-.feature-icon {
-    transition: all 0.3s ease;
-}
-
-.feature-icon:hover {
-    transform: scale(1.1);
-    background: rgba(210, 180, 140, 0.3) !important;
-}
-
-</style>
-
-<script>
-// Animación de carga del formulario
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('.login-form');
-    const submitBtn = form.querySelector('.login-btn');
-
-    form.addEventListener('submit', function(e) {
-        // Animación de botón al enviar
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando...';
-        submitBtn.disabled = true;
-    });
-
-    // Animaciones para elementos del panel de branding
-    const featureIcons = document.querySelectorAll('.feature-icon');
-    featureIcons.forEach((icon, index) => {
-        icon.style.animationDelay = `${index * 0.2}s`;
-        icon.style.animation = 'fadeInUp 0.6s ease-out forwards';
-    });
-
-    // Agregar animaciones CSS
-    const style = document.createElement('style');
-    style.textContent = `
+            // Agregar animaciones CSS
+            const style = document.createElement('style');
+            style.textContent = `
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-5px); }
@@ -432,36 +467,25 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        .brand-content > * {
+        .brand-slogan {
             animation: fadeInUp 0.8s ease-out forwards;
         }
 
-        .brand-title {
-            animation-delay: 0.2s;
-        }
-
-        .brand-subtitle {
-            animation-delay: 0.4s;
-        }
-
-        .brand-tagline {
-            animation-delay: 0.6s;
-        }
-
-        .brand-features {
-            animation-delay: 0.8s;
+        .login-form-container {
+            animation: fadeInUp 1s ease-out forwards;
         }
 
         .text-danger {
             animation: shake 0.5s ease-in-out;
         }
     `;
-    document.head.appendChild(style);
-});
-</script>
+            document.head.appendChild(style);
+        });
+    </script>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>
 {% endblock %}

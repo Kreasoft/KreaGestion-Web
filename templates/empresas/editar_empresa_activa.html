@@ -213,7 +213,7 @@
                                 {% csrf_token %}
                                 
                                 <!-- Campos ocultos requeridos - MANTIENEN valores existentes -->
-                                <input type="hidden" name="giro" value="{{ empresa.giro|default:'' }}">
+                                <!-- GIRO YA NO ES OCULTO - SE MUESTRA DESPUÉS DE RUT -->
                                 <input type="hidden" name="regimen_tributario" value="{{ empresa.regimen_tributario|default:'general' }}">
                                 <input type="hidden" name="estado" value="{{ empresa.estado|default:'activa' }}">
                                 <input type="hidden" name="tipo_industria" value="{{ empresa.tipo_industria|default:'' }}">
@@ -231,7 +231,7 @@
                                 <input type="hidden" name="impresora_vale" value="{{ empresa.impresora_vale|default:'termica' }}">
                                 <input type="hidden" name="impresora_cotizacion" value="{{ empresa.impresora_cotizacion|default:'laser' }}">
                         
-                        <!-- Primera fila: RUT, Razón Social, Nombre de Fantasía -->
+                        <!-- Primera fila: RUT, Giro Comercial -->
                         <div class="row mb-3">
                             <div class="col-md-3">
                                 <label for="{{ form.rut.id_for_label }}" class="form-label">
@@ -251,6 +251,29 @@
                                     </div>
                                 {% endif %}
                             </div>
+                            <div class="col-md-9">
+                                <label for="{{ form.giro.id_for_label }}" class="form-label">
+                                    <i class="fas fa-briefcase me-2"></i>Giro Comercial <span class="text-muted small">(Opcional)</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-briefcase"></i>
+                                    </span>
+                                    {{ form.giro }}
+                                </div>
+                                {% if form.giro.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.giro.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">Descripción de la actividad principal de la empresa (requerido para facturación electrónica)</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Segunda fila: Razón Social, Nombre de Fantasía -->
+                        <div class="row mb-3">
                             <div class="col-md-5">
                                 <label for="{{ form.razon_social.id_for_label }}" class="form-label">
                                     <i class="fas fa-building me-2"></i>{{ form.razon_social.label }}
@@ -1793,9 +1816,19 @@ async function detectarImpresoras() {
         const response = await fetch('{% url "empresas:obtener_impresoras_sistema" %}', {
             method: 'GET',
             headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
         });
+        
+        // Verificar que la respuesta sea JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Respuesta no es JSON:', text.substring(0, 200));
+            throw new Error('El servidor devolvió HTML en lugar de JSON. Posible redirect o error de autenticación.');
+        }
         
         const data = await response.json();
         

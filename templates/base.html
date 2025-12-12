@@ -1082,6 +1082,7 @@
             {% endif %}
             
             <!-- Submenú de Pedidos -->
+            {% if perms.pedidos.view_ordenpedido or user.is_superuser %}
             <div class="nav-item has-submenu">
                 <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#pedidosSubmenu" aria-expanded="{% if request.resolver_match.app_name == 'pedidos' %}true{% else %}false{% endif %}">
                     <i class="nav-icon fas fa-dolly"></i>
@@ -1090,10 +1091,12 @@
                 </a>
                 <div class="collapse submenu {% if request.resolver_match.app_name == 'pedidos' %}show{% endif %}" id="pedidosSubmenu">
                     <div class="submenu-items">
+                        {% if perms.pedidos.view_ordenpedido or user.is_superuser %}
                         <a href="{% url 'pedidos:orden_pedido_list' %}" class="nav-link submenu-link {% if 'pedidos' in request.resolver_match.namespace %}active{% endif %}" title="Gestiona órdenes de pedido de clientes">
                             <i class="fas fa-clipboard-list me-2" style="color: #8B7355;"></i>
                             <span>Órdenes de Pedido</span>
                         </a>
+                        {% endif %}
                         
                         <!-- Opciones de Despacho (solo si está activado en la empresa) -->
                         {% if empresa and empresa.usa_sistema_despacho %}
@@ -1131,6 +1134,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
             
             <!-- Submenú de Compras -->
             {% if perms.documentos.view_documento or perms.compras.view_ordencompra or perms.proveedores.view_proveedor or user.is_superuser %}
@@ -1310,6 +1314,7 @@
             {% endif %}
             
             <!-- Submenú de Tesorería -->
+            {% if user.is_superuser %}
             <div class="nav-item has-submenu">
                 <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#tesoreriaSubmenu" aria-expanded="false">
                     <i class="nav-icon fas fa-coins" style="color: #8B7355;"></i>
@@ -1318,19 +1323,25 @@
                 </a>
                 <div class="collapse submenu" id="tesoreriaSubmenu">
                     <div class="submenu-items">
+                        {% if user.is_superuser %}
                         <a href="{% url 'tesoreria:cuenta_corriente_cliente_list' %}" class="nav-link submenu-link {% if 'cuenta_corriente_cliente' in request.path %}active{% endif %}">
                             <i class="fas fa-user-tie me-2" style="color: #8B7355;"></i>
                             <span>Cuenta Corriente Cliente</span>
                         </a>
+                        {% endif %}
+                        {% if user.is_superuser %}
                         <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}" class="nav-link submenu-link {% if 'cuenta_corriente_proveedor' in request.path %}active{% endif %}">
                             <i class="fas fa-truck me-2" style="color: #8B7355;"></i>
                             <span>Cuenta Corriente Proveedor</span>
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
+            {% endif %}
             
             <!-- Submenú de Informes -->
+            {% if user.is_superuser %}
             <div class="nav-item has-submenu">
                 <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#informesSubmenu" aria-expanded="false">
                     <i class="nav-icon fas fa-chart-bar"></i>
@@ -1339,6 +1350,7 @@
                 </a>
                 <div class="collapse submenu" id="informesSubmenu">
                     <div class="submenu-items">
+                        {% if user.is_superuser %}
                         <a href="{% url 'informes:dashboard' %}" class="nav-link submenu-link {% if 'informes' in request.path %}active{% endif %}">
                             <i class="fas fa-tachometer-alt me-2"></i>
                             <span>Dashboard de Informes</span>
@@ -1379,9 +1391,11 @@
                             <i class="fas fa-shopping-basket me-2"></i>
                             <span>Compras por Período</span>
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
+            {% endif %}
             
             <!-- Submenú de Utilidades -->
             {% if user.is_superuser %}

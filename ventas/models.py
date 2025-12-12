@@ -352,6 +352,14 @@ class EstacionTrabajo(models.Model):
         verbose_name="Enviar al SII automáticamente"
     )
     
+    # Código comodín para productos personalizados
+    codigo_comodin = models.CharField(
+        max_length=50,
+        default='999999',
+        verbose_name="Código Comodín",
+        help_text="Código especial que permite crear productos con nombre y precio personalizado en el POS"
+    )
+    
     activo = models.BooleanField(default=True, verbose_name="Activo")
     
     # Auditoría

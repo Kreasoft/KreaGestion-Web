@@ -412,6 +412,50 @@ def pos_buscar_articulo(request):
         if not query:
             return JsonResponse({'articulos': []})
         
+        # Verificar si es código comodín
+        estacion_id = request.session.get('pos_estacion_id')
+        query_limpio = query.upper().strip()
+        print(f"=== VERIFICANDO CÓDIGO COMODÍN: query='{query}' (limpio: '{query_limpio}'), estacion_id={estacion_id} ===")
+        
+        # Primero intentar con la estación de la sesión
+        if estacion_id:
+            try:
+                estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa)
+                codigo_comodin_estacion = (estacion.codigo_comodin or '999999').upper().strip()
+                print(f"=== CÓDIGO COMODÍN CONFIGURADO (Sesión): '{codigo_comodin_estacion}' ===")
+                print(f"=== COMPARACIÓN: query_limpio='{query_limpio}' == codigo_comodin='{codigo_comodin_estacion}' ===")
+                print(f"=== ¿SON IGUALES? {query_limpio == codigo_comodin_estacion} ===")
+                
+                if query_limpio == codigo_comodin_estacion:
+                    # Es código comodín, retornar señal especial
+                    print(f"=== ✓✓✓ CÓDIGO COMODÍN DETECTADO (Sesión) ✓✓✓ ===")
+                    return JsonResponse({
+                        'es_comodin': True,
+                        'codigo_comodin': estacion.codigo_comodin or '999999',
+                        'articulos': []
+                    })
+            except EstacionTrabajo.DoesNotExist:
+                print(f"=== ERROR: Estación {estacion_id} no encontrada ===")
+                pass
+        
+        # Si no hay estación en sesión o no coincide, buscar en todas las estaciones activas
+        print(f"=== BUSCANDO EN TODAS LAS ESTACIONES ACTIVAS ===")
+        estaciones_activas = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True)
+        for estacion in estaciones_activas:
+            codigo_comodin_estacion = (estacion.codigo_comodin or '999999').upper().strip()
+            print(f"=== Estación {estacion.id} ({estacion.nombre}): código comodín='{codigo_comodin_estacion}' ===")
+            print(f"=== COMPARACIÓN: query_limpio='{query_limpio}' == codigo_comodin='{codigo_comodin_estacion}' ===")
+            print(f"=== ¿SON IGUALES? {query_limpio == codigo_comodin_estacion} ===")
+            if query_limpio == codigo_comodin_estacion:
+                print(f"=== ✓✓✓ CÓDIGO COMODÍN DETECTADO (Estación {estacion.id}) ✓✓✓ ===")
+                return JsonResponse({
+                    'es_comodin': True,
+                    'codigo_comodin': estacion.codigo_comodin or '999999',
+                    'articulos': []
+                })
+        
+        print(f"=== No se encontró código comodín coincidente ===")
+        
         # Buscar por código de barras, código, nombre o descripción
         articulos = Articulo.objects.filter(
             empresa=request.empresa,
@@ -1160,6 +1204,9 @@ def pos_session_info(request):
                     'flujo_cierre_directo': estacion.flujo_cierre_directo,
                     'tipos_documentos': estacion.get_tipos_documentos_permitidos(),
                     'correlativo_ticket': estacion.correlativo_ticket,
+                    'folios_factura': folios_factura,
+                    'folios_boleta': folios_boleta,
+                    'folios_guia': folios_guia,
                     'max_items': {
                         'factura': estacion.max_items_factura,
                         'boleta': estacion.max_items_boleta,
@@ -1644,36 +1691,108 @@ def pos_procesar_preventa(request):
                         raise e
                         
                 else:
-                    # Es un artículo normal
+                    # Es un artículo normal o producto comodín
                     articulo_id_limpio = clean_id(item.get('articuloId'))
-                    print(f"DEBUG - Es un ARTÍCULO. ID: {item.get('articuloId')} -> {articulo_id_limpio}")
+                    es_comodin = item.get('esComodin') == True or articulo_id_limpio is None
                     
-                    if not articulo_id_limpio:
+                    print(f"DEBUG - Es un ARTÍCULO. ID: {item.get('articuloId')} -> {articulo_id_limpio}, esComodin: {es_comodin}")
+                    
+                    if es_comodin:
+                        # Es un producto comodín - usar artículo especial "COMODIN"
+                        print(f"DEBUG - Es PRODUCTO COMODÍN: {item.get('nombre', 'Sin nombre')}")
+                        
+                        # Obtener categoría y unidad de medida por defecto
+                        from articulos.models import CategoriaArticulo, UnidadMedida
+                        
+                        # Buscar o crear categoría "COMODIN"
+                        categoria_comodin, _ = CategoriaArticulo.objects.get_or_create(
+                            empresa=request.empresa,
+                            codigo='COMODIN',
+                            defaults={
+                                'nombre': 'Productos Comodín',
+                                'descripcion': 'Categoría para productos personalizados del POS',
+                                'exenta_iva': False
+                            }
+                        )
+                        
+                        # Buscar o crear unidad de medida "UNIDAD"
+                        unidad_comodin, _ = UnidadMedida.objects.get_or_create(
+                            empresa=request.empresa,
+                            nombre='UNIDAD',
+                            defaults={
+                                'simbolo': 'UN',
+                                'activa': True
+                            }
+                        )
+                        
+                        # Buscar o crear artículo "COMODIN" para productos comodín
+                        try:
+                            articulo_comodin = Articulo.objects.get(empresa=request.empresa, codigo='COMODIN')
+                            # Si existe pero no tiene categoría o unidad, actualizarlos
+                            if not articulo_comodin.categoria or not articulo_comodin.unidad_medida:
+                                articulo_comodin.categoria = categoria_comodin
+                                articulo_comodin.unidad_medida = unidad_comodin
+                                articulo_comodin.save()
+                                print(f"DEBUG - Artículo COMODIN actualizado con categoría y unidad: {articulo_comodin.id}")
+                            else:
+                                print(f"DEBUG - Artículo COMODIN existente: {articulo_comodin.id}")
+                        except Articulo.DoesNotExist:
+                            # Crear nuevo artículo COMODIN
+                            articulo_comodin = Articulo.objects.create(
+                                empresa=request.empresa,
+                                codigo='COMODIN',
+                                nombre='Producto Comodín',
+                                descripcion='Producto personalizado creado desde el POS',
+                                categoria=categoria_comodin,
+                                unidad_medida=unidad_comodin,
+                                precio_venta='0.00',
+                                precio_costo='0.00',
+                                precio_final='0.00',
+                                activo=True,
+                                control_stock=False
+                            )
+                            print(f"DEBUG - Artículo COMODIN creado: {articulo_comodin.id}")
+                        
+                        articulo = articulo_comodin
+                        nombre_comodin = item.get('nombre', 'Producto Comodín')
+                        print(f"DEBUG - Nombre del producto comodín: {nombre_comodin}")
+                        
+                    elif not articulo_id_limpio:
                         print(f"ERROR - Item sin articuloId: {item}")
                         raise Exception(f"Item sin articuloId válido: {item}")
+                    else:
+                        try:
+                            articulo = Articulo.objects.get(id=articulo_id_limpio, empresa=request.empresa)
+                            print(f"DEBUG - Artículo encontrado: {articulo.nombre}")
+                        except Articulo.DoesNotExist:
+                            print(f"ERROR - Artículo con ID {articulo_id_limpio} no encontrado")
+                            raise Exception(f"Artículo con ID {articulo_id_limpio} no encontrado")
                     
+                    print(f"DEBUG - Creando VentaDetalle...")
+                    print(f"DEBUG - Valores a crear:")
+                    print(f"  cantidad: {Decimal(str(item['cantidad']))}")
+                    print(f"  precio_unitario: {Decimal(str(item['precio']))}")
+                    print(f"  precio_total: {Decimal(str(item.get('total', item['precio'] * item['cantidad'])))}")
+                    
+                    # Crear el detalle
                     try:
-                        articulo = Articulo.objects.get(id=articulo_id_limpio, empresa=request.empresa)
-                        print(f"DEBUG - Artículo encontrado: {articulo.nombre}")
-                        
-                        print(f"DEBUG - Creando VentaDetalle...")
-                        print(f"DEBUG - Valores a crear:")
-                        print(f"  cantidad: {Decimal(str(item['cantidad']))}")
-                        print(f"  precio_unitario: {Decimal(str(item['precio']))}")
-                        print(f"  precio_total: {Decimal(str(item.get('total', item['precio'] * item['cantidad'])))}")
-                        
-                        VentaDetalle.objects.create(
+                        detalle = VentaDetalle.objects.create(
                             venta=preventa,
                             articulo=articulo,
                             cantidad=Decimal(str(item['cantidad'])),
                             precio_unitario=Decimal(str(item['precio'])),
                             precio_total=Decimal(str(item.get('total', float(item['precio']) * float(item['cantidad'])))),
-                            impuesto_especifico=Decimal('0.00')
+                            impuesto_especifico=Decimal(str(item.get('impuesto_especifico', '0.00')))
                         )
                         print(f"DEBUG - VentaDetalle creado exitosamente")
-                    except Articulo.DoesNotExist:
-                        print(f"ERROR - Artículo con ID {articulo_id_limpio} no encontrado")
-                        raise Exception(f"Artículo con ID {articulo_id_limpio} no encontrado")
+                        
+                        # Si es producto comodín, actualizar el nombre del artículo temporalmente para esta venta
+                        # Nota: Esto no persiste en la BD, pero ayuda en la visualización
+                        if es_comodin and 'nombre' in item:
+                            # Guardar el nombre personalizado en algún lugar si es necesario
+                            # Por ahora, el nombre se perderá y se mostrará "Producto Comodín"
+                            print(f"DEBUG - Nombre personalizado del comodín: {item['nombre']}")
+                            
                     except Exception as e:
                         print(f"ERROR al crear VentaDetalle: {e}")
                         print(f"Tipo de error: {type(e)}")
@@ -2474,6 +2593,16 @@ def estaciontrabajo_edit(request, pk):
                 <label class="form-label" style="font-weight: 600;">Correlativo de Ticket</label>
                 <input type="number" name="correlativo_ticket" class="form-control" value="{estacion.correlativo_ticket}" min="1">
                 <div class="form-text">Número inicial para el correlativo único de tickets</div>
+            </div>
+
+            <!-- Código Comodín -->
+            <div class="mb-3">
+                <label class="form-label" style="font-weight: 600;">Código Comodín para Productos Personalizados</label>
+                <input type="text" name="codigo_comodin" class="form-control" value="{estacion.codigo_comodin}" maxlength="50" placeholder="Ej: 999999 o COMODIN">
+                <div class="form-text">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Al ingresar este código en el POS, se abrirá un formulario para crear un producto con nombre y precio personalizado.
+                </div>
             </div>
 
             <!-- Tipos de documentos permitidos -->

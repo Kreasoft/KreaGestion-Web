@@ -64,7 +64,7 @@ class Empresa(models.Model):
         # Si es una empresa nueva, crear sucursal principal automáticamente
         if es_nueva:
             self._crear_sucursal_principal()
-    giro = models.CharField(max_length=200, verbose_name="Giro Comercial")
+    giro = models.CharField(max_length=200, blank=True, default='', verbose_name="Giro Comercial")
     direccion = models.TextField(verbose_name="Dirección")
     comuna = models.CharField(max_length=100, verbose_name="Comuna")
     ciudad = models.CharField(max_length=100, verbose_name="Ciudad")
@@ -551,7 +551,7 @@ class ConfiguracionEmpresa(models.Model):
     empresa = models.OneToOneField(Empresa, on_delete=models.CASCADE, related_name='configuracion')
     
     # Configuración de ajustes
-    prefijo_ajustes = models.CharField(max_length=10, default='Aju', verbose_name="Prefijo Ajustes")
+    prefijo_ajustes = models.CharField(max_length=10, default='AJU', verbose_name="Prefijo Ajustes")
     siguiente_ajuste = models.IntegerField(default=1, verbose_name="Siguiente Número Ajuste")
     formato_ajustes = models.CharField(max_length=20, default='{prefijo}-{000}', verbose_name="Formato Ajustes")
     

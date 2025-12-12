@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-print"></i>
+                        {{ titulo }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        <div class="messages mb-4">
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message|safe }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" id="formImpresoras">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Configure el tipo de impresora que se utilizará para imprimir cada tipo de documento.
+                        </div>
+
+                        <!-- Documentos Electrónicos -->
+                        <div class="mb-4">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>Documentos Electrónicos
+                            </h5>
+                            <div class="row">
+                                {% for doc in documentos_electronicos %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h6 class="card-title">
+                                                    <i class="{{ doc.icon }} me-2"></i>{{ doc.nombre }}
+                                                </h6>
+                                                <p class="card-text small text-muted">{{ doc.descripcion }}</p>
+                                                
+                                                <div class="mb-2">
+                                                    <label class="form-label small">Tipo de Impresora:</label>
+                                                    <select name="{{ doc.campo }}" class="form-select form-select-sm">
+                                                        <option value="laser" {% if doc.valor == 'laser' %}selected{% endif %}>Láser/Inyección (A4)</option>
+                                                        <option value="termica" {% if doc.valor == 'termica' %}selected{% endif %}>Térmica (80mm)</option>
+                                                    </select>
+                                                </div>
+                                                
+                                                <div>
+                                                    <label class="form-label small">Nombre Físico de Impresora:</label>
+                                                    {% if doc.campo == 'impresora_factura' %}
+                                                        <input type="text" name="impresora_factura_nombre" class="form-control form-control-sm" value="{{ empresa.impresora_factura_nombre|default:'' }}" placeholder="Ej: HP LaserJet Pro">
+                                                    {% elif doc.campo == 'impresora_boleta' %}
+                                                        <input type="text" name="impresora_boleta_nombre" class="form-control form-control-sm" value="{{ empresa.impresora_boleta_nombre|default:'' }}" placeholder="Ej: HP LaserJet Pro">
+                                                    {% elif doc.campo == 'impresora_guia' %}
+                                                        <input type="text" name="impresora_guia_nombre" class="form-control form-control-sm" value="{{ empresa.impresora_guia_nombre|default:'' }}" placeholder="Ej: HP LaserJet Pro">
+                                                    {% elif doc.campo == 'impresora_nota_credito' %}
+                                                        <input type="text" name="impresora_nota_credito_nombre" class="form-control form-control-sm" value="{{ empresa.impresora_nota_credito_nombre|default:'' }}" placeholder="Ej: HP LaserJet Pro">
+                                                    {% elif doc.campo == 'impresora_nota_debito' %}
+                                                        <input type="text" name="impresora_nota_debito_nombre" class="form-control form-control-sm" value="{{ empresa.impresora_nota_debito_nombre|default:'' }}" placeholder="Ej: HP LaserJet Pro">
+                                                    {% elif doc.campo == 'impresora_vale' %}
+                                                        <input type="text" name="impresora_vale_nombre" class="form-control form-control-sm" value="{{ empresa.impresora_vale_nombre|default:'' }}" placeholder="Ej: Epson TM-T20">
+                                                    {% elif doc.campo == 'impresora_cotizacion' %}
+                                                        <input type="text" name="impresora_cotizacion_nombre" class="form-control form-control-sm" value="{{ empresa.impresora_cotizacion_nombre|default:'' }}" placeholder="Ej: HP LaserJet Pro">
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Documentos Internos -->
+                        <div class="mb-4">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-file-alt me-2"></i>Documentos Internos
+                            </h5>
+                            <div class="row">
+                                {% for doc in documentos_internos %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h6 class="card-title">
+                                                    <i class="{{ doc.icon }} me-2"></i>{{ doc.nombre }}
+                                                </h6>
+                                                <p class="card-text small text-muted">{{ doc.descripcion }}</p>
+                                                
+                                                <div class="mb-2">
+                                                    <label class="form-label small">Tipo de Impresora:</label>
+                                                    <select name="{{ doc.campo }}" class="form-select form-select-sm">
+                                                        <option value="laser" {% if doc.valor == 'laser' %}selected{% endif %}>Láser/Inyección (A4)</option>
+                                                        <option value="termica" {% if doc.valor == 'termica' %}selected{% endif %}>Térmica (80mm)</option>
+                                                    </select>
+                                                </div>
+                                                
+                                                <div>
+                                                    <label class="form-label small">Nombre Físico de Impresora:</label>
+                                                    <input type="text" 
+                                                           name="{{ doc.campo }}_nombre" 
+                                                           class="form-control form-control-sm" 
+                                                           value="{{ empresa|getattr:doc.campo|add:'_nombre'|default:'' }}"
+                                                           placeholder="Ej: Epson TM-T20">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'empresas:empresa_configuracion' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Volver
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Guardar Configuración
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

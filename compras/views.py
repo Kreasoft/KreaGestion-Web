@@ -289,7 +289,11 @@ def orden_compra_update(request, pk):
             messages.error(request, 'Por favor corrige los errores en el formulario.')
     else:
         form = OrdenCompraForm(instance=orden, empresa=empresa)
+        # Inicializar formset con los items existentes
         formset = ItemOrdenCompraFormSet(instance=orden)
+        # Asegurar que se carguen todos los items existentes
+        if orden.items.exists():
+            formset = ItemOrdenCompraFormSet(instance=orden, queryset=orden.items.all())
     
     context = {
         'form': form,

@@ -94,44 +94,135 @@ def empresa_list(request):
 @permission_required('empresas.add_empresa', raise_exception=True)
 def empresa_create(request):
 	"""Crea una nueva empresa - solo superusuario"""
+	import logging
+	from utilidades.error_handling import validar_y_mostrar_errores, manejar_error_guardado
+	
+	logger = logging.getLogger(__name__)
+	
 	if request.method == 'POST':
-		form = EmpresaForm(request.POST, request.FILES)
-		config_form = ConfiguracionEmpresaForm(request.POST)
-		fe_form = FacturacionElectronicaForm(request.POST, request.FILES)
+		# Crear una copia mutable del POST para poder corregir valores
+		post_data = request.POST.copy()
+		
+		# CORRECCIONES AUTOMÁTICAS ANTES DE VALIDAR
+		# Corregir regimen_tributario si viene con valor inválido
+		if 'regimen_tributario' in post_data:
+			valor_regimen = post_data['regimen_tributario'].lower()
+			mapeo_correcciones = {
+				'general': '19',
+				'iva': '19',
+				'19%': '19',
+			}
+			if valor_regimen in mapeo_correcciones:
+				post_data['regimen_tributario'] = mapeo_correcciones[valor_regimen]
+				messages.info(request, f'💡 Se corrigió automáticamente "Régimen Tributario" de "{request.POST.get("regimen_tributario")}" a "19% IVA"')
+		
+		# Aplicar valores por defecto para campos vacíos de ConfiguracionEmpresa
+		valores_defecto_config = {
+			'prefijo_ajustes': 'AJU',
+			'siguiente_ajuste': '1',
+			'formato_ajustes': '{prefijo}-{000}',  # Formato corto (15 caracteres, límite es 20)
+			'prefijo_orden_compra': 'OC',
+			'siguiente_orden_compra': '1',
+			'formato_orden_compra': '{prefijo}-{000}',  # Formato corto (15 caracteres, límite es 20)
+			'frecuencia_respaldo': 'diario',
+		}
+		for campo, valor_defecto in valores_defecto_config.items():
+			if campo not in post_data or not post_data[campo]:
+				post_data[campo] = valor_defecto
+		
+		# Aplicar valores por defecto para campos vacíos de Empresa
+		if 'regimen_tributario' not in post_data or not post_data['regimen_tributario']:
+			post_data['regimen_tributario'] = '19'
+		if 'ambiente_sii' not in post_data or not post_data['ambiente_sii']:
+			post_data['ambiente_sii'] = 'certificacion'
+		if 'estado' not in post_data or not post_data['estado']:
+			post_data['estado'] = 'activa'
+		if 'max_descuento_lineal' not in post_data or not post_data['max_descuento_lineal']:
+			post_data['max_descuento_lineal'] = '0'
+		if 'max_descuento_total' not in post_data or not post_data['max_descuento_total']:
+			post_data['max_descuento_total'] = '0'
+		if 'alerta_folios_minimos' not in post_data or not post_data['alerta_folios_minimos']:
+			post_data['alerta_folios_minimos'] = '10'
+		# Campo giro ahora es opcional, pero si está vacío, usar valor por defecto
+		if 'giro' not in post_data or not post_data['giro'] or not post_data['giro'].strip():
+			post_data['giro'] = ''  # Vacío es válido ahora
+		
+		form = EmpresaForm(post_data, request.FILES)
+		config_form = ConfiguracionEmpresaForm(post_data)
+		fe_form = FacturacionElectronicaForm(post_data, request.FILES)
 
-		if form.is_valid() and config_form.is_valid() and fe_form.is_valid():
+		logger.info("=== INICIO VALIDACIÓN EMPRESA ===")
+		logger.info(f"Form empresa válido: {form.is_valid()}")
+		logger.info(f"Form config válido: {config_form.is_valid()}")
+		logger.info(f"Form FE válido: {fe_form.is_valid()}")
+
+		# Validar todos los formularios y mostrar errores claros
+		todos_validos = validar_y_mostrar_errores(
+			request,
+			('Formulario de Empresa', form),
+			('Configuración', config_form),
+			('Facturación Electrónica', fe_form)
+		)
+
+		logger.info(f"Todos válidos: {todos_validos}")
+
+		if todos_validos:
 			try:
+				logger.info("Intentando guardar empresa...")
+				# Guardar empresa
 				empresa = form.save(commit=False)
 				empresa.creado_por = request.user
+				logger.info(f"Guardando empresa: {empresa.nombre}")
 				empresa.save()
+				logger.info(f"Empresa guardada con ID: {empresa.pk}")
 
 				# Guardar configuración
+				logger.info("Guardando configuración...")
 				configuracion = config_form.save(commit=False)
 				configuracion.empresa = empresa
 				configuracion.save()
+				logger.info("Configuración guardada")
 
 				# Guardar configuración de FE
+				logger.info("Guardando configuración FE...")
 				fe_config = fe_form.save(commit=False)
-				# Como el form de FE es un ModelForm de Empresa, hay que transferir los datos
 				empresa.facturacion_electronica = fe_config.facturacion_electronica
 				empresa.ambiente_sii = fe_config.ambiente_sii
 				empresa.certificado_digital = fe_config.certificado_digital
 				empresa.password_certificado = fe_config.password_certificado
 				empresa.save()
+				logger.info("Configuración FE guardada")
 
-				messages.success(request, f'Empresa "{empresa.nombre}" creada exitosamente.')
+				messages.success(request, f'✅ Empresa "{empresa.nombre}" creada exitosamente.')
+				logger.info("=== EMPRESA CREADA EXITOSAMENTE ===")
 				return redirect('empresas:empresa_list')
 			except Exception as e:
-				messages.error(request, f'Error al crear la empresa: {str(e)}')
+				logger.exception(f"ERROR AL GUARDAR EMPRESA: {e}")
+				manejar_error_guardado(request, e, {'accion': 'crear empresa'})
+				# IMPORTANTE: Continuar para mostrar el formulario con errores
+				# NO hacer return aquí, dejar que se renderice el template con los mensajes
 		else:
-			errors = {**form.errors, **config_form.errors, **fe_form.errors}
-			for field, error_list in errors.items():
-				for error in error_list:
-					messages.error(request, f'{field.replace("__all__", "Error general")}: {error}')
+			logger.warning("Formularios no válidos, mostrando errores...")
+			# Los errores ya fueron mostrados por validar_y_mostrar_errores
+			# Pero asegurémonos de que se muestren también en el template
+			if not form.is_valid():
+				logger.error(f"Errores en form empresa: {form.errors}")
+			if not config_form.is_valid():
+				logger.error(f"Errores en form config: {config_form.errors}")
+			if not fe_form.is_valid():
+				logger.error(f"Errores en form FE: {fe_form.errors}")
+			# Asegurar mensaje si no hay errores específicos
+			from django.contrib.messages import get_messages
+			if not list(get_messages(request)):
+				messages.error(request, '❌ No se pudo procesar el formulario. Por favor, revise los datos ingresados.')
 	else:
+		# Crear formularios con valores por defecto
 		form = EmpresaForm()
 		config_form = ConfiguracionEmpresaForm()
 		fe_form = FacturacionElectronicaForm()
+		
+		# Asegurar que los valores por defecto se establezcan
+		# (ya se hace en __init__ de los forms, pero por si acaso)
 
 	context = {
 		'form': form,
@@ -144,6 +235,7 @@ def empresa_create(request):
 		'is_create': True
 	}
 
+	logger.info("Renderizando template...")
 	return render(request, 'empresas/editar_empresa_activa.html', context)
 
 
@@ -158,17 +250,103 @@ def empresa_detail(request, pk):
 @permission_required('empresas.change_empresa', raise_exception=True)
 def empresa_update(request, pk):
 	"""Actualiza una empresa existente - solo superusuario"""
+	import logging
+	from utilidades.error_handling import validar_y_mostrar_errores, manejar_error_guardado
+	
+	logger = logging.getLogger(__name__)
 	empresa = get_object_or_404(Empresa, pk=pk)
+	
+	# Obtener o crear configuración
+	try:
+		configuracion = ConfiguracionEmpresa.objects.get(empresa=empresa)
+	except ConfiguracionEmpresa.DoesNotExist:
+		configuracion = ConfiguracionEmpresa.objects.create(empresa=empresa)
+	
 	if request.method == 'POST':
-		form = EmpresaForm(request.POST, request.FILES, instance=empresa)
-		if form.is_valid():
-			form.save()
-			messages.success(request, 'Empresa actualizada exitosamente.')
-			return redirect('empresas:empresa_detail', pk=pk)
+		# Crear una copia mutable del POST para poder corregir valores
+		post_data = request.POST.copy()
+		
+		# CORRECCIONES AUTOMÁTICAS ANTES DE VALIDAR (igual que en create)
+		if 'regimen_tributario' in post_data:
+			valor_regimen = post_data['regimen_tributario'].lower()
+			mapeo_correcciones = {
+				'general': '19',
+				'iva': '19',
+				'19%': '19',
+			}
+			if valor_regimen in mapeo_correcciones:
+				post_data['regimen_tributario'] = mapeo_correcciones[valor_regimen]
+		
+		# Aplicar valores por defecto para campos vacíos
+		valores_defecto_config = {
+			'prefijo_ajustes': 'AJU',
+			'siguiente_ajuste': '1',
+			'formato_ajustes': '{prefijo}-{000}',
+			'prefijo_orden_compra': 'OC',
+			'siguiente_orden_compra': '1',
+			'formato_orden_compra': '{prefijo}-{000}',
+			'frecuencia_respaldo': 'diario',
+		}
+		for campo, valor_defecto in valores_defecto_config.items():
+			if campo not in post_data or not post_data[campo]:
+				post_data[campo] = valor_defecto
+		
+		form = EmpresaForm(post_data, request.FILES, instance=empresa)
+		config_form = ConfiguracionEmpresaForm(post_data, instance=configuracion)
+		fe_form = FacturacionElectronicaForm(post_data, request.FILES, instance=empresa)
+
+		# Validar todos los formularios
+		todos_validos = validar_y_mostrar_errores(
+			request,
+			('Formulario de Empresa', form),
+			('Configuración', config_form),
+			('Facturación Electrónica', fe_form)
+		)
+
+		if todos_validos:
+			try:
+				# Guardar empresa
+				empresa = form.save(commit=False)
+				empresa.save()
+
+				# Guardar configuración
+				configuracion = config_form.save(commit=False)
+				configuracion.empresa = empresa
+				configuracion.save()
+
+				# Guardar configuración de FE
+				fe_config = fe_form.save(commit=False)
+				empresa.facturacion_electronica = fe_config.facturacion_electronica
+				empresa.ambiente_sii = fe_config.ambiente_sii
+				empresa.certificado_digital = fe_config.certificado_digital
+				empresa.password_certificado = fe_config.password_certificado
+				empresa.save()
+
+				messages.success(request, f'✅ Empresa "{empresa.nombre}" actualizada exitosamente.')
+				return redirect('empresas:empresa_detail', pk=pk)
+			except Exception as e:
+				logger.exception(f"ERROR AL GUARDAR EMPRESA: {e}")
+				manejar_error_guardado(request, e, {'accion': 'actualizar empresa'})
 	else:
 		form = EmpresaForm(instance=empresa)
+		config_form = ConfiguracionEmpresaForm(instance=configuracion)
+		fe_form = FacturacionElectronicaForm(instance=empresa)
 	
-	return render(request, 'empresas/editar_empresa_activa.html', {'form': form, 'empresa': empresa, 'titulo': f'Editar Empresa: {empresa.nombre}'})
+	# Obtener sucursales
+	sucursales = empresa.sucursales.all().order_by('-es_principal', 'nombre')
+	
+	context = {
+		'form': form,
+		'config_form': config_form,
+		'fe_form': fe_form,
+		'empresa': empresa,
+		'configuracion': configuracion,
+		'sucursales': sucursales,
+		'titulo': f'Editar Empresa: {empresa.nombre}',
+		'is_create': False
+	}
+	
+	return render(request, 'empresas/editar_empresa_activa.html', context)
 
 
 @solo_superusuario
@@ -700,7 +878,21 @@ def sucursal_detail(request, pk):
 @requiere_empresa
 def configurar_impresoras(request):
 	"""Configurar tipos de impresora para cada tipo de documento"""
-	empresa = request.empresa
+	import logging
+	logger = logging.getLogger(__name__)
+	
+	try:
+		empresa = request.empresa
+		if not empresa:
+			messages.error(request, '❌ No hay empresa asignada. Por favor, seleccione una empresa primero.')
+			if request.user.is_superuser:
+				return redirect('empresas:empresa_create')
+			else:
+				return redirect('logout')
+	except Exception as e:
+		logger.exception(f"Error al obtener empresa en configurar_impresoras: {e}")
+		messages.error(request, f'❌ Error al acceder a la configuración de impresoras: {str(e)}')
+		return redirect('dashboard')
 	
 	if request.method == 'POST':
 		# Actualizar configuración de impresoras (tipos)
@@ -794,11 +986,27 @@ def configurar_impresoras(request):
 
 
 @login_required
-@requiere_empresa
 def obtener_impresoras_sistema(request):
 	"""API para obtener las impresoras instaladas en el sistema Windows"""
 	import subprocess
 	import json
+	from django.http import JsonResponse
+	
+	# Verificar que haya empresa asignada, pero devolver JSON en lugar de redirect
+	try:
+		empresa = getattr(request, 'empresa', None)
+		if not empresa:
+			return JsonResponse({
+				'success': False,
+				'error': 'No hay empresa asignada. Por favor, seleccione una empresa primero.',
+				'redirect': True
+			}, status=403)
+	except Exception as e:
+		return JsonResponse({
+			'success': False,
+			'error': f'Error al verificar empresa: {str(e)}',
+			'redirect': True
+		}, status=403)
 	
 	try:
 		# Ejecutar comando PowerShell para listar impresoras
@@ -807,20 +1015,39 @@ def obtener_impresoras_sistema(request):
 		
 		if resultado.returncode == 0:
 			# Parsear JSON de PowerShell
-			impresoras_raw = json.loads(resultado.stdout) if resultado.stdout else []
+			if not resultado.stdout or resultado.stdout.strip() == '':
+				return JsonResponse({
+					'success': True,
+					'impresoras': [],
+					'total': 0,
+					'mensaje': 'No se encontraron impresoras en el sistema'
+				})
+			
+			try:
+				impresoras_raw = json.loads(resultado.stdout)
+			except json.JSONDecodeError:
+				# Si falla el parseo, intentar limpiar la salida
+				output_limpio = resultado.stdout.strip()
+				if output_limpio.startswith('['):
+					impresoras_raw = json.loads(output_limpio)
+				else:
+					impresoras_raw = []
 			
 			# Si es un solo objeto, convertirlo a lista
 			if isinstance(impresoras_raw, dict):
 				impresoras_raw = [impresoras_raw]
+			elif not isinstance(impresoras_raw, list):
+				impresoras_raw = []
 			
 			# Formatear datos
 			impresoras = []
 			for imp in impresoras_raw:
-				impresoras.append({
-					'nombre': imp.get('Name', ''),
-					'driver': imp.get('DriverName', ''),
-					'puerto': imp.get('PortName', '')
-				})
+				if isinstance(imp, dict):
+					impresoras.append({
+						'nombre': imp.get('Name', ''),
+						'driver': imp.get('DriverName', ''),
+						'puerto': imp.get('PortName', '')
+					})
 			
 			return JsonResponse({
 				'success': True,
@@ -831,21 +1058,24 @@ def obtener_impresoras_sistema(request):
 			return JsonResponse({
 				'success': False,
 				'error': 'No se pudo ejecutar el comando de PowerShell',
-				'detalles': resultado.stderr
+				'detalles': resultado.stderr[:200] if resultado.stderr else 'Sin detalles'
 			}, status=500)
 			
 	except subprocess.TimeoutExpired:
 		return JsonResponse({
 			'success': False,
-			'error': 'Timeout al ejecutar comando de PowerShell'
+			'error': 'Timeout al ejecutar comando de PowerShell. El proceso tardó más de 10 segundos.'
 		}, status=500)
 	except json.JSONDecodeError as e:
 		return JsonResponse({
 			'success': False,
 			'error': 'Error al parsear respuesta de PowerShell',
-			'detalles': str(e)
+			'detalles': str(e)[:200]
 		}, status=500)
 	except Exception as e:
+		import logging
+		logger = logging.getLogger(__name__)
+		logger.exception(f"Error inesperado al obtener impresoras: {e}")
 		return JsonResponse({
 			'success': False,
 			'error': f'Error al obtener impresoras: {str(e)}'

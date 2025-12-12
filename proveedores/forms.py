@@ -49,7 +49,6 @@ class ProveedorForm(forms.ModelForm):
         self.fields['direccion'].required = True
         self.fields['comuna'].required = True
         self.fields['ciudad'].required = True
-        self.fields['region'].required = True
         self.fields['telefono'].required = True
     
     

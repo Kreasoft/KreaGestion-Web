@@ -11,6 +11,48 @@ class EmpresaForm(forms.ModelForm):
         help_text='Solo completar si desea cambiar la contraseña'
     )
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Hacer campos opcionales que pueden tener valores por defecto
+        self.fields['giro'].required = False
+        self.fields['sitio_web'].required = False
+        
+        # Establecer valores por defecto para campos opcionales cuando es creación
+        if not self.instance.pk:  # Si es creación (no tiene pk)
+            # Valores por defecto para campos con opciones
+            if 'regimen_tributario' not in self.data:  # Solo si no viene en POST
+                self.fields['regimen_tributario'].initial = '19'
+            if 'ambiente_sii' not in self.data:
+                self.fields['ambiente_sii'].initial = 'certificacion'
+            if 'estado' not in self.data:
+                self.fields['estado'].initial = 'activa'
+            # Valores por defecto para campos numéricos
+            if 'max_descuento_lineal' not in self.data:
+                self.fields['max_descuento_lineal'].initial = 0
+            if 'max_descuento_total' not in self.data:
+                self.fields['max_descuento_total'].initial = 0
+            if 'alerta_folios_minimos' not in self.data:
+                self.fields['alerta_folios_minimos'].initial = 10
+    
+    def clean_regimen_tributario(self):
+        """Corregir valores inválidos de regimen_tributario"""
+        valor = self.cleaned_data.get('regimen_tributario')
+        if valor:
+            # Mapear valores comunes incorrectos a valores válidos
+            mapeo_correcciones = {
+                'general': '19',
+                'General': '19',
+                'GENERAL': '19',
+                'iva': '19',
+                'IVA': '19',
+                '19%': '19',
+                '19 por ciento': '19',
+            }
+            valor_lower = str(valor).lower()
+            if valor_lower in mapeo_correcciones:
+                return mapeo_correcciones[valor_lower]
+        return valor
+    
     def save(self, commit=True):
         instance = super().save(commit=False)
         # Si no se proporcionó password, mantener el existente
@@ -220,20 +262,78 @@ class FacturacionElectronicaForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        cert_file = cleaned.get('certificado_digital') or (self.instance.certificado_digital if self.instance and self.instance.pk else None)
-        password = cleaned.get('password_certificado') or (self.instance.password_certificado if self.instance and self.instance.pk else '')
-        if self.cleaned_data.get('facturacion_electronica'):
-            if not cert_file:
-                raise ValidationError('Debe adjuntar un certificado digital (.p12/.pfx) para activar Facturación Electrónica.')
-            try:
-                from facturacion_electronica.firma_electronica import FirmadorDTE
-                FirmadorDTE(cert_file.path if hasattr(cert_file, 'path') else cert_file.name, password or '')
-            except ValueError as e:
-                raise ValidationError(f'Certificado digital inválido o contraseña incorrecta: {e}')
+        # Solo validar certificado si se está activando facturación electrónica
+        facturacion_electronica = cleaned.get('facturacion_electronica', False)
+        
+        if facturacion_electronica:
+            # Obtener certificado: nuevo subido o existente en la instancia
+            cert_file = cleaned.get('certificado_digital')
+            if not cert_file and self.instance and self.instance.pk:
+                # Si es edición y no se subió nuevo certificado, usar el existente
+                cert_file = self.instance.certificado_digital
+            
+            password = cleaned.get('password_certificado')
+            if not password and self.instance and self.instance.pk:
+                # Si es edición y no se proporcionó password, usar el existente
+                password = self.instance.password_certificado or ''
+            
+            # Si es una empresa nueva (sin pk) y se activa FE, requerir certificado
+            if not self.instance.pk and not cert_file:
+                raise ValidationError({
+                    'certificado_digital': 'Debe adjuntar un certificado digital (.p12/.pfx) para activar Facturación Electrónica.'
+                })
+            
+            # Si hay un certificado (nuevo o existente), validarlo
+            if cert_file:
+                try:
+                    from facturacion_electronica.firma_electronica import FirmadorDTE
+                    # Si es un archivo subido, usar path; si es un archivo existente, usar name
+                    if hasattr(cert_file, 'path'):
+                        cert_path = cert_file.path
+                    elif hasattr(cert_file, 'name'):
+                        cert_path = cert_file.name
+                    else:
+                        cert_path = str(cert_file)
+                    
+                    FirmadorDTE(cert_path, password or '')
+                except ValueError as e:
+                    raise ValidationError({
+                        'certificado_digital': f'Certificado digital inválido o contraseña incorrecta: {e}'
+                    })
+                except Exception as e:
+                    # Si hay otro error (archivo no encontrado, etc), solo advertir pero no bloquear
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f'Error al validar certificado (no bloqueante): {e}')
+        
         return cleaned
 
 
 class ConfiguracionEmpresaForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Establecer valores por defecto cuando es creación
+        if not self.instance.pk:  # Si es creación (no tiene pk)
+            # Valores por defecto para campos de texto
+            if 'prefijo_ajustes' not in self.data:
+                self.fields['prefijo_ajustes'].initial = 'AJU'
+            if 'formato_ajustes' not in self.data:
+                # Formato más corto que quepa en 20 caracteres
+                self.fields['formato_ajustes'].initial = '{prefijo}-{000}'
+            if 'prefijo_orden_compra' not in self.data:
+                self.fields['prefijo_orden_compra'].initial = 'OC'
+            if 'formato_orden_compra' not in self.data:
+                # Formato más corto que quepa en 20 caracteres
+                self.fields['formato_orden_compra'].initial = '{prefijo}-{000}'
+            # Valores por defecto para campos numéricos
+            if 'siguiente_ajuste' not in self.data:
+                self.fields['siguiente_ajuste'].initial = 1
+            if 'siguiente_orden_compra' not in self.data:
+                self.fields['siguiente_orden_compra'].initial = 1
+            # Valores por defecto para campos de selección
+            if 'frecuencia_respaldo' not in self.data:
+                self.fields['frecuencia_respaldo'].initial = 'diario'
+    
     class Meta:
         model = ConfiguracionEmpresa
         fields = [

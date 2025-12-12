@@ -1194,8 +1194,12 @@ function updateCartDisplay() {
             descuentoLinealInput = `${item.descuento}%`;
         }
 
+        // Indicador de producto comodín
+        const esComodin = item.esComodin === true;
+        const indicadorComodin = esComodin ? ' <span style="font-size: 0.7rem; color: #8B7355;" title="Producto Comodín"><i class="fas fa-magic"></i></span>' : '';
+        
         itemDiv.innerHTML = `
-            <div class="cart-item-name">${item.nombre}${isFromKit ? ' <span style="font-size: 0.7rem; color: #C8A882;">🎁</span>' : ''}</div>
+            <div class="cart-item-name">${item.nombre}${isFromKit ? ' <span style="font-size: 0.7rem; color: #C8A882;">🎁</span>' : ''}${indicadorComodin}</div>
             <div class="cart-item-price">$${formatChileanNumber(item.precio)}</div>
             <div class="cart-item-qty">
                 ${qtyButtons}
@@ -1272,17 +1276,19 @@ function updateQuantity(index, change) {
         return;
     }
     
-    // Verificar stock
-    const card = document.querySelector(`[data-articulo-id="${item.articuloId}"]`);
-    const stock = card ? parseInt(card.dataset.stock) : 999;
-    if (newQuantity > stock) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Stock Insuficiente',
-            text: 'No hay suficiente stock para este producto',
-            timer: 2000
-        });
-        return;
+    // Verificar stock (solo si no es producto comodín)
+    if (!item.esComodin && item.articuloId) {
+        const card = document.querySelector(`[data-articulo-id="${item.articuloId}"]`);
+        const stock = card ? parseInt(card.dataset.stock) : 999;
+        if (newQuantity > stock) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Stock Insuficiente',
+                text: 'No hay suficiente stock para este producto',
+                timer: 2000
+            });
+            return;
+        }
     }
     
     item.cantidad = newQuantity;
@@ -2169,6 +2175,7 @@ function clearCart() {
         console.log('Tipos permitidos:', tiposPermitidos);
         
         // Si está en modo "con_cliente", filtrar boletas y vales
+        // (Las boletas son solo para consumidor final, no para clientes con RUT)
         const modoPOS = '{{ modo_pos }}';
         if (modoPOS === 'con_cliente') {
             tiposPermitidos = tiposPermitidos.filter(tipo => tipo !== 'boleta' && tipo !== 'vale');
@@ -2187,18 +2194,35 @@ function clearCart() {
     
         // Crear botones de documentos con badges destacados
         const opciones = tiposPermitidos.map(tipo => {
+            // Obtener folios disponibles, asegurándose de que sean números
+            const getFolios = (tipoDoc) => {
+                if (!window.currentEstacion) return 0;
+                const folios = window.currentEstacion[`folios_${tipoDoc}`];
+                // Convertir a número y manejar undefined/null
+                const numFolios = parseInt(folios) || 0;
+                return numFolios;
+            };
+            
             const config = {
-                'factura': { nombre: 'Factura', icono: 'fa-file-invoice', color: '#28a745', disponibles: window.currentEstacion.folios_factura || 0 },
-                'boleta': { nombre: 'Boleta', icono: 'fa-receipt', color: '#007bff', disponibles: window.currentEstacion.folios_boleta || 0 },
-                'guia': { nombre: 'Guía de Despacho', icono: 'fa-truck', color: '#ffc107', disponibles: window.currentEstacion.folios_guia || 999 },
+                'factura': { nombre: 'Factura', icono: 'fa-file-invoice', color: '#28a745', disponibles: getFolios('factura') },
+                'boleta': { nombre: 'Boleta', icono: 'fa-receipt', color: '#007bff', disponibles: getFolios('boleta') },
+                'guia': { nombre: 'Guía de Despacho', icono: 'fa-truck', color: '#ffc107', disponibles: getFolios('guia') },
                 'cotizacion': { nombre: 'Cotización', icono: 'fa-file-alt', color: '#6f42c1', disponibles: 999 },
                 'vale': { nombre: 'Vale Facturable', icono: 'fa-ticket-alt', color: '#6c757d', disponibles: 999 }
             };
             
             const info = config[tipo];
-            const sinFolios = info.disponibles === 0;
-            const iconoEstado = info.disponibles > 10 ? '✓' : (info.disponibles > 0 ? '⚠️' : '✗');
-            const colorBadge = info.disponibles > 10 ? '#28a745' : (info.disponibles > 0 ? '#ffc107' : '#dc3545');
+            // Asegurarse de que disponibles sea un número y comparar correctamente
+            const disponiblesNum = parseInt(info.disponibles) || 0;
+            // Mostrar "Sin Folios" solo para facturas, boletas y guías cuando no tienen folios
+            const sinFolios = disponiblesNum === 0 && ['factura', 'boleta', 'guia'].includes(tipo);
+            
+            // Debug: mostrar en consola para verificar
+            if (tipo === 'boleta') {
+                console.log(`[DEBUG BOLETA] Folios disponibles: ${disponiblesNum}, sinFolios: ${sinFolios}, window.currentEstacion:`, window.currentEstacion);
+            }
+            const iconoEstado = disponiblesNum > 10 ? '✓' : (disponiblesNum > 0 ? '⚠️' : '✗');
+            const colorBadge = disponiblesNum > 10 ? '#28a745' : (disponiblesNum > 0 ? '#ffc107' : '#dc3545');
             
             // Estilos diferentes si no hay folios (deshabilitado)
             const estiloDeshabilitado = sinFolios ? `
@@ -2232,7 +2256,7 @@ function clearCart() {
                 <button type="button" 
                         class="btn-tipo-documento ${sinFolios ? 'btn-sin-folios' : ''}" 
                         data-tipo="${tipo}" 
-                        data-disponibles="${info.disponibles}"
+                        data-disponibles="${disponiblesNum}"
                         ${sinFolios ? 'disabled' : ''}
                         style="
                     width: 100%;
@@ -2268,7 +2292,7 @@ function clearCart() {
                             font-weight: 600;
                             color: ${colorBadge};
                             background: white;
-                        ">${info.disponibles}</span>
+                        ">${disponiblesNum}</span>
                     </div>
                 </button>
             `;
@@ -3807,9 +3831,10 @@ function setupBarcodeSystem() {
             console.log('*** TIMEOUT ANTERIOR LIMPIADO ***');
         }
         
-        // Solo procesar si el valor tiene al menos 8 caracteres (código de barras mínimo)
+        // Procesar códigos de barras largos automáticamente (8+ caracteres)
+        // O códigos cortos después de un delay (para códigos comodín como "001")
         if (value.length >= 8) {
-            console.log('*** ENTRADA DETECTADA: ' + value + ' ***');
+            console.log('*** ENTRADA DETECTADA (código largo): ' + value + ' ***');
             
             // Cambiar estado a "escaneando"
             setBarcodeStatus('scanning', 'Escaneando...', 'fas fa-spinner fa-spin');
@@ -3819,6 +3844,13 @@ function setupBarcodeSystem() {
                 console.log('*** EJECUTANDO TIMEOUT PARA: ' + value + ' ***');
                 processBarcode(value);
             }, 300); // Aumentar tiempo para evitar duplicados
+        } else if (value.length >= 1) {
+            // Para códigos cortos (como códigos comodín), esperar un poco más antes de procesar
+            console.log('*** ENTRADA DETECTADA (código corto): ' + value + ' ***');
+            barcodeTimeout = setTimeout(() => {
+                console.log('*** EJECUTANDO TIMEOUT PARA CÓDIGO CORTO: ' + value + ' ***');
+                processBarcode(value);
+            }, 800); // Delay más largo para códigos cortos
         }
     });
     
@@ -3827,7 +3859,7 @@ function setupBarcodeSystem() {
         if (e.key === 'Enter') {
             e.preventDefault();
             const value = this.value.trim();
-            if (value.length >= 4) { // Mínimo 4 caracteres para procesar manualmente
+            if (value.length >= 1) { // Permitir cualquier código cuando se presiona Enter
                 processBarcode(value);
             }
         }
@@ -3971,7 +4003,78 @@ async function processBarcode(codigo) {
     console.log('*** MARCANDO COMO ESCANEANDO ***');
     setBarcodeStatus('scanning', 'Buscando producto...', 'fas fa-search');
     
-    // Buscar artículo por código de barras
+    // PRIMERO: Verificar si es código comodín usando la API del POS
+    const listaPrecioActual = window.listaPrecioActual || '';
+    let urlComodin = `/ventas/pos/buscar-articulo/?q=${encodeURIComponent(codigo)}`;
+    if (listaPrecioActual) {
+        urlComodin += `&lista_precio=${listaPrecioActual}`;
+    }
+    
+    try {
+        const responseComodin = await fetch(urlComodin);
+        const dataComodin = await responseComodin.json();
+        console.log('*** RESPUESTA BÚSQUEDA POS: ', dataComodin, ' ***');
+        console.log('*** VERIFICANDO es_comodin: ', dataComodin.es_comodin, ' (tipo: ', typeof dataComodin.es_comodin, ') ***');
+        
+        // Si es código comodín, mostrar modal
+        if (dataComodin.es_comodin === true || dataComodin.es_comodin === 'true') {
+            console.log('*** ✓✓✓ CÓDIGO COMODÍN DETECTADO ✓✓✓ ***');
+            console.log('*** VERIFICANDO FUNCIÓN mostrarModalProductoComodin: ', typeof mostrarModalProductoComodin, ' ***');
+            
+            isScanning = false;
+            clearBarcodeInput();
+            setBarcodeStatus('ready', 'Listo para escanear', 'fas fa-check-circle');
+            
+            // Verificar que la función exista antes de llamarla
+            if (typeof window.mostrarModalProductoComodin === 'function') {
+                console.log('*** LLAMANDO mostrarModalProductoComodin() ***');
+                window.mostrarModalProductoComodin();
+            } else if (typeof mostrarModalProductoComodin === 'function') {
+                console.log('*** LLAMANDO mostrarModalProductoComodin() (sin window) ***');
+                mostrarModalProductoComodin();
+            } else {
+                console.error('*** ERROR: mostrarModalProductoComodin no está definida ***');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Función de modal no disponible. Recarga la página.',
+                    timer: 3000
+                });
+            }
+            return;
+        }
+        
+        // Si hay artículos encontrados, usar el primero
+        if (dataComodin.articulos && dataComodin.articulos.length > 0) {
+            const articulo = dataComodin.articulos[0];
+            console.log('*** PRODUCTO ENCONTRADO EN POS: ', articulo, ' ***');
+            
+            await addToCart(
+                articulo.id,
+                articulo.nombre || articulo.descripcion,
+                articulo.precio,
+                articulo.stock || 0,
+                articulo.categoria_exenta_iva || false,
+                articulo.impuesto_especifico_porcentaje || 0
+            );
+            
+            console.log('*** CARRITO DESPUÉS DE AGREGAR:', cart);
+            
+            setBarcodeStatus('ready', 'Producto agregado', 'fas fa-check-circle');
+            
+            setTimeout(() => {
+                clearBarcodeInput();
+                setBarcodeStatus('ready', 'Listo para escanear', 'fas fa-check-circle');
+            }, 1000);
+            
+            isScanning = false;
+            return;
+        }
+    } catch (error) {
+        console.error('Error en búsqueda POS:', error);
+    }
+    
+    // Si no se encontró en POS, buscar por código de barras tradicional
     fetch(`/articulos/buscar-por-codigo-barras/?codigo=${encodeURIComponent(codigo)}`)
         .then(response => response.json())
         .then(async data => {
@@ -4054,6 +4157,125 @@ async function processBarcode(codigo) {
             console.log('*** FINALIZANDO ESCANEO - RESETEANDO isScanning ***');
             isScanning = false;
         });
+}
+
+// Función para mostrar modal de producto comodín (GLOBAL)
+window.mostrarModalProductoComodin = function() {
+    Swal.fire({
+        title: '<i class="fas fa-magic me-2"></i>Producto Comodín',
+        html: `
+            <div class="text-start">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nombre/Descripción del Producto *</label>
+                    <input type="text" id="comodin-nombre" class="form-control" placeholder="Ej: Servicio de instalación, Producto especial, etc." autofocus>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Precio Unitario *</label>
+                    <input type="number" id="comodin-precio" class="form-control" placeholder="0" min="0" step="0.01">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Cantidad</label>
+                    <input type="number" id="comodin-cantidad" class="form-control" value="1" min="1" step="1">
+                </div>
+                <small class="text-muted d-block">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Este producto se agregará al carrito con el nombre y precio que ingreses.
+                </small>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-plus me-2"></i>Agregar al Carrito',
+        cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        width: '500px',
+        didOpen: () => {
+            document.getElementById('comodin-nombre').focus();
+        },
+        preConfirm: () => {
+            const nombre = document.getElementById('comodin-nombre').value.trim();
+            const precio = parseFloat(document.getElementById('comodin-precio').value);
+            const cantidad = parseFloat(document.getElementById('comodin-cantidad').value) || 1;
+            
+            if (!nombre) {
+                Swal.showValidationMessage('Debe ingresar un nombre/descripción para el producto');
+                return false;
+            }
+            
+            if (!precio || precio <= 0) {
+                Swal.showValidationMessage('Debe ingresar un precio válido mayor a 0');
+                return false;
+            }
+            
+            if (cantidad <= 0) {
+                Swal.showValidationMessage('La cantidad debe ser mayor a 0');
+                return false;
+            }
+            
+            return { nombre, precio, cantidad };
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            agregarProductoComodinAlCarrito(result.value.nombre, result.value.precio, result.value.cantidad);
+        }
+    });
+};
+
+// También definir como función normal para compatibilidad
+function mostrarModalProductoComodin() {
+    window.mostrarModalProductoComodin();
+}
+
+// Función para agregar producto comodín al carrito
+function agregarProductoComodinAlCarrito(nombre, precio, cantidad) {
+    // Calcular impuestos (asumir que tiene IVA por defecto)
+    const precioNeto = precio / 1.19;
+    const iva = precioNeto * 0.19;
+    const impuestoEspecifico = 0;
+    
+    // Crear un objeto de producto comodín
+    const productoComodin = {
+        articuloId: null, // Sin ID porque no existe en la BD
+        nombre: nombre,
+        precio: precio, // Precio final con IVA incluido
+        precio_neto: precioNeto,
+        iva: iva,
+        impuesto_especifico: impuestoEspecifico,
+        categoriaExentaIva: false,
+        impuestoEspecifico: 0,
+        cantidad: cantidad,
+        stock: 999, // Stock ilimitado para productos comodín
+        esComodin: true, // Marcar como producto comodín
+        total: precio * cantidad,
+        descuento: 0
+    };
+    
+    // Agregar al carrito
+    cart.push(productoComodin);
+    
+    // Actualizar visualización
+    updateCartDisplay();
+    updateTotals();
+    
+    // Limpiar input de código de barras
+    clearBarcodeInput();
+    
+    // Mostrar confirmación
+    Swal.fire({
+        icon: 'success',
+        title: '¡Producto Agregado!',
+        text: `${nombre} agregado al carrito`,
+        timer: 1500,
+        showConfirmButton: false
+    });
+    
+    // Restaurar foco al input de código de barras
+    setTimeout(() => {
+        const barcodeInput = document.getElementById('barcode-input');
+        if (barcodeInput) {
+            barcodeInput.focus();
+        }
+    }, 500);
 }
 
 // Cambiar el estado visual del código de barras
@@ -4584,7 +4806,7 @@ function mostrarHistorialTickets() {
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <label class="form-label fw-bold mb-0" style="color: #6F5B44;">Buscar Cliente</label>
-                        <a href="{% url 'clientes:cliente_create' %}" target="_blank" class="btn btn-sm" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 5px 12px; font-size: 0.8rem; box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);">
+                        <a href="{% url 'clientes:cliente_create' %}?next={{ request.path|urlencode }}" target="_blank" class="btn btn-sm" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 5px 12px; font-size: 0.8rem; box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);">
                             <i class="fas fa-user-plus me-1"></i>Crear Cliente
                         </a>
                     </div>

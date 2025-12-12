@@ -207,6 +207,12 @@ def proveedor_create(request):
             formset.save()
             
             messages.success(request, f'Proveedor "{proveedor.nombre}" creado exitosamente.')
+            
+            # Redirigir al template desde donde fue invocado si existe el parámetro 'next'
+            next_url = request.GET.get('next') or request.POST.get('next')
+            if next_url:
+                return redirect(next_url)
+            
             return redirect('proveedores:proveedor_detail', pk=proveedor.pk)
     else:
         form = ProveedorForm(empresa=empresa)

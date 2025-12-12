@@ -84,9 +84,9 @@ class ItemOrdenCompraForm(forms.ModelForm):
         ]
         widgets = {
             'articulo': forms.Select(attrs={'class': 'form-select form-select-sm articulo-select'}),
-            'cantidad_solicitada': forms.NumberInput(attrs={'class': 'form-control form-control-sm cantidad-input', 'min': '1'}),
-            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control form-control-sm precio-input', 'min': '0'}),
-            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm descuento-input', 'min': '0', 'max': '100', 'value': '0'}),
+            'cantidad_solicitada': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center cantidad-input', 'min': '1'}),
+            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end precio-unitario-input', 'min': '0', 'step': '1'}),
+            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center descuento-input', 'min': '0', 'max': '100'}),
             'impuesto_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm impuesto-input', 'min': '0', 'max': '100', 'value': '19'}),
             'especificaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 2}),
             'fecha_entrega_item': forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
@@ -98,8 +98,36 @@ class ItemOrdenCompraForm(forms.ModelForm):
         # Hacer impuesto_porcentaje opcional
         self.fields['impuesto_porcentaje'].required = False
         
+        # Hacer artículo opcional en el formulario base, pero validaremos en clean()
+        # Esto permite que el formset ignore items sin artículo
+        self.fields['articulo'].required = False
+        
         # Filtrar artículos por empresa - esto se hará en la vista
         # La empresa se pasará a través del contexto del template
+    
+    def clean(self):
+        """Validar que si hay otros datos, el artículo es requerido"""
+        cleaned_data = super().clean()
+        articulo = cleaned_data.get('articulo')
+        cantidad = cleaned_data.get('cantidad_solicitada')
+        precio = cleaned_data.get('precio_unitario')
+        
+        # Si el item está completamente vacío, no generar errores (será ignorado por el formset)
+        if not articulo and not cantidad and not precio:
+            return cleaned_data
+        
+        # Si hay cantidad o precio pero no hay artículo, es un error
+        if (cantidad or precio) and not articulo:
+            raise ValidationError('Debe seleccionar un artículo si ingresa cantidad o precio.')
+        
+        # Si hay artículo, validar que tenga cantidad y precio
+        if articulo:
+            if not cantidad or cantidad <= 0:
+                raise ValidationError('La cantidad debe ser mayor a 0.')
+            if precio is None or precio < 0:
+                raise ValidationError('El precio debe ser mayor o igual a 0.')
+        
+        return cleaned_data
     
     def clean_cantidad_solicitada(self):
         cantidad = self.cleaned_data.get('cantidad_solicitada')
@@ -126,11 +154,68 @@ class ItemOrdenCompraForm(forms.ModelForm):
         return impuesto
 
 
+# Formset personalizado para manejar múltiples items
+class ItemOrdenCompraFormSetBase(forms.BaseInlineFormSet):
+    """Formset personalizado que ignora items sin artículo"""
+    
+    def clean(self):
+        """Validar y marcar como DELETE los items sin artículo"""
+        if any(self.errors):
+            return
+        
+        for form in self.forms:
+            # Solo procesar forms que tienen cleaned_data (pasaron la validación básica)
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                articulo = form.cleaned_data.get('articulo')
+                cantidad = form.cleaned_data.get('cantidad_solicitada')
+                precio = form.cleaned_data.get('precio_unitario')
+                
+                # Si no hay artículo seleccionado Y no hay datos, marcar como DELETE
+                # Esto permite ignorar items vacíos sin generar errores
+                if not articulo and not cantidad and not precio:
+                    # Marcar para eliminar (ignorar)
+                    form.cleaned_data['DELETE'] = True
+                    # Si el form tiene instancia, también marcar DELETE
+                    if form.instance and form.instance.pk:
+                        form.cleaned_data['DELETE'] = True
+                # Si hay datos pero no hay artículo, el método clean() del form ya generó el error
+    
+    def save(self, commit=True):
+        """Guardar solo los items que tienen artículo"""
+        # Primero procesar los que están marcados para eliminar
+        for form in self.forms:
+            if form.cleaned_data and form.cleaned_data.get('DELETE', False):
+                if form.instance.pk:
+                    if commit:
+                        form.instance.delete()
+                    continue
+        
+        # Luego guardar solo los forms que tienen artículo
+        instances = []
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                articulo = form.cleaned_data.get('articulo')
+                
+                # Solo guardar si tiene artículo seleccionado
+                if articulo:
+                    try:
+                        instance = form.save(commit=commit)
+                        if instance:
+                            instances.append(instance)
+                    except Exception as e:
+                        # Si hay error al guardar, continuar con el siguiente
+                        print(f"Error guardando item: {e}")
+                        continue
+        
+        return instances
+
+
 # Formset para manejar múltiples items
 ItemOrdenCompraFormSet = inlineformset_factory(
     OrdenCompra,
     ItemOrdenCompra,
     form=ItemOrdenCompraForm,
+    formset=ItemOrdenCompraFormSetBase,
     extra=1,
     can_delete=True,
     fields=[

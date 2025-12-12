@@ -193,10 +193,10 @@
             {% csrf_token %}
 
             <!-- Campos ocultos -->
-            <input type="hidden" name="subtotal" id="subtotal-hidden" value="0">
-            <input type="hidden" name="descuentos_totales" id="descuentos-hidden" value="0">
-            <input type="hidden" name="impuestos_totales" id="impuestos-hidden" value="0">
-            <input type="hidden" name="total_orden" id="total-hidden" value="0">
+            <input type="hidden" name="subtotal" id="subtotal-hidden" value="{% if orden %}{{ orden.subtotal|default:0 }}{% else %}0{% endif %}">
+            <input type="hidden" name="descuentos_totales" id="descuentos-hidden" value="{% if orden %}{{ orden.descuentos_totales|default:0 }}{% else %}0{% endif %}">
+            <input type="hidden" name="impuestos_totales" id="impuestos-hidden" value="{% if orden %}{{ orden.impuestos_totales|default:0 }}{% else %}0{% endif %}">
+            <input type="hidden" name="total_orden" id="total-hidden" value="{% if orden %}{{ orden.total_orden|default:0 }}{% else %}0{% endif %}">
 
             <!-- Información de la orden - Primera línea -->
             <div class="row g-2 mb-2">
@@ -207,7 +207,7 @@
                 <div class="col-md-4">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <label class="form-label mb-0">Proveedor *</label>
-                        <a href="{% url 'proveedores:proveedor_create' %}" target="_blank" class="btn btn-sm" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 2px 8px; font-size: 0.7rem;">
+                        <a href="{% url 'proveedores:proveedor_create' %}?next={{ request.path|urlencode }}" target="_blank" class="btn btn-sm" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 2px 8px; font-size: 0.7rem;">
                             <i class="fas fa-plus me-1"></i>Nuevo
                         </a>
                     </div>
@@ -298,23 +298,27 @@
                                         <option value="{{ articulo.id }}"
                                                 data-codigo="{{ articulo.codigo }}"
                                                 data-nombre="{{ articulo.nombre }}"
-                                                {% if item_form.articulo.value == articulo.id %}selected{% endif %}>
+                                                {% if item_form.articulo.value == articulo.id or item_form.instance.articulo_id == articulo.id %}selected{% endif %}>
                                             {{ articulo.codigo }} - {{ articulo.nombre }}
                                         </option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-1">
-                                <input type="number" name="{{ item_form.cantidad_solicitada.html_name }}" class="form-control form-control-sm text-center" min="1" value="{% if item_form.cantidad_solicitada.value %}{{ item_form.cantidad_solicitada.value }}{% else %}1{% endif %}">
+                                {{ item_form.cantidad_solicitada }}
                             </div>
                             <div class="col-md-2">
-                                <input type="number" name="{{ item_form.precio_unitario.html_name }}" class="form-control form-control-sm text-end" min="0" step="1" value="{% if item_form.precio_unitario.value %}{{ item_form.precio_unitario.value }}{% else %}0{% endif %}">
+                                {{ item_form.precio_unitario }}
                             </div>
                             <div class="col-md-1">
-                                <input type="number" name="{{ item_form.descuento_porcentaje.html_name }}" class="form-control form-control-sm text-center" min="0" max="100" value="{% if item_form.descuento_porcentaje.value %}{{ item_form.descuento_porcentaje.value }}{% else %}0{% endif %}">
+                                {{ item_form.descuento_porcentaje }}
                             </div>
                             <div class="col-md-2">
-                                <input type="text" class="form-control form-control-sm text-end item-total" style="background-color: #f8f9fa; font-weight: 600;" readonly value="$0">
+                                {% if item_form.instance.pk %}
+                                    <input type="text" class="form-control form-control-sm text-end item-total" style="background-color: #f8f9fa; font-weight: 600;" readonly value="${{ item_form.instance.total_item|floatformat:0|default:0 }}">
+                                {% else %}
+                                    <input type="text" class="form-control form-control-sm text-end item-total" style="background-color: #f8f9fa; font-weight: 600;" readonly value="$0">
+                                {% endif %}
                             </div>
                             <div class="col-md-2 text-center">
                                 {% for hidden in item_form.hidden_fields %}
@@ -337,19 +341,19 @@
                     <div class="col-md-4">
                         <div class="total-line">
                             <span>Subtotal:</span>
-                            <span id="subtotal-total">$0</span>
+                            <span id="subtotal-total">{% if orden %}${{ orden.subtotal|floatformat:0|default:0 }}{% else %}$0{% endif %}</span>
                         </div>
                         <div class="total-line">
                             <span>Descuentos:</span>
-                            <span id="descuentos-total">$0</span>
+                            <span id="descuentos-total">{% if orden %}${{ orden.descuentos_totales|floatformat:0|default:0 }}{% else %}$0{% endif %}</span>
                         </div>
                         <div class="total-line">
                             <span>IVA (19%):</span>
-                            <span id="iva-total">$0</span>
+                            <span id="iva-total">{% if orden %}${{ orden.impuestos_totales|floatformat:0|default:0 }}{% else %}$0{% endif %}</span>
                         </div>
                         <div class="total-line final">
                             <span>TOTAL:</span>
-                            <span id="total-orden">$0</span>
+                            <span id="total-orden">{% if orden %}${{ orden.total_orden|floatformat:0|default:0 }}{% else %}$0{% endif %}</span>
                         </div>
                     </div>
                 </div>
@@ -444,33 +448,50 @@ window.eliminarItem = function(button) {
 // Función para calcular totales
 window.calculateTotals = function() {
     let subtotal = 0;
+    let descuentosTotales = 0;
 
     document.querySelectorAll('.item-line:not([style*="display: none"])').forEach(function(line) {
         const cantidadInput = line.querySelector('input[name*="-cantidad_solicitada"]');
         const precioInput = line.querySelector('input[name*="-precio_unitario"]');
+        const descuentoInput = line.querySelector('input[name*="-descuento_porcentaje"]');
 
-        const cantidad = parseInt(cantidadInput?.value) || 0;
-        const precioUnitario = parseInt(precioInput?.value) || 0;
+        // Obtener valores, asegurándose de convertir a número
+        const cantidad = parseFloat(cantidadInput?.value) || 0;
+        const precioUnitario = parseFloat(precioInput?.value) || 0;
+        const descuentoPorcentaje = parseFloat(descuentoInput?.value) || 0;
+        
+        // Calcular subtotal del item
         const subtotalItem = cantidad * precioUnitario;
+        
+        // Calcular descuento
+        const descuentoMonto = Math.round(subtotalItem * (descuentoPorcentaje / 100));
+        const subtotalConDescuento = subtotalItem - descuentoMonto;
+        
+        // Calcular IVA (19%)
+        const ivaItem = Math.round(subtotalConDescuento * 0.19);
+        const totalItem = subtotalConDescuento + ivaItem;
 
         const totalField = line.querySelector('.item-total');
         if (totalField) {
-            totalField.value = subtotalItem > 0 ? '$' + subtotalItem.toLocaleString('es-CL') : '$0';
+            totalField.value = totalItem > 0 ? '$' + totalItem.toLocaleString('es-CL') : '$0';
         }
 
         subtotal += subtotalItem;
+        descuentosTotales += descuentoMonto;
     });
 
-    const ivaOrden = Math.round(subtotal * 0.19);
-    const totalOrden = subtotal + ivaOrden;
+    // Calcular IVA sobre el subtotal menos descuentos
+    const subtotalNeto = subtotal - descuentosTotales;
+    const ivaOrden = Math.round(subtotalNeto * 0.19);
+    const totalOrden = subtotalNeto + ivaOrden;
 
     document.getElementById('subtotal-total').textContent = '$' + subtotal.toLocaleString('es-CL');
-    document.getElementById('descuentos-total').textContent = '$0';
+    document.getElementById('descuentos-total').textContent = '$' + descuentosTotales.toLocaleString('es-CL');
     document.getElementById('iva-total').textContent = '$' + ivaOrden.toLocaleString('es-CL');
     document.getElementById('total-orden').textContent = '$' + totalOrden.toLocaleString('es-CL');
 
     document.getElementById('subtotal-hidden').value = subtotal;
-    document.getElementById('descuentos-hidden').value = 0;
+    document.getElementById('descuentos-hidden').value = descuentosTotales;
     document.getElementById('impuestos-hidden').value = ivaOrden;
     document.getElementById('total-hidden').value = totalOrden;
 };
@@ -490,15 +511,49 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Recalcular totales
+    // Recalcular totales cuando cambian cantidad o precio
     document.addEventListener('input', function(e) {
         if (e.target.name && (e.target.name.includes('cantidad_solicitada') || e.target.name.includes('precio_unitario'))) {
             calculateTotals();
         }
     });
+    
+    // También recalcular cuando cambia el descuento
+    document.addEventListener('input', function(e) {
+        if (e.target.name && e.target.name.includes('descuento_porcentaje')) {
+            calculateTotals();
+        }
+    });
 
-    // Calcular totales iniciales
-    calculateTotals();
+    // Calcular totales iniciales al cargar la página con datos existentes
+    // Siempre recalcular para asegurar que los totales estén correctos
+    setTimeout(function() {
+        console.log('=== CALCULANDO TOTALES INICIALES ===');
+        // Verificar si hay items con valores
+        let tieneItems = false;
+        document.querySelectorAll('.item-line:not([style*="display: none"])').forEach(function(line, index) {
+            const cantidadInput = line.querySelector('input[name*="-cantidad_solicitada"]');
+            const precioInput = line.querySelector('input[name*="-precio_unitario"]');
+            
+            if (cantidadInput && precioInput) {
+                const cantidad = parseFloat(cantidadInput.value) || 0;
+                const precio = parseFloat(precioInput.value) || 0;
+                console.log(`Item ${index}: cantidad=${cantidad}, precio=${precio}`);
+                
+                if (cantidad > 0 && precio > 0) {
+                    tieneItems = true;
+                }
+            }
+        });
+        
+        // Si hay items con valores, recalcular totales
+        if (tieneItems) {
+            console.log('Recalculando totales iniciales...');
+            calculateTotals();
+        } else {
+            console.log('No hay items con valores, no se recalcula');
+        }
+    }, 500);
 
     // Validación formulario
     document.getElementById('ordenForm').addEventListener('submit', function(e) {

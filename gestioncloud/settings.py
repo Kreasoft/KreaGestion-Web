@@ -103,12 +103,34 @@ TEMPLATES = [
 WSGI_APPLICATION = 'gestioncloud.wsgi.application'
 
 # Database
-DATABASES = {
-    'default': {
-        'ENGINE': config('DB_ENGINE', default='django.db.backends.sqlite3'),
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Configuración para PostgreSQL
+DB_ENGINE = config('DB_ENGINE', default='django.db.backends.postgresql')
+DB_NAME = config('DB_NAME', default='gestioncloud')
+DB_USER = config('DB_USER', default='postgres')
+DB_PASSWORD = config('DB_PASSWORD', default='postgres')
+DB_HOST = config('DB_HOST', default='localhost')
+DB_PORT = config('DB_PORT', default='5432')
+
+if DB_ENGINE == 'django.db.backends.sqlite3':
+    # Configuración SQLite (fallback)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    # Configuración PostgreSQL
+    DATABASES = {
+        'default': {
+            'ENGINE': DB_ENGINE,
+            'NAME': DB_NAME,
+            'USER': DB_USER,
+            'PASSWORD': DB_PASSWORD,
+            'HOST': DB_HOST,
+            'PORT': DB_PORT,
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

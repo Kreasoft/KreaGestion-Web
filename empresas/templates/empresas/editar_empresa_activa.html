@@ -15,16 +15,106 @@
                     </h4>
                 </div>
                 <div class="card-body">
+                    <!-- Mostrar errores de formularios directamente SIEMPRE que existan -->
+                    {% if form.errors or config_form.errors or fe_form.errors %}
+                        <div class="alert alert-danger mb-4 border-danger shadow-lg" role="alert" style="border-width: 3px !important; background-color: #f8d7da !important;">
+                            <h5 class="alert-heading mb-3" style="color: #721c24 !important; font-size: 1.3rem !important;">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>❌ ERRORES EN EL FORMULARIO</strong>
+                            </h5>
+                            <p class="mb-3" style="font-size: 1.1rem !important; color: #721c24 !important;">
+                                <strong>⚠️ Por favor, complete todos los campos requeridos marcados con (*) antes de guardar.</strong>
+                            </p>
+                            
+                            {% if form.errors %}
+                                <div class="mb-3">
+                                    <h6 class="text-danger"><strong>📋 Formulario de Empresa:</strong></h6>
+                                    <ul class="mb-0 ps-4">
+                                        {% for field, errors in form.errors.items %}
+                                            {% for error in errors %}
+                                                <li class="mb-1">
+                                                    <strong>
+                                                        {% if field == 'nombre' %}Nombre
+                                                        {% elif field == 'razon_social' %}Razón Social
+                                                        {% elif field == 'rut' %}RUT
+                                                        {% elif field == 'giro' %}Giro
+                                                        {% elif field == 'direccion' %}Dirección
+                                                        {% elif field == 'comuna' %}Comuna
+                                                        {% elif field == 'ciudad' %}Ciudad
+                                                        {% elif field == 'region' %}Región
+                                                        {% elif field == 'telefono' %}Teléfono
+                                                        {% elif field == 'email' %}Email
+                                                        {% elif field == 'regimen_tributario' %}Régimen Tributario
+                                                        {% elif field == 'max_descuento_lineal' %}Máximo Descuento Lineal
+                                                        {% elif field == 'max_descuento_total' %}Máximo Descuento Total
+                                                        {% elif field == 'alerta_folios_minimos' %}Alerta Folios Mínimos
+                                                        {% elif 'impresora' in field %}Impresora {{ field|slice:"10:"|title }}
+                                                        {% elif field == 'estado' %}Estado
+                                                        {% else %}{{ field|title }}
+                                                        {% endif %}:
+                                                    </strong> {{ error }}
+                                                </li>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                            
+                            {% if config_form.errors %}
+                                <div class="mb-3">
+                                    <h6 class="text-danger"><strong>⚙️ Configuración:</strong></h6>
+                                    <ul class="mb-0 ps-4">
+                                        {% for field, errors in config_form.errors.items %}
+                                            {% for error in errors %}
+                                                <li class="mb-1">
+                                                    <strong>
+                                                        {% if field == 'prefijo_ajustes' %}Prefijo Ajustes
+                                                        {% elif field == 'siguiente_ajuste' %}Siguiente Ajuste
+                                                        {% elif field == 'formato_ajustes' %}Formato Ajustes
+                                                        {% elif field == 'prefijo_orden_compra' %}Prefijo Orden Compra
+                                                        {% elif field == 'siguiente_orden_compra' %}Siguiente Orden Compra
+                                                        {% elif field == 'formato_orden_compra' %}Formato Orden Compra
+                                                        {% elif field == 'frecuencia_respaldo' %}Frecuencia Respaldo
+                                                        {% else %}{{ field|title }}
+                                                        {% endif %}:
+                                                    </strong> {{ error }}
+                                                </li>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                            
+                            {% if fe_form.errors %}
+                                <div class="mb-3">
+                                    <h6 class="text-danger"><strong>📄 Facturación Electrónica:</strong></h6>
+                                    <ul class="mb-0 ps-4">
+                                        {% for field, errors in fe_form.errors.items %}
+                                            {% for error in errors %}
+                                                <li class="mb-1"><strong>{{ field|title }}:</strong> {{ error }}</li>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Mostrar mensajes del sistema de mensajes de Django -->
                     {% if messages %}
                         <div class="messages mb-4">
                             {% for message in messages %}
-                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show border-{{ message.tags }}" role="alert" style="font-size: 1rem; border-width: 2px !important;">
+                                    <strong>
+                                        {% if message.tags == 'error' %}❌ {% elif message.tags == 'warning' %}⚠️ {% elif message.tags == 'success' %}✅ {% elif message.tags == 'info' %}ℹ️ {% endif %}
+                                    </strong>
+                                    {{ message|safe }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                                 </div>
                             {% endfor %}
                         </div>
                     {% endif %}
+
 
                     <form method="post" enctype="multipart/form-data" id="empresaForm">
                         {% csrf_token %}
@@ -37,11 +127,29 @@
                                 </h5>
 
                                 <div class="mb-3">
-                                    {{ form.nombre.label_tag }}
-                                    {{ form.nombre }}
-                                    {% if form.nombre.errors %}
-                                        <div class="text-danger small">{{ form.nombre.errors.0 }}</div>
+                                    {{ form.rut.label_tag }}
+                                    {{ form.rut }}
+                                    {% if form.rut.errors %}
+                                        <div class="text-danger small">{{ form.rut.errors.0 }}</div>
                                     {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="id_giro" class="form-label">
+                                        <strong>Giro Comercial</strong>
+                                        <span class="text-muted small">(Opcional)</span>
+                                    </label>
+                                    <input type="text" 
+                                           name="giro" 
+                                           id="id_giro" 
+                                           class="form-control" 
+                                           value="{% if form.giro.value %}{{ form.giro.value }}{% endif %}"
+                                           placeholder="Ej: Comercio, Servicios, Manufactura, etc."
+                                           maxlength="200">
+                                    {% if form.giro.errors %}
+                                        <div class="text-danger small mt-1">{{ form.giro.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Descripción de la actividad principal de la empresa</small>
                                 </div>
 
                                 <div class="mb-3">
@@ -53,18 +161,10 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    {{ form.rut.label_tag }}
-                                    {{ form.rut }}
-                                    {% if form.rut.errors %}
-                                        <div class="text-danger small">{{ form.rut.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-
-                                <div class="mb-3">
-                                    {{ form.giro.label_tag }}
-                                    {{ form.giro }}
-                                    {% if form.giro.errors %}
-                                        <div class="text-danger small">{{ form.giro.errors.0 }}</div>
+                                    {{ form.nombre.label_tag }}
+                                    {{ form.nombre }}
+                                    {% if form.nombre.errors %}
+                                        <div class="text-danger small">{{ form.nombre.errors.0 }}</div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -133,7 +233,6 @@
                         <!-- Configuraciones Generales -->
                         <div class="row mt-4">
                             <div class="col-12">
-                                <h1 style="background: red; color: white; padding: 20px; font-size: 50px;">🔥 NUEVO ARCHIVO - VES ESTO? 🔥</h1>
                                 <h5 class="text-primary mb-3">
                                     <i class="fas fa-cogs"></i> Configuraciones Generales
                                 </h5>
@@ -321,6 +420,53 @@
 
 {% block extra_js %}
 <script>
+// FORZAR VISIBILIDAD DEL CAMPO GIRO INMEDIATAMENTE
+(function() {
+    function forzarVisibilidadGiro() {
+        const campoGiro = document.getElementById('id_giro');
+        const divGiro = document.querySelector('.alert-success');
+        
+        if (campoGiro) {
+            campoGiro.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important;';
+            campoGiro.removeAttribute('hidden');
+            campoGiro.removeAttribute('style');
+            campoGiro.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important;';
+        }
+        
+        // Buscar el div que contiene el campo giro
+        const divsGiro = document.querySelectorAll('.mb-3');
+        divsGiro.forEach(div => {
+            if (div.querySelector('#id_giro')) {
+                div.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important;';
+                div.removeAttribute('hidden');
+            }
+        });
+        
+        console.log('=== VERIFICACIÓN GIRO ===');
+        console.log('Campo giro encontrado:', !!campoGiro);
+        console.log('Div giro encontrado:', !!divGiro);
+        if (campoGiro) {
+            console.log('Campo giro display:', window.getComputedStyle(campoGiro).display);
+            console.log('Campo giro visibility:', window.getComputedStyle(campoGiro).visibility);
+        }
+    }
+    
+    // Ejecutar inmediatamente
+    forzarVisibilidadGiro();
+    
+    // Ejecutar cuando el DOM esté listo
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', forzarVisibilidadGiro);
+    } else {
+        forzarVisibilidadGiro();
+    }
+    
+    // Ejecutar después de un pequeño delay por si acaso
+    setTimeout(forzarVisibilidadGiro, 100);
+    setTimeout(forzarVisibilidadGiro, 500);
+    setTimeout(forzarVisibilidadGiro, 1000);
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('empresaForm');
 

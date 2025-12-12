@@ -7,15 +7,18 @@ import django.utils.timezone
 
 
 def create_ruta_if_not_exists(apps, schema_editor):
-    """Crea la tabla Ruta solo si no existe - usando SQL que ignora errores"""
-    # Verificar si la tabla existe consultando sqlite_master directamente
-    with schema_editor.connection.cursor() as cursor:
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pedidos_ruta'")
-        table_exists = cursor.fetchone() is not None
+    """Crea la tabla Ruta solo si no existe - solo para SQLite"""
+    vendor = schema_editor.connection.vendor
     
-    # Solo crear si no existe
-    if not table_exists:
-        if schema_editor.connection.vendor == 'sqlite':
+    # Solo para SQLite necesitamos crear manualmente
+    if vendor == 'sqlite':
+        # Verificar si la tabla existe
+        with schema_editor.connection.cursor() as cursor:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pedidos_ruta'")
+            table_exists = cursor.fetchone() is not None
+        
+        # Solo crear si no existe
+        if not table_exists:
             schema_editor.execute("""
                 CREATE TABLE pedidos_ruta (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,6 +46,8 @@ def create_ruta_if_not_exists(apps, schema_editor):
                 schema_editor.execute("CREATE INDEX pedidos_ruta_empresa_id ON pedidos_ruta (empresa_id)")
             except:
                 pass
+    # Para PostgreSQL y otros motores, Django creará la tabla automáticamente con el modelo
+    # No necesitamos crear manualmente
 
 
 def reverse_create_ruta(apps, schema_editor):
@@ -60,13 +65,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunPython(create_ruta_if_not_exists, reverse_create_ruta),
-            ],
-            state_operations=[
-                migrations.CreateModel(
-                    name="Ruta",
+        migrations.CreateModel(
+            name="Ruta",
                     fields=[
                         (
                             "id",
@@ -159,8 +159,6 @@ class Migration(migrations.Migration):
                         "unique_together": {("empresa", "codigo")},
                     },
                 ),
-            ],
-        ),
         migrations.CreateModel(
             name="HojaRuta",
             fields=[
