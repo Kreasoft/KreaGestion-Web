@@ -177,44 +177,6 @@ def inventario_detail(request, pk):
 
 @login_required
 @requiere_empresa
-@permission_required('articulos.view_stockarticulo', raise_exception=True)
-def stock_list(request):
-    """Lista el stock actual de todos los artículos"""
-    stocks = Stock.objects.filter(empresa=request.empresa).select_related(
-        'bodega_destino', 'articulo', 'actualizado_por'
-    ).order_by('articulo__nombre', 'bodega__nombre')
-    
-    # Filtros
-    bodega_id = request.GET.get('bodega_destino')
-    if bodega_id:
-        stocks = stocks.filter(bodega_id=bodega_id)
-    
-    # Paginación
-    paginator = Paginator(stocks, 20)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    # Estadísticas
-    total_articulos = stocks.count()
-    sin_stock = stocks.filter(cantidad__lte=0).count()
-    stock_bajo = stocks.filter(
-        cantidad__gt=0, 
-        cantidad__lte=F('stock_minimo')
-    ).count()
-    
-    context = {
-        'page_obj': page_obj,
-        'total_articulos': total_articulos,
-        'sin_stock': sin_stock,
-        'stock_bajo': stock_bajo,
-        'titulo': 'Control de Stock'
-    }
-    
-    return render(request, 'inventario/stock_list.html', context)
-
-
-@login_required
-@requiere_empresa
 def stock_create(request):
     """Crear nuevo registro de stock"""
     if request.method == 'POST':
@@ -659,6 +621,7 @@ def inventario_form_modal(request, pk=None):
 
 @login_required
 @requiere_empresa
+@permission_required('articulos.view_stockarticulo', raise_exception=True)
 def stock_list(request):
     """Lista el stock actual de todos los artículos, mostrando también los que no tienen registro (0)."""
     from bodegas.models import Bodega
@@ -741,6 +704,8 @@ def stock_list(request):
     
     if estado == 'sin_stock':
         stocks_data = [s for s in stocks_data if (s.cantidad or 0) <= 0]
+    elif estado == 'con_stock':
+        stocks_data = [s for s in stocks_data if (s.cantidad or 0) > 0]
     elif estado == 'bajo':
         stocks_data = [s for s in stocks_data if (s.cantidad or 0) > 0 and (s.cantidad or 0) <= (s.stock_minimo or 0)]
     elif estado == 'normal':

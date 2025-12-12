@@ -80,3 +80,6 @@ else:
     print(f"GRANT ALL PRIVILEGES ON DATABASE {DB_NAME} TO kreasoft;")
 
 
+
+
+

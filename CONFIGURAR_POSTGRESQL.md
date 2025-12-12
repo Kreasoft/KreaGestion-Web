@@ -99,3 +99,6 @@ Si se conecta correctamente, verás el prompt de PostgreSQL.
 - **Host**: Si PostgreSQL está en otro servidor, cambia `DB_HOST` a la IP o dominio correspondiente
 
 
+
+
+

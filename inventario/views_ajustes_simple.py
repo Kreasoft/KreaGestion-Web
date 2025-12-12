@@ -268,19 +268,152 @@ def ajuste_edit_simple(request, pk):
         ).order_by('id')
         
         if request.method == 'POST':
-            # Por ahora solo retornar éxito - implementar lógica completa después
-            return JsonResponse({
-                'success': True,
-                'message': 'Ajuste actualizado exitosamente'
-            })
+            import json
+            from decimal import Decimal
+            from django.utils import timezone
+            from datetime import datetime
+            
+            tipo_ajuste = request.POST.get('tipo_ajuste')
+            fecha_ajuste = request.POST.get('fecha_ajuste')
+            bodega_id = request.POST.get('bodega')
+            descripcion = request.POST.get('descripcion')
+            
+            # Obtener detalles desde JSON
+            detalles_data = request.POST.get('detalles_data', '[]')
+            detalles = json.loads(detalles_data)
+            
+            if not detalles:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Debe agregar al menos un artículo al ajuste.'
+                })
+            
+            try:
+                bodega = Bodega.objects.get(id=bodega_id, empresa=request.empresa)
+                
+                # Revertir stock de los ajustes anteriores
+                # Como el modelo guarda cantidad positiva, necesitamos determinar el tipo original
+                # Revisamos el descripcion o el tipo_movimiento para saber si era entrada o salida
+                for ajuste_anterior in ajustes:
+                    stock_anterior = Stock.objects.filter(
+                        empresa=request.empresa,
+                        bodega=ajuste_anterior.bodega_destino,
+                        articulo=ajuste_anterior.articulo
+                    ).first()
+                    if stock_anterior:
+                        cantidad_anterior = Decimal(str(ajuste_anterior.cantidad))
+                        # Determinar si era entrada o salida basándonos en la descripción
+                        desc_anterior = (ajuste_anterior.descripcion or '').lower()
+                        es_salida = 'salida' in desc_anterior or ajuste_anterior.cantidad < 0
+                        
+                        if es_salida:
+                            # Era salida (restó del stock), revertimos sumando
+                            stock_anterior.cantidad += cantidad_anterior
+                        else:
+                            # Era entrada (sumó al stock), revertimos restando
+                            stock_anterior.cantidad -= cantidad_anterior
+                        
+                        if stock_anterior.cantidad < 0:
+                            stock_anterior.cantidad = Decimal('0')
+                        stock_anterior.save()
+                
+                # Eliminar ajustes anteriores
+                ajustes.delete()
+                
+                # Crear nuevos ajustes
+                numero_folio = ajuste_principal.numero_folio  # Mantener el mismo folio
+                
+                for detalle in detalles:
+                    articulo_id = detalle.get('articulo_id')
+                    cantidad = float(detalle.get('cantidad', 0))
+                    comentario = detalle.get('comentario', '')
+                    
+                    if articulo_id and cantidad != 0:
+                        articulo = Articulo.objects.get(id=articulo_id, empresa=request.empresa)
+                        
+                        # La cantidad ya viene con el signo correcto desde el frontend
+                        cantidad_ajuste = Decimal(str(cantidad))
+                        
+                        # Obtener o crear stock
+                        stock, created = Stock.objects.get_or_create(
+                            empresa=request.empresa,
+                            bodega=bodega,
+                            articulo=articulo,
+                            defaults={
+                                'cantidad': 0,
+                                'stock_minimo': 0,
+                                'stock_maximo': 0,
+                                'precio_promedio': 0
+                            }
+                        )
+                        
+                        # Actualizar stock
+                        stock.cantidad += cantidad_ajuste
+                        if stock.cantidad < 0:
+                            stock.cantidad = Decimal('0')
+                        stock.save()
+                        
+                        # Usar la fecha del formulario o la fecha actual
+                        if fecha_ajuste:
+                            try:
+                                fecha_mov = datetime.strptime(fecha_ajuste, '%Y-%m-%d')
+                                fecha_mov = timezone.make_aware(fecha_mov)
+                            except:
+                                fecha_mov = timezone.now()
+                        else:
+                            fecha_mov = timezone.now()
+                        
+                        # Crear nuevo movimiento en inventario
+                        # El modelo Inventario guarda cantidad positiva, pero para ajustes
+                        # guardamos el valor con signo para mantener consistencia con la creación
+                        # Si cantidad_ajuste es negativo, lo guardamos como positivo pero el stock ya se actualizó correctamente
+                        cantidad_para_guardar = abs(cantidad_ajuste)
+                        
+                        # Si es salida, guardamos como negativo en el campo cantidad (si el modelo lo permite)
+                        # pero el stock ya se actualizó correctamente arriba
+                        Inventario.objects.create(
+                            empresa=request.empresa,
+                            bodega_destino=bodega,
+                            articulo=articulo,
+                            tipo_movimiento='AJUSTE',
+                            cantidad=cantidad_para_guardar,  # Guardar valor absoluto
+                            precio_unitario=articulo.precio_venta or Decimal('0'),
+                            descripcion=descripcion,
+                            fecha_movimiento=fecha_mov,
+                            numero_folio=numero_folio,
+                            estado='confirmado',
+                            creado_por=request.user
+                        )
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Ajuste actualizado exitosamente'
+                })
+                
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Error al actualizar el ajuste: {str(e)}'
+                })
         
         # Obtener bodegas para el formulario
         bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
+        
+        # Calcular cantidad absoluta para mostrar en el formulario
+        # Convertir Decimal a float y luego a string para asegurar compatibilidad
+        cantidad_valor = float(ajuste_principal.cantidad) if ajuste_principal.cantidad else 0.0
+        cantidad_absoluta = abs(cantidad_valor)
+        # Formatear a 2 decimales como string para el input
+        cantidad_absoluta_str = f"{cantidad_absoluta:.2f}"
         
         context = {
             'ajuste': ajuste_principal,
             'ajustes': ajustes,
             'bodegas': bodegas,
+            'cantidad_absoluta': cantidad_absoluta,
+            'cantidad_absoluta_str': cantidad_absoluta_str,
             'titulo': f'Editar Ajuste #{ajuste_principal.numero_folio}'
         }
         

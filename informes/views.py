@@ -3,7 +3,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Sum, Count, Avg, F, Q, DecimalField
-from django.db.models.functions import TruncDate, TruncMonth
+from django.db.models.functions import TruncDate, TruncMonth, Cast
 from datetime import datetime, timedelta
 from decimal import Decimal
 import json
@@ -234,9 +234,13 @@ def informe_stock_actual(request):
 @requiere_empresa
 def informe_stock_bajo(request):
     """Informe de productos con stock bajo"""
+    # Convertir stock_minimo (CharField) a DecimalField para comparar con cantidad
     stocks_bajos = Stock.objects.filter(
-        bodega__empresa=request.empresa,
-        cantidad__lte=F('articulo__stock_minimo')
+        bodega__empresa=request.empresa
+    ).annotate(
+        stock_minimo_decimal=Cast('articulo__stock_minimo', DecimalField(max_digits=10, decimal_places=2))
+    ).filter(
+        cantidad__lte=F('stock_minimo_decimal')
     ).select_related('articulo', 'bodega').order_by('cantidad')
     
     context = {

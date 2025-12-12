@@ -104,9 +104,9 @@
                         </div>
                         <div class="col-3">
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text" style="font-weight: bold; {% if ajuste.cantidad > 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %} font-size: 0.75rem;">{% if ajuste.cantidad > 0 %}+{% else %}-{% endif %}</span>
-                                <input type="number" class="form-control" name="detalles-1-cantidad" 
-                                       value="{% if ajuste.cantidad > 0 %}{{ ajuste.cantidad|floatformat:0 }}{% else %}{{ ajuste.cantidad|floatformat:0|slice:'1:' }}{% endif %}"
+                                <span class="input-group-text cantidad-sign" style="font-weight: bold; {% if ajuste.cantidad > 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %} font-size: 0.75rem;">{% if ajuste.cantidad > 0 %}+{% else %}-{% endif %}</span>
+                                <input type="number" class="form-control" name="detalles-1-cantidad" id="cantidad-input-1"
+                                       value="{% if cantidad_absoluta_str %}{{ cantidad_absoluta_str }}{% elif cantidad_absoluta %}{{ cantidad_absoluta|floatformat:2 }}{% else %}0.00{% endif %}"
                                        step="0.01" min="0.01" required style="font-size: 0.75rem;">
                             </div>
                         </div>
@@ -139,6 +139,24 @@
 (function() {
     let detalleCount = 1;
     let articulos = [];
+    
+    // Asegurar que la cantidad se cargue correctamente
+    setTimeout(function() {
+        const cantidadInput = document.getElementById('cantidad-input-1');
+        if (cantidadInput) {
+            console.log('Valor inicial del input cantidad:', cantidadInput.value);
+            console.log('Cantidad absoluta desde template:', '{{ cantidad_absoluta_str|default:cantidad_absoluta|default:"0.00" }}');
+            
+            // Si el input está vacío o es 0, intentar cargar el valor
+            if (!cantidadInput.value || cantidadInput.value === '0' || cantidadInput.value === '0.00') {
+                const cantidadDesdeTemplate = parseFloat('{{ cantidad_absoluta|default:0 }}');
+                if (cantidadDesdeTemplate > 0) {
+                    cantidadInput.value = cantidadDesdeTemplate.toFixed(2);
+                    console.log('Cantidad cargada desde template:', cantidadDesdeTemplate);
+                }
+            }
+        }
+    }, 100);
     
     // Cargar artículos
     setTimeout(function() {
@@ -211,13 +229,18 @@
         }
         
         if (e.target.closest('.btn-guardar')) {
+            const tipoAjuste = document.getElementById('tipo_ajuste').value;
             const detalles = [];
             document.querySelectorAll('.detalle-item').forEach(item => {
                 const art = item.querySelector('.articulo-select').value;
-                const cant = item.querySelector('input[name*="cantidad"]').value;
-                const com = item.querySelector('input[name*="comentario"]').value;
-                if (art && cant) {
-                    detalles.push({ articulo_id: art, cantidad: parseFloat(cant), comentario: com });
+                const cantInput = item.querySelector('input[name*="cantidad"]');
+                const cant = cantInput ? parseFloat(cantInput.value) : 0;
+                const com = item.querySelector('input[name*="comentario"]') ? item.querySelector('input[name*="comentario"]').value : '';
+                
+                if (art && cant > 0) {
+                    // Aplicar signo según el tipo de ajuste
+                    const cantidadFinal = tipoAjuste === 'ENTRADA' ? cant : -cant;
+                    detalles.push({ articulo_id: art, cantidad: cantidadFinal, comentario: com });
                 }
             });
             
@@ -234,16 +257,30 @@
                 method: 'POST',
                 body: new FormData(document.getElementById('ajusteForm'))
             })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+                return r.json();
+            })
             .then(data => {
+                Swal.close();
                 if (data.success) {
                     Swal.fire({ icon: 'success', title: '¡Éxito!', text: data.message }).then(() => {
-                        bootstrap.Modal.getInstance(document.querySelector('.modal')).hide();
+                        const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
+                        if (modal) {
+                            modal.hide();
+                        }
                         window.location.reload();
                     });
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Error desconocido' });
                 }
+            })
+            .catch(error => {
+                Swal.close();
+                console.error('Error:', error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Error al guardar el ajuste: ' + error.message });
             });
         }
     });
@@ -256,5 +293,38 @@
                 actualizarSelects();
             });
     });
+    
+    // Actualizar signos cuando cambia el tipo de ajuste
+    document.getElementById('tipo_ajuste').addEventListener('change', function() {
+        const tipoAjuste = this.value;
+        const signos = document.querySelectorAll('.cantidad-sign');
+        
+        signos.forEach(signo => {
+            if (tipoAjuste === 'ENTRADA') {
+                signo.textContent = '+';
+                signo.style.color = '#28a745';
+            } else {
+                signo.textContent = '-';
+                signo.style.color = '#dc3545';
+            }
+        });
+    });
+    
+    // Asegurar que al guardar se aplique el signo correcto según el tipo de ajuste
+    const originalGuardar = document.querySelector('.btn-guardar');
+    if (originalGuardar) {
+        originalGuardar.addEventListener('click', function() {
+            const tipoAjuste = document.getElementById('tipo_ajuste').value;
+            const cantidadInput = document.querySelector('input[name*="cantidad"]');
+            
+            if (cantidadInput && tipoAjuste === 'SALIDA') {
+                // Asegurar que la cantidad sea positiva antes de guardar
+                const cantidad = parseFloat(cantidadInput.value);
+                if (cantidad < 0) {
+                    cantidadInput.value = Math.abs(cantidad).toFixed(2);
+                }
+            }
+        });
+    }
 })();
 </script>
