@@ -130,6 +130,28 @@
                                         <button type="submit" class="btn btn-option" id="btnUpload" style="display: none; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 0.75rem 2rem; font-weight: 500; border-radius: 8px;">
                                             <i class="fas fa-upload me-2"></i>Cargar Inventario
                                         </button>
+                                        
+                                        <!-- Barra de progreso -->
+                                        <div id="progressContainer" style="display: none; margin-top: 2rem; z-index: 1000; position: relative;">
+                                            <div class="card shadow-lg" style="background: white; border: 2px solid #8B7355; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 20px rgba(139, 115, 85, 0.3);">
+                                                <h5 style="color: #6F5B44; font-weight: 700; margin-bottom: 1.5rem; text-align: center;">
+                                                    <i class="fas fa-spinner fa-spin me-2"></i>Procesando planilla de stock
+                                                </h5>
+                                                <div class="progress" style="height: 35px; border-radius: 10px; background-color: #F5F1E8; overflow: hidden; border: 2px solid #E8DCC8;">
+                                                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                                         role="progressbar" 
+                                                         style="width: 0%; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%) !important; transition: width 0.4s ease; display: flex; align-items: center; justify-content: center;"
+                                                         aria-valuenow="0" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                        <span id="progressText" style="color: white; font-weight: 700; font-size: 1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);">0%</span>
+                                                    </div>
+                                                </div>
+                                                <div id="progressStatus" style="margin-top: 1rem; color: #8B7355; font-size: 1rem; font-weight: 500; text-align: center;">
+                                                    <i class="fas fa-hourglass-half me-2"></i>Iniciando procesamiento...
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </form>
                             </div>
@@ -265,14 +287,66 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        Swal.fire({
-            title: 'Importando...',
-            text: 'Procesando el archivo, por favor espere.',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
+        // Ocultar botón y mostrar barra de progreso
+        btnUpload.style.display = 'none';
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const progressStatus = document.getElementById('progressStatus');
+        
+        // Resetear barra de progreso
+        if (progressBar) {
+            progressBar.style.width = '0%';
+            progressBar.setAttribute('aria-valuenow', 0);
+        }
+        if (progressText) {
+            progressText.textContent = '0%';
+        }
+        if (progressStatus) {
+            progressStatus.innerHTML = '<i class="fas fa-hourglass-half me-2"></i>Iniciando procesamiento...';
+        }
+        
+        // Mostrar barra de progreso con forzar visibilidad
+        if (progressContainer) {
+            progressContainer.style.display = 'block';
+            progressContainer.style.visibility = 'visible';
+            progressContainer.style.opacity = '1';
+            
+            // Scroll suave hacia la barra de progreso
+            setTimeout(() => {
+                progressContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+        
+        // Simular progreso mientras se procesa
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            if (progress < 85) {
+                progress += Math.random() * 12 + 3; // Incremento variable entre 3-15%
+                if (progress > 85) progress = 85;
+                
+                if (progressBar) {
+                    progressBar.style.width = progress + '%';
+                    progressBar.setAttribute('aria-valuenow', Math.round(progress));
+                }
+                if (progressText) {
+                    progressText.textContent = Math.round(progress) + '%';
+                }
+                
+                // Actualizar mensaje según progreso
+                if (progressStatus) {
+                    if (progress < 25) {
+                        progressStatus.innerHTML = '<i class="fas fa-file-excel me-2"></i>Leyendo archivo Excel...';
+                    } else if (progress < 50) {
+                        progressStatus.innerHTML = '<i class="fas fa-check-circle me-2"></i>Validando datos y códigos...';
+                    } else if (progress < 75) {
+                        progressStatus.innerHTML = '<i class="fas fa-boxes me-2"></i>Procesando artículos y actualizando stock...';
+                    } else {
+                        progressStatus.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Finalizando procesamiento...';
+                    }
+                }
             }
-        });
+        }, 200);
 
         const formData = new FormData(uploadForm);
 
@@ -285,29 +359,58 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Importación Completada',
-                    text: data.message,
-                });
-            } else {
-                let errorHtml = data.message;
-                if (data.detalle_errores && data.detalle_errores.length > 0) {
-                    errorHtml += '<ul class="text-start mt-2">';
-                    data.detalle_errores.forEach(err => {
-                        errorHtml += `<li>${err}</li>`;
-                    });
-                    errorHtml += '</ul>';
-                }
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error en la Importación',
-                    html: errorHtml,
-                });
+            clearInterval(progressInterval);
+            
+            // Completar barra de progreso
+            if (progressBar) {
+                progressBar.style.width = '100%';
+                progressBar.setAttribute('aria-valuenow', 100);
             }
+            if (progressText) {
+                progressText.textContent = '100%';
+            }
+            if (progressStatus) {
+                progressStatus.innerHTML = '<i class="fas fa-check-circle me-2"></i>Procesamiento completado';
+            }
+            
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                btnUpload.style.display = 'inline-block';
+                
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Importación Completada',
+                        text: data.message,
+                        confirmButtonText: 'Aceptar'
+                    }).then(() => {
+                        // Limpiar el formulario
+                        fileInput.value = '';
+                        fileName.innerHTML = '';
+                        btnUpload.style.display = 'none';
+                    });
+                } else {
+                    let errorHtml = data.message;
+                    if (data.detalle_errores && data.detalle_errores.length > 0) {
+                        errorHtml += '<ul class="text-start mt-2">';
+                        data.detalle_errores.forEach(err => {
+                            errorHtml += `<li>${err}</li>`;
+                        });
+                        errorHtml += '</ul>';
+                    }
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error en la Importación',
+                        html: errorHtml,
+                    });
+                }
+            }, 800);
         })
         .catch(error => {
+            clearInterval(progressInterval);
+            progressContainer.style.display = 'none';
+            btnUpload.style.display = 'inline-block';
+            
             Swal.fire('Error', 'Ocurrió un error inesperado al contactar al servidor.', 'error');
             console.error('Error:', error);
         });

@@ -102,3 +102,8 @@ Si se conecta correctamente, verás el prompt de PostgreSQL.
 
 
 
+
+
+
+
+

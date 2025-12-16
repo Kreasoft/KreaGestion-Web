@@ -1,0 +1,33 @@
+[Unit]
+Description=GestionCloud - Sistema de Gestión WSGI Application
+After=network.target postgresql.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/ruta/completa/al/proyecto/GestionCloud
+Environment="PATH=/ruta/completa/al/proyecto/GestionCloud/.venv/bin"
+EnvironmentFile=/ruta/completa/al/proyecto/GestionCloud/.env
+ExecStart=/ruta/completa/al/proyecto/GestionCloud/.venv/bin/gunicorn \
+    gestioncloud.wsgi:application \
+    --config despliegue/gunicorn_config.py \
+    --bind 0.0.0.0:8000 \
+    --workers 4 \
+    --threads 2 \
+    --timeout 30 \
+    --access-logfile /var/log/gestioncloud/gunicorn_access.log \
+    --error-logfile /var/log/gestioncloud/gunicorn_error.log \
+    --log-level info \
+    --pid /var/run/gestioncloud/gunicorn.pid
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+
+

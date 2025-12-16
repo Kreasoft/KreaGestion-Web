@@ -83,6 +83,52 @@ class DTEBoxService:
         
         print(f"[DTEBox] Servicio inicializado - URL: {self.url}, Ambiente: {self.ambiente}")
     
+    def _parsear_xml_con_encoding(self, xml_string):
+        """
+        Parsea XML manejando correctamente el encoding ISO-8859-1 y UTF-8
+        
+        Args:
+            xml_string: String con el XML
+            
+        Returns:
+            lxml.etree.Element: Elemento raíz del XML parseado
+        """
+        from lxml import etree as lxml_etree
+        
+        # Intentar detectar encoding desde la declaración XML
+        encoding = 'ISO-8859-1'  # Por defecto para DTE chilenos
+        
+        if '<?xml' in xml_string:
+            import re
+            encoding_match = re.search(r'encoding=["\']([^"\']+)["\']', xml_string)
+            if encoding_match:
+                encoding = encoding_match.group(1).upper()
+        
+        # Intentar parsear con diferentes encodings
+        encodings_to_try = [encoding, 'ISO-8859-1', 'UTF-8', 'latin1']
+        
+        for enc in encodings_to_try:
+            try:
+                xml_bytes = xml_string.encode(enc)
+                root = lxml_etree.fromstring(xml_bytes)
+                print(f"[DTEBox] XML parseado correctamente con encoding: {enc}")
+                return root
+            except (UnicodeEncodeError, UnicodeDecodeError, ValueError) as e:
+                continue
+            except Exception as e:
+                # Si es otro error (no de encoding), intentar siguiente encoding
+                continue
+        
+        # Último intento: usar errors='ignore' o 'replace'
+        try:
+            xml_bytes = xml_string.encode('ISO-8859-1', errors='replace')
+            root = lxml_etree.fromstring(xml_bytes)
+            print(f"[DTEBox] XML parseado con encoding ISO-8859-1 (errors=replace)")
+            return root
+        except Exception as e:
+            print(f"[DTEBox] Error crítico al parsear XML: {str(e)}")
+            raise
+    
     def _extraer_documento_xml(self, xml_firmado):
         """
         Extrae el elemento Documento del XML firmado.
@@ -260,8 +306,8 @@ class DTEBoxService:
             try:
                 from lxml import etree as lxml_etree
                 
-                # Parsear el XML preservando namespaces
-                root = lxml_etree.fromstring(xml_firmado.encode('ISO-8859-1'))
+                # Usar función auxiliar para parsear con manejo correcto de encoding
+                root = self._parsear_xml_con_encoding(xml_firmado)
                 
                 # Buscar el elemento Documento
                 ns_sii = "http://www.sii.cl/SiiDte"
@@ -291,12 +337,20 @@ class DTEBoxService:
                         print(f"[DTEBox] ✅ Agregado elemento TED con estructura básica al XML del DTE")
                         
                         # Convertir de vuelta a string preservando el formato original sin prefijos
-                        xml_con_ted = lxml_etree.tostring(
-                            root,
-                            pretty_print=True,
-                            xml_declaration=True,
-                            encoding='ISO-8859-1'
-                        ).decode('ISO-8859-1')
+                        try:
+                            xml_con_ted = lxml_etree.tostring(
+                                root,
+                                pretty_print=True,
+                                xml_declaration=True,
+                                encoding='ISO-8859-1'
+                            ).decode('ISO-8859-1')
+                        except UnicodeDecodeError:
+                            # Si falla, intentar sin pretty_print
+                            xml_con_ted = lxml_etree.tostring(
+                                root,
+                                xml_declaration=True,
+                                encoding='ISO-8859-1'
+                            ).decode('ISO-8859-1')
                         
                         return xml_con_ted
                 
@@ -449,6 +503,19 @@ class DTEBoxService:
         """
         Envía el XML firmado a DTEBox para obtener el TED
         
+        Endpoint: POST http://[ip-dtebox]/api/Core.svc/core/SendDocumentAsXML
+        API URL ejemplo: http://200.6.118.43/api/Core.svc/Core
+        API Key ejemplo: 0a1c295d-7853-4e2e-ac90-d7d2fd46ecf0
+        
+        Formato del request según documentación oficial:
+        - XML: SendDocumentAsXMLRequest con namespace http://gdexpress.cl/api
+        - JSON: Objeto con Environment, Content (base64), ResolutionDate, ResolutionNumber, etc.
+        
+        Headers requeridos:
+        - AuthKey: [Llave de cada box]
+        - Content-Type: application/xml o application/json
+        - Accept: application/xml o application/json
+        
         Args:
             xml_firmado: String con el XML del DTE firmado
             
@@ -517,11 +584,21 @@ class DTEBoxService:
             print(f"[DTEBox] Método: POST")
             print(f"[DTEBox] Intentando primero con formato XML (según documentación)...")
             
-            # Generar XML según la documentación
-            # CRÍTICO: Usar namespace por defecto sin prefijos para evitar problemas con el servidor
+            # Generar XML según la documentación oficial
+            # Formato exacto según ejemplo proporcionado:
+            # <SendDocumentAsXMLRequest xmlns="http://gdexpress.cl/api">
+            #   <Environment>T</Environment>
+            #   <Content>Base64[]</Content>
+            #   <ResolutionDate>2019-01-01</ResolutionDate>
+            #   <ResolutionNumber>80</ResolutionNumber>
+            #   <PDF417Columns></PDF417Columns>
+            #   <PDF417Level></PDF417Level>
+            #   <PDF417Type></PDF417Type>
+            #   <TED></TED>
+            # </SendDocumentAsXMLRequest>
             import xml.etree.ElementTree as ET
             
-            # Crear el elemento raíz con namespace por defecto
+            # Crear el elemento raíz con namespace por defecto (sin prefijos)
             root = ET.Element("SendDocumentAsXMLRequest")
             root.set("xmlns", "http://gdexpress.cl/api")
             
@@ -538,19 +615,17 @@ class DTEBoxService:
             res_num_elem = ET.SubElement(root, "ResolutionNumber")
             res_num_elem.text = str(int(resolution_number))
             
-            # PDF417 - según documentación pueden estar vacíos
+            # PDF417 - según documentación pueden estar vacíos (se envían como elementos vacíos)
             pdf417_cols_elem = ET.SubElement(root, "PDF417Columns")
-            if self.pdf417_columns:
-                pdf417_cols_elem.text = str(self.pdf417_columns)
+            pdf417_cols_elem.text = str(self.pdf417_columns) if self.pdf417_columns else ""
             
             pdf417_level_elem = ET.SubElement(root, "PDF417Level")
-            if self.pdf417_level:
-                pdf417_level_elem.text = str(self.pdf417_level)
+            pdf417_level_elem.text = str(self.pdf417_level) if self.pdf417_level else ""
             
             pdf417_type_elem = ET.SubElement(root, "PDF417Type")
-            if self.pdf417_type:
-                pdf417_type_elem.text = str(self.pdf417_type)
+            pdf417_type_elem.text = str(self.pdf417_type) if self.pdf417_type else ""
             
+            # TED - se envía vacío cuando se usa Timbraje Offline (DTEBox genera el TED)
             ted_elem = ET.SubElement(root, "TED")
             ted_elem.text = ""
             
@@ -570,6 +645,9 @@ class DTEBoxService:
             except Exception as e:
                 print(f"[DTEBox] ⚠️ No se pudo guardar archivo de debug: {str(e)}")
             
+            # Headers según documentación oficial:
+            # XML: AuthKey, Content-Type: application/xml, Accept: application/xml
+            # JSON: AuthKey, Content-Type: application/json, Accept: application/json
             headers_xml = {
                 "AuthKey": self.auth_key,
                 "Content-Type": "application/xml",
@@ -653,32 +731,43 @@ class DTEBoxService:
                     # Si aún falla, intentar con JSON como último recurso
                     if response.status_code in [404, 500]:
                         print(f"[DTEBox] ⚠️ Error {response.status_code} con Documento, intentando con JSON como último recurso...")
-                        request_data = {
-                            "Environment": str(self.ambiente),
-                            "Content": documento_base64,  # Usar el Documento extraído
-                            "ResolutionDate": resolution_date,
-                            "ResolutionNumber": int(resolution_number),
-                            "PDF417Columns": str(self.pdf417_columns) if self.pdf417_columns else "",
-                            "PDF417Level": str(self.pdf417_level) if self.pdf417_level else "",
-                            "PDF417Type": str(self.pdf417_type) if self.pdf417_type else "",
-                            "TED": ""
-                        }
-                        
-                        headers_json = {
-                            "AuthKey": self.auth_key,
-                            "Content-Type": "application/json",
-                            "Accept": "application/json"
-                        }
-                        
-                        print(f"[DTEBox] Intentando con formato JSON...")
-                        response = requests.post(
-                            self.url,
-                            json=request_data,
-                            headers=headers_json,
-                            timeout=30,
-                            verify=False
-                        )
-                        print(f"[DTEBox] Response con JSON - Status: {response.status_code}")
+                    # Formato JSON según documentación oficial:
+                    # {
+                    #   "Environment" : "T",
+                    #   "Content" : "Base64[]",
+                    #   "ResolutionDate" : "2019-01-01",
+                    #   "ResolutionNumber" : "80",
+                    #   "PDF417Columns" : "",
+                    #   "PDF417Level" : "",
+                    #   "PDF417Type" : "",
+                    #   "TED" : ""
+                    # }
+                    request_data = {
+                        "Environment": str(self.ambiente),
+                        "Content": documento_base64,  # Usar el Documento extraído
+                        "ResolutionDate": resolution_date,
+                        "ResolutionNumber": str(int(resolution_number)),  # Como string según ejemplo
+                        "PDF417Columns": str(self.pdf417_columns) if self.pdf417_columns else "",
+                        "PDF417Level": str(self.pdf417_level) if self.pdf417_level else "",
+                        "PDF417Type": str(self.pdf417_type) if self.pdf417_type else "",
+                        "TED": ""
+                    }
+                    
+                    headers_json = {
+                        "AuthKey": self.auth_key,
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    }
+                    
+                    print(f"[DTEBox] Intentando con formato JSON...")
+                    response = requests.post(
+                        self.url,
+                        json=request_data,
+                        headers=headers_json,
+                        timeout=30,
+                        verify=False
+                    )
+                    print(f"[DTEBox] Response con JSON - Status: {response.status_code}")
                 except Exception as e_doc:
                     print(f"[DTEBox] Error al intentar con Documento extraído: {str(e_doc)}")
                     # Intentar con JSON como último recurso con XML completo
@@ -795,7 +884,10 @@ class DTEBoxService:
                     import xml.etree.ElementTree as ET
                     root = ET.fromstring(response.text)
                     
-                    # Buscar en diferentes namespaces posibles
+                    # Respuesta según documentación oficial:
+                    # Result: 0 (éxito) o 1 (error)
+                    # Description: Descripción del error (vacío si es exitoso)
+                    # TED: Base64[] con el TED generado
                     result_elem = (root.find('.//{http://gdexpress.cl/api}Result') or 
                                   root.find('.//Result') or
                                   root.find('.//{*}Result'))
@@ -807,11 +899,14 @@ class DTEBoxService:
                                root.find('.//{*}TED'))
                     
                     result = int(result_elem.text) if result_elem is not None and result_elem.text else 1
-                    description = description_elem.text if description_elem is not None and description_elem.text else 'Sin descripción'
+                    description = description_elem.text if description_elem is not None and description_elem.text else ''
                     ted_base64 = ted_elem.text if ted_elem is not None and ted_elem.text else ''
                     
-                    print(f"[DTEBox] Result: {result}, Description: {description}")
+                    print(f"[DTEBox] Result: {result} (0=éxito, 1=error)")
+                    print(f"[DTEBox] Description: {description}")
+                    print(f"[DTEBox] TED recibido: {'Sí' if ted_base64 else 'No'}")
                     
+                    # Result == 0 significa éxito según documentación
                     if result == 0 and ted_base64:
                         ted_bytes = base64.b64decode(ted_base64)
                         ted_text = ted_bytes.decode('ISO-8859-1')
@@ -839,14 +934,18 @@ class DTEBoxService:
                     print(f"[DTEBox] Error al parsear como XML: {str(e_xml)}, intentando como JSON...")
                     # Intentar parsear como JSON si falla XML
                     try:
+                        # Parsear respuesta JSON según documentación oficial
                         response_data = response.json()
                         
-                        result = response_data.get('Result', 1)
+                        result = response_data.get('Result', 1)  # 0=éxito, 1=error
                         description = response_data.get('Description', '')
                         ted_base64 = response_data.get('TED', '')
                         
-                        print(f"[DTEBox] Result: {result}, Description: {description}")
+                        print(f"[DTEBox] Result: {result} (0=éxito, 1=error)")
+                        print(f"[DTEBox] Description: {description}")
+                        print(f"[DTEBox] TED recibido: {'Sí' if ted_base64 else 'No'}")
                         
+                        # Result == 0 significa éxito según documentación
                         if result == 0 and ted_base64:
                             ted_bytes = base64.b64decode(ted_base64)
                             ted_text = ted_bytes.decode('ISO-8859-1')
@@ -984,5 +1083,557 @@ class DTEBoxService:
                 'success': False,
                 'ted': None,
                 'error': f'Error inesperado: {str(e)}'
+            }
+    
+    def obtener_pdf(self, tipo_dte, folio, rut_emisor=None):
+        """
+        Obtiene el PDF de un documento desde DTEBox
+        
+        Args:
+            tipo_dte: Tipo de documento (33=Factura, 34=Factura Exenta, etc.)
+            folio: Número de folio del documento
+            rut_emisor: RUT del emisor (opcional, usa el de la empresa si no se proporciona)
+            
+        Returns:
+            dict: {
+                'success': bool,
+                'pdf': bytes o None,
+                'error': str o None
+            }
+        """
+        try:
+            # Usar RUT de la empresa si no se proporciona
+            if not rut_emisor:
+                rut_emisor = self.empresa.rut
+            
+            # Formatear RUT: quitar puntos pero mantener guión
+            rut_formateado = rut_emisor.replace('.', '')
+            
+            # Construir URL base
+            url_base = self.empresa.dtebox_url.strip().rstrip('/')
+            
+            # Normalizar URL base
+            if '/api/Core.svc' in url_base or '/api/core.svc' in url_base:
+                base_url = url_base.split('/api/')[0] + '/api/Core.svc'
+            else:
+                base_url = url_base
+            
+            # Normalizar a minúsculas en /core
+            base_url = base_url.replace('/Core.svc/Core', '/Core.svc/core').replace('/core.svc/core', '/Core.svc/core')
+            
+            # Construir endpoint completo según formato: /RecoverPDF_V2/{Ambiente}/E/{RUT}/{TipoDTE}/{Folio}
+            endpoint = f"{base_url}/core/RecoverPDF_V2/{self.ambiente}/E/{rut_formateado}/{tipo_dte}/{folio}"
+            
+            print(f"[DTEBox] Obteniendo PDF - Tipo: {tipo_dte}, Folio: {folio}, RUT: {rut_formateado}")
+            print(f"[DTEBox] Endpoint: {endpoint}")
+            
+            # Headers con AuthKey
+            headers = {
+                'AuthKey': self.auth_key,
+                'Accept': 'application/pdf, application/json, */*'
+            }
+            
+            # Realizar solicitud GET
+            response = requests.get(
+                endpoint,
+                headers=headers,
+                timeout=30,
+                verify=False
+            )
+            
+            print(f"[DTEBox] Response Status: {response.status_code}")
+            print(f"[DTEBox] Content-Type: {response.headers.get('Content-Type', 'N/A')}")
+            print(f"[DTEBox] Content-Length: {len(response.content)} bytes")
+            
+            if response.status_code == 200:
+                content_type = response.headers.get('Content-Type', '').lower()
+                
+                # Verificar si la respuesta es un PDF directo
+                if 'application/pdf' in content_type or 'pdf' in content_type:
+                    print(f"[DTEBox] ✅ PDF obtenido directamente")
+                    return {
+                        'success': True,
+                        'pdf': response.content,
+                        'error': None
+                    }
+                
+                # Si la respuesta es JSON, puede contener el PDF en Base64
+                elif 'application/json' in content_type:
+                    try:
+                        json_response = response.json()
+                        
+                        # Buscar campo PDF o Data en Base64
+                        pdf_base64 = None
+                        for key in ['PDF', 'Content', 'Document', 'File', 'Data']:
+                            if key in json_response:
+                                pdf_base64 = json_response[key]
+                                break
+                        
+                        if pdf_base64:
+                            pdf_bytes = base64.b64decode(pdf_base64)
+                            print(f"[DTEBox] ✅ PDF obtenido desde Base64 ({len(pdf_bytes)} bytes)")
+                            return {
+                                'success': True,
+                                'pdf': pdf_bytes,
+                                'error': None
+                            }
+                        else:
+                            error_msg = f"No se encontró campo PDF/Data en la respuesta JSON"
+                            print(f"[DTEBox] ❌ {error_msg}")
+                            return {
+                                'success': False,
+                                'pdf': None,
+                                'error': error_msg
+                            }
+                    except json.JSONDecodeError as e:
+                        error_msg = f"Error al parsear JSON: {str(e)}"
+                        print(f"[DTEBox] ❌ {error_msg}")
+                        return {
+                            'success': False,
+                            'pdf': None,
+                            'error': error_msg
+                        }
+                
+                # Si la respuesta es texto, puede ser Base64
+                elif 'text' in content_type:
+                    try:
+                        pdf_base64 = response.text.strip()
+                        pdf_bytes = base64.b64decode(pdf_base64)
+                        print(f"[DTEBox] ✅ PDF obtenido desde Base64 (texto) ({len(pdf_bytes)} bytes)")
+                        return {
+                            'success': True,
+                            'pdf': pdf_bytes,
+                            'error': None
+                        }
+                    except Exception as e:
+                        error_msg = f"No se pudo decodificar como Base64: {str(e)}"
+                        print(f"[DTEBox] ❌ {error_msg}")
+                        return {
+                            'success': False,
+                            'pdf': None,
+                            'error': error_msg
+                        }
+                
+                # Si es binario pero no PDF reconocido, verificar firma PDF
+                elif len(response.content) > 0:
+                    if response.content[:4] == b'%PDF':
+                        print(f"[DTEBox] ✅ PDF obtenido (detectado por firma PDF) ({len(response.content)} bytes)")
+                        return {
+                            'success': True,
+                            'pdf': response.content,
+                            'error': None
+                        }
+                    else:
+                        error_msg = f"Tipo de contenido no reconocido: {content_type}"
+                        print(f"[DTEBox] ❌ {error_msg}")
+                        return {
+                            'success': False,
+                            'pdf': None,
+                            'error': error_msg
+                        }
+                else:
+                    error_msg = "Respuesta vacía del servidor"
+                    print(f"[DTEBox] ❌ {error_msg}")
+                    return {
+                        'success': False,
+                        'pdf': None,
+                        'error': error_msg
+                    }
+            
+            elif response.status_code == 404:
+                error_msg = f"Documento no encontrado (404) - Tipo: {tipo_dte}, Folio: {folio}"
+                print(f"[DTEBox] ❌ {error_msg}")
+                return {
+                    'success': False,
+                    'pdf': None,
+                    'error': error_msg
+                }
+            elif response.status_code == 401:
+                error_msg = "No autorizado (401) - Verificar AuthKey"
+                print(f"[DTEBox] ❌ {error_msg}")
+                return {
+                    'success': False,
+                    'pdf': None,
+                    'error': error_msg
+                }
+            elif response.status_code == 403:
+                error_msg = "Prohibido (403) - Sin permisos para acceder al recurso"
+                print(f"[DTEBox] ❌ {error_msg}")
+                return {
+                    'success': False,
+                    'pdf': None,
+                    'error': error_msg
+                }
+            elif response.status_code == 500:
+                error_msg = f"Error del servidor (500): {response.text[:500]}"
+                print(f"[DTEBox] ❌ {error_msg}")
+                return {
+                    'success': False,
+                    'pdf': None,
+                    'error': error_msg
+                }
+            else:
+                error_msg = f"Status code no esperado ({response.status_code}): {response.text[:500]}"
+                print(f"[DTEBox] ❌ {error_msg}")
+                return {
+                    'success': False,
+                    'pdf': None,
+                    'error': error_msg
+                }
+        
+        except requests.exceptions.ConnectionError as e:
+            error_msg = f"Error de conexión: {str(e)}"
+            print(f"[DTEBox] ❌ {error_msg}")
+            return {
+                'success': False,
+                'pdf': None,
+                'error': error_msg
+            }
+        except requests.exceptions.Timeout as e:
+            error_msg = f"Timeout: {str(e)}"
+            print(f"[DTEBox] ❌ {error_msg}")
+            return {
+                'success': False,
+                'pdf': None,
+                'error': error_msg
+            }
+        except Exception as e:
+            error_msg = f"Error inesperado: {str(e)}"
+            print(f"[DTEBox] ❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'pdf': None,
+                'error': error_msg
+            }
+    
+    def _verificar_documento_timbrado(self, xml_completo):
+        """
+        Verifica si el documento XML tiene TED timbrado (ya aceptado por el SII)
+        
+        Args:
+            xml_completo: String con el XML completo del documento
+            
+        Returns:
+            dict: {
+                'timbrado': bool,
+                'tipo': str,  # 'timbrado', 'sin_ted', 'ted_vacio'
+                'mensaje': str
+            }
+        """
+        try:
+            # Verificar si tiene elemento TED
+            if '<TED' not in xml_completo and '<ns0:TED' not in xml_completo and '<ns1:TED' not in xml_completo:
+                return {
+                    'timbrado': False,
+                    'tipo': 'sin_ted',
+                    'mensaje': 'El documento no tiene elemento TED'
+                }
+            
+            # Verificar si el TED tiene contenido (está timbrado)
+            import re
+            
+            # Buscar el elemento DD dentro de TED (indica que está timbrado)
+            ted_pattern = r'<TED[^>]*>.*?<DD[^>]*>(.*?)</DD>'
+            match = re.search(ted_pattern, xml_completo, re.DOTALL | re.IGNORECASE)
+            
+            if match:
+                dd_content = match.group(1).strip()
+                # Si DD tiene contenido significativo (no solo espacios/lineas), está timbrado
+                if dd_content and len(dd_content) > 10:  # Contenido mínimo esperado
+                    # Verificar elementos específicos del TED timbrado
+                    if '<RE>' in dd_content or '<TD>' in dd_content or '<F>' in dd_content:
+                        return {
+                            'timbrado': True,
+                            'tipo': 'timbrado',
+                            'mensaje': 'El documento ya tiene TED timbrado (aceptado por el SII)'
+                        }
+            
+            # Si tiene TED pero está vacío o no tiene DD
+            return {
+                'timbrado': False,
+                'tipo': 'ted_vacio',
+                'mensaje': 'El documento tiene TED pero no está timbrado'
+            }
+            
+        except Exception as e:
+            print(f"[DTEBox] ⚠️ Error al verificar TED: {str(e)}")
+            # En caso de error, asumir que puede estar timbrado
+            return {
+                'timbrado': True,
+                'tipo': 'desconocido',
+                'mensaje': f'No se pudo verificar el estado del TED: {str(e)}'
+            }
+    
+    def reenviar_documento(self, xml_completo):
+        """
+        Reenvía un documento ya timbrado a DTEBox
+        
+        IMPORTANTE: Este método solo debe usarse para reenviar documentos que ya fueron
+        timbrados pero que aún no han sido aceptados por el SII. Si el documento ya fue
+        aceptado por el SII, DTEBox no permitirá reenviarlo.
+        
+        Args:
+            xml_completo: String con el XML completo del documento (incluyendo TED timbrado)
+            
+        Returns:
+            dict: {
+                'success': bool,
+                'message': str o None,
+                'error': str o None
+            }
+        """
+        try:
+            # Validar que tenemos el XML
+            if not xml_completo or not xml_completo.strip():
+                return {
+                    'success': False,
+                    'message': None,
+                    'error': 'El XML del documento está vacío'
+                }
+            
+            print(f"[DTEBox] Reenviando documento...")
+            print(f"[DTEBox] XML tamaño: {len(xml_completo)} caracteres")
+            
+            # Verificar si el documento tiene TED timbrado
+            verificacion = self._verificar_documento_timbrado(xml_completo)
+            print(f"[DTEBox] Estado del documento: {verificacion['mensaje']}")
+            
+            if verificacion['timbrado']:
+                # El documento tiene TED timbrado, advertir al usuario
+                print(f"[DTEBox] ⚠️ ADVERTENCIA: El documento tiene TED timbrado")
+                print(f"[DTEBox] ⚠️ Si el documento ya fue aceptado por el SII, DTEBox no permitirá reenviarlo")
+            
+            # Obtener datos de resolución de la empresa
+            if not self.empresa.resolucion_numero or not self.empresa.resolucion_fecha:
+                return {
+                    'success': False,
+                    'message': None,
+                    'error': 'Los datos de resolución no están configurados en la empresa'
+                }
+            
+            resolution_date = self.empresa.resolucion_fecha.strftime('%Y-%m-%d')
+            resolution_number = self.empresa.resolucion_numero
+            
+            print(f"[DTEBox] Resolución: {resolution_number} del {resolution_date}")
+            print(f"[DTEBox] Ambiente: {self.ambiente}")
+            
+            # Codificar XML en Base64 (preservar encoding ISO-8859-1)
+            try:
+                xml_bytes = xml_completo.encode('ISO-8859-1')
+            except UnicodeEncodeError:
+                # Si falla, intentar con UTF-8
+                xml_bytes = xml_completo.encode('UTF-8')
+            
+            documento_base64 = base64.b64encode(xml_bytes).decode('utf-8')
+            
+            print(f"[DTEBox] XML codificado en base64: {len(documento_base64)} caracteres")
+            
+            # Construir request XML según documentación
+            import xml.etree.ElementTree as ET
+            
+            root = ET.Element("SendDocumentAsXMLRequest", xmlns="http://gdexpress.cl/api")
+            ET.SubElement(root, "Environment").text = str(self.ambiente)
+            ET.SubElement(root, "Content").text = documento_base64
+            ET.SubElement(root, "ResolutionDate").text = resolution_date
+            ET.SubElement(root, "ResolutionNumber").text = str(int(resolution_number))
+            
+            # PDF417 (opcionales)
+            pdf417_cols_elem = ET.SubElement(root, "PDF417Columns")
+            if self.pdf417_columns:
+                pdf417_cols_elem.text = str(self.pdf417_columns)
+            
+            pdf417_level_elem = ET.SubElement(root, "PDF417Level")
+            if self.pdf417_level:
+                pdf417_level_elem.text = str(self.pdf417_level)
+            
+            pdf417_type_elem = ET.SubElement(root, "PDF417Type")
+            if self.pdf417_type:
+                pdf417_type_elem.text = str(self.pdf417_type)
+            
+            # Para reenvío, el TED ya está en el XML, así que lo enviamos vacío
+            ted_elem = ET.SubElement(root, "TED")
+            # Dejar vacío ya que el TED está en el XML completo
+            
+            # Convertir a string
+            xml_request_str = ET.tostring(root, encoding='unicode', method='xml')
+            xml_request = xml_request_str.encode('utf-8')
+            
+            # Headers para XML
+            headers_xml = {
+                'AuthKey': self.auth_key,
+                'Content-Type': 'application/xml',
+                'Accept': 'application/xml'
+            }
+            
+            print(f"[DTEBox] Enviando request de reenvío a: {self.url}")
+            print(f"[DTEBox] Headers: AuthKey = {self.auth_key[:20]}...")
+            
+            # Realizar solicitud POST
+            response = requests.post(
+                self.url,
+                data=xml_request,
+                headers=headers_xml,
+                timeout=30,
+                verify=False
+            )
+            
+            print(f"[DTEBox] Response Status: {response.status_code}")
+            print(f"[DTEBox] Content-Type: {response.headers.get('Content-Type', 'N/A')}")
+            
+            if response.status_code == 200:
+                # Intentar parsear respuesta XML
+                try:
+                    import xml.etree.ElementTree as ET
+                    root_resp = ET.fromstring(response.text)
+                    
+                    # Buscar Result y Description
+                    result_elem = (root_resp.find('.//{http://gdexpress.cl/api}Result') or 
+                                  root_resp.find('.//Result') or
+                                  root_resp.find('.//{*}Result'))
+                    description_elem = (root_resp.find('.//{http://gdexpress.cl/api}Description') or 
+                                        root_resp.find('.//Description') or
+                                        root_resp.find('.//{*}Description'))
+                    
+                    result_value = result_elem.text if result_elem is not None else None
+                    description = description_elem.text if description_elem is not None else ""
+                    
+                    # Result = 0 significa éxito, Result = 1 significa error
+                    if result_value == "0" or result_value == 0:
+                        print(f"[DTEBox] ✅ Documento reenviado exitosamente")
+                        return {
+                            'success': True,
+                            'message': description or 'Documento reenviado exitosamente',
+                            'error': None
+                        }
+                    else:
+                        error_msg = description or 'Error al reenviar documento'
+                        print(f"[DTEBox] ❌ Error al reenviar: {error_msg}")
+                        return {
+                            'success': False,
+                            'message': None,
+                            'error': error_msg
+                        }
+                
+                except Exception as e:
+                    # Si no se puede parsear como XML, intentar como JSON
+                    try:
+                        json_response = response.json()
+                        result = json_response.get('Result', json_response.get('result'))
+                        description = json_response.get('Description', json_response.get('description', ''))
+                        
+                        if result == 0 or result == "0":
+                            print(f"[DTEBox] ✅ Documento reenviado exitosamente")
+                            return {
+                                'success': True,
+                                'message': description or 'Documento reenviado exitosamente',
+                                'error': None
+                            }
+                        else:
+                            error_msg = description or 'Error al reenviar documento'
+                            print(f"[DTEBox] ❌ Error al reenviar: {error_msg}")
+                            return {
+                                'success': False,
+                                'message': None,
+                                'error': error_msg
+                            }
+                    except:
+                        # Si tampoco es JSON, devolver respuesta como texto
+                        if 'success' in response.text.lower() or 'ok' in response.text.lower():
+                            print(f"[DTEBox] ✅ Documento reenviado exitosamente")
+                            return {
+                                'success': True,
+                                'message': 'Documento reenviado exitosamente',
+                                'error': None
+                            }
+                        else:
+                            error_msg = f"Respuesta no reconocida: {response.text[:500]}"
+                            print(f"[DTEBox] ❌ {error_msg}")
+                            return {
+                                'success': False,
+                                'message': None,
+                                'error': error_msg
+                            }
+            
+            elif response.status_code == 401:
+                error_msg = "No autorizado (401) - Verificar AuthKey"
+                print(f"[DTEBox] ❌ {error_msg}")
+                return {
+                    'success': False,
+                    'message': None,
+                    'error': error_msg
+                }
+            elif response.status_code == 404:
+                error_msg = "Endpoint no encontrado (404) - Verificar URL"
+                print(f"[DTEBox] ❌ {error_msg}")
+                return {
+                    'success': False,
+                    'message': None,
+                    'error': error_msg
+                }
+            elif response.status_code == 500:
+                # Intentar detectar si el error es porque el documento ya está timbrado/aceptado
+                error_text = response.text.lower()
+                
+                # Verificar si el documento tiene TED timbrado
+                verificacion = self._verificar_documento_timbrado(xml_completo)
+                
+                # Mensaje específico si el documento está timbrado
+                if verificacion['timbrado']:
+                    error_msg = (
+                        "El documento ya está timbrado y no se puede reenviar. "
+                        "Si el documento fue aceptado por el SII, DTEBox no permite reenviarlo. "
+                        "Solo se pueden reenviar documentos timbrados que aún no han sido aceptados por el SII."
+                    )
+                    print(f"[DTEBox] ❌ {error_msg}")
+                    return {
+                        'success': False,
+                        'message': None,
+                        'error': error_msg
+                    }
+                else:
+                    # Error genérico del servidor
+                    error_msg = f"Error del servidor (500): {response.text[:500]}"
+                    print(f"[DTEBox] ❌ {error_msg}")
+                    return {
+                        'success': False,
+                        'message': None,
+                        'error': error_msg
+                    }
+            else:
+                error_msg = f"Status code no esperado ({response.status_code}): {response.text[:500]}"
+                print(f"[DTEBox] ❌ {error_msg}")
+                return {
+                    'success': False,
+                    'message': None,
+                    'error': error_msg
+                }
+        
+        except requests.exceptions.ConnectionError as e:
+            error_msg = f"Error de conexión: {str(e)}"
+            print(f"[DTEBox] ❌ {error_msg}")
+            return {
+                'success': False,
+                'message': None,
+                'error': error_msg
+            }
+        except requests.exceptions.Timeout as e:
+            error_msg = f"Timeout: {str(e)}"
+            print(f"[DTEBox] ❌ {error_msg}")
+            return {
+                'success': False,
+                'message': None,
+                'error': error_msg
+            }
+        except Exception as e:
+            error_msg = f"Error inesperado: {str(e)}"
+            print(f"[DTEBox] ❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'message': None,
+                'error': error_msg
             }
 
