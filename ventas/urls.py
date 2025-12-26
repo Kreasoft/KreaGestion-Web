@@ -52,6 +52,7 @@ urlpatterns = [
     
     # Vales/Tickets
     path('vales/<int:pk>/html/', views.vale_html, name='vale_html'),
+    path('vales/<int:pk>/termica/', views.vale_termica, name='vale_termica'),
     path('tickets/', views.ticket_list, name='ticket_list'),
     path('tickets/<int:pk>/', views.ticket_detail, name='ticket_detail'),
     path('tickets/<int:pk>/reimprimir/', views.ticket_reimprimir, name='ticket_reimprimir'),

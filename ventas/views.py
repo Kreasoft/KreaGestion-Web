@@ -2792,6 +2792,32 @@ def vale_html(request, pk):
         return JsonResponse({'success': False, 'message': 'Documento no encontrado'})
 
 
+@login_required
+@requiere_empresa
+def vale_termica(request, pk):
+    """Vista HTML optimizada para impresoras térmicas (80mm)"""
+    try:
+        # Intentar primero con tipo_documento='vale'
+        try:
+            venta = Venta.objects.get(pk=pk, empresa=request.empresa, tipo_documento='vale')
+        except Venta.DoesNotExist:
+            # Si no es vale, buscar cualquier tipo de documento
+            venta = Venta.objects.get(pk=pk, empresa=request.empresa)
+        
+        detalles = VentaDetalle.objects.filter(venta=venta)
+        
+        context = {
+            'vale': venta,
+            'detalles': detalles,
+            'nombre_impresora': request.GET.get('printer', '')
+        }
+        
+        return render(request, 'ventas/vale_termica.html', context)
+    
+    except Venta.DoesNotExist:
+        return HttpResponse("Documento no encontrado", status=404)
+
+
 # ========== COTIZACIONES ==========
 
 @login_required
