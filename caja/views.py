@@ -987,55 +987,30 @@ def procesar_venta(request, ticket_id):
             
             print("[OK] PRECHEQUEOS COMPLETADOS - Continuando...")
 
-            # NOTA: La validación del CAF se hace dentro del bloque que genera el DTE
-            # porque si no se va a generar DTE, no se necesita CAF
+            # IMPORTANTE: El número de venta se obtiene del folio CAF si se va a generar DTE.
+            # Si NO se va a generar DTE (modo vale), usar un correlativo simple temporal.
+            # El folio real se asigna dentro del bloque de generación de DTE usando FolioService.
             
-            # Generar número de venta (correlativo, sin CAF si no se va a generar DTE)
-            # El número de venta se genera siempre, pero el folio CAF solo si se genera DTE
-            print(f"Generando número correlativo para {tipo_documento}...")
-            
-            # CRÍTICO: Buscar el número más alto existente SOLO para el tipo de documento específico
-            # Excluir vales porque tienen su propio correlativo independiente
-            # Usar Max() para obtener el número más alto de forma eficiente
+            # Para vales y casos sin DTE, generar un número temporal
             from django.db.models import Max
             
-            # Buscar el número más alto para este tipo de documento (excluyendo vales)
             max_numero = Venta.objects.filter(
                 empresa=request.empresa
             ).exclude(
-                tipo_documento='vale'  # Excluir vales porque tienen correlativo independiente
+                tipo_documento='vale'
             ).aggregate(
                 max_numero=Max('numero_venta')
             )['max_numero']
             
-            # Iniciar desde 1 si no hay ventas previas
-            numero = 1
-            
-            # Si hay un número máximo, convertir a int y sumar 1
+            numero_temp = 1
             if max_numero:
                 try:
-                    numero = int(max_numero) + 1
+                    numero_temp = int(max_numero) + 1
                 except (ValueError, TypeError):
-                    numero = 1
+                    numero_temp = 1
             
-            print(f"   Número base calculado: {numero} (max anterior: {max_numero})")
-            
-            # Buscar un número disponible (excluyendo vales)
-            numero_venta = f"{numero:06d}"
-            max_intentos = 1000
-            
-            for intento in range(max_intentos):
-                # Verificar que no exista (excluyendo vales)
-                if not Venta.objects.filter(
-                    empresa=request.empresa,
-                    numero_venta=numero_venta
-                ).exclude(tipo_documento='vale').exists():
-                    break
-                print(f"   #{numero_venta} existe, probando siguiente...")
-                numero += 1
-                numero_venta = f"{numero:06d}"
-            
-            print(f"   Numero generado: {numero_venta}")
+            numero_venta_temporal = f"{numero_temp:06d}"
+            print(f"Número temporal para la venta: {numero_venta_temporal} (se reemplazará con folio CAF si se genera DTE)")
             
             # Ahora crear la venta dentro de una transacción con manejo de IntegrityError
             max_reintentos = 20
@@ -1081,13 +1056,13 @@ def procesar_venta(request, ticket_id):
                                 tipo_doc_crear = 'boleta'
                                 tipo_doc_planeado_crear = 'boleta'
                         
-                        print(f"Creando venta #{numero_venta}...")
+                        print(f"Creando venta #{numero_venta_temporal}...")
                         print(f"   - Tipo Documento: {tipo_doc_crear}")
                         print(f"   - Tipo Planeado: {tipo_doc_planeado_crear}")
                         
                         venta_final = Venta.objects.create(
                         empresa=request.empresa,
-                        numero_venta=numero_venta,
+                        numero_venta=numero_venta_temporal,  # Se actualizará con el folio CAF si se genera DTE
                         cliente=ticket.cliente,
                         vendedor=vendedor_seleccionado,
                         vehiculo=vehiculo_seleccionado,
@@ -1263,84 +1238,63 @@ def procesar_venta(request, ticket_id):
                         print("[⚠️] ENTRANDO AL BLOQUE DE GENERACIÓN DE DTE")
                         print(f"  debe_generar_dte = {debe_generar_dte}")
                         print("=" * 80)
-                        # VALIDAR FOLIOS DISPONIBLES Y OBTENER FOLIO DEL CAF (solo si se va a generar DTE)
-                        caf = None
-                        tipo_dte = None
-                        if tipo_documento in ['factura', 'boleta', 'guia']:
-                            try:
-                                from facturacion_electronica.models import ArchivoCAF
-                                
-                                # Mapear tipo de documento a código SII
-                                tipo_dte_map = {
-                                    'factura': '33',
-                                    'boleta': '39',
-                                    'guia': '52',
-                                }
-                                tipo_dte = tipo_dte_map.get(tipo_documento)
-                                
-                                print(f"Buscando CAF para {tipo_documento} (tipo DTE: {tipo_dte})...")
-                                
-                                # Buscar CAF disponible y con folios
-                                caf = ArchivoCAF.objects.filter(
-                                    empresa=request.empresa,
-                                    tipo_documento=tipo_dte,
-                                    estado='activo',
-                                    folios_utilizados__lt=models.F('cantidad_folios')
-                                ).order_by('fecha_autorizacion').first()
-                                
-                                if caf and not caf.esta_vigente():
-                                    print("DEBUG - El CAF encontrado NO está vigente. Se descarta.")
-                                    caf = None
-                                
-                                if not caf:
-                                    tipo_doc_nombre = {'factura': 'Factura', 'boleta': 'Boleta', 'guia': 'Guía de Despacho'}[tipo_documento]
-                                    messages.error(request, f'No se puede procesar: No hay folios CAF disponibles para {tipo_doc_nombre}. Debe cargar folios antes de continuar.')
-                                    return render(request, 'caja/procesar_venta.html', {
-                                        'ticket': ticket,
-                                        'form': form,
-                                        'apertura_activa': apertura_activa,
-                                    })
-                                
-                                if not caf.esta_vigente():
-                                    messages.error(request, f'El CAF de {tipo_documento} ha vencido. Debe cargar un nuevo CAF.')
-                                    return render(request, 'caja/procesar_venta.html', {
-                                        'ticket': ticket,
-                                        'form': form,
-                                        'apertura_activa': apertura_activa,
-                                    })
-                                
-                                if caf.folios_disponibles() <= 0:
-                                    raise ValueError("El CAF seleccionado no tiene folios disponibles.")
-                                
-                                print(f"[OK] CAF encontrado: ID {caf.id}, Folios disponibles: {caf.folios_disponibles()}")
-                            except Exception as e:
-                                print(f"ERROR al obtener folio CAF: {str(e)}")
-                                import traceback
-                                traceback.print_exc()
-                                messages.error(request, f'Error al obtener folio: {str(e)}')
-                                return render(request, 'caja/procesar_venta.html', {
-                                    'ticket': ticket,
-                                    'form': form,
-                                    'apertura_activa': apertura_activa,
-                                })
+                        
+                        # Mapear tipo de documento a código SII
+                        tipo_dte_map = {
+                            'factura': '33',
+                            'boleta': '39',
+                            'guia': '52',
+                        }
+                        tipo_dte = tipo_dte_map.get(tipo_documento)
+                        
+                        if not tipo_dte:
+                            raise ValueError(f"Tipo de documento '{tipo_documento}' no válido para DTE")
                         
                         try:
-                            # --- INICIO: Lógica de generación de DTE corregida ---
-                            print(f"Generando DTE para {tipo_documento} #{numero_venta}...")
+                            # =================================================================
+                            # PASO 1: OBTENER FOLIO DEL CAF USANDO FolioService
+                            # =================================================================
+                            print(f"[FOLIO] Obteniendo folio del CAF para tipo DTE {tipo_dte}...")
+                            from facturacion_electronica.services import FolioService
                             
-                            # El folio ya fue validado y la variable 'caf' contiene el CAF correcto.
-                            # La variable 'numero_venta' contiene el folio a utilizar.
-                            # La variable 'tipo_dte' contiene el código SII del documento.
+                            # CRÍTICO: Obtener el folio Y el CAF desde FolioService
+                            # Esto asegura que el folio esté dentro del rango autorizado
+                            folio_dte, caf_obtenido = FolioService.obtener_siguiente_folio(
+                                empresa=request.empresa,
+                                tipo_documento=tipo_dte,
+                                sucursal=request.empresa.casa_matriz
+                            )
+                            
+                            if folio_dte is None or caf_obtenido is None:
+                                raise ValueError(f"No se pudo obtener folio para tipo DTE {tipo_dte}. Verifique que haya un CAF activo y con folios disponibles.")
+                            
+                            print(f"[FOLIO] ✅ Folio obtenido: {folio_dte}")
+                            print(f"[FOLIO] CAF utilizado: ID {caf_obtenido.id}, Rango: {caf_obtenido.folio_desde}-{caf_obtenido.folio_hasta}")
+                            
+                            # ACTUALIZAR el número de venta con el folio real del CAF
+                            numero_venta_real = str(folio_dte)
+                            venta_final.numero_venta = numero_venta_real
+                            venta_final.save(update_fields=['numero_venta'])
+                            print(f"[FOLIO] Venta actualizada con número {numero_venta_real}")
+                            
+                            # =================================================================
+                            # PASO 2: CREAR EL DTE CON EL FOLIO CORRECTO
+                            # =================================================================
+                            # --- INICIO: Lógica de generación de DTE corregida ---
+                            print(f"Generando DTE para {tipo_documento} con folio #{folio_dte}...")
+                            
+                            # Usar el CAF obtenido desde FolioService (ya validado y con folio asignado)
+                            caf = caf_obtenido
 
                             # Crear el objeto DTE en la base de datos
                             dte = DocumentoTributarioElectronico.objects.create(
                                 empresa=request.empresa,
                                 tipo_dte=tipo_dte,
-                                folio=numero_venta,
+                                folio=folio_dte,  # ← USAR EL FOLIO DEL CAF, NO numero_venta
                                 fecha_emision=venta_final.fecha,
                                 usuario_creacion=request.user,
                                 estado_sii='NoEnviado',
-                                caf_utilizado=caf,
+                                caf_utilizado=caf,  # CAF ya viene validado y con folio asignado desde FolioService
                                 monto_neto=int(venta_final.neto),
                                 monto_iva=int(venta_final.iva),
                                 monto_exento=0, # Asumimos no exento por ahora
