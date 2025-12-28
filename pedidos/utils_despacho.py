@@ -38,6 +38,8 @@ def generar_guia_desde_orden_despacho(orden_despacho, usuario):
     with transaction.atomic():
         # Obtener sucursal (casa matriz por defecto)
         from empresas.models import Sucursal
+        from facturacion_electronica.services import FolioService
+        
         sucursal = Sucursal.objects.filter(empresa=orden_despacho.empresa, es_principal=True).first()
         if not sucursal:
             sucursal = Sucursal.objects.filter(empresa=orden_despacho.empresa).first()
@@ -45,25 +47,15 @@ def generar_guia_desde_orden_despacho(orden_despacho, usuario):
         if not sucursal:
             raise Exception("No se encontró sucursal para la empresa.")
         
-        # Buscar CAF activo usando el método del modelo
-        caf_disponible = ArchivoCAF.obtener_caf_activo(
+        # USAR FolioService CENTRALIZADO para asignación de folios
+        caf_disponible, siguiente_folio, error = FolioService.obtener_siguiente_folio(
             empresa=orden_despacho.empresa,
-            sucursal=sucursal,
-            tipo_documento='52'  # Guía de Despacho
+            tipo_documento='52',  # Guía de Despacho
+            sucursal=sucursal
         )
 
-        if not caf_disponible:
-            raise Exception(f"No hay CAF activo disponible para Guías de Despacho (52) en sucursal {sucursal.nombre}.")
-
-        # Obtener siguiente folio
-        siguiente_folio = caf_disponible.obtener_siguiente_folio()
-
-        # [FIX] Verificar si ya existe un DTE con este folio y eliminarlo para evitar error de constraint.
-        DocumentoTributarioElectronico.objects.filter(
-            empresa=orden_despacho.empresa,
-            tipo_dte='52',
-            folio=siguiente_folio
-        ).delete()
+        if error or not caf_disponible or not siguiente_folio:
+            raise Exception(error or f"No hay CAF activo disponible para Guías de Despacho (52) en sucursal {sucursal.nombre}.")
 
         # Calcular totales de la orden de despacho
         monto_neto = 0
@@ -223,6 +215,8 @@ def generar_factura_desde_orden_despacho(orden_despacho, usuario):
     with transaction.atomic():
         # Obtener sucursal (casa matriz por defecto)
         from empresas.models import Sucursal
+        from facturacion_electronica.services import FolioService
+        
         sucursal = Sucursal.objects.filter(empresa=orden_despacho.empresa, es_principal=True).first()
         if not sucursal:
             sucursal = Sucursal.objects.filter(empresa=orden_despacho.empresa).first()
@@ -230,25 +224,15 @@ def generar_factura_desde_orden_despacho(orden_despacho, usuario):
         if not sucursal:
             raise Exception("No se encontró sucursal para la empresa.")
         
-        # Buscar CAF activo usando el método del modelo
-        caf_disponible = ArchivoCAF.obtener_caf_activo(
+        # USAR FolioService CENTRALIZADO para asignación de folios
+        caf_disponible, siguiente_folio, error = FolioService.obtener_siguiente_folio(
             empresa=orden_despacho.empresa,
-            sucursal=sucursal,
-            tipo_documento='33'  # Factura Electrónica
+            tipo_documento='33',  # Factura Electrónica
+            sucursal=sucursal
         )
 
-        if not caf_disponible:
-            raise Exception(f"No hay CAF activo disponible para Facturas Electrónicas (33) en sucursal {sucursal.nombre}.")
-
-        # Obtener siguiente folio
-        siguiente_folio = caf_disponible.obtener_siguiente_folio()
-
-        # [FIX] Verificar si ya existe un DTE con este folio y eliminarlo para evitar error de constraint.
-        DocumentoTributarioElectronico.objects.filter(
-            empresa=orden_despacho.empresa,
-            tipo_dte='33',
-            folio=siguiente_folio
-        ).delete()
+        if error or not caf_disponible or not siguiente_folio:
+            raise Exception(error or f"No hay CAF activo disponible para Facturas Electrónicas (33) en sucursal {sucursal.nombre}.")
 
         # Calcular totales de la orden de despacho
         monto_neto = 0

@@ -326,30 +326,54 @@ class ArchivoCAF(models.Model):
         return True
     
     def obtener_siguiente_folio(self):
-        """Obtiene el siguiente folio disponible y actualiza el contador"""
+        """Obtiene el siguiente folio disponible y actualiza el contador
+        
+        VALIDACIÓN CRÍTICA: Verifica que el folio esté dentro del rango autorizado
+        """
         if self.estado != 'activo':
             raise ValueError(f"CAF no está activo (Estado: {self.estado})")
         
         if self.folios_utilizados >= self.cantidad_folios:
             self.estado = 'agotado'
-            self.fecha_agotamiento = timezone.now()
             self.save()
-            raise ValueError("CAF agotado")
+            raise ValueError("No hay más folios disponibles en este CAF")
         
-        siguiente = self.folio_actual + 1
+        # VALIDACIÓN CRÍTICA: Verificar que el próximo folio esté en el rango autorizado
+        proximo_folio = self.folio_actual + 1
         
-        if siguiente > self.folio_hasta:
-            raise ValueError("Folio fuera de rango")
+        if proximo_folio < self.folio_desde:
+            raise ValueError(
+                f"CRÍTICO: Folio {proximo_folio} es menor que el inicio del rango "
+                f"[{self.folio_desde}-{self.folio_hasta}] para CAF ID {self.id}. "
+                f"El CAF puede estar corrupto. Contacte al administrador."
+            )
         
-        self.folio_actual = siguiente
+        if proximo_folio > self.folio_hasta:
+            # El CAF está agotado
+            self.estado = 'agotado'
+            self.save()
+            raise ValueError(
+                f"No hay más folios disponibles. El próximo folio ({proximo_folio}) "
+                f"excede el rango autorizado [{self.folio_desde}-{self.folio_hasta}]"
+            )
+        
+        # Todo OK: incrementar y guardar
+        self.folio_actual = proximo_folio
         self.folios_utilizados += 1
         
+        # Verificar si se agotó
         if self.folios_utilizados >= self.cantidad_folios:
             self.estado = 'agotado'
             self.fecha_agotamiento = timezone.now()
         
         self.save()
-        return siguiente
+        
+        # Log para auditoría
+        print(f"[CAF {self.id}] Folio {proximo_folio} asignado. "
+              f"Rango: [{self.folio_desde}-{self.folio_hasta}], "
+              f"Utilizados: {self.folios_utilizados}/{self.cantidad_folios}")
+        
+        return proximo_folio
     
     def resetear_folios(self):
         """Resetea el CAF para reutilizar los folios (SOLO PARA PRUEBAS)"""

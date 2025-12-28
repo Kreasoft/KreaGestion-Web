@@ -556,6 +556,8 @@ def transferencia_generar_guia(request, pk):
         
         # Obtener sucursal (casa matriz por defecto)
         from empresas.models import Sucursal
+        from facturacion_electronica.services import FolioService
+        
         sucursal = Sucursal.objects.filter(empresa=request.empresa, es_principal=True).first()
         if not sucursal:
             sucursal = Sucursal.objects.filter(empresa=request.empresa).first()
@@ -566,56 +568,26 @@ def transferencia_generar_guia(request, pk):
                 'error': 'No se encontró sucursal para la empresa'
             })
         
-        # Buscar CAF activo usando el método del modelo
-        caf = ArchivoCAF.obtener_caf_activo(
-            empresa=request.empresa,
-            sucursal=sucursal,
-            tipo_documento='52'
-        )
-        
-        if not caf:
-            return JsonResponse({
-                'success': False,
-                'error': f'No hay CAF activo disponible para Guías de Despacho (52) en sucursal {sucursal.nombre}. Por favor, cargue un CAF tipo 52.'
-            })
-        
-        # Verificar que el CAF esté vigente
-        if not caf.esta_vigente():
-            return JsonResponse({
-                'success': False,
-                'error': 'El CAF de Guías de Despacho ha vencido'
-            })
-        
+        # USAR FolioService CENTRALIZADO para asignación de folios
         with transaction.atomic():
-            # Bloquear CAF para evitar condiciones de carrera y folios duplicados
-            caf = ArchivoCAF.objects.select_for_update().get(pk=caf.pk)
-
-            # Asignar folio evitando conflictos existentes
-            MAX_INTENTOS = 5
-            folio = None
-            for _ in range(MAX_INTENTOS):
-                candidato = caf.folio_actual + 1
-                if candidato > caf.folio_hasta:
-                    raise ValueError("Folio fuera de rango")
-                # Si el folio ya existe en DTE, avanzar CAF y continuar
-                existe = DocumentoTributarioElectronico.objects.filter(
-                    empresa=request.empresa,
-                    tipo_dte='52',
-                    folio=candidato
-                ).exists()
-                if existe:
-                    caf.folio_actual = candidato
-                    caf.folios_utilizados += 1
-                    if caf.folios_utilizados >= caf.cantidad_folios:
-                        caf.estado = 'agotado'
-                        caf.fecha_agotamiento = timezone.now()
-                    caf.save()
-                    continue
-                # Reservar folio normalmente
-                folio = caf.obtener_siguiente_folio()
-                break
-            if folio is None:
-                raise ValueError("No fue posible reservar un folio disponible. Intente nuevamente.")
+            caf, folio, error = FolioService.obtener_siguiente_folio(
+                empresa=request.empresa,
+                tipo_documento='52',
+                sucursal=sucursal
+            )
+            
+            if error or not caf or not folio:
+                return JsonResponse({
+                    'success': False,
+                    'error': error or f'No hay CAF activo disponible para Guías de Despacho (52) en sucursal {sucursal.nombre}. Por favor, cargue un CAF tipo 52.'
+                })
+            
+            # Verificar que el CAF esté vigente
+            if not caf.esta_vigente():
+                return JsonResponse({
+                    'success': False,
+                    'error': 'El CAF de Guías de Despacho ha vencido'
+                })
             
             # Calcular totales
             detalles = transferencia.detalles.all()
@@ -763,18 +735,6 @@ def transferencia_generar_guia(request, pk):
                         # Estado
                         estado_sii='generado'
                     )
-                except IntegrityError:
-                    # Si el folio ya existe, avanzar CAF y reintentar
-                    caf.folio_actual = folio
-                    caf.folios_utilizados += 1
-                    if caf.folios_utilizados >= caf.cantidad_folios:
-                        caf.estado = 'agotado'
-                        caf.fecha_agotamiento = timezone.now()
-                    caf.save()
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'Folio ya utilizado. Por favor, reintente.'
-                    })
                 
                 # 5. Generar imagen PDF417
                 PDF417Generator.guardar_pdf417_en_dte(dte)
