@@ -639,6 +639,47 @@ class DocumentoTributarioElectronico(models.Model):
         verbose_name="Usuario Creación"
     )
     
+    def save(self, *args, **kwargs):
+        """
+        Override save para validar que el folio esté dentro del rango del CAF asignado.
+        Esta validación es CRÍTICA para prevenir la asignación de folios inválidos.
+        """
+        from django.core.exceptions import ValidationError
+        
+        # Validar solo si hay un CAF asignado
+        if self.caf_utilizado:
+            # Verificar que el folio esté dentro del rango autorizado del CAF
+            if not (self.caf_utilizado.folio_desde <= self.folio <= self.caf_utilizado.folio_hasta):
+                raise ValidationError(
+                    f"FOLIO INVALIDO: El folio {self.folio} NO está dentro del rango autorizado "
+                    f"del CAF (rango: {self.caf_utilizado.folio_desde}-{self.caf_utilizado.folio_hasta}). "
+                    f"Este DTE NO puede ser enviado al SII. "
+                    f"CAF ID: {self.caf_utilizado.id}, "
+                    f"Tipo DTE: {self.get_tipo_dte_display()}, "
+                    f"Empresa: {self.empresa.nombre}"
+                )
+            
+            # Validar que el CAF sea del mismo tipo de documento
+            if self.caf_utilizado.tipo_documento != self.tipo_dte:
+                raise ValidationError(
+                    f"TIPO DTE INCORRECTO: El CAF es para tipo '{self.caf_utilizado.get_tipo_documento_display()}' "
+                    f"pero el DTE es tipo '{self.get_tipo_dte_display()}'. "
+                    f"CAF ID: {self.caf_utilizado.id}"
+                )
+            
+            # Validar que el CAF pertenezca a la misma empresa
+            if self.caf_utilizado.empresa_id != self.empresa_id:
+                raise ValidationError(
+                    f"EMPRESA INCORRECTA: El CAF pertenece a '{self.caf_utilizado.empresa.nombre}' "
+                    f"pero el DTE es para '{self.empresa.nombre}'"
+                )
+            
+            print(f"[VALIDACION DTE] Folio {self.folio} validado correctamente con CAF ID {self.caf_utilizado.id} "
+                  f"(rango: {self.caf_utilizado.folio_desde}-{self.caf_utilizado.folio_hasta})")
+        
+        # Llamar al save() original
+        super().save(*args, **kwargs)
+    
     class Meta:
         verbose_name = "Documento Tributario Electrónico"
         verbose_name_plural = "Documentos Tributarios Electrónicos"
