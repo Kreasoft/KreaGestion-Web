@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -86,8 +87,10 @@
         }
 
         .company-logo {
-            max-width: 80px;
-            margin-bottom: 6px;
+            max-width: 180px;
+            max-height: 100px;
+            margin-bottom: 8px;
+            object-fit: contain;
         }
 
         .company-info {
@@ -300,6 +303,7 @@
             body {
                 padding: 0;
             }
+
             .no-print {
                 display: none;
             }
@@ -324,12 +328,15 @@
         }
     </style>
 </head>
+
 <body>
     <div class="no-print" style="position: fixed; top: 10px; right: 10px; z-index: 1000; display: flex; gap: 10px;">
-        <button onclick="window.print()" class="print-button" style="padding: 10px 20px; background: #6B8E23; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+        <button onclick="window.print()" class="print-button"
+            style="padding: 10px 20px; background: #6B8E23; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
             <i class="fas fa-print"></i> Imprimir
         </button>
-        <button onclick="safeCloseWindow()" style="padding: 10px 20px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+        <button onclick="safeCloseWindow()"
+            style="padding: 10px 20px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
             ❌ Cerrar
         </button>
     </div>
@@ -341,6 +348,8 @@
             <div class="header-left">
                 {% if empresa.logo %}
                 <img src="{{ empresa.logo.url }}" alt="Logo" class="company-logo">
+                {% elif dte.empresa.logo %}
+                <img src="{{ dte.empresa.logo.url }}" alt="Logo" class="company-logo">
                 {% endif %}
                 <div class="company-name">{{ empresa.nombre|upper }}</div>
                 <div class="company-info">
@@ -410,14 +419,16 @@
             <div class="traslado-title">INFORMACIÓN DE TRASLADO</div>
             <div class="traslado-info">
                 {% if venta %}
-                    <strong>Tipo de Traslado:</strong> {{ venta.get_tipo_despacho_display|default:"Venta" }}<br>
+                <strong>Tipo de Traslado:</strong> {{ venta.get_tipo_despacho_display|default:"Venta" }}<br>
                 {% else %}
-                    <strong>Tipo de Traslado:</strong> {{ dte.get_tipo_traslado_display|default:"Venta" }}<br>
+                <strong>Tipo de Traslado:</strong> {{ dte.get_tipo_traslado_display|default:"Venta" }}<br>
                 {% endif %}
                 {% if transferencia %}
-                    <strong>Origen:</strong> {{ transferencia.bodega_origen.nombre }} ({{ transferencia.bodega_origen.codigo }})<br>
-                    <strong>Destino:</strong> {{ transferencia.bodega_destino.nombre }} ({{ transferencia.bodega_destino.codigo }})<br>
-                    <strong>Folio Interno:</strong> {{ transferencia.numero_folio }}
+                <strong>Origen:</strong> {{ transferencia.bodega_origen.nombre }} ({{ transferencia.bodega_origen.codigo
+                }})<br>
+                <strong>Destino:</strong> {{ transferencia.bodega_destino.nombre }} ({{
+                transferencia.bodega_destino.codigo }})<br>
+                <strong>Folio Interno:</strong> {{ transferencia.numero_folio }}
                 {% endif %}
             </div>
         </div>
@@ -440,7 +451,8 @@
                 <tr>
                     <td style="text-align: center;">{{ detalle.item_pedido.articulo.codigo }}</td>
                     <td>{{ detalle.item_pedido.articulo.nombre }}</td>
-                    <td style="text-align: center;">{{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UND" }}</td>
+                    <td style="text-align: center;">{{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UND"
+                        }}</td>
                     <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
                     <td style="text-align: right;">${{ detalle.item_pedido.precio_unitario|floatformat:0 }}</td>
                     <td style="text-align: right;">$0</td>
@@ -457,7 +469,8 @@
                 <!-- TIMBRE ELECTRÓNICO -->
                 <div class="timbre-box">
                     {% if dte.timbre_pdf417 %}
-                    <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico" style="max-width: 100%; height: auto;">
+                    <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico"
+                        style="max-width: 100%; height: auto;">
                     {% else %}
                     <div style="padding: 20px; background: #f0f0f0; border: 2px dashed #ccc;">
                         <strong>TIMBRE ELECTRÓNICO</strong><br>
@@ -521,7 +534,8 @@
                     <div class="observaciones-text">
                         <strong>Estado SII:</strong> {{ dte.get_estado_sii_display }}<br>
                         <strong>Fecha Creación:</strong> {{ dte.fecha_creacion|date:"d/m/Y H:i" }}<br>
-                        <strong>Usuario:</strong> {{ dte.usuario_creacion.get_full_name|default:dte.usuario_creacion.username }}
+                        <strong>Usuario:</strong> {{
+                        dte.usuario_creacion.get_full_name|default:dte.usuario_creacion.username }}
                     </div>
                 </div>
             </div>
@@ -538,10 +552,10 @@
                     window.close();
                     return;
                 }
-            } catch(e) {
+            } catch (e) {
                 console.log('No se pudo cerrar con window.close()');
             }
-            
+
             // Si no se puede cerrar, intentar volver atrás
             try {
                 if (window.history.length > 1) {
@@ -550,12 +564,12 @@
                     // Si no hay historial, redirigir a una página por defecto
                     window.location.href = '/';
                 }
-            } catch(e) {
+            } catch (e) {
                 console.log('No se pudo volver atrás');
                 // Último recurso: intentar cerrar de todas formas
                 try {
                     window.close();
-                } catch(e2) {
+                } catch (e2) {
                     // Si nada funciona, mostrar mensaje
                     alert('No se puede cerrar esta ventana. Por favor, ciérrela manualmente.');
                 }
@@ -563,4 +577,5 @@
         }
     </script>
 </body>
+
 </html>

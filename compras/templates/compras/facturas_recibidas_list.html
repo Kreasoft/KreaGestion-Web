@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load format_filters %}
+
+{% block extra_css %}
+<style>
+    .empresa-info {
+        display: none !important;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #6B4423 0%, #8B5A3C 100%);
+        padding: 1.5rem 2rem;
+        border-radius: 15px;
+        margin-bottom: 1.5rem;
+        color: white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card-refined {
+        border: none;
+        border-radius: 15px;
+        padding: 1.25rem;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        height: 100%;
+        border-left: 4px solid #6B4423;
+    }
+
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #eef0f2;
+    }
+
+    .table-container {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    }
+
+    .btn-brown-small {
+        background: #6B4423;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        border: none;
+    }
+
+    .btn-brown-small:hover {
+        background: #8B5A3C;
+        color: white;
+    }
+
+    .form-control-sm-custom {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block title %}Facturas Recibidas - SII{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado sobrio -->
+    <div class="header-section d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-file-invoice-dollar fa-2x me-3"></i>
+            <div>
+                <h4 class="mb-0 fw-bold">Facturas Recibidas (SII)</h4>
+                <p class="mb-0 small opacity-75">Consulta de documentos tributarios electrónicos de proveedores</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros compactos -->
+    <div class="filter-section">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">Buscar Proveedor/Folio</label>
+                <input type="text" name="search" class="form-control form-control-sm-custom"
+                    placeholder="RUT o Nombre..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold">Desde</label>
+                <input type="date" name="fecha_desde" class="form-control form-control-sm-custom"
+                    value="{{ fecha_desde }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold">Hasta</label>
+                <input type="date" name="fecha_hasta" class="form-control form-control-sm-custom"
+                    value="{{ fecha_hasta }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold">Periodo</label>
+                <select name="dias" class="form-select form-control-sm-custom">
+                    <option value="7" {% if dias_7 %}selected{% endif %}>Últimos 7 días</option>
+                    <option value="30" {% if dias_30 %}selected{% endif %}>Últimos 30 días</option>
+                    <option value="90" {% if dias_90 %}selected{% endif %}>Últimos 90 días</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-brown-small w-100">
+                    <i class="fas fa-search me-2"></i>Filtrar Documentos
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card-refined">
+                <div class="d-flex align-items-center">
+                    <div class="bg-light p-2 rounded-circle me-3">
+                        <i class="fas fa-calculator text-dark"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block fw-bold" style="font-size: 0.7rem;">TOTAL NETO</small>
+                        <h5 class="mb-0 fw-bold">{{ total_neto|format_moneda }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card-refined" style="border-left-color: #B8956A;">
+                <div class="d-flex align-items-center">
+                    <div class="bg-light p-2 rounded-circle me-3">
+                        <i class="fas fa-percent text-dark"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block fw-bold" style="font-size: 0.7rem;">TOTAL IVA</small>
+                        <h5 class="mb-0 fw-bold">{{ total_iva|format_moneda }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card-refined" style="border-left-color: #8B5A3C;">
+                <div class="d-flex align-items-center">
+                    <div class="bg-light p-2 rounded-circle me-3">
+                        <i class="fas fa-wallet text-dark"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block fw-bold" style="font-size: 0.7rem;">TOTAL GENERAL</small>
+                        <h5 class="mb-0 fw-bold">{{ total_general|format_moneda }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="small border-0">Tipo</th>
+                        <th class="small border-0">Folio</th>
+                        <th class="small border-0">Fecha</th>
+                        <th class="small border-0">RUT Proveedor</th>
+                        <th class="small border-0">Razón Social</th>
+                        <th class="small border-0 text-end">Neto</th>
+                        <th class="small border-0 text-end">IVA</th>
+                        <th class="small border-0 text-end">Total</th>
+                        <th class="small border-0 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documentos %}
+                    <tr>
+                        <td class="small align-middle">{{ doc.tipo_documento }}</td>
+                        <td class="small align-middle fw-bold">{{ doc.numero }}</td>
+                        <td class="small align-middle text-muted">{{ doc.fecha_emision }}</td>
+                        <td class="small align-middle">{{ doc.rut_emisor }}</td>
+                        <td class="small align-middle">{{ doc.razon_social_emisor|truncatechars:35 }}</td>
+                        <td class="small align-middle text-end">{{ doc.neto|format_moneda }}</td>
+                        <td class="small align-middle text-end">{{ doc.iva|format_moneda }}</td>
+                        <td class="small align-middle text-end fw-bold">{{ doc.total|format_moneda }}</td>
+                        <td class="text-center align-middle">
+                            {% if doc.download_pdf_url %}
+                            <a href="{{ doc.download_pdf_url }}" target="_blank" class="btn btn-sm p-0 me-2"
+                                title="Bajar PDF">
+                                <i class="fas fa-file-pdf text-danger"></i>
+                            </a>
+                            {% endif %}
+                            <a href="{% url 'compras:descargar_xml_factura_sii' doc.numero %}" class="btn btn-sm p-0"
+                                title="Bajar XML">
+                                <i class="fas fa-file-code text-brown"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="fas fa-info-circle me-2"></i>No se encontraron documentos en este periodo.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

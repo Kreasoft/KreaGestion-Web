@@ -438,13 +438,23 @@
                                             </a>
                                             {% endif %}
                                             
-                                            <!-- Botón DTEBox (solo si está habilitado y tiene XML firmado) -->
-                                            {% if request.empresa.dtebox_habilitado and dte.xml_firmado %}
+                                            <!-- Botón DTEBox (solo si está habilitado, tiene XML firmado Y NO ha sido enviado) -->
+                                            {% if request.empresa.dtebox_habilitado and dte.xml_firmado and dte.estado_sii != 'enviado' and dte.estado_sii != 'aceptado' %}
                                             <a href="{% url 'facturacion_electronica:probar_dtebox' dte.pk %}"
                                                class="btn btn-sm btn-action btn-outline-success"
                                                title="Enviar a DTEBox"
                                                style="padding: 4px 8px; font-size: 0.7rem;">
                                                 <i class="fas fa-paper-plane"></i>
+                                            </a>
+                                            {% endif %}
+                                            
+                                            <!-- Botón Descargar PDF desde GDExpress (solo si está habilitado y documento enviado) -->
+                                            {% if request.empresa.dtebox_habilitado and dte.estado_sii in 'enviado,aceptado' %}
+                                            <a href="{% url 'facturacion_electronica:descargar_pdf_gdexpress' dte.pk %}"
+                                               class="btn btn-sm btn-action btn-outline-info"
+                                               title="Descargar PDF desde GDExpress"
+                                               style="padding: 4px 8px; font-size: 0.7rem;">
+                                                <i class="fas fa-cloud-download-alt"></i>
                                             </a>
                                             {% endif %}
                                         </div>

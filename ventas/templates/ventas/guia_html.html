@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guía de Despacho - {{ venta.numero_venta }}</title>
-    
+
     {% load articulo_filters %}
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- JsBarcode para códigos de barras -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    
+
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -24,7 +25,7 @@
             margin: 0;
             padding: 10px;
         }
-        
+
         .guia-container {
             max-width: 350px;
             margin: 0 auto;
@@ -32,26 +33,26 @@
             padding: 15px;
             background: white;
         }
-        
+
         .guia-header {
             text-align: center;
             margin-bottom: 15px;
             border-bottom: 2px solid #000;
             padding-bottom: 10px;
         }
-        
+
         .company-name {
             font-size: 16px;
             font-weight: bold;
             margin-bottom: 5px;
             text-transform: uppercase;
         }
-        
+
         .company-details {
             font-size: 10px;
             color: #666;
         }
-        
+
         .guia-title {
             font-size: 18px;
             font-weight: bold;
@@ -62,44 +63,44 @@
             padding: 8px;
             border: 1px solid #000;
         }
-        
+
         .guia-info {
             margin-bottom: 15px;
         }
-        
+
         .info-row {
             display: flex;
             justify-content: space-between;
             margin-bottom: 3px;
             font-size: 11px;
         }
-        
+
         .info-label {
             font-weight: bold;
         }
-        
+
         .client-info {
             background: #f8f9fa;
             padding: 8px;
             margin-bottom: 15px;
             border: 1px solid #6c757d;
         }
-        
+
         .client-title {
             font-weight: bold;
             font-size: 11px;
             margin-bottom: 5px;
             text-align: center;
         }
-        
+
         .client-details {
             font-size: 10px;
         }
-        
+
         .items-section {
             margin-bottom: 15px;
         }
-        
+
         .items-title {
             font-weight: bold;
             font-size: 11px;
@@ -108,7 +109,7 @@
             background: #e9ecef;
             padding: 5px;
         }
-        
+
         .item-row {
             display: flex;
             justify-content: space-between;
@@ -117,42 +118,42 @@
             border-bottom: 1px dotted #ccc;
             padding: 2px 0;
         }
-        
+
         .item-name {
             flex: 1;
         }
-        
+
         .item-qty {
             width: 30px;
             text-align: center;
         }
-        
+
         .item-price {
             width: 60px;
             text-align: right;
         }
-        
+
         .totals-section {
             border-top: 2px solid #000;
             padding-top: 10px;
             margin-bottom: 15px;
         }
-        
+
         .total-row {
             display: flex;
             justify-content: space-between;
             margin-bottom: 3px;
             font-size: 11px;
         }
-        
+
         .total-label {
             font-weight: bold;
         }
-        
+
         .total-value {
             font-weight: bold;
         }
-        
+
         .grand-total {
             font-size: 14px;
             font-weight: bold;
@@ -160,7 +161,7 @@
             padding-top: 5px;
             margin-top: 10px;
         }
-        
+
         .payment-info {
             background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
             padding: 15px;
@@ -179,7 +180,7 @@
             text-transform: uppercase;
             letter-spacing: 2px;
         }
-        
+
         .payment-method {
             text-align: center;
             font-size: 18px;
@@ -192,7 +193,7 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        
+
         .payment-balance {
             text-align: center;
             font-size: 16px;
@@ -204,13 +205,13 @@
             border-radius: 5px;
             text-transform: uppercase;
         }
-        
+
         .signature-section {
             margin-top: 30px;
             padding-top: 20px;
             border-top: 2px dashed #000;
         }
-        
+
         .signature-box {
             border-top: 2px solid #000;
             margin-top: 50px;
@@ -218,31 +219,31 @@
             text-align: center;
             font-size: 10px;
         }
-        
+
         .barcode-section {
             text-align: center;
             margin-top: 20px;
             padding-top: 15px;
             border-top: 2px solid #000;
         }
-        
+
         .barcode-title {
             font-size: 10px;
             font-weight: bold;
             margin-bottom: 10px;
         }
-        
+
         .barcode-container {
             margin: 10px 0;
         }
-        
+
         .barcode-number {
             font-size: 12px;
             font-weight: bold;
             margin-top: 5px;
             letter-spacing: 2px;
         }
-        
+
         .footer {
             text-align: center;
             font-size: 9px;
@@ -251,31 +252,36 @@
             border-top: 1px solid #ccc;
             padding-top: 10px;
         }
-        
+
         /* Print styles */
         @media print {
             body {
                 margin: 0;
                 padding: 0;
             }
-            
+
             .guia-container {
                 max-width: none;
                 margin: 0;
                 border: none;
                 padding: 10px;
             }
-            
+
             .no-print {
                 display: none;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="guia-container">
         <!-- Header -->
         <div class="guia-header">
+            {% if venta.empresa.logo %}
+            <img src="{{ venta.empresa.logo.url }}" alt="{{ venta.empresa.nombre }}" class="company-logo"
+                style="max-width: 150px; max-height: 80px; margin-bottom: 10px; object-fit: contain;">
+            {% endif %}
             <div class="company-name">{{ venta.empresa.nombre }}</div>
             <div class="company-details">
                 {% if venta.empresa.rut %}{{ venta.empresa.rut }}<br>{% endif %}
@@ -283,12 +289,12 @@
                 {% if venta.empresa.telefono %}{{ venta.empresa.telefono }}{% endif %}
             </div>
         </div>
-        
+
         <!-- Título de la Guía -->
         <div class="guia-title">
             📦 GUÍA DE DESPACHO
         </div>
-        
+
         <!-- Información de la Guía -->
         <div class="guia-info">
             <div class="info-row">
@@ -312,24 +318,24 @@
             </div>
             {% endif %}
         </div>
-        
+
         <!-- Información del Cliente -->
         <div class="client-info">
             <div class="client-title">DESTINATARIO</div>
             <div class="client-details">
                 <strong>{{ venta.cliente.nombre|default:"Cliente General" }}</strong><br>
                 {% if venta.cliente.rut %}
-                    RUT: {{ venta.cliente.rut }}<br>
+                RUT: {{ venta.cliente.rut }}<br>
                 {% endif %}
                 {% if venta.cliente.direccion %}
-                    Dirección: {{ venta.cliente.direccion }}<br>
+                Dirección: {{ venta.cliente.direccion }}<br>
                 {% endif %}
                 {% if venta.cliente.telefono %}
-                    Tel: {{ venta.cliente.telefono }}
+                Tel: {{ venta.cliente.telefono }}
                 {% endif %}
             </div>
         </div>
-        
+
         <!-- Items -->
         <div class="items-section">
             <div class="items-title">PRODUCTOS DESPACHADOS</div>
@@ -341,7 +347,7 @@
             </div>
             {% endfor %}
         </div>
-        
+
         <!-- Totales -->
         <div class="totals-section">
             <div class="total-row">
@@ -375,7 +381,7 @@
                 <span class="total-value">${{ venta.total|format_price }}</span>
             </div>
         </div>
-        
+
         <!-- Información de Pago -->
         {% if venta.forma_pago %}
         <div class="payment-info">
@@ -390,7 +396,7 @@
             {% endif %}
         </div>
         {% endif %}
-        
+
         <!-- Sección de Firma -->
         <div class="signature-section">
             <div style="font-size: 11px; font-weight: bold; text-align: center; margin-bottom: 10px;">
@@ -403,7 +409,7 @@
                 FIRMA Y TIMBRE DEL RECEPTOR
             </div>
         </div>
-        
+
         <!-- Timbre Electrónico SII (si existe DTE) -->
         {% if dte and dte.timbre_pdf417 %}
         <div class="barcode-section">
@@ -420,7 +426,8 @@
         <div class="barcode-section">
             <div class="barcode-title">TIMBRE ELECTRÓNICO SII</div>
             <div class="barcode-container">
-                <img src="data:image/png;base64,{{ dte.datos_pdf417 }}" alt="Timbre Electrónico" style="max-width: 200px; height: auto;">
+                <img src="data:image/png;base64,{{ dte.datos_pdf417 }}" alt="Timbre Electrónico"
+                    style="max-width: 200px; height: auto;">
             </div>
             <div style="font-size: 8px; margin-top: 5px;">
                 Folio: {{ dte.folio }} - Res. Ex. SII N° 80 del 22-08-2014<br>
@@ -428,7 +435,7 @@
             </div>
         </div>
         {% endif %}
-        
+
         <!-- Código de Barras -->
         <div class="barcode-section">
             <div class="barcode-title">CÓDIGO DE BARRAS</div>
@@ -437,7 +444,7 @@
             </div>
             <div class="barcode-number">{{ venta.numero_venta }}</div>
         </div>
-        
+
         <!-- Footer -->
         <div class="footer">
             {% if venta.observaciones %}
@@ -447,20 +454,22 @@
             <p style="margin-top: 5px;">Este documento es válido como comprobante de despacho</p>
         </div>
     </div>
-    
+
     <!-- Botón de impresión (solo visible en pantalla) -->
     <div class="no-print" style="text-align: center; margin-top: 20px;">
         <button onclick="window.print()" class="btn btn-secondary">
             <i class="fas fa-print me-2"></i>Imprimir Guía de Despacho
         </button>
-        <button onclick="if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) { window.history.back(); } else { window.location.href = '/'; }" class="btn btn-secondary ms-2">
+        <button
+            onclick="if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) { window.history.back(); } else { window.location.href = '/'; }"
+            class="btn btn-secondary ms-2">
             <i class="fas fa-arrow-left me-2"></i>Volver
         </button>
     </div>
-    
+
     <script>
         // Generar código de barras
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             try {
                 JsBarcode("#barcode", "{{ venta.numero_venta }}", {
                     format: "CODE128",
@@ -474,14 +483,14 @@
                 document.getElementById('barcode').innerHTML = '<text x="50%" y="50%" text-anchor="middle" dy=".3em">Error en código de barras</text>';
             }
         });
-        
+
         // Auto-imprimir al cargar
-        window.addEventListener('load', function() {
-            setTimeout(function() {
+        window.addEventListener('load', function () {
+            setTimeout(function () {
                 window.print();
             }, 500);
         });
     </script>
 </body>
-</html>
 
+</html>

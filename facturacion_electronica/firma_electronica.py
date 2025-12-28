@@ -9,7 +9,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class FirmadorDTE:
@@ -46,11 +46,11 @@ class FirmadorDTE:
             self.private_key = private_key
             self.certificate = certificate
             
-            print(f"Certificado cargado exitosamente")
-            print(f"   Subject: {certificate.subject}")
-            print(f"   Issuer: {certificate.issuer}")
-            print(f"   Valid from: {certificate.not_valid_before}")
-            print(f"   Valid until: {certificate.not_valid_after}")
+            # print(f"Certificado cargado exitosamente")
+            # print(f"   Subject: {certificate.subject}")
+            # print(f"   Issuer: {certificate.issuer}")
+            # print(f"   Valid from: {certificate.not_valid_before_utc}")
+            # print(f"   Valid until: {certificate.not_valid_after_utc}")
             
         except Exception as e:
             raise ValueError(f"Error al cargar el certificado: {str(e)}")
@@ -267,11 +267,11 @@ class FirmadorDTE:
             frmt = etree.SubElement(ted, "FRMT", algoritmo="SHA1withRSA")
             frmt.text = base64.b64encode(signature).decode('ascii')
             
-            # Convertir TED a string
+            # Convertir TED a string compacto (Sin declaration ni pretty print para ahorrar espacio en PDF417)
             ted_string = etree.tostring(
                 ted,
-                pretty_print=True,
-                xml_declaration=True,
+                pretty_print=False,
+                xml_declaration=False,
                 encoding='ISO-8859-1'
             ).decode('ISO-8859-1')
             
@@ -324,9 +324,9 @@ class FirmadorDTE:
             'subject': str(self.certificate.subject),
             'issuer': str(self.certificate.issuer),
             'serial_number': self.certificate.serial_number,
-            'not_valid_before': self.certificate.not_valid_before,
-            'not_valid_after': self.certificate.not_valid_after,
-            'is_valid': datetime.now() < self.certificate.not_valid_after,
+            'not_valid_before': self.certificate.not_valid_before_utc,
+            'not_valid_after': self.certificate.not_valid_after_utc,
+            'is_valid': datetime.now(timezone.utc) < self.certificate.not_valid_after_utc,
         }
     
     def generar_datos_pdf417(self, ted_xml):

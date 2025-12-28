@@ -18,6 +18,7 @@ from empresas.models import Empresa
 from articulos.models import Articulo
 from proveedores.models import Proveedor
 from core.decorators import requiere_empresa
+from libreria_dte_gdexpress.dte_gdexpress.gdexpress.cliente import ClienteGDExpress
 import json
 
 
@@ -385,85 +386,6 @@ def get_articulo_info(request):
         return JsonResponse({'error': 'Artículo no encontrado'}, status=404)
 
 
-# =============================================================================
-# FUNCIONALIDAD DE RECEPCIÓN DESHABILITADA - No se usa por el momento
-# =============================================================================
-# Las recepciones se reemplazan por el flujo: OC → Documento de Compra
-# El Documento de Compra actualiza stock automáticamente y marca OC como completada
-# =============================================================================
-
-# @login_required
-# @requiere_empresa
-# def recepcion_create(request, orden_id):
-#     """Crear recepción de mercancía"""
-#     # Obtener la empresa del usuario
-#     empresa, error = obtener_empresa_usuario(request)
-#     if error:
-#         messages.error(request, error)
-#         return redirect('dashboard')
-#     orden = get_object_or_404(OrdenCompra, pk=orden_id, empresa=empresa)
-#     
-#     if not orden.puede_recibir():
-#         messages.error(request, 'Esta orden no puede recibir mercancías.')
-#         return redirect('compras:orden_compra_detail', pk=orden.pk)
-#     
-#     if request.method == 'POST':
-#         form = RecepcionMercanciaForm(request.POST, orden_compra=orden)
-#         formset = ItemRecepcionFormSet(request.POST)
-#         
-#         if form.is_valid() and formset.is_valid():
-#             recepcion = form.save(commit=False)
-#             recepcion.orden_compra = orden
-#             recepcion.recibido_por = request.user
-#             recepcion.save()
-#             
-#             # Guardar items
-#             formset.instance = recepcion
-#             formset.save()
-#             
-#             messages.success(request, f'Recepción {recepcion.numero_recepcion} creada exitosamente.')
-#             return redirect('compras:orden_compra_detail', pk=orden.pk)
-#     else:
-#         form = RecepcionMercanciaForm(orden_compra=orden)
-#         formset = ItemRecepcionFormSet()
-#         
-#         # Pre-poblar el formset con items de la orden
-#         formset.extra = len(orden.items.filter(cantidad_recibida__lt=F('cantidad_solicitada')))
-#     
-#     context = {
-#         'form': form,
-#         'formset': formset,
-#         'orden': orden,
-#         'empresa': empresa,
-#         'titulo': 'Crear Recepción de Mercancía',
-#         'items_orden': orden.items.filter(cantidad_recibida__lt=F('cantidad_solicitada')),
-#     }
-#     
-#     return render(request, 'compras/recepcion_form.html', context)
-
-
-# @login_required
-# @requiere_empresa
-# def recepcion_detail(request, pk):
-#     """Detalle de una recepción"""
-#     # Obtener la empresa del usuario
-#     empresa, error = obtener_empresa_usuario(request)
-#     if error:
-#         messages.error(request, error)
-#         return redirect('dashboard')
-#     recepcion = get_object_or_404(RecepcionMercancia, pk=pk, orden_compra__empresa=empresa)
-#     
-#     items = recepcion.items.all()
-#     
-#     context = {
-#         'recepcion': recepcion,
-#         'items': items,
-#         'empresa': empresa,
-#     }
-#     
-#     return render(request, 'compras/recepcion_detail.html', context)
-
-
 @login_required
 def proveedor_create_ajax(request):
     """Vista AJAX para crear un nuevo proveedor desde el formulario de documento de compra"""
@@ -541,3 +463,183 @@ def proveedor_create_ajax(request):
         'success': False,
         'message': 'Método no permitido'
     }, status=405)
+
+
+@login_required
+@requiere_empresa
+@permission_required('compras.view_ordencompra', raise_exception=True)
+def facturas_recibidas_sii(request):
+    """
+    Vista para listar facturas recibidas del SII (vía DTEBox)
+    Por defecto muestra los documentos del mes y año actual
+    """
+    # Obtener empresa activa
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        messages.error(request, error)
+        return redirect('dashboard')
+
+    if not getattr(empresa, 'dtebox_habilitado', False):
+        messages.warning(request, f"La empresa {empresa.nombre} no tiene habilitada la integración con DTEBox.")
+        return redirect('compras:orden_compra_list')
+
+    # Calcular fechas
+    hoy = datetime.now()
+    
+    # Prioridad: fechas específicas -> días atrás -> mes actual
+    f_desde_str = request.GET.get('fecha_desde')
+    f_hasta_str = request.GET.get('fecha_hasta')
+    
+    if f_desde_str and f_hasta_str:
+        fecha_desde = f_desde_str
+        fecha_hasta = f_hasta_str
+        dias = None # No se usa si hay fechas fijas
+    else:
+        if request.GET.get('dias'):
+            try:
+                dias = int(request.GET['dias'])
+            except:
+                inicio_mes = hoy.replace(day=1)
+                dias = (hoy - inicio_mes).days + 1
+        else:
+            inicio_mes = hoy.replace(day=1)
+            dias = (hoy - inicio_mes).days + 1
+            
+        fecha_desde = (hoy - timedelta(days=dias)).strftime('%Y-%m-%d')
+        fecha_hasta = hoy.strftime('%Y-%m-%d')
+    
+    # Consultar DTEBox
+    documentos_transformados = []
+    try:
+        import base64
+        import urllib.request
+        import json
+        
+        ambiente = 'P'
+        grupo = 'R'
+        
+        # El RUT para RUTRecep debe tener guión pero sin puntos
+        rut_raw = empresa.rut.replace('.', '').replace(' ', '').strip()
+        if '-' not in rut_raw:
+            # Si no tiene guión, intentar ponerlo (asumiendo último dígito es DV)
+            rut_receptor = f"{rut_raw[:-1]}-{rut_raw[-1]}"
+        else:
+            rut_receptor = rut_raw
+            
+        # Construir query
+        query_string = f"(RUTRecep:{rut_receptor} AND FchEmis:[{fecha_desde} TO {fecha_hasta}] AND (TipoDTE:33 OR TipoDTE:34 OR TipoDTE:61 OR TipoDTE:56))"
+        query_base64 = base64.b64encode(query_string.encode('utf-8')).decode('utf-8')
+        
+        base_url = empresa.dtebox_url or "http://200.6.118.43"
+        if '/api/Core.svc/' in base_url:
+            base_url = base_url.split('/api/')[0]
+        base_url = base_url.strip().rstrip('/')
+        if not base_url.startswith('http'):
+            base_url = f"http://{base_url}"
+            
+        url = f"{base_url}/api/Core.svc/core/PaginatedSearch/{ambiente}/{grupo}/{query_base64}/0/300"
+        
+        req = urllib.request.Request(url)
+        req.add_header('AuthKey', empresa.dtebox_auth_key)
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('Accept', 'application/json')
+        
+        with urllib.request.urlopen(req, timeout=30) as response:
+            data = json.loads(response.read().decode('utf-8'))
+        
+        result = str(data.get('Result', '1'))
+        if result == '0':
+            data_base64 = data.get('Data')
+            if data_base64:
+                import xml.etree.ElementTree as ET
+                xml_bytes = base64.b64decode(data_base64)
+                xml_string = xml_bytes.decode('utf-8')
+                root = ET.fromstring(xml_string)
+                document_elements = root.findall('.//document')
+                
+                for doc_element in document_elements:
+                    tipo_dte = doc_element.findtext('TipoDTE', 'N/A')
+                    # Traducir tipo
+                    tipos_nombre = {'33': 'Factura Electrónica', '34': 'Factura Exenta', '61': 'Nota de Crédito', '56': 'Nota de Débito'}
+                    tipo_nombre = tipos_nombre.get(tipo_dte, f'DTE {tipo_dte}')
+                    
+                    folio = doc_element.findtext('Folio', 'N/A')
+                    fecha_emis = doc_element.findtext('FchEmis', 'N/A')
+                    rut_emisor = doc_element.findtext('RUTEmisor', 'N/A')
+                    razon_social = doc_element.findtext('RznSoc', 'Emisor desconocido')
+                    mnt_neto = int(doc_element.findtext('MntNeto', 0) or 0)
+                    iva = int(doc_element.findtext('IVA', 0) or 0)
+                    mnt_total = int(doc_element.findtext('MntTotal', 0) or 0)
+                    doc_xml = ET.tostring(doc_element, encoding='unicode')
+                    download_pdf_url = doc_element.findtext('DownloadCustomerDocumentUrl', '')
+                    
+                    documentos_transformados.append({
+                        'tipo_documento': tipo_nombre,
+                        'numero': folio,
+                        'fecha_emision': fecha_emis,
+                        'rut_emisor': rut_emisor,
+                        'razon_social_emisor': razon_social,
+                        'neto': mnt_neto,
+                        'iva': iva,
+                        'total': mnt_total,
+                        'xml_data': doc_xml,
+                        'download_pdf_url': download_pdf_url,
+                    })
+        
+        # Aplicar búsqueda local
+        search = request.GET.get('search')
+        if search:
+            search = search.lower()
+            documentos_transformados = [
+                doc for doc in documentos_transformados 
+                if search in doc['numero'].lower() or 
+                   search in doc['rut_emisor'].lower() or 
+                   search in doc['razon_social_emisor'].lower()
+            ]
+
+    except Exception as e:
+        messages.error(request, f"Error al consultar DTEBox: {str(e)}")
+
+    # Calcular totales sobre la lista final filtrada
+    total_neto = sum(doc['neto'] for doc in documentos_transformados)
+    total_iva = sum(doc['iva'] for doc in documentos_transformados)
+    total_general = sum(doc['total'] for doc in documentos_transformados)
+    
+    # Banderas para el template (evitar comparaciones complejas)
+    dias_sel = request.GET.get('dias', '30')
+    
+    context = {
+        'documentos': documentos_transformados,
+        'empresa': empresa,
+        'total_neto': total_neto,
+        'total_iva': total_iva,
+        'total_general': total_general,
+        'dias_7': dias_sel == '7',
+        'dias_30': dias_sel == '30',
+        'dias_90': dias_sel == '90',
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'search': request.GET.get('search', ''),
+    }
+    
+    # Guardar XMLs en sesión para permitir descarga
+    request.session['facturas_sii_xmls'] = {doc['numero']: doc['xml_data'] for doc in documentos_transformados if 'xml_data' in doc}
+    
+    return render(request, 'compras/facturas_recibidas_list.html', context)
+
+
+@login_required
+def descargar_xml_factura_sii(request, folio):
+    """Descarga el XML de una factura SII"""
+    xmls = request.session.get('facturas_sii_xmls', {})
+    xml_data = xmls.get(folio)
+    
+    if not xml_data:
+        messages.error(request, 'XML no disponible. Vuelve a consultar los documentos.')
+        return redirect('compras:facturas_recibidas_sii')
+    
+    # Crear respuesta HTTP con el XML
+    from django.http import HttpResponse
+    response = HttpResponse(xml_data, content_type='application/xml')
+    response['Content-Disposition'] = f'attachment; filename="factura_{folio}.xml"'
+    return response

@@ -299,8 +299,9 @@ class Empresa(models.Model):
     
     # CONFIGURACIÓN DE IMPRESORAS POR TIPO DE DOCUMENTO
     TIPO_IMPRESORA_CHOICES = [
-        ('laser', 'Impresora Láser/Inyección (A4)'),
-        ('termica', 'Impresora Térmica (80mm)'),
+        ('laser', 'Láser/Tinta (A4 - 210mm x 297mm)'),
+        ('termica_80', 'Térmica 80mm (Tickets/Recibos)'),
+        ('termica_58', 'Térmica 58mm (Tickets/Recibos)'),
     ]
     
     # Documentos Electrónicos (DTE)
@@ -344,7 +345,7 @@ class Empresa(models.Model):
     impresora_vale = models.CharField(
         max_length=10,
         choices=TIPO_IMPRESORA_CHOICES,
-        default='termica',
+        default='termica_80',
         verbose_name="Impresora para Vales/Tickets",
         help_text="Tipo de impresora a usar para imprimir vales y tickets de venta"
     )
@@ -356,56 +357,59 @@ class Empresa(models.Model):
         help_text="Tipo de impresora a usar para imprimir cotizaciones"
     )
     
-    # Nombres físicos de las impresoras (detectadas del sistema)
-    impresora_factura_nombre = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="Nombre físico impresora facturas",
-        help_text="Nombre de la impresora física instalada en el sistema"
-    )
-    impresora_boleta_nombre = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="Nombre físico impresora boletas",
-        help_text="Nombre de la impresora física instalada en el sistema"
-    )
-    impresora_guia_nombre = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="Nombre físico impresora guías",
-        help_text="Nombre de la impresora física instalada en el sistema"
-    )
-    impresora_nota_credito_nombre = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="Nombre físico impresora notas crédito",
-        help_text="Nombre de la impresora física instalada en el sistema"
-    )
-    impresora_nota_debito_nombre = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="Nombre físico impresora notas débito",
-        help_text="Nombre de la impresora física instalada en el sistema"
-    )
-    impresora_vale_nombre = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="Nombre físico impresora vales",
-        help_text="Nombre de la impresora física instalada en el sistema"
-    )
-    impresora_cotizacion_nombre = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        verbose_name="Nombre físico impresora cotizaciones",
-        help_text="Nombre de la impresora física instalada en el sistema"
-    )
+    # NOTA: Campos de "nombres físicos" eliminados del sistema
+    # Ya no se detectan impresoras físicas, solo se configura el TIPO de formato
+    # Los campos están comentados para mantener compatibilidad con BD existente
+    
+    # impresora_factura_nombre = models.CharField(
+    #     max_length=200,
+    #     blank=True,
+    #     null=True,
+    #     verbose_name="Nombre físico impresora facturas",
+    #     help_text="Nombre de la impresora física instalada en el sistema"
+    # )
+    # impresora_boleta_nombre = models.CharField(
+    #     max_length=200,
+    #     blank=True,
+    #     null=True,
+    #     verbose_name="Nombre físico impresora boletas",
+    #     help_text="Nombre de la impresora física instalada en el sistema"
+    # )
+    # impresora_guia_nombre = models.CharField(
+    #     max_length=200,
+    #     blank=True,
+    #     null=True,
+    #     verbose_name="Nombre físico impresora guías",
+    #     help_text="Nombre de la impresora física instalada en el sistema"
+    # )
+    # impresora_nota_credito_nombre = models.CharField(
+    #     max_length=200,
+    #     blank=True,
+    #     null=True,
+    #     verbose_name="Nombre físico impresora notas crédito",
+    #     help_text="Nombre de la impresora física instalada en el sistema"
+    # )
+    # impresora_nota_debito_nombre = models.CharField(
+    #     max_length=200,
+    #     blank=True,
+    #     null=True,
+    #     verbose_name="Nombre físico impresora notas débito",
+    #     help_text="Nombre de la impresora física instalada en el sistema"
+    # )
+    # impresora_vale_nombre = models.CharField(
+    #     max_length=200,
+    #     blank=True,
+    #     null=True,
+    #     verbose_name="Nombre físico impresora vales",
+    #     help_text="Nombre de la impresora física instalada en el sistema"
+    # )
+    # impresora_cotizacion_nombre = models.CharField(
+    #     max_length=200,
+    #     blank=True,
+    #     null=True,
+    #     verbose_name="Nombre físico impresora cotizaciones",
+    #     help_text="Nombre de la impresora física instalada en el sistema"
+    # )
     
     # Estado y auditoría
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activa')

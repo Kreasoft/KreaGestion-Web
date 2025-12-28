@@ -117,8 +117,8 @@ empresa.facturacion_electronica = True
 empresa.ambiente_sii = 'certificacion'  # o 'produccion'
 empresa.certificado_digital = archivo_p12
 empresa.password_certificado = '******'
-empresa.resolucion_numero = 123456
-empresa.resolucion_fecha = '2024-01-01'
+empresa.resolucion_numero = 80  # Número de resolución para ambiente de pruebas SII
+empresa.resolucion_fecha = '2014-08-22'
 # ... otros campos
 ```
 

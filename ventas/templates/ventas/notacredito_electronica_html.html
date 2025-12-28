@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -85,8 +86,10 @@
         }
 
         .company-logo {
-            max-width: 80px;
-            margin-bottom: 6px;
+            max-width: 180px;
+            max-height: 100px;
+            margin-bottom: 8px;
+            object-fit: contain;
         }
 
         .company-info {
@@ -322,6 +325,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="factura-container">
 
@@ -331,6 +335,8 @@
             <div class="header-left">
                 {% if nota.empresa.logo %}
                 <img src="{{ nota.empresa.logo.url }}" alt="{{ nota.empresa.nombre }}" class="company-logo">
+                {% elif dte.empresa.logo %}
+                <img src="{{ dte.empresa.logo.url }}" alt="{{ nota.empresa.nombre }}" class="company-logo">
                 {% endif %}
 
                 <div class="company-name">{{ nota.empresa.nombre }}</div>
@@ -348,12 +354,13 @@
                     <div class="document-type">NOTA DE CRÉDITO<br>ELECTRÓNICA</div>
                     <div class="document-folio">
                         {% if dte and dte.folio %}
-                            N° {{ dte.folio }}
+                        N° {{ dte.folio }}
                         {% else %}
-                            N° {{ nota.numero }}
+                        N° {{ nota.numero }}
                         {% endif %}
                     </div>
-                    <div class="document-sii">SII - {{ nota.empresa.oficina_sii|default:nota.empresa.get_ciudad_dte|upper }}</div>
+                    <div class="document-sii">SII - {{
+                        nota.empresa.oficina_sii|default:nota.empresa.get_ciudad_dte|upper }}</div>
                 </div>
             </div>
         </div>
@@ -401,7 +408,8 @@
                 <span class="referencia-label">Motivo:</span> {{ nota.get_tipo_nc_display }}
             </div>
             <div class="referencia-item">
-                <span class="referencia-label">Documento Afectado:</span> {{ nota.get_tipo_doc_afectado_display }} N° {{ nota.numero_doc_afectado }}
+                <span class="referencia-label">Documento Afectado:</span> {{ nota.get_tipo_doc_afectado_display }} N° {{
+                nota.numero_doc_afectado }}
             </div>
             <div class="referencia-item">
                 <span class="referencia-label">Fecha Documento:</span> {{ nota.fecha_doc_afectado|date:"d/m/Y" }}
@@ -454,26 +462,34 @@
             <div class="footer-left">
                 <div class="timbre-box">
                     {% if dte and dte.timbre_pdf417 %}
-                        <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico" style="max-width: 200px; height: auto; display: block; margin: 0 auto;">
+                    <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico"
+                        style="max-width: 200px; height: auto; display: block; margin: 0 auto;">
                     {% elif dte and dte.folio %}
-                        <div style="padding: 30px; background: #f5f5f5; border: 2px dashed #999; text-align: center;">
-                            <div style="font-size: 9pt; color: #666; font-weight: bold; margin-bottom: 5px;">TIMBRE ELECTRÓNICO SII</div>
-                            <div style="font-size: 7pt; color: #999;">Folio: {{ dte.folio }}<br>(Imagen del timbre pendiente)</div>
-                        </div>
+                    <div style="padding: 30px; background: #f5f5f5; border: 2px dashed #999; text-align: center;">
+                        <div style="font-size: 9pt; color: #666; font-weight: bold; margin-bottom: 5px;">TIMBRE
+                            ELECTRÓNICO SII</div>
+                        <div style="font-size: 7pt; color: #999;">Folio: {{ dte.folio }}<br>(Imagen del timbre
+                            pendiente)</div>
+                    </div>
                     {% else %}
-                        <div style="padding: 30px; background: #fff8dc; border: 2px dashed #ffa500; text-align: center;">
-                            <div style="font-size: 9pt; color: #ff8c00; font-weight: bold; margin-bottom: 5px;">DOCUMENTO NO ELECTRÓNICO</div>
-                            <div style="font-size: 7pt; color: #666;">Este documento NO ha sido enviado al SII<br>Número de NC: {{ nota.numero }}</div>
-                        </div>
+                    <div style="padding: 30px; background: #fff8dc; border: 2px dashed #ffa500; text-align: center;">
+                        <div style="font-size: 9pt; color: #ff8c00; font-weight: bold; margin-bottom: 5px;">DOCUMENTO NO
+                            ELECTRÓNICO</div>
+                        <div style="font-size: 7pt; color: #666;">Este documento NO ha sido enviado al SII<br>Número de
+                            NC: {{ nota.numero }}</div>
+                    </div>
                     {% endif %}
                     <div class="timbre-info">
                         <strong>Timbre Electrónico SII</strong><br>
-                        Res. Ex. SII N° {{ nota.empresa.resolucion_numero|default:"80" }} del {{ nota.empresa.resolucion_fecha|date:"d-m-Y"|default:"22-08-2014" }}<br>
+                        Res. Ex. SII N° {{ nota.empresa.resolucion_numero|default:"80" }} del {{
+                        nota.empresa.resolucion_fecha|date:"d-m-Y"|default:"22-08-2014" }}<br>
                         Verifique documento en: www.sii.cl
                     </div>
                 </div>
                 <div class="disclaimer">
-                    {{ nota.motivo|default:"El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la Ley N° 19.983, acredita que la entrega de mercadería(s) o servicio(s) prestado(s), ha(n) sido recibido(s)" }}
+                    {{ nota.motivo|default:"El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en
+                    la Ley N° 19.983, acredita que la entrega de mercadería(s) o servicio(s) prestado(s), ha(n) sido
+                    recibido(s)" }}
                 </div>
             </div>
 
@@ -506,13 +522,17 @@
 
     <!-- Botones de acción (solo en pantalla) -->
     <div class="no-print" style="text-align: center; margin-top: 20px;">
-        <button onclick="window.print()" style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
+        <button onclick="window.print()"
+            style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
             🖨️ Imprimir Nota de Crédito
         </button>
-        <button onclick="if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) { window.history.back(); } else { window.location.href = '/'; }" style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
+        <button
+            onclick="if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) { window.history.back(); } else { window.location.href = '/'; }"
+            style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
             ← Volver
         </button>
     </div>
 
 </body>
+
 </html>

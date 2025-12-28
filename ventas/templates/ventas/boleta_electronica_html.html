@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -86,8 +87,10 @@
         }
 
         .company-logo {
-            max-width: 80px;
-            margin-bottom: 6px;
+            max-width: 180px;
+            max-height: 100px;
+            margin-bottom: 8px;
+            object-fit: contain;
         }
 
         .company-info {
@@ -245,11 +248,11 @@
             font-size: 7pt;
             margin-bottom: 3px;
         }
-        
+
         .payment-method {
             font-size: 7pt;
         }
-        
+
         .payment-balance {
             font-size: 7pt;
             color: #666;
@@ -273,6 +276,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="boleta-container">
 
@@ -282,6 +286,8 @@
             <div class="header-left">
                 {% if venta.empresa.logo %}
                 <img src="{{ venta.empresa.logo.url }}" alt="{{ venta.empresa.nombre }}" class="company-logo">
+                {% elif dte.empresa.logo %}
+                <img src="{{ dte.empresa.logo.url }}" alt="{{ venta.empresa.nombre }}" class="company-logo">
                 {% endif %}
 
                 <div class="company-name">{{ venta.empresa.nombre }}</div>
@@ -299,12 +305,13 @@
                     <div class="document-type">BOLETA ELECTRÓNICA</div>
                     <div class="document-folio">
                         {% if dte and dte.folio %}
-                            N° {{ dte.folio }}
+                        N° {{ dte.folio }}
                         {% else %}
-                            N° {{ venta.numero_venta }}
+                        N° {{ venta.numero_venta }}
                         {% endif %}
                     </div>
-                    <div class="document-sii">SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}</div>
+                    <div class="document-sii">SII - {{
+                        venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}</div>
                 </div>
             </div>
         </div>
@@ -337,9 +344,9 @@
                     <td class="col-precio">${{ detalle.precio_unitario|format_miles }}</td>
                     <td class="col-descuento">
                         {% if detalle.descuento > 0 %}
-                            -${{ detalle.descuento|format_miles }}
+                        -${{ detalle.descuento|format_miles }}
                         {% else %}
-                            -
+                        -
                         {% endif %}
                     </td>
                     <td class="col-monto">${{ detalle.precio_total|format_miles }}</td>
@@ -368,36 +375,39 @@
             <div class="footer-left">
                 <div class="timbre-box">
                     {% if dte and dte.timbre_pdf417 %}
-                        <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico" style="max-width: 200px; height: auto; display: block; margin: 0 auto;">
+                    <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico"
+                        style="max-width: 200px; height: auto; display: block; margin: 0 auto;">
                     {% elif dte and dte.folio %}
-                        <div style="padding: 30px; background: #f5f5f5; border: 2px dashed #999; text-align: center;">
-                            <div style="font-size: 9pt; color: #666; font-weight: bold; margin-bottom: 5px;">
-                                TIMBRE ELECTRÓNICO SII
-                            </div>
-                            <div style="font-size: 7pt; color: #999;">
-                                Folio: {{ dte.folio }}<br>
-                                (Imagen del timbre pendiente)
-                            </div>
+                    <div style="padding: 30px; background: #f5f5f5; border: 2px dashed #999; text-align: center;">
+                        <div style="font-size: 9pt; color: #666; font-weight: bold; margin-bottom: 5px;">
+                            TIMBRE ELECTRÓNICO SII
                         </div>
+                        <div style="font-size: 7pt; color: #999;">
+                            Folio: {{ dte.folio }}<br>
+                            (Imagen del timbre pendiente)
+                        </div>
+                    </div>
                     {% else %}
-                        <div style="padding: 30px; background: #fff8dc; border: 2px dashed #ffa500; text-align: center;">
-                            <div style="font-size: 9pt; color: #ff8c00; font-weight: bold; margin-bottom: 5px;">
-                                DOCUMENTO NO ELECTRÓNICO
-                            </div>
-                            <div style="font-size: 7pt; color: #666;">
-                                Este documento NO ha sido enviado al SII<br>
-                                Número de Venta: {{ venta.numero_venta }}
-                            </div>
+                    <div style="padding: 30px; background: #fff8dc; border: 2px dashed #ffa500; text-align: center;">
+                        <div style="font-size: 9pt; color: #ff8c00; font-weight: bold; margin-bottom: 5px;">
+                            DOCUMENTO NO ELECTRÓNICO
                         </div>
+                        <div style="font-size: 7pt; color: #666;">
+                            Este documento NO ha sido enviado al SII<br>
+                            Número de Venta: {{ venta.numero_venta }}
+                        </div>
+                    </div>
                     {% endif %}
                     <div class="timbre-info">
                         <strong>Timbre Electrónico SII</strong><br>
-                        Res. Ex. SII N° {{ venta.empresa.resolucion_numero|default:"80" }} del {{ venta.empresa.resolucion_fecha|date:"d-m-Y"|default:"22-08-2014" }}<br>
+                        Res. Ex. SII N° {{ venta.empresa.resolucion_numero|default:"80" }} del {{
+                        venta.empresa.resolucion_fecha|date:"d-m-Y"|default:"22-08-2014" }}<br>
                         Verifique documento en: www.sii.cl
                     </div>
                 </div>
                 <div class="disclaimer">
-                    El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la Ley N° 19.983, acredita que la entrega de mercadería(s) o servicio(s) prestado(s), ha(n) sido recibido(s)
+                    El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la Ley N° 19.983,
+                    acredita que la entrega de mercadería(s) o servicio(s) prestado(s), ha(n) sido recibido(s)
                 </div>
             </div>
 
@@ -458,16 +468,21 @@
 
                 <!-- REFERENCIAS -->
                 {% if venta.referencias.exists %}
-                <div style="background: #f9f9f9; padding: 6px; margin-bottom: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                    <div style="font-weight: bold; font-size: 8pt; margin-bottom: 3px; text-align: center; background: #d0d0d0; padding: 3px; border-radius: 3px;">
+                <div
+                    style="background: #f9f9f9; padding: 6px; margin-bottom: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                    <div
+                        style="font-weight: bold; font-size: 8pt; margin-bottom: 3px; text-align: center; background: #d0d0d0; padding: 3px; border-radius: 3px;">
                         REFERENCIAS
                     </div>
                     {% for ref in venta.referencias.all %}
-                    <div style="font-size: 7pt; margin-bottom: 3px; padding: 3px; background: white; border: 1px solid #e0e0e0; border-radius: 2px;">
+                    <div
+                        style="font-size: 7pt; margin-bottom: 3px; padding: 3px; background: white; border: 1px solid #e0e0e0; border-radius: 2px;">
                         <div><strong>Tipo:</strong> {{ ref.get_tipo_referencia_display }}</div>
-                        <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d/m/Y" }}</div>
+                        <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{
+                            ref.fecha_referencia|date:"d/m/Y" }}</div>
                         {% if ref.razon_referencia %}
-                        <div style="font-size: 6pt; color: #666; margin-top: 1px;"><strong>Razón:</strong> {{ ref.razon_referencia|truncatewords:15 }}</div>
+                        <div style="font-size: 6pt; color: #666; margin-top: 1px;"><strong>Razón:</strong> {{
+                            ref.razon_referencia|truncatewords:15 }}</div>
                         {% endif %}
                     </div>
                     {% endfor %}
@@ -480,10 +495,12 @@
 
     <!-- Botones de acción (solo en pantalla) -->
     <div class="no-print" style="text-align: center; margin-top: 20px;">
-        <button onclick="window.print()" style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
+        <button onclick="window.print()"
+            style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
             🖨️ Imprimir Boleta
         </button>
-        <button onclick="safeCloseWindow()" style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
+        <button onclick="safeCloseWindow()"
+            style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
             ← Volver
         </button>
     </div>
@@ -492,9 +509,9 @@
         // Función universal para cerrar/volver desde templates de impresión
         function safeCloseWindow() {
             console.log('safeCloseWindow llamado');
-            
+
             const posUrl = "{% url 'ventas:pos_view' %}";
-            
+
             // Intentar notificar al padre si existe
             try {
                 if (window.opener && window.opener !== window && !window.opener.closed) {
@@ -503,7 +520,7 @@
             } catch (e) {
                 console.log('No se pudo notificar al padre:', e);
             }
-            
+
             // Intentar cerrar la ventana si fue abierta por otra ventana
             if (window.opener && window.opener !== window && !window.opener.closed) {
                 try {
@@ -514,18 +531,18 @@
                     console.log('No se pudo cerrar la ventana:', e);
                 }
             }
-            
+
             // Intentar obtener la URL de referencia guardada o desde parámetros URL
             const params = new URLSearchParams(window.location.search);
             const returnUrl = params.get('return_url');
             const refererUrl = returnUrl || sessionStorage.getItem('print_referer') || localStorage.getItem('print_referer');
-            
+
             if (refererUrl && refererUrl !== window.location.href) {
                 console.log('Redirigiendo a:', refererUrl);
                 window.location.href = refererUrl;
                 return;
             }
-            
+
             // Si no hay referrer guardado, intentar volver atrás
             if (window.history.length > 1) {
                 try {
@@ -536,7 +553,7 @@
                     console.log('No se pudo volver atrás:', e);
                 }
             }
-            
+
             // Fallback: redirigir al POS si viene con auto=1 (desde POS), sino al dashboard
             if (params.get('auto') === '1') {
                 // Si viene con auto=1, siempre es desde el POS
@@ -554,12 +571,12 @@
                 }
             }
         }
-        
+
         // Guardar la URL de referencia cuando se carga la página
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             const params = new URLSearchParams(window.location.search);
             const returnUrl = params.get('return_url');
-            
+
             // Guardar la URL de referencia si existe
             if (returnUrl) {
                 sessionStorage.setItem('print_referer', returnUrl);
@@ -575,12 +592,12 @@
                 }
             }
         });
-        
+
         // Asegurar que el botón funcione
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const backBtn = document.querySelector('button[onclick*="safeCloseWindow"]');
             if (backBtn) {
-                backBtn.addEventListener('click', function(e) {
+                backBtn.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     safeCloseWindow();
@@ -591,5 +608,5 @@
     </script>
 
 </body>
-</html>
 
+</html>

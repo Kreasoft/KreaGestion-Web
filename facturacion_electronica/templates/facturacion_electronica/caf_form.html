@@ -1,264 +1,94 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Cargar Archivo CAF{% endblock %}
-
-{% block body_class %}hide-top-bar{% endblock %}
+{% block title %}Cargar CAF{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 20px 30px;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-upload fa-2x text-white me-3"></i>
-                            <div>
-                                <h5 class="mb-0 text-white" style="font-size: 1.5rem; font-weight: 600;">
-                                    Cargar Archivo CAF
-                                </h5>
-                                <small class="text-white" style="opacity: 0.9; font-size: 0.95rem;">Código de Autorización de Folios</small>
-                            </div>
-                        </div>
-                        <a href="{% url 'facturacion_electronica:caf_list' %}" class="btn btn-light" style="font-weight: 500;">
-                            <i class="fas fa-arrow-left me-2"></i>Volver
-                        </a>
-                    </div>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header" style="background: linear-gradient(135deg, #6B4423 0%, #8B5A3C 100%);">
+                    <h5 class="mb-0 text-white">
+                        <i class="fas fa-upload me-2"></i>
+                        Cargar Archivo CAF
+                    </h5>
                 </div>
-                
-                <div class="card-body" style="padding: 25px 30px;">
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
 
-    <!-- Instrucciones -->
-    <div class="alert mb-4" style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-left: 4px solid #2196F3; border-radius: 8px;">
-        <h5 class="alert-heading" style="color: #1565C0;">
-            <i class="fas fa-info-circle me-2"></i>Instrucciones
-        </h5>
-        <ol class="mb-0" style="color: #424242;">
-            <li>Descarga el archivo CAF (XML) desde el sitio del SII</li>
-            <li>Selecciona el tipo de documento tributario</li>
-            <li>Sube el archivo XML</li>
-            <li>El sistema extraerá automáticamente toda la información</li>
-        </ol>
-    </div>
-
-    <!-- Formulario -->
-    <div class="card shadow-sm mb-4" style="border: none; border-radius: 10px;">
-        <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E9E5DC 100%); border: none; padding: 15px 20px;">
-            <h5 class="mb-0" style="color: #6F5B44; font-weight: 600;">
-                <i class="fas fa-file-upload me-2" style="color: #8B7355;"></i>Datos del CAF
-            </h5>
-        </div>
-        <div class="card-body">
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                
-                <!-- Tipo de Documento -->
-                <div class="mb-3">
-                    <label for="{{ form.tipo_documento.id_for_label }}" class="form-label">
-                        {{ form.tipo_documento.label }} <span class="text-danger">*</span>
-                    </label>
-                    {{ form.tipo_documento }}
-                    {% if form.tipo_documento.errors %}
-                        <div class="text-danger mt-1">
-                            {{ form.tipo_documento.errors }}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
                         </div>
-                    {% endif %}
-                    <div class="form-text">
-                        Seleccione el tipo de documento tributario al que corresponde este CAF
-                    </div>
-                </div>
+                        {% endif %}
 
-                <!-- Archivo XML -->
-                <div class="mb-3">
-                    <label for="{{ form.archivo_xml.id_for_label }}" class="form-label">
-                        {{ form.archivo_xml.label }} <span class="text-danger">*</span>
-                    </label>
-                    {{ form.archivo_xml }}
-                    {% if form.archivo_xml.errors %}
-                        <div class="text-danger mt-1">
-                            {{ form.archivo_xml.errors }}
-                        </div>
-                    {% endif %}
-                    <div class="form-text">
-                        {{ form.archivo_xml.help_text }}
-                    </div>
-                </div>
-
-                <!-- Folio Inicial (Opcional) -->
-                <div class="mb-3">
-                    <div class="card shadow-sm" style="background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%); border-left: 4px solid #FFA726; border-radius: 8px;">
-                        <div class="card-body">
-                            <h6 class="card-title mb-3" style="color: #E65100; font-weight: 600;">
-                                <i class="fas fa-exclamation-circle me-2"></i>
-                                ¿Ya has usado folios de este CAF?
-                            </h6>
-                            
-                            <label for="{{ form.folio_inicial.id_for_label }}" class="form-label">
-                                {{ form.folio_inicial.label }}
+                        <div class="mb-3">
+                            <label for="{{ form.sucursal.id_for_label }}" class="form-label">
+                                {{ form.sucursal.label }}
+                                <span class="text-danger">*</span>
                             </label>
-                            {{ form.folio_inicial }}
-                            {% if form.folio_inicial.errors %}
-                                <div class="text-danger mt-1">
-                                    {{ form.folio_inicial.errors }}
-                                </div>
+                            {{ form.sucursal }}
+                            {% if form.sucursal.help_text %}
+                            <small class="form-text text-muted">{{ form.sucursal.help_text }}</small>
                             {% endif %}
-                            <div class="form-text mt-2">
-                                {{ form.folio_inicial.help_text }}
-                            </div>
-                            
-                            <div class="alert mt-3 mb-0" style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-left: 3px solid #2196F3; border-radius: 6px;">
-                                <strong style="color: #1565C0;">Ejemplos:</strong>
-                                <ul class="mb-0 mt-2" style="color: #424242;">
-                                    <li><strong>CAF nuevo (sin usar):</strong> Dejar vacío o poner el primer folio</li>
-                                    <li><strong>Ya usaste folios 1-14:</strong> Ingresar <strong>15</strong></li>
-                                    <li><strong>Ya usaste folios 1-50:</strong> Ingresar <strong>51</strong></li>
-                                </ul>
-                                <hr class="my-2" style="border-color: rgba(33, 150, 243, 0.3);">
-                                <small style="color: #424242;">
-                                    <i class="fas fa-lightbulb" style="color: #FFA726;"></i> 
-                                    <strong>Importante:</strong> El sistema empezará a asignar folios desde el número que indiques aquí.
-                                    Si no especificas nada, comenzará desde el primer folio del CAF.
-                                </small>
-                            </div>
+                            {% if form.sucursal.errors %}
+                            <div class="text-danger">{{ form.sucursal.errors }}</div>
+                            {% endif %}
                         </div>
-                    </div>
-                </div>
 
-                <!-- Información Automática -->
-                <div class="alert" style="background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); border-left: 4px solid #4CAF50; border-radius: 8px;">
-                    <h6 class="alert-heading" style="color: #2E7D32; font-weight: 600;">
-                        <i class="fas fa-magic me-2"></i>Información Extraída Automáticamente
-                    </h6>
-                    <p class="mb-0" style="color: #424242;">El sistema extraerá automáticamente la siguiente información del archivo XML:</p>
-                    <ul class="mb-0 mt-2" style="color: #424242;">
-                        <li>Rango de folios (desde - hasta)</li>
-                        <li>Cantidad total de folios</li>
-                        <li>Fecha de autorización</li>
-                        <li>Firma electrónica</li>
-                    </ul>
-                </div>
+                        <div class="mb-3">
+                            <label for="{{ form.tipo_documento.id_for_label }}" class="form-label">
+                                {{ form.tipo_documento.label }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.tipo_documento }}
+                            {% if form.tipo_documento.help_text %}
+                            <small class="form-text text-muted">{{ form.tipo_documento.help_text }}</small>
+                            {% endif %}
+                            {% if form.tipo_documento.errors %}
+                            <div class="text-danger">{{ form.tipo_documento.errors }}</div>
+                            {% endif %}
+                        </div>
 
-                <!-- Mensajes de Django -->
-                {% if messages %}
-                <div class="mb-3">
-                    {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
+                        <div class="mb-3">
+                            <label for="{{ form.archivo_xml.id_for_label }}" class="form-label">
+                                {{ form.archivo_xml.label }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.archivo_xml }}
+                            {% if form.archivo_xml.help_text %}
+                            <small class="form-text text-muted">{{ form.archivo_xml.help_text }}</small>
+                            {% endif %}
+                            {% if form.archivo_xml.errors %}
+                            <div class="text-danger">{{ form.archivo_xml.errors }}</div>
+                            {% endif %}
+                        </div>
 
-                <!-- Botones -->
-                <div class="d-flex justify-content-between mt-4">
-                    <a href="{% url 'facturacion_electronica:caf_list' %}" class="btn btn-secondary" style="font-weight: 500;">
-                        <i class="fas fa-arrow-left me-2"></i>Volver
-                    </a>
-                    <button type="submit" class="btn" id="btnCargarCAF" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; font-weight: 500; padding: 10px 30px;">
-                        <i class="fas fa-save me-2"></i>Cargar CAF
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle"></i> Instrucciones:</h6>
+                            <ol class="mb-0">
+                                <li>Seleccione la sucursal a la que pertenecerá este CAF</li>
+                                <li>Seleccione el tipo de documento</li>
+                                <li>Seleccione el archivo XML descargado del SII</li>
+                                <li>El sistema extraerá automáticamente el rango de folios y la fecha de autorización
+                                </li>
+                            </ol>
+                        </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.querySelector('form');
-        const btnSubmit = document.getElementById('btnCargarCAF');
-        
-        form.addEventListener('submit', function(e) {
-            console.log('🚀 Formulario enviado');
-            
-            // Validar que se haya seleccionado tipo de documento
-            const tipoDoc = document.getElementById('{{ form.tipo_documento.id_for_label }}');
-            if (!tipoDoc.value) {
-                e.preventDefault();
-                alert('Por favor selecciona el tipo de documento');
-                return false;
-            }
-            
-            // Validar que se haya seleccionado archivo
-            const archivo = document.getElementById('{{ form.archivo_xml.id_for_label }}');
-            if (!archivo.files || archivo.files.length === 0) {
-                e.preventDefault();
-                alert('Por favor selecciona un archivo XML');
-                return false;
-            }
-            
-            // Validar extensión
-            const fileName = archivo.files[0].name;
-            if (!fileName.toLowerCase().endsWith('.xml')) {
-                e.preventDefault();
-                alert('El archivo debe ser un XML');
-                return false;
-            }
-            
-            console.log('✅ Validación exitosa, enviando...');
-            console.log('   Tipo doc:', tipoDoc.value);
-            console.log('   Archivo:', fileName);
-            
-            // Deshabilitar botón para evitar doble envío
-            btnSubmit.disabled = true;
-            btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-        });
-    });
-    </script>
-
-    <!-- Información Adicional -->
-    <div class="card shadow-sm mt-4" style="border: none; border-radius: 10px;">
-        <div class="card-header" style="background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%); border: none; padding: 15px 20px;">
-            <h6 class="mb-0" style="color: #E65100; font-weight: 600;">
-                <i class="fas fa-lightbulb me-2" style="color: #FFA726;"></i>¿Dónde conseguir archivos CAF?
-            </h6>
-        </div>
-        <div class="card-body">
-            <p class="mb-2"><strong>1. Ingresa al sitio del SII:</strong></p>
-            <p class="mb-2"><a href="https://www4.sii.cl/registrorechazoclmInternet/" target="_blank">https://www4.sii.cl/registrorechazoclmInternet/</a></p>
-            
-            <p class="mb-2 mt-3"><strong>2. Solicita folios:</strong></p>
-            <ul>
-                <li>Menú: "Factura Electrónica"</li>
-                <li>Opción: "Folios sin uso - Timbraje Electrónico"</li>
-                <li>Solicita los folios que necesites</li>
-            </ul>
-
-            <p class="mb-2 mt-3"><strong>3. Descarga el CAF:</strong></p>
-            <ul>
-                <li>Una vez autorizado, descarga el archivo XML</li>
-                <li>No modifiques el archivo</li>
-                <li>Cárgalo directamente en este formulario</li>
-            </ul>
-        </div>
-    </div>
-
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'facturacion_electronica:listar_cafs' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Cargar CAF
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.form-control:focus, .form-select:focus {
-    border-color: #8B7355;
-    box-shadow: 0 0 0 0.25rem rgba(139, 115, 85, 0.25);
-}
-
-.form-control, .form-select {
-    border-color: #D4A574;
-}
-
-.form-label {
-    color: #6F5B44;
-    font-weight: 500;
-}
-
-.form-text {
-    color: #6c757d;
-}
-</style>
 {% endblock %}
-

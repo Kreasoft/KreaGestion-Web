@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.db import transaction
 from core.decorators import requiere_empresa
 from .models import ArchivoCAF, DocumentoTributarioElectronico, EnvioDTE, ConfiguracionAlertaFolios
-from .forms import ArchivoCAFForm
+from .forms import CargarCAFForm as ArchivoCAFForm  # Alias para compatibilidad
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
@@ -16,12 +16,14 @@ def caf_list(request):
     """Lista de archivos CAF de la empresa"""
     archivos_caf = ArchivoCAF.objects.filter(
         empresa=request.empresa
-    ).order_by('-fecha_carga')
+    ).select_related('sucursal').order_by('-fecha_carga')
     
     # Estadísticas
     total_caf = archivos_caf.count()
     activos = archivos_caf.filter(estado='activo').count()
     agotados = archivos_caf.filter(estado='agotado').count()
+    vencidos = archivos_caf.filter(estado='vencido').count()
+    ocultos = archivos_caf.filter(oculto=True).count()
     
     # Folios por tipo de documento
     folios_por_tipo = {}
@@ -39,13 +41,35 @@ def caf_list(request):
     for config in ConfiguracionAlertaFolios.objects.filter(empresa=request.empresa, activo=True):
         alertas_config[config.tipo_documento] = config.folios_minimos
     
+    # Sucursales para filtro
+    from empresas.models import Sucursal
+    sucursales = Sucursal.objects.filter(empresa=request.empresa)
+    
     context = {
         'archivos_caf': archivos_caf,
+        'cafs': archivos_caf,  # Alias para compatibilidad con nuevo template
         'total_caf': total_caf,
         'activos': activos,
         'agotados': agotados,
         'folios_por_tipo': folios_por_tipo,
         'alertas_config': alertas_config,
+        # Variables para nuevo template
+        'sucursales': sucursales,
+        'tipo_documento_choices': ArchivoCAF.TIPO_DOCUMENTO_CHOICES,
+        'estado_choices': ArchivoCAF.ESTADO_CHOICES,
+        'stats': {
+            'total': total_caf,
+            'activos': activos,
+            'agotados': agotados,
+            'vencidos': vencidos,
+            'ocultos': ocultos,
+        },
+        'filtros': {
+            'sucursal': None,
+            'tipo_documento': None,
+            'estado': None,
+            'mostrar_ocultos': False,
+        }
     }
     
     return render(request, 'facturacion_electronica/caf_list.html', context)
@@ -61,163 +85,36 @@ def caf_create(request):
         return redirect('empresas:editar_empresa_activa')
     
     if request.method == 'POST':
-        form = ArchivoCAFForm(request.POST, request.FILES)
-        
-        print(f"[DEBUG] DEBUG CAF - POST recibido")
-        print(f"   - Empresa: {request.empresa}")
-        print(f"   - Files: {request.FILES}")
-        print(f"   - Form válido: {form.is_valid()}")
-        if not form.is_valid():
-            print(f"   - Errores: {form.errors}")
+        from django.core.exceptions import ValidationError
+        form = ArchivoCAFForm(request.POST, request.FILES, empresa=request.empresa)
         
         if form.is_valid():
             try:
-                # Leer el archivo ANTES de la transacción
-                archivo_xml = request.FILES['archivo_xml']
+                # El formulario ya parsea automáticamente el XML
+                caf = form.save(commit=False)
+                caf.empresa = request.empresa
+                caf.usuario_carga = request.user
+                caf.save()  # Aquí se ejecutan las validaciones del modelo
                 
-                # Intentar decodificar con diferentes codificaciones (SII usa ISO-8859-1)
-                contenido_bytes = archivo_xml.read()
-                contenido_xml = None
+                messages.success(
+                    request,
+                    f'✅ CAF cargado exitosamente. '
+                    f'Folios: {caf.folio_desde} - {caf.folio_hasta} ({caf.cantidad_folios} folios disponibles).'
+                )
+                return redirect('facturacion_electronica:caf_list')
                 
-                for encoding in ['utf-8', 'iso-8859-1', 'windows-1252', 'latin-1']:
-                    try:
-                        contenido_xml = contenido_bytes.decode(encoding)
-                        print(f"[OK] Archivo decodificado exitosamente con: {encoding}")
-                        break
-                    except UnicodeDecodeError:
-                        continue
-                
-                if contenido_xml is None:
-                    raise ValueError("No se pudo decodificar el archivo XML. Formato no soportado.")
-                
-                # Parsear el XML para extraer datos
-                root = ET.fromstring(contenido_xml)
-                
-                with transaction.atomic():
-                    
-                    # Buscar los datos del CAF
-                    # Namespace del SII
-                    ns = {'sii': 'http://www.sii.cl/SiiDte'}
-                    
-                    # Intentar con y sin namespace
-                    da = root.find('.//DA') or root.find('.//{http://www.sii.cl/SiiDte}DA')
-                    
-                    if da is None:
-                        raise ValueError("No se encontró el elemento DA en el archivo CAF")
-                    
-                    # Extraer datos
-                    rango_elem = da.find('.//RNG') or da.find('.//{http://www.sii.cl/SiiDte}RNG')
-                    if rango_elem is None:
-                        raise ValueError("No se encontró el rango de folios (RNG) en el CAF")
-                    
-                    folio_desde = int(rango_elem.find('D').text if rango_elem.find('D') is not None 
-                                    else rango_elem.find('{http://www.sii.cl/SiiDte}D').text)
-                    folio_hasta = int(rango_elem.find('H').text if rango_elem.find('H') is not None 
-                                    else rango_elem.find('{http://www.sii.cl/SiiDte}H').text)
-                    
-                    # Fecha de autorización
-                    fa_elem = da.find('.//FA') or da.find('.//{http://www.sii.cl/SiiDte}FA')
-                    if fa_elem is not None:
-                        fecha_texto = fa_elem.text
-                        try:
-                            fecha_autorizacion = datetime.strptime(fecha_texto, '%Y-%m-%d').date()
-                        except:
-                            fecha_autorizacion = datetime.now().date()
-                    else:
-                        fecha_autorizacion = datetime.now().date()
-                    
-                    # Firma electrónica (FRMA)
-                    frma_elem = root.find('.//FRMA') or root.find('.//{http://www.sii.cl/SiiDte}FRMA')
-                    firma_electronica = frma_elem.text if frma_elem is not None else ''
-                    
-                    # Verificar si ya existe un CAF con este rango
-                    tipo_documento = form.cleaned_data['tipo_documento']
-                    if ArchivoCAF.objects.filter(
-                        empresa=request.empresa,
-                        tipo_documento=tipo_documento,
-                        folio_desde=folio_desde,
-                        folio_hasta=folio_hasta
-                    ).exists():
-                        messages.error(request, f'Ya existe un CAF para este rango de folios ({folio_desde}-{folio_hasta})')
-                        return redirect('facturacion_electronica:caf_list')
-                    
-                    # Obtener folio inicial si se especificó
-                    folio_inicial = form.cleaned_data.get('folio_inicial')
-                    
-                    # Validar folio inicial
-                    if folio_inicial:
-                        if folio_inicial < folio_desde:
-                            messages.error(request, f'El folio inicial ({folio_inicial}) no puede ser menor al primer folio del CAF ({folio_desde})')
-                            return redirect('facturacion_electronica:caf_list')
-                        if folio_inicial > folio_hasta:
-                            messages.error(request, f'El folio inicial ({folio_inicial}) no puede ser mayor al último folio del CAF ({folio_hasta})')
-                            return redirect('facturacion_electronica:caf_list')
-                        
-                        # Calcular folios ya utilizados
-                        folios_ya_usados = folio_inicial - folio_desde
-                        folio_actual = folio_inicial - 1
-                        print(f"📋 Folio inicial especificado: {folio_inicial}")
-                        print(f"   Folios ya usados: {folios_ya_usados}")
-                    else:
-                        # Comenzar desde el principio
-                        folios_ya_usados = 0
-                        folio_actual = folio_desde - 1
-                        print(f"📋 Sin folio inicial, comenzando desde: {folio_desde}")
-                    
-                    # Crear el registro CAF
-                    caf = form.save(commit=False)
-                    caf.empresa = request.empresa
-                    caf.folio_desde = folio_desde
-                    caf.folio_hasta = folio_hasta
-                    caf.cantidad_folios = folio_hasta - folio_desde + 1
-                    caf.folio_actual = folio_actual
-                    caf.folios_utilizados = folios_ya_usados
-                    caf.contenido_caf = contenido_xml
-                    caf.fecha_autorizacion = fecha_autorizacion
-                    caf.firma_electronica = firma_electronica
-                    caf.usuario_carga = request.user
-                    caf.estado = 'activo'
-                    
-                    # Guardar el archivo (resetear puntero si es necesario)
-                    # Verificar si el archivo ya fue leído
-                    if hasattr(archivo_xml, 'seek'):
-                        try:
-                            archivo_xml.seek(0)
-                        except:
-                            pass
-                    
-                    caf.save()
-                    
-                    # Mensaje de éxito con información del folio inicial
-                    if folio_inicial:
-                        mensaje_exito = (
-                            f'CAF cargado exitosamente. '
-                            f'Folios: {folio_desde} - {folio_hasta} ({caf.cantidad_folios} folios). '
-                            f'Iniciando desde folio {folio_inicial} ({folios_ya_usados} folios ya usados, '
-                            f'{caf.folios_disponibles()} disponibles).'
-                        )
-                    else:
-                        mensaje_exito = (
-                            f'CAF cargado exitosamente. '
-                            f'Folios: {folio_desde} - {folio_hasta} ({caf.cantidad_folios} folios disponibles).'
-                        )
-                    
-                    messages.success(request, mensaje_exito)
-                    return redirect('facturacion_electronica:caf_list')
-                    
-            except ET.ParseError as e:
-                print(f"[ERROR] ERROR ParseError: {str(e)}")
-                messages.error(request, f'Error al leer el archivo XML: {str(e)}')
-            except ValueError as e:
-                print(f"[ERROR] ERROR ValueError: {str(e)}")
-                messages.error(request, f'Error en los datos del CAF: {str(e)}')
+            except ValidationError as e:
+                # Error de validación de duplicado o rango solapado
+                messages.error(request, str(e.message))
             except Exception as e:
-                print(f"[ERROR] ERROR Exception: {type(e).__name__}: {str(e)}")
+                print(f"[ERROR] Error al procesar CAF: {type(e).__name__}: {str(e)}")
                 import traceback
                 traceback.print_exc()
-                messages.error(request, f'Error al procesar el CAF: {str(e)}')
+                messages.error(request, f'❌ Error al procesar el CAF: {str(e)}')
+        else:
+            print(f"[ERROR] Errores en formulario: {form.errors}")
     else:
-        form = ArchivoCAFForm()
+        form = ArchivoCAFForm(empresa=request.empresa)
     
     context = {
         'form': form,

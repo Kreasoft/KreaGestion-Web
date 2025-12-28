@@ -2318,16 +2318,18 @@ def pos_procesar_preventa(request):
                                 from django.urls import reverse
                                 doc_url = reverse('facturacion_electronica:ver_factura_electronica', args=[dte.pk])
                                 
-                                # Enviar al SII si está configurado
+                                # Enviar al SII si está configurado (en segundo plano)
                                 if estacion.enviar_sii_directo and request.empresa.facturacion_electronica:
                                     try:
-                                        from facturacion_electronica.dte_service import DTEService
-                                        dte_service = DTEService(request.empresa)
-                                        print("[INFO] CIERRE DIRECTO: Enviando DTE al SII...")
-                                        dte_service.enviar_dte_al_sii(dte)
-                                        print("[OK] CIERRE DIRECTO: DTE enviado al SII")
+                                        from facturacion_electronica.background_sender import get_background_sender
+                                        
+                                        sender = get_background_sender()
+                                        if sender.enviar_dte(dte.id, request.empresa.id):
+                                            print("[OK] CIERRE DIRECTO: DTE agregado a cola de envío (background)")
+                                        else:
+                                            print("[WARN] CIERRE DIRECTO: No se pudo agregar DTE a cola")
                                     except Exception as e_envio:
-                                        print(f"[WARN] CIERRE DIRECTO: Error al enviar DTE al SII: {e_envio}")
+                                        print(f"[WARN] CIERRE DIRECTO: Error al iniciar envío background: {e_envio}")
                             
                             # Marcar ticket como procesado y facturado
                             ticket_vale.estado = 'confirmada'
@@ -3158,7 +3160,7 @@ def cotizacion_html(request, pk):
     nombre_impresora = getattr(empresa, 'impresora_cotizacion_nombre', None)
     
     # Seleccionar template según configuración
-    if tipo_impresora == 'termica':
+    if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
         template = 'ventas/cotizacion_termica.html'
         print(f"[PRINT] Cotizacion -> Formato TERMICO 80mm")
     else:
@@ -3203,7 +3205,7 @@ def venta_html(request, pk):
     
     # Verificar si existe DTE asociado (para facturas/boletas/guías electrónicas)
     dte = None
-    if venta.tipo_documento in ['factura', 'boleta', 'guia']:
+    if venta.tipo_documento in ['factura', 'factura_electronica', 'boleta', 'boleta_electronica', 'guia']:
         try:
             from facturacion_electronica.models import DocumentoTributarioElectronico
             
@@ -3222,7 +3224,7 @@ def venta_html(request, pk):
             
             # Si no se encontró DTE, buscar directamente en DocumentoTributarioElectronico
             if not dte:
-                tipo_dte_map = {'factura': '33', 'boleta': '39', 'guia': '52'}
+                tipo_dte_map = {'factura': '33', 'factura_electronica': '33', 'boleta': '39', 'boleta_electronica': '39', 'guia': '52'}
                 tipo_dte_codigo = tipo_dte_map.get(venta.tipo_documento)
                 dte = DocumentoTributarioElectronico.objects.filter(
                     venta=venta,
@@ -3240,25 +3242,25 @@ def venta_html(request, pk):
     # Obtener nombre de impresora física configurada (para pasarlo al template)
     nombre_impresora = None
     
-    if venta.tipo_documento == 'factura':
+    if venta.tipo_documento in ['factura', 'factura_electronica']:
         # Verificar si usa impresora térmica o láser
         tipo_impresora = getattr(empresa, 'impresora_factura', 'laser')
         nombre_impresora = getattr(empresa, 'impresora_factura_nombre', None)
         
-        if tipo_impresora == 'termica':
+        if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
             template_name = 'ventas/factura_electronica_termica.html'
             print(f"[PRINT] Factura -> Formato TERMICO 80mm")
         else:
             template_name = 'ventas/factura_electronica_html.html'
             print(f"[PRINT] Factura -> Formato LASER A4")
     
-    elif venta.tipo_documento == 'boleta':
+    elif venta.tipo_documento in ['boleta', 'boleta_electronica']:
         # Verificar si usa impresora térmica o láser
         tipo_impresora = getattr(empresa, 'impresora_boleta', 'laser')
         nombre_impresora = getattr(empresa, 'impresora_boleta_nombre', None)
         
         if dte:  # Si tiene DTE, usar templates electrónicos
-            if tipo_impresora == 'termica':
+            if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
                 template_name = 'ventas/boleta_electronica_termica.html'
                 print(f"[PRINT] Boleta Electronica -> Formato TERMICO 80mm")
             else:
@@ -3275,7 +3277,7 @@ def venta_html(request, pk):
         nombre_impresora = getattr(empresa, 'impresora_guia_nombre', None)
         
         if dte:  # Guía electrónica con DTE
-            if tipo_impresora == 'termica':
+            if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
                 template_name = 'inventario/guia_despacho_electronica_termica.html'
                 print(f"[PRINT] Guia Electronica -> Formato TERMICO 80mm")
             else:
@@ -3293,7 +3295,7 @@ def venta_html(request, pk):
             tipo_impresora = getattr(empresa, 'impresora_vale', 'laser')
             nombre_impresora = getattr(empresa, 'impresora_vale_nombre', None)
             
-            if tipo_impresora == 'termica':
+            if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
                 template_name = 'ventas/vale_termica.html'
                 print(f"[PRINT] Vale -> Formato TERMICO 80mm")
             else:
@@ -3304,7 +3306,7 @@ def venta_html(request, pk):
             tipo_impresora = getattr(empresa, 'impresora_cotizacion', 'laser')
             nombre_impresora = getattr(empresa, 'impresora_cotizacion_nombre', None)
             
-            if tipo_impresora == 'termica':
+            if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
                 template_name = 'ventas/cotizacion_termica.html'
                 print(f"[PRINT] Cotizacion -> Formato TERMICO 80mm")
             else:

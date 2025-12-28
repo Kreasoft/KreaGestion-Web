@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -86,8 +87,10 @@
         }
 
         .company-logo {
-            max-width: 80px;
-            margin-bottom: 6px;
+            max-width: 180px;
+            max-height: 100px;
+            margin-bottom: 8px;
+            object-fit: contain;
         }
 
         .company-info {
@@ -232,12 +235,14 @@
             body {
                 padding: 0;
             }
+
             .no-print {
                 display: none;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="guia-container">
         <!-- CABECERA -->
@@ -245,6 +250,8 @@
             <div class="header-left">
                 {% if empresa.logo %}
                 <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" class="company-logo">
+                {% elif guia.empresa.logo %}
+                <img src="{{ guia.empresa.logo.url }}" alt="{{ empresa.nombre }}" class="company-logo">
                 {% endif %}
                 <div class="company-name">{{ empresa.nombre|upper }}</div>
                 <div class="company-info">
@@ -317,27 +324,27 @@
             </thead>
             <tbody>
                 {% if transferencia %}
-                    {% for detalle in transferencia.detalles.all %}
-                    <tr>
-                        <td>{{ detalle.articulo.codigo }}</td>
-                        <td>{{ detalle.articulo.nombre }}</td>
-                        <td class="text-center">{{ detalle.cantidad }}</td>
-                        <td class="text-right">${{ detalle.articulo.precio_venta|format_miles }}</td>
-                        <td class="text-right">$0</td>
-                        <td class="text-right">${{ detalle.total|format_miles }}</td>
-                    </tr>
-                    {% endfor %}
+                {% for detalle in transferencia.detalles.all %}
+                <tr>
+                    <td>{{ detalle.articulo.codigo }}</td>
+                    <td>{{ detalle.articulo.nombre }}</td>
+                    <td class="text-center">{{ detalle.cantidad }}</td>
+                    <td class="text-right">${{ detalle.articulo.precio_venta|format_miles }}</td>
+                    <td class="text-right">$0</td>
+                    <td class="text-right">${{ detalle.total|format_miles }}</td>
+                </tr>
+                {% endfor %}
                 {% elif detalles %}
-                    {% for detalle in detalles %}
-                    <tr>
-                        <td>{{ detalle.articulo.codigo }}</td>
-                        <td>{{ detalle.articulo.nombre }}</td>
-                        <td class="text-center">{{ detalle.cantidad }}</td>
-                        <td class="text-right">${{ detalle.precio_unitario|format_miles }}</td>
-                        <td class="text-right">$0</td>
-                        <td class="text-right">${{ detalle.precio_total|format_miles }}</td>
-                    </tr>
-                    {% endfor %}
+                {% for detalle in detalles %}
+                <tr>
+                    <td>{{ detalle.articulo.codigo }}</td>
+                    <td>{{ detalle.articulo.nombre }}</td>
+                    <td class="text-center">{{ detalle.cantidad }}</td>
+                    <td class="text-right">${{ detalle.precio_unitario|format_miles }}</td>
+                    <td class="text-right">$0</td>
+                    <td class="text-right">${{ detalle.precio_total|format_miles }}</td>
+                </tr>
+                {% endfor %}
                 {% endif %}
             </tbody>
         </table>
@@ -348,7 +355,8 @@
             <div style="display: table-cell; width: 45%; vertical-align: top; padding-right: 10px;">
                 {% if guia.timbre_pdf417 %}
                 <div class="timbre-section" style="text-align: center; margin-top: 0;">
-                    <img src="{{ guia.timbre_pdf417.url }}" alt="Timbre Electrónico" style="max-width: 100%; height: auto;">
+                    <img src="{{ guia.timbre_pdf417.url }}" alt="Timbre Electrónico"
+                        style="max-width: 100%; height: auto;">
                     <div style="font-size: 7pt; margin-top: 5px;">
                         <strong>TIMBRE ELECTRÓNICO SII</strong><br>
                         Folio: {{ guia.folio }}<br>
@@ -357,7 +365,8 @@
                 </div>
                 {% elif guia.datos_pdf417 %}
                 <div class="timbre-section" style="text-align: center; margin-top: 0;">
-                    <img src="data:image/png;base64,{{ guia.datos_pdf417 }}" alt="Timbre Electrónico" style="max-width: 100%; height: auto;">
+                    <img src="data:image/png;base64,{{ guia.datos_pdf417 }}" alt="Timbre Electrónico"
+                        style="max-width: 100%; height: auto;">
                     <div style="font-size: 7pt; margin-top: 5px;">
                         <strong>TIMBRE ELECTRÓNICO SII</strong><br>
                         Folio: {{ guia.folio }}<br>
@@ -372,7 +381,7 @@
                 </div>
                 {% endif %}
             </div>
-            
+
             <!-- TOTALES (derecha) -->
             <div style="display: table-cell; width: 55%; vertical-align: top;">
                 <div class="totales-section">
@@ -408,8 +417,8 @@
         <div class="footer-section">
             {% if transferencia %}
             <div style="margin-top: 8px;">
-                <strong>Transferencia:</strong> {{ transferencia.numero_folio }} | 
-                <strong>Origen:</strong> {{ transferencia.bodega_origen.nombre }} → 
+                <strong>Transferencia:</strong> {{ transferencia.numero_folio }} |
+                <strong>Origen:</strong> {{ transferencia.bodega_origen.nombre }} →
                 <strong>Destino:</strong> {{ transferencia.bodega_destino.nombre }}
             </div>
             {% endif %}
@@ -417,11 +426,14 @@
     </div>
 
     <!-- Botones de acción (no se imprimen) -->
-    <div class="no-print" style="text-align: center; margin-top: 20px; padding: 15px; background-color: #f2f2f2; border-top: 1px solid #ddd;">
-        <button onclick="window.print()" style="padding: 12px 25px; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; margin-right: 10px;">
+    <div class="no-print"
+        style="text-align: center; margin-top: 20px; padding: 15px; background-color: #f2f2f2; border-top: 1px solid #ddd;">
+        <button onclick="window.print()"
+            style="padding: 12px 25px; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; margin-right: 10px;">
             🖨️ Imprimir
         </button>
-        <button onclick="safeCloseWindow()" style="padding: 12px 25px; font-size: 16px; cursor: pointer; background-color: #f44336; color: white; border: none; border-radius: 5px;">
+        <button onclick="safeCloseWindow()"
+            style="padding: 12px 25px; font-size: 16px; cursor: pointer; background-color: #f44336; color: white; border: none; border-radius: 5px;">
             ❌ Cerrar
         </button>
     </div>
@@ -434,10 +446,10 @@
                     window.close();
                     return;
                 }
-            } catch(e) {
+            } catch (e) {
                 console.log('No se pudo cerrar con window.close()');
             }
-            
+
             // Si no se puede cerrar, intentar volver atrás
             try {
                 if (window.history.length > 1) {
@@ -446,35 +458,36 @@
                     // Si no hay historial, redirigir a una página por defecto
                     window.location.href = '/';
                 }
-            } catch(e) {
+            } catch (e) {
                 console.log('No se pudo volver atrás');
                 // Último recurso: intentar cerrar de todas formas
                 try {
                     window.close();
-                } catch(e2) {
+                } catch (e2) {
                     // Si nada funciona, mostrar mensaje
                     alert('No se puede cerrar esta ventana. Por favor, ciérrela manualmente.');
                 }
             }
         }
-        
-        document.addEventListener('DOMContentLoaded', function() {
+
+        document.addEventListener('DOMContentLoaded', function () {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('auto') && urlParams.get('auto') === '1') {
                 // Asignar el evento onafterprint para cerrar la ventana
-                window.addEventListener('afterprint', function() {
-                    setTimeout(function() {
+                window.addEventListener('afterprint', function () {
+                    setTimeout(function () {
                         safeCloseWindow();
                     }, 500);
                 });
 
                 // Disparar la impresión
                 // Usar un pequeño timeout para asegurar que el DOM está listo
-                setTimeout(function() {
+                setTimeout(function () {
                     window.print();
                 }, 100);
             }
         });
     </script>
 </body>
+
 </html>

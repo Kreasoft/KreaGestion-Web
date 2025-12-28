@@ -26,4 +26,8 @@ urlpatterns = [
     # AJAX endpoints
     path('ajax/articulo-info/', views.get_articulo_info, name='get_articulo_info'),
     path('ajax/proveedor/crear/', views.proveedor_create_ajax, name='proveedor_create_ajax'),
+
+    # Facturas recibidas del SII
+    path('facturas-sii/', views.facturas_recibidas_sii, name='facturas_recibidas_sii'),
+    path('facturas-sii/xml/<str:folio>/', views.descargar_xml_factura_sii, name='descargar_xml_factura_sii'),
 ]

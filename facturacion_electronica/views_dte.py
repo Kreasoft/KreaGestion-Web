@@ -304,7 +304,7 @@ def ver_factura_electronica(request, dte_id):
         tipo_impresora = getattr(empresa, 'impresora_factura', 'laser')
         nombre_impresora = getattr(empresa, 'impresora_factura_nombre', None)
         
-        if tipo_impresora == 'termica':
+        if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
             template = 'ventas/factura_electronica_termica.html'
         else:
             template = 'ventas/factura_electronica_html.html'
@@ -313,7 +313,7 @@ def ver_factura_electronica(request, dte_id):
         tipo_impresora = getattr(empresa, 'impresora_boleta', 'laser')
         nombre_impresora = getattr(empresa, 'impresora_boleta_nombre', None)
         
-        if tipo_impresora == 'termica':
+        if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
             template = 'ventas/boleta_electronica_termica.html'
         else:
             template = 'ventas/factura_electronica_html.html' # Reutiliza el formato A4 de factura
@@ -322,7 +322,7 @@ def ver_factura_electronica(request, dte_id):
         tipo_impresora = getattr(empresa, 'impresora_guia', 'laser')
         nombre_impresora = getattr(empresa, 'impresora_guia_nombre', None)
         
-        if tipo_impresora == 'termica':
+        if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
             from django.template.loader import select_template
             try:
                 select_template(['inventario/guia_despacho_termica.html'])
@@ -478,7 +478,7 @@ def ver_notacredito_electronica(request, notacredito_id):
     nombre_impresora = getattr(empresa, 'impresora_nota_credito_nombre', None)
     
     # Seleccionar template según configuración
-    if tipo_impresora == 'termica':
+    if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
         template = 'ventas/notacredito_electronica_termica.html'
         print(f"[PRINT] Nota Credito -> Formato TERMICO 80mm")
     else:
@@ -862,3 +862,92 @@ def probar_dtebox_xml_ejemplo(request):
     }
     
     return render(request, 'facturacion_electronica/probar_dtebox_xml_ejemplo.html', context)
+
+
+@login_required
+@requiere_empresa
+def descargar_pdf_gdexpress(request, dte_id):
+    """
+    Descarga el PDF de un DTE desde GDExpress/DTEBox
+    """
+    from django.http import HttpResponse
+    from .dtebox_service import DTEBoxService
+    from .models import DocumentoTributarioElectronico
+    from django.contrib import messages
+    from django.shortcuts import redirect
+    
+    try:
+        # Obtener el DTE
+        dte = DocumentoTributarioElectronico.objects.get(
+            pk=dte_id,
+            empresa=request.empresa
+        )
+        
+        # Verificar que DTEBox esté habilitado
+        if not request.empresa.dtebox_habilitado:
+            messages.error(request, 'DTEBox/GDExpress no está habilitado para esta empresa.')
+            return redirect('facturacion_electronica:dte_list')
+        
+        # Verificar que el documento esté enviado
+        if dte.estado_sii not in ['enviado', 'aceptado']:
+            messages.warning(request, f'El documento folio {dte.folio} no ha sido enviado al SII todavía.')
+            return redirect('facturacion_electronica:dte_list')
+        
+        # Advertencia si el documento está solo "enviado" pero no "aceptado"
+        if dte.estado_sii == 'enviado':
+            messages.info(
+                request, 
+                'Nota: El PDF puede no estar disponible hasta que el SII confirme el documento. '
+                'Si falla, espera a que el estado cambie a "Aceptado" o verifica en el portal de GDExpress.'
+            )
+        
+        # Inicializar servicio DTEBox
+        dtebox_service = DTEBoxService(request.empresa)
+        
+        # Descargar PDF
+        resultado = dtebox_service.descargar_pdf_gdexpress(dte)
+        
+        if resultado['success']:
+            # Guardar el PDF localmente además de enviarlo al navegador
+            import os
+            from django.conf import settings
+            
+            # Definir carpeta local para guardar PDFs
+            pdf_folder = os.path.join('C:\\', 'GestionCloud_Documentos', 'PDFs_GDExpress')
+            
+            # Crear la carpeta si no existe
+            os.makedirs(pdf_folder, exist_ok=True)
+            
+            # Guardar el PDF en el disco local
+            pdf_filename = resultado['filename']
+            pdf_path = os.path.join(pdf_folder, pdf_filename)
+            
+            try:
+                with open(pdf_path, 'wb') as f:
+                    f.write(resultado['pdf_content'])
+                print(f"[PDF] Guardado localmente en: {pdf_path}")
+            except Exception as e:
+                print(f"[PDF] Error al guardar localmente: {e}")
+            
+            # Crear respuesta HTTP con el PDF para descarga en navegador
+            response = HttpResponse(resultado['pdf_content'], content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{pdf_filename}"'
+            
+            messages.success(
+                request, 
+                f'PDF del folio {dte.folio} descargado exitosamente. '
+                f'Guardado en: {pdf_path}'
+            )
+            return response
+        else:
+            messages.error(request, f'Error al descargar PDF: {resultado["error"]}')
+            return redirect('facturacion_electronica:dte_list')
+            
+    except DocumentoTributarioElectronico.DoesNotExist:
+        messages.error(request, 'Documento no encontrado.')
+        return redirect('facturacion_electronica:dte_list')
+    except Exception as e:
+        messages.error(request, f'Error inesperado: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return redirect('facturacion_electronica:dte_list')

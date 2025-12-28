@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Monitor de Envíos SII{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>
+                <i class="fas fa-satellite-dish"></i> Monitor de Envíos al SII
+            </h2>
+            <p class="text-muted">Estado de envíos de documentos tributarios electrónicos</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-success" onclick="reenviarTodos()">
+                <i class="fas fa-sync"></i> Reenviar Pendientes
+            </button>
+            <a href="{% url 'facturacion_electronica:dte_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">En Cola</h5>
+                    <h2 id="stat-cola">{{ stats.en_cola }}</h2>
+                    <small>Documentos esperando</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Enviados</h5>
+                    <h2 id="stat-enviados">{{ stats.enviados }}</h2>
+                    <small>Exitosos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title">Errores</h5>
+                    <h2 id="stat-errores">{{ stats.errores }}</h2>
+                    <small>Con problemas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white" style="background-color: #6B4423;">
+                <div class="card-body">
+                    <h5 class="card-title">Workers</h5>
+                    <h2 id="stat-workers">{{ stats.workers_activos }}</h2>
+                    <small>Threads activos</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documentos Pendientes -->
+    <div class="card">
+        <div class="card-header" style="background: linear-gradient(135deg, #6B4423 0%, #8B5A3C 100%);">
+            <h5 class="mb-0 text-white">
+                <i class="fas fa-clock"></i> Documentos Pendientes/En Proceso
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if dtes_pendientes %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Folio</th>
+                            <th>Cliente</th>
+                            <th>Total</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Error</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-pendientes">
+                        {% for dte in dtes_pendientes %}
+                        <tr id="dte-row-{{ dte.id }}">
+                            <td>
+                                {% if dte.tipo_dte == '33' %}<span class="badge bg-success">FAC</span>
+                                {% elif dte.tipo_dte == '39' %}<span class="badge bg-primary">BOL</span>
+                                {% elif dte.tipo_dte == '52' %}<span class="badge bg-info">GUI</span>
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ dte.folio }}</strong></td>
+                            <td>{{ dte.razon_social_receptor|truncatewords:5 }}</td>
+                            <td>${{ dte.monto_total|floatformat:0 }}</td>
+                            <td>{{ dte.fecha_emision|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if dte.estado_sii == 'pendiente' %}bg-warning
+                                    {% elif dte.estado_sii == 'enviando' %}bg-info
+                                    {% elif dte.estado_sii == 'enviado' %}bg-success
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ dte.get_estado_sii_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if dte.error_envio %}
+                                <small class="text-danger">{{ dte.error_envio|truncatewords:10 }}</small>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="reenviarDTE({{ dte.id }})">
+                                    <i class="fas fa-redo"></i> Reenviar
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> No hay documentos pendientes. Todos los DTEs están enviados al SII.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Actualizar estadísticas cada 5 segundos
+setInterval(function() {
+    fetch('{% url "facturacion_electronica:stats_envios" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('stat-cola').textContent = data.stats.en_cola;
+                document.getElementById('stat-enviados').textContent = data.stats.enviados;
+                document.getElementById('stat-errores').textContent = data.stats.errores;
+                document.getElementById('stat-workers').textContent = data.stats.workers_activos;
+                
+                // Recargar tabla si cambió el estado
+                if (data.stats.en_cola === 0 && data.dtes_por_estado.pendiente === 0) {
+                    // Todos procesados, recargar página
+                    location.reload();
+                }
+            }
+        })
+        .catch(error => console.error('Error actualizando stats:', error));
+}, 5000);
+
+function reenviarDTE(dteId) {
+    Swal.fire({
+        title: '¿Reenviar DTE?',
+        text: 'Se agregará a la cola de envío',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, reenviar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/facturacion-electronica/monitor/reenviar/${dteId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Enviado', data.message, 'success');
+                    // Actualizar estado en la tabla
+                    const row = document.getElementById(`dte-row-${dteId}`);
+                    if (row) {
+                        const badge = row.querySelector('.badge');
+                        badge.className = 'badge bg-info';
+                        badge.textContent = 'Enviando';
+                    }
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error', 'Error al reenviar DTE', 'error');
+            });
+        }
+    });
+}
+
+function reenviarTodos() {
+    Swal.fire({
+        title: '¿Reenviar todos los pendientes?',
+        text: 'Se agregarán todos los DTEs pendientes a la cola',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, reenviar todos',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('/facturacion-electronica/monitor/reenviar-multiples/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Enviados', data.message, 'success');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error', 'Error al reenviar DTEs', 'error');
+            });
+        }
+    });
+}
+</script>
+{% endblock %}
+
+

@@ -176,10 +176,28 @@ class DTEXMLGenerator:
             fecha_emision = getattr(self.documento, 'fecha', None) or getattr(self.documento, 'fecha_emision', None) or getattr(self.documento, 'fecha_creacion', None)
         
         if fecha_emision:
-            etree.SubElement(id_doc, "FchEmis").text = fecha_emision.strftime('%Y-%m-%d')
-        else:
+            # Si la fecha es un datetime con timezone, convertir a fecha de Chile
             from django.utils import timezone
-            etree.SubElement(id_doc, "FchEmis").text = timezone.now().strftime('%Y-%m-%d')
+            import pytz
+            
+            if hasattr(fecha_emision, 'tzinfo') and fecha_emision.tzinfo:
+                # Es un datetime con timezone, convertir a Chile
+                chile_tz = pytz.timezone('America/Santiago')
+                fecha_chile = fecha_emision.astimezone(chile_tz).date()
+                etree.SubElement(id_doc, "FchEmis").text = fecha_chile.strftime('%Y-%m-%d')
+            else:
+                # Es una fecha simple o datetime naive
+                etree.SubElement(id_doc, "FchEmis").text = fecha_emision.strftime('%Y-%m-%d')
+        else:
+            # Si no hay fecha, usar la fecha actual en zona horaria de Chile
+            from django.utils import timezone
+            import pytz
+            
+            # Obtener la fecha actual en Chile
+            chile_tz = pytz.timezone('America/Santiago')
+            fecha_chile = timezone.now().astimezone(chile_tz).date()
+            
+            etree.SubElement(id_doc, "FchEmis").text = fecha_chile.strftime('%Y-%m-%d')
         
         # Indicador de servicio (solo para facturas de servicios)
         if self.tipo_dte in ['33', '34']:
@@ -252,9 +270,20 @@ class DTEXMLGenerator:
         giro = self.empresa.giro_sii or self.empresa.giro or "Comercio"
         etree.SubElement(emisor, "GiroEmis").text = giro[:80]  # Máximo 80 caracteres
         
-        # Actividad Económica
-        if self.empresa.codigo_actividad_economica:
-            etree.SubElement(emisor, "Acteco").text = self.empresa.codigo_actividad_economica
+        # Teléfono (opcional pero recomendado)
+        if self.empresa.telefono:
+            etree.SubElement(emisor, "Telefono").text = self.empresa.telefono[:20]
+        
+        # Correo Electrónico (opcional pero recomendado)
+        if self.empresa.email:
+            etree.SubElement(emisor, "CorreoEmisor").text = self.empresa.email[:80]
+        
+        # Actividad Económica (OBLIGATORIO)
+        acteco = self.empresa.codigo_actividad_economica
+        if not acteco:
+            # Si no está configurado, usar un código genérico
+            acteco = "0"
+        etree.SubElement(emisor, "Acteco").text = str(acteco)
         
         # Dirección
         direccion = self.empresa.direccion_casa_matriz or self.empresa.direccion
@@ -319,6 +348,21 @@ class DTEXMLGenerator:
         etree.SubElement(receptor, "RznSocRecep").text = razon_social[:100]
         if giro:
             etree.SubElement(receptor, "GiroRecep").text = giro[:40]
+        
+        # Contacto (opcional pero recomendado)
+        contacto = ''
+        if hasattr(self.documento, 'cliente') and self.documento.cliente:
+            contacto = getattr(self.documento.cliente, 'telefono', '') or getattr(self.documento.cliente, 'celular', '')
+        if contacto:
+            etree.SubElement(receptor, "Contacto").text = str(contacto)[:80]
+        
+        # Correo (opcional pero recomendado)
+        correo = ''
+        if hasattr(self.documento, 'cliente') and self.documento.cliente:
+            correo = getattr(self.documento.cliente, 'email', '')
+        if correo:
+            etree.SubElement(receptor, "CorreoRecep").text = correo[:80]
+        
         if direccion:
             etree.SubElement(receptor, "DirRecep").text = direccion[:70]
         if comuna:

@@ -77,6 +77,13 @@ class ArchivoCAF(models.Model):
         related_name='archivos_caf',
         verbose_name="Empresa"
     )
+    sucursal = models.ForeignKey(
+        'empresas.Sucursal',
+        on_delete=models.PROTECT,
+        related_name='archivos_caf',
+        verbose_name="Sucursal",
+        help_text="Sucursal a la que pertenece este CAF"
+    )
     tipo_documento = models.CharField(
         max_length=10,
         choices=TIPO_DOCUMENTO_CHOICES,
@@ -113,6 +120,11 @@ class ArchivoCAF(models.Model):
         default='activo',
         verbose_name="Estado"
     )
+    oculto = models.BooleanField(
+        default=False,
+        verbose_name="Oculto",
+        help_text="Si está marcado, el CAF no se mostrará en listados principales"
+    )
     
     # FECHAS
     fecha_carga = models.DateTimeField(
@@ -135,14 +147,111 @@ class ArchivoCAF(models.Model):
         verbose_name = "Archivo CAF"
         verbose_name_plural = "Archivos CAF"
         ordering = ['-fecha_carga']
-        unique_together = [['empresa', 'tipo_documento', 'folio_desde', 'folio_hasta']]
+        unique_together = [['empresa', 'sucursal', 'tipo_documento', 'folio_desde', 'folio_hasta']]
         indexes = [
-            models.Index(fields=['empresa', 'tipo_documento', 'estado']),
+            models.Index(fields=['empresa', 'sucursal', 'tipo_documento', 'estado']),
             models.Index(fields=['folio_desde', 'folio_hasta']),
+            models.Index(fields=['sucursal', 'estado', 'oculto']),
         ]
     
     def __str__(self):
-        return f"CAF {self.get_tipo_documento_display()} ({self.folio_desde}-{self.folio_hasta})"
+        sucursal_nombre = self.sucursal.nombre if self.sucursal else "Sin sucursal"
+        return f"CAF {self.get_tipo_documento_display()} ({self.folio_desde}-{self.folio_hasta}) - {sucursal_nombre}"
+    
+    def validar_caf_unico(self):
+        """
+        Valida que el CAF no esté duplicado.
+        
+        Validaciones:
+        1. El mismo contenido XML no puede cargarse dos veces (incluso en sucursales distintas)
+        2. Los rangos de folios no pueden solaparse en la misma sucursal
+        
+        Returns:
+            tuple: (es_valido: bool, mensaje_error: str)
+        """
+        import hashlib
+        
+        # 1. VALIDACIÓN: Mismo archivo CAF no puede cargarse dos veces
+        # Generar hash del contenido del CAF (sin espacios ni saltos de línea para evitar diferencias triviales)
+        contenido_limpio = ''.join(self.contenido_caf.split())
+        hash_caf = hashlib.sha256(contenido_limpio.encode()).hexdigest()
+        
+        # Buscar otros CAFs con el mismo contenido
+        cafs_duplicados = ArchivoCAF.objects.filter(
+            empresa=self.empresa,
+            tipo_documento=self.tipo_documento
+        ).exclude(pk=self.pk)
+        
+        for caf_existente in cafs_duplicados:
+            contenido_existente_limpio = ''.join(caf_existente.contenido_caf.split())
+            hash_existente = hashlib.sha256(contenido_existente_limpio.encode()).hexdigest()
+            
+            if hash_caf == hash_existente:
+                sucursal_existente = caf_existente.sucursal.nombre if caf_existente.sucursal else 'Sin sucursal'
+                return (False, 
+                    f"ESTE ARCHIVO CAF YA FUE CARGADO ANTERIORMENTE.\n\n"
+                    f"Ya existe en:\n"
+                    f"  - Sucursal: {sucursal_existente}\n"
+                    f"  - Tipo: {caf_existente.get_tipo_documento_display()}\n"
+                    f"  - Rango: {caf_existente.folio_desde}-{caf_existente.folio_hasta}\n"
+                    f"  - Estado: {caf_existente.get_estado_display()}\n\n"
+                    f"NO SE PUEDE CARGAR EL MISMO CAF EN MULTIPLES SUCURSALES.\n"
+                    f"Cada sucursal debe tener sus propios CAFs con rangos exclusivos.")
+        
+        # 2. VALIDACIÓN: Rangos no pueden solaparse en la misma sucursal
+        cafs_misma_sucursal = ArchivoCAF.objects.filter(
+            empresa=self.empresa,
+            sucursal=self.sucursal,
+            tipo_documento=self.tipo_documento,
+            estado__in=['activo', 'agotado']  # Solo verificar CAFs válidos
+        ).exclude(pk=self.pk)
+        
+        for caf_existente in cafs_misma_sucursal:
+            # Verificar si hay solapamiento de rangos
+            # Solapamiento ocurre si:
+            # - El inicio del nuevo CAF está dentro del rango existente, O
+            # - El fin del nuevo CAF está dentro del rango existente, O
+            # - El nuevo CAF contiene completamente al existente
+            if (caf_existente.folio_desde <= self.folio_desde <= caf_existente.folio_hasta or
+                caf_existente.folio_desde <= self.folio_hasta <= caf_existente.folio_hasta or
+                (self.folio_desde <= caf_existente.folio_desde and self.folio_hasta >= caf_existente.folio_hasta)):
+                
+                return (False,
+                    f"CONFLICTO DE RANGOS DE FOLIOS.\n\n"
+                    f"El rango {self.folio_desde}-{self.folio_hasta} se solapa con un CAF existente:\n"
+                    f"  - CAF ID: {caf_existente.id}\n"
+                    f"  - Rango: {caf_existente.folio_desde}-{caf_existente.folio_hasta}\n"
+                    f"  - Estado: {caf_existente.get_estado_display()}\n"
+                    f"  - Sucursal: {caf_existente.sucursal.nombre}\n\n"
+                    f"LOS RANGOS DE FOLIOS NO PUEDEN SOLAPARSE EN LA MISMA SUCURSAL.\n"
+                    f"Solucion: Usar un rango diferente o anular el CAF anterior.")
+        
+        # 3. ADVERTENCIA: Rangos duplicados en sucursales distintas (permitido pero no recomendado)
+        cafs_otras_sucursales = ArchivoCAF.objects.filter(
+            empresa=self.empresa,
+            tipo_documento=self.tipo_documento,
+            folio_desde=self.folio_desde,
+            folio_hasta=self.folio_hasta,
+            estado__in=['activo', 'agotado']
+        ).exclude(sucursal=self.sucursal).exclude(pk=self.pk)
+        
+        if cafs_otras_sucursales.exists():
+            caf_otro = cafs_otras_sucursales.first()
+            print(f"[ADVERTENCIA] El rango {self.folio_desde}-{self.folio_hasta} ya existe en otra sucursal ({caf_otro.sucursal.nombre})")
+            print(f"             Esto es técnicamente permitido si son CAFs diferentes del SII, pero puede causar confusión.")
+        
+        return (True, "")
+    
+    def save(self, *args, **kwargs):
+        """Override save para ejecutar validaciones antes de guardar"""
+        # Ejecutar validaciones solo si es un CAF nuevo o si cambió el contenido
+        if not self.pk or 'contenido_caf' in kwargs.get('update_fields', []):
+            es_valido, mensaje_error = self.validar_caf_unico()
+            if not es_valido:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(mensaje_error)
+        
+        super().save(*args, **kwargs)
     
     def folios_disponibles(self):
         """Cantidad de folios disponibles calculada dinámicamente.
@@ -155,6 +264,17 @@ class ArchivoCAF(models.Model):
         if self.cantidad_folios == 0:
             return 0
         return (self.folios_utilizados / self.cantidad_folios) * 100
+    
+    # Propiedades cortas para templates
+    @property
+    def tipo_nombre(self):
+        """Nombre corto del tipo de documento para templates"""
+        return self.get_tipo_documento_display()
+    
+    @property
+    def estado_nombre(self):
+        """Nombre corto del estado para templates"""
+        return self.get_estado_display()
     
     def esta_vigente(self):
         """
@@ -239,6 +359,70 @@ class ArchivoCAF(models.Model):
         self.fecha_agotamiento = None
         self.save()
         return True
+    
+    @classmethod
+    def obtener_caf_activo(cls, empresa, sucursal, tipo_documento):
+        """
+        Obtiene el CAF activo para una sucursal y tipo de documento específico.
+        Retorna el CAF con folios disponibles, ordenado por folio_actual.
+        """
+        return cls.objects.filter(
+            empresa=empresa,
+            sucursal=sucursal,
+            tipo_documento=tipo_documento,
+            estado='activo',
+            oculto=False
+        ).order_by('folio_actual').first()
+    
+    @classmethod
+    def ocultar_cafs_agotados(cls, empresa_id, sucursal_id=None):
+        """
+        Oculta todos los CAFs agotados o vencidos.
+        Retorna la cantidad de CAFs ocultados.
+        """
+        filtro = {
+            'empresa_id': empresa_id,
+            'estado__in': ['agotado', 'vencido'],
+            'oculto': False
+        }
+        if sucursal_id:
+            filtro['sucursal_id'] = sucursal_id
+        
+        cantidad = cls.objects.filter(**filtro).update(oculto=True)
+        return cantidad
+    
+    @classmethod
+    def mostrar_cafs_ocultos(cls, empresa_id, sucursal_id=None):
+        """
+        Muestra todos los CAFs ocultos.
+        Retorna la cantidad de CAFs mostrados.
+        """
+        filtro = {
+            'empresa_id': empresa_id,
+            'oculto': True
+        }
+        if sucursal_id:
+            filtro['sucursal_id'] = sucursal_id
+        
+        cantidad = cls.objects.filter(**filtro).update(oculto=False)
+        return cantidad
+    
+    @classmethod
+    def eliminar_cafs_sin_uso(cls, empresa_id, sucursal_id=None):
+        """
+        Elimina CAFs que nunca fueron utilizados (folios_utilizados = 0)
+        y que están agotados, vencidos o anulados.
+        Retorna tupla (cantidad_eliminada, detalles)
+        """
+        filtro = {
+            'empresa_id': empresa_id,
+            'folios_utilizados': 0,
+            'estado__in': ['agotado', 'vencido', 'anulado']
+        }
+        if sucursal_id:
+            filtro['sucursal_id'] = sucursal_id
+        
+        return cls.objects.filter(**filtro).delete()
 
 
 class DocumentoTributarioElectronico(models.Model):
@@ -257,9 +441,11 @@ class DocumentoTributarioElectronico(models.Model):
     ESTADO_CHOICES = [
         ('generado', 'Generado'),
         ('firmado', 'Firmado'),
+        ('enviando', 'Enviando al SII'),
         ('enviado', 'Enviado al SII'),
         ('aceptado', 'Aceptado por SII'),
         ('rechazado', 'Rechazado por SII'),
+        ('pendiente', 'Pendiente de Envío'),
         ('anulado', 'Anulado'),
     ]
     

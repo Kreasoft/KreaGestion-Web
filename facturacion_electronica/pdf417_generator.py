@@ -11,7 +11,7 @@ class PDF417Generator:
     """Generador de código de barras PDF417 para timbres electrónicos"""
     
     @staticmethod
-    def generar_imagen_pdf417(ted_xml, ancho=280, alto=100):
+    def generar_imagen_pdf417(ted_xml, ancho=400, alto=150):
         """
         Genera una imagen PNG del código PDF417 a partir del TED
         
@@ -27,34 +27,53 @@ class PDF417Generator:
             # Codificar el TED en PDF417
             # El PDF417 usa el TED completo
             # Usar security_level=2 para datos largos (nivel mínimo recomendado por SII)
-            codes = encode(ted_xml, columns=15, security_level=2)
+            
+            codes = None
+            # Intentar con varios números de columnas si falla (para DTEs muy largos)
+            # Para 1000+ caracteres, 18-20 columnas es mejor.
+            for cols in [15, 18, 20]:
+                try:
+                    codes = encode(ted_xml, columns=cols, security_level=2)
+                    break
+                except Exception as e_enc:
+                    if cols == 20: # Último intento
+                        raise e_enc
+                    continue
             
             # Renderizar la imagen
+            # Aumentamos scale para mejor resolución
             image = render_image(
                 codes,
-                scale=2,  # Factor de escala
+                scale=3,  # Factor de escala
                 ratio=3,  # Relación de aspecto
                 padding=10  # Padding alrededor del código
             )
             
-            # Redimensionar si es necesario
-            if image.size != (ancho, alto):
-                image = image.resize((ancho, alto), Image.Resampling.LANCZOS)
+            # Redimensionar al tamaño solicitado manteniendo calidad y RELACIÓN DE ASPECTO
+            # No queremos aplastar el código de barras
+            image.thumbnail((ancho, alto), Image.Resampling.LANCZOS)
+            
+            # Crear un canvas del tamaño exacto 400x150 y pegar el código centrado
+            canvas = Image.new('RGB', (ancho, alto), color='white')
+            offset = ((ancho - image.size[0]) // 2, (alto - image.size[1]) // 2)
+            canvas.paste(image, offset)
             
             # Convertir a bytes
             buffer = BytesIO()
-            image.save(buffer, format='PNG')
+            canvas.save(buffer, format='PNG')
             buffer.seek(0)
             
             return buffer.getvalue()
             
         except Exception as e:
-            print(f"ERROR al generar PDF417: {str(e)}")
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"ERROR crítico al generar PDF417: {str(e)}\n{error_details}")
             # Generar imagen de placeholder en caso de error
             return PDF417Generator._generar_placeholder(ancho, alto)
     
     @staticmethod
-    def generar_base64_pdf417(ted_xml, ancho=280, alto=100):
+    def generar_base64_pdf417(ted_xml, ancho=400, alto=150):
         """
         Genera el código PDF417 en formato base64 para usar en HTML
         
@@ -70,7 +89,7 @@ class PDF417Generator:
         return base64.b64encode(imagen_bytes).decode('ascii')
     
     @staticmethod
-    def _generar_placeholder(ancho=280, alto=100):
+    def _generar_placeholder(ancho=400, alto=150):
         """
         Genera una imagen placeholder cuando falla la generación del PDF417
         
@@ -91,7 +110,7 @@ class PDF417Generator:
         # Agregar texto
         try:
             # Intentar usar una fuente del sistema
-            font = ImageFont.truetype("arial.ttf", 12)
+            font = ImageFont.truetype("arial.ttf", 14)
         except:
             # Usar fuente por defecto si no encuentra arial
             font = ImageFont.load_default()
@@ -129,14 +148,15 @@ class PDF417Generator:
         try:
             # Generar imagen PDF417 (si no hay TED, usar placeholder igualmente)
             if dte.timbre_electronico:
+                # Usar dimensiones mayores para mejor legibilidad
                 imagen_bytes = PDF417Generator.generar_imagen_pdf417(
                     dte.timbre_electronico,
-                    ancho=280,
-                    alto=100
+                    ancho=400,
+                    alto=150
                 )
             else:
                 print("[WARN] DTE no tiene TED generado. Se usara placeholder de timbre.")
-                imagen_bytes = PDF417Generator._generar_placeholder(ancho=280, alto=100)
+                imagen_bytes = PDF417Generator._generar_placeholder(ancho=400, alto=150)
 
             # Guardar en el campo del modelo
             from django.core.files.base import ContentFile

@@ -11,6 +11,10 @@ from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Agregar directorio de librerías personalizadas al path
+import sys
+sys.path.append(str(BASE_DIR / 'libreria_dte_gdexpress'))
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
 
@@ -37,10 +41,30 @@ THIRD_PARTY_APPS = [
 	'crispy_bootstrap5',
 	'django_tables2',
 	'widget_tweaks',
+    'dte_gdexpress',  # GDExpress integration
 	# 'ckeditor',  # Temporalmente comentado - instalar con: pip install django-ckeditor
 	# 'django_bootstrap5',  # Comentado temporalmente
 	# 'simple_history',  # Comentado temporalmente
 ]
+
+# Configuración DTE GDExpress
+DTE_GDEXPRESS = {
+    # Credenciales GDExpress/DTEBox
+    'API_KEY': config('GDEXPRESS_API_KEY', default=''),
+    
+    # Ambiente: 'CERTIFICACION' o 'PRODUCCION'
+    'AMBIENTE': config('DTE_AMBIENTE', default='CERTIFICACION'),
+    
+    # URL del servicio
+    'URL_SERVICIO': 'http://200.6.118.43/api/Core.svc/Core',
+    
+    # Certificado Digital
+    'CERTIFICADO_PATH': os.path.join(BASE_DIR, 'certificados', 'certificado.pfx'),
+    'CERTIFICADO_PASSWORD': config('CERT_PASSWORD', default=''),
+    
+    # Configuración de Folios
+    'CAF_DIRECTORY': os.path.join(BASE_DIR, 'folios'),
+}
 
 LOCAL_APPS = [
 	'empresas.apps.EmpresasConfig',
@@ -272,3 +296,4 @@ SESSION_COOKIE_SAMESITE = 'Lax'  # Protección CSRF
 # Configuración de archivos estáticos en producción
 if not DEBUG:
 	STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+

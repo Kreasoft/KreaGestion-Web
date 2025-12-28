@@ -55,61 +55,22 @@ class Command(BaseCommand):
                     
                     self.stdout.write(f'\n🔄 Procesando DTE {dte.tipo_dte} N° {dte.folio}...')
                     
-                    # Verificar certificado
-                    if not empresa.certificado_digital:
-                        self.stdout.write(
-                            self.style.WARNING(
-                                f'⚠️  Empresa sin certificado digital, saltando...'
-                            )
-                        )
-                        continue
                     
-                    # 1. Generar TED
-                    firmador = FirmadorDTE(
-                        empresa.certificado_digital.path,
-                        empresa.password_certificado
-                    )
+                    # Usar el servicio centralizado para regenerar todo con la nueva lógica (dte_gdexpress)
+                    from facturacion_electronica.dte_service import DTEService
                     
-                    dte_data = {
-                        'rut_emisor': dte.rut_emisor or empresa.rut,
-                        'tipo_dte': dte.tipo_dte,
-                        'folio': dte.folio,
-                        'fecha_emision': dte.fecha_emision.strftime('%Y-%m-%d'),
-                        'rut_receptor': dte.rut_receptor,
-                        'razon_social_receptor': dte.razon_social_receptor,
-                        'monto_total': dte.monto_total,
-                        'item_1': f'Documento Tributario Electrónico',
-                    }
-                    
-                    caf_data = {
-                        'rut_emisor': empresa.rut,
-                        'razon_social': empresa.razon_social_sii or empresa.razon_social,
-                        'tipo_documento': dte.tipo_dte,
-                        'folio_desde': caf.folio_desde,
-                        'folio_hasta': caf.folio_hasta,
-                        'fecha_autorizacion': caf.fecha_autorizacion.strftime('%Y-%m-%d'),
-                        'modulo': 'MODULO_RSA',
-                        'exponente': 'EXPONENTE_RSA',
-                        'firma': caf.firma_electronica,
-                    }
-                    
-                    ted_xml = firmador.generar_ted(dte_data, caf_data)
-                    pdf417_data = firmador.generar_datos_pdf417(ted_xml)
-                    
-                    # 2. Actualizar DTE
-                    dte.timbre_electronico = ted_xml
-                    dte.datos_pdf417 = pdf417_data
-                    dte.save()
-                    
-                    # 3. Generar imagen PDF417
-                    PDF417Generator.guardar_pdf417_en_dte(dte)
+                    service = DTEService(empresa)
+                    service.procesar_dte_existente(dte)
                     
                     exitosos += 1
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f'✅ DTE {dte.tipo_dte} N° {dte.folio} - Regenerado completamente'
+                            f'✅ DTE {dte.tipo_dte} N° {dte.folio} - Regenerado completamente con DTEService'
                         )
                     )
+                    
+                    # Saltamos el resto de la lógica manual ya que procesar_dte_existente hace todo
+                    continue
                     
             except Exception as e:
                 errores += 1

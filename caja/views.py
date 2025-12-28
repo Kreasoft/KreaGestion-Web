@@ -1465,19 +1465,24 @@ def procesar_venta(request, ticket_id):
                             print("=" * 80)
                             
                             if debe_enviar_sii:
-                                print(f"[✓] ENVIANDO DTE AL SII desde CAJA...")
+                                print(f"[✓] ENVIANDO DTE AL SII EN SEGUNDO PLANO...")
                                 try:
-                                    from facturacion_electronica.dte_service import DTEService
-                                    dte_service = DTEService(request.empresa)
-                                    print("[INFO] Enviando DTE al SII...")
-                                    dte_service.enviar_dte_al_sii(dte)
-                                    print("[OK] ✅ DTE enviado al SII exitosamente")
-                                    messages.success(request, f'✅ {dte.get_tipo_dte_display()} N° {dte.folio} generada y enviada al SII exitosamente.')
+                                    # Usar envío en background (threading)
+                                    from facturacion_electronica.background_sender import get_background_sender
+                                    
+                                    sender = get_background_sender()
+                                    if sender.enviar_dte(dte.id, request.empresa.id):
+                                        print(f"[OK] ✅ DTE agregado a la cola de envío (background)")
+                                        messages.success(request, f'✅ {dte.get_tipo_dte_display()} N° {dte.folio} generada. Enviando al SII en segundo plano...')
+                                    else:
+                                        print(f"[ERROR] ❌ No se pudo agregar DTE a la cola")
+                                        messages.warning(request, f'⚠️ {dte.get_tipo_dte_display()} N° {dte.folio} generada con timbre, pero no se pudo iniciar el envío automático.')
+                                        
                                 except Exception as e_envio:
-                                    print(f"[ERROR] ❌ Error al enviar DTE al SII: {e_envio}")
+                                    print(f"[ERROR] ❌ Error al iniciar envío en background: {e_envio}")
                                     import traceback
                                     traceback.print_exc()
-                                    messages.warning(request, f'⚠️ {dte.get_tipo_dte_display()} N° {dte.folio} generada con timbre, pero hubo un error al enviar al SII: {str(e_envio)}. Puede reenviar desde el módulo de facturación electrónica.')
+                                    messages.warning(request, f'⚠️ {dte.get_tipo_dte_display()} N° {dte.folio} generada con timbre, pero hubo un error al iniciar el envío automático.')
                             else:
                                 print(f"[✗] NO se enviará al SII - FE no está activa")
                                 messages.success(request, f'{dte.get_tipo_dte_display()} N° {dte.folio} generada con timbre.')

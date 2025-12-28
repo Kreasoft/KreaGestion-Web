@@ -149,7 +149,7 @@ class SucursalMiddleware:
             # Si no hay sucursal del usuario, buscar sucursal casa matriz
             sucursal_casa_matriz = Sucursal.objects.filter(
                 empresa=request.empresa,
-                es_casa_matriz=True
+                es_principal=True
             ).first()
             
             if sucursal_casa_matriz:

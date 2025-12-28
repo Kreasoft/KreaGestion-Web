@@ -696,39 +696,93 @@ def editar_empresa_activa(request):
 			messages.success(request, 'Configuración de folios actualizada correctamente.')
 			return redirect('empresas:editar_empresa_activa')
 		else:
-			# Actualizar datos de empresa
-			form = EmpresaForm(request.POST, request.FILES, instance=empresa_activa)
-			
-			# Manejar configuración manualmente si está presente
-			if 'prefijo_ajustes' in request.POST:
-				configuracion.prefijo_ajustes = request.POST.get('prefijo_ajustes', configuracion.prefijo_ajustes)
-				configuracion.siguiente_ajuste = int(request.POST.get('siguiente_ajuste', configuracion.siguiente_ajuste))
-				configuracion.formato_ajustes = request.POST.get('formato_ajustes', configuracion.formato_ajustes)
-				
-				# Configuración de órdenes de compra
-				configuracion.prefijo_orden_compra = request.POST.get('prefijo_orden_compra', configuracion.prefijo_orden_compra)
-				configuracion.siguiente_orden_compra = int(request.POST.get('siguiente_orden_compra', configuracion.siguiente_orden_compra))
-				configuracion.formato_orden_compra = request.POST.get('formato_orden_compra', configuracion.formato_orden_compra)
-			
-			print(f"DEBUG - Form válido: {form.is_valid()}")
+			# Actualizar datos de empresa y configuración
+			print("="*80)
+			print("DEBUG - INICIANDO GUARDADO DE EMPRESA")
+			print("="*80)
+			print(f"DEBUG - Giro en POST: {request.POST.get('giro', 'NO ENCONTRADO')}")
 			print(f"DEBUG - Logo en FILES: {'logo' in request.FILES}")
 			if 'logo' in request.FILES:
 				print(f"DEBUG - Archivo logo: {request.FILES['logo'].name}, tamaño: {request.FILES['logo'].size}")
-			print(f"DEBUG - Configuración: {configuracion.prefijo_ajustes}, {configuracion.siguiente_ajuste}, {configuracion.formato_ajustes}")
+			print(f"DEBUG - Empresa actual ANTES de crear form - Giro: '{empresa_activa.giro}'")
+			print(f"DEBUG - Empresa actual ANTES de crear form - Logo: '{empresa_activa.logo}'")
 			
-			if form.is_valid():
-				empresa_guardada = form.save()
-				configuracion.save()
-				print(f"DEBUG - Empresa guardada: {empresa_guardada}")
-				print(f"DEBUG - Logo guardado: {empresa_guardada.logo}")
-				print(f"DEBUG - Configuración guardada: {configuracion}")
+			# Crear copia mutable de POST data para agregar valores por defecto
+			post_data = request.POST.copy()
+			
+			# Valores por defecto para campos de empresa que no están en el template
+			if 'max_descuento_lineal' not in post_data or not post_data.get('max_descuento_lineal'):
+				post_data['max_descuento_lineal'] = empresa_activa.max_descuento_lineal if empresa_activa.max_descuento_lineal else 0
+			if 'max_descuento_total' not in post_data or not post_data.get('max_descuento_total'):
+				post_data['max_descuento_total'] = empresa_activa.max_descuento_total if empresa_activa.max_descuento_total else 0
+			
+			# Valores por defecto para configuración que no están en el template
+			if 'prefijo_ajustes' not in post_data or not post_data.get('prefijo_ajustes'):
+				post_data['prefijo_ajustes'] = configuracion.prefijo_ajustes if configuracion.prefijo_ajustes else 'AJU'
+			if 'siguiente_ajuste' not in post_data or not post_data.get('siguiente_ajuste'):
+				post_data['siguiente_ajuste'] = configuracion.siguiente_ajuste if configuracion.siguiente_ajuste else 1
+			if 'formato_ajustes' not in post_data or not post_data.get('formato_ajustes'):
+				post_data['formato_ajustes'] = configuracion.formato_ajustes if configuracion.formato_ajustes else '{prefijo}-{000}'
+			if 'prefijo_orden_compra' not in post_data or not post_data.get('prefijo_orden_compra'):
+				post_data['prefijo_orden_compra'] = configuracion.prefijo_orden_compra if configuracion.prefijo_orden_compra else 'OC'
+			if 'siguiente_orden_compra' not in post_data or not post_data.get('siguiente_orden_compra'):
+				post_data['siguiente_orden_compra'] = configuracion.siguiente_orden_compra if configuracion.siguiente_orden_compra else 1
+			if 'formato_orden_compra' not in post_data or not post_data.get('formato_orden_compra'):
+				post_data['formato_orden_compra'] = configuracion.formato_orden_compra if configuracion.formato_orden_compra else '{prefijo}-{000}'
+			if 'frecuencia_respaldo' not in post_data or not post_data.get('frecuencia_respaldo'):
+				post_data['frecuencia_respaldo'] = configuracion.frecuencia_respaldo if configuracion.frecuencia_respaldo else 'diario'
+			
+			print(f"DEBUG - POST data con valores por defecto aplicados")
+			
+			form = EmpresaForm(post_data, request.FILES, instance=empresa_activa)
+			config_form = ConfiguracionEmpresaForm(post_data, instance=configuracion)
+			
+			print(f"DEBUG - Form válido: {form.is_valid()}")
+			print(f"DEBUG - Config Form válido: {config_form.is_valid()}")
+			
+			if not form.is_valid():
+				print(f"DEBUG - ERRORES DEL FORMULARIO: {form.errors}")
+			else:
+				print(f"DEBUG - Giro en cleaned_data: {form.cleaned_data.get('giro', 'NO ENCONTRADO')}")
+				if 'logo' in form.cleaned_data:
+					print(f"DEBUG - Logo en cleaned_data: {form.cleaned_data.get('logo')}")
+			
+			if form.is_valid() and config_form.is_valid():
+				print("DEBUG - AMBOS FORMULARIOS VÁLIDOS, PROCEDIENDO A GUARDAR")
+				
+				# Guardar empresa
+				empresa_guardada = form.save(commit=False)
+				print(f"DEBUG - Después de save(commit=False) - Giro: '{empresa_guardada.giro}'")
+				print(f"DEBUG - Después de save(commit=False) - Logo: '{empresa_guardada.logo}'")
+				
+				empresa_guardada.save()
+				print(f"DEBUG - Después de save() - Giro: '{empresa_guardada.giro}'")
+				print(f"DEBUG - Después de save() - Logo: '{empresa_guardada.logo}'")
+				
+				# Recargar desde BD para verificar
+				empresa_verificacion = Empresa.objects.get(pk=empresa_guardada.pk)
+				print(f"DEBUG - VERIFICACIÓN DESDE BD - Giro: '{empresa_verificacion.giro}'")
+				print(f"DEBUG - VERIFICACIÓN DESDE BD - Logo: '{empresa_verificacion.logo}'")
+				
+				configuracion_guardada = config_form.save()
+				print("="*80)
+				print("DEBUG - GUARDADO COMPLETADO EXITOSAMENTE")
+				print("="*80)
+				
 				messages.success(request, f'Empresa "{empresa_activa.nombre}" actualizada correctamente.')
 				return redirect('dashboard')
 			else:
-				print(f"DEBUG - Errores del formulario: {form.errors}")
+				print("DEBUG - FORMULARIOS INVÁLIDOS")
+				print(f"DEBUG - Errores del formulario empresa: {form.errors}")
 				for field, errors in form.errors.items():
 					for error in errors:
 						messages.error(request, f'{field}: {error}')
+				
+				print(f"DEBUG - Errores del config form: {config_form.errors}")
+				for field, errors in config_form.errors.items():
+					for error in errors:
+						messages.error(request, f'{field}: {error}')
+				
 				messages.error(request, 'Hubo errores en el formulario.')
 
 	# Obtener sucursales de la empresa
@@ -895,29 +949,20 @@ def configurar_impresoras(request):
 		return redirect('dashboard')
 	
 	if request.method == 'POST':
-		# Actualizar configuración de impresoras (tipos)
+		# Actualizar configuración de tipos de impresora
 		empresa.impresora_factura = request.POST.get('impresora_factura', 'laser')
 		empresa.impresora_boleta = request.POST.get('impresora_boleta', 'laser')
 		empresa.impresora_guia = request.POST.get('impresora_guia', 'laser')
 		empresa.impresora_nota_credito = request.POST.get('impresora_nota_credito', 'laser')
 		empresa.impresora_nota_debito = request.POST.get('impresora_nota_debito', 'laser')
-		empresa.impresora_vale = request.POST.get('impresora_vale', 'termica')
+		empresa.impresora_vale = request.POST.get('impresora_vale', 'termica_80')
 		empresa.impresora_cotizacion = request.POST.get('impresora_cotizacion', 'laser')
-		
-		# Actualizar nombres físicos de impresoras
-		empresa.impresora_factura_nombre = request.POST.get('impresora_factura_nombre', '')
-		empresa.impresora_boleta_nombre = request.POST.get('impresora_boleta_nombre', '')
-		empresa.impresora_guia_nombre = request.POST.get('impresora_guia_nombre', '')
-		empresa.impresora_nota_credito_nombre = request.POST.get('impresora_nota_credito_nombre', '')
-		empresa.impresora_nota_debito_nombre = request.POST.get('impresora_nota_debito_nombre', '')
-		empresa.impresora_vale_nombre = request.POST.get('impresora_vale_nombre', '')
-		empresa.impresora_cotizacion_nombre = request.POST.get('impresora_cotizacion_nombre', '')
 		
 		empresa.save()
 		
-		messages.success(request, 'Configuración de impresoras guardada correctamente.')
+		messages.success(request, 'Configuración de formatos de impresión guardada correctamente.')
 		# Redirigir a la página de editar empresa
-		return redirect('empresas:empresa_update', pk=empresa.id)
+		return redirect('empresas:editar_empresa_activa')
 	
 	# Agrupar documentos para mejor presentación
 	documentos_electronicos = [
@@ -987,96 +1032,15 @@ def configurar_impresoras(request):
 
 @login_required
 def obtener_impresoras_sistema(request):
-	"""API para obtener las impresoras instaladas en el sistema Windows"""
-	import subprocess
-	import json
+	"""API para obtener las impresoras instaladas en el sistema Windows - DESHABILITADA"""
 	from django.http import JsonResponse
 	
-	# Verificar que haya empresa asignada, pero devolver JSON en lugar de redirect
-	try:
-		empresa = getattr(request, 'empresa', None)
-		if not empresa:
-			return JsonResponse({
-				'success': False,
-				'error': 'No hay empresa asignada. Por favor, seleccione una empresa primero.',
-				'redirect': True
-			}, status=403)
-	except Exception as e:
-		return JsonResponse({
-			'success': False,
-			'error': f'Error al verificar empresa: {str(e)}',
-			'redirect': True
-		}, status=403)
+	# NOTA: Esta funcionalidad ha sido deshabilitada
+	# El sistema ahora solo maneja TIPOS de formato de impresión (Láser/Tinta, Térmica 80mm, Térmica 58mm)
+	# No se detectan ni seleccionan impresoras físicas específicas
 	
-	try:
-		# Ejecutar comando PowerShell para listar impresoras
-		comando = 'powershell -Command "Get-Printer | Select-Object -Property Name, DriverName, PortName | ConvertTo-Json"'
-		resultado = subprocess.run(comando, capture_output=True, text=True, shell=True, timeout=10)
-		
-		if resultado.returncode == 0:
-			# Parsear JSON de PowerShell
-			if not resultado.stdout or resultado.stdout.strip() == '':
-				return JsonResponse({
-					'success': True,
-					'impresoras': [],
-					'total': 0,
-					'mensaje': 'No se encontraron impresoras en el sistema'
-				})
-			
-			try:
-				impresoras_raw = json.loads(resultado.stdout)
-			except json.JSONDecodeError:
-				# Si falla el parseo, intentar limpiar la salida
-				output_limpio = resultado.stdout.strip()
-				if output_limpio.startswith('['):
-					impresoras_raw = json.loads(output_limpio)
-				else:
-					impresoras_raw = []
-			
-			# Si es un solo objeto, convertirlo a lista
-			if isinstance(impresoras_raw, dict):
-				impresoras_raw = [impresoras_raw]
-			elif not isinstance(impresoras_raw, list):
-				impresoras_raw = []
-			
-			# Formatear datos
-			impresoras = []
-			for imp in impresoras_raw:
-				if isinstance(imp, dict):
-					impresoras.append({
-						'nombre': imp.get('Name', ''),
-						'driver': imp.get('DriverName', ''),
-						'puerto': imp.get('PortName', '')
-					})
-			
-			return JsonResponse({
-				'success': True,
-				'impresoras': impresoras,
-				'total': len(impresoras)
-			})
-		else:
-			return JsonResponse({
-				'success': False,
-				'error': 'No se pudo ejecutar el comando de PowerShell',
-				'detalles': resultado.stderr[:200] if resultado.stderr else 'Sin detalles'
-			}, status=500)
-			
-	except subprocess.TimeoutExpired:
-		return JsonResponse({
-			'success': False,
-			'error': 'Timeout al ejecutar comando de PowerShell. El proceso tardó más de 10 segundos.'
-		}, status=500)
-	except json.JSONDecodeError as e:
-		return JsonResponse({
-			'success': False,
-			'error': 'Error al parsear respuesta de PowerShell',
-			'detalles': str(e)[:200]
-		}, status=500)
-	except Exception as e:
-		import logging
-		logger = logging.getLogger(__name__)
-		logger.exception(f"Error inesperado al obtener impresoras: {e}")
-		return JsonResponse({
-			'success': False,
-			'error': f'Error al obtener impresoras: {str(e)}'
-		}, status=500)
+	return JsonResponse({
+		'success': False,
+		'error': 'Esta funcionalidad ha sido deshabilitada.',
+		'mensaje': 'El sistema ahora solo requiere seleccionar el tipo de formato de impresión (Láser/Tinta, Térmica 80mm o Térmica 58mm) en la configuración de empresa.'
+	}, status=410)  # 410 Gone - Recurso ya no disponible

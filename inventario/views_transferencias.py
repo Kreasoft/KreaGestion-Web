@@ -554,17 +554,29 @@ def transferencia_generar_guia(request, pk):
                 'error': 'Esta transferencia ya tiene una guía de despacho asociada'
             })
         
-        # Buscar CAF disponible para Guía de Despacho (tipo 52)
-        caf = ArchivoCAF.objects.filter(
+        # Obtener sucursal (casa matriz por defecto)
+        from empresas.models import Sucursal
+        sucursal = Sucursal.objects.filter(empresa=request.empresa, es_principal=True).first()
+        if not sucursal:
+            sucursal = Sucursal.objects.filter(empresa=request.empresa).first()
+        
+        if not sucursal:
+            return JsonResponse({
+                'success': False,
+                'error': 'No se encontró sucursal para la empresa'
+            })
+        
+        # Buscar CAF activo usando el método del modelo
+        caf = ArchivoCAF.obtener_caf_activo(
             empresa=request.empresa,
-            tipo_documento='52',
-            estado='activo'
-        ).first()
+            sucursal=sucursal,
+            tipo_documento='52'
+        )
         
         if not caf:
             return JsonResponse({
                 'success': False,
-                'error': 'No hay CAF disponible para Guías de Despacho. Por favor, cargue un CAF tipo 52.'
+                'error': f'No hay CAF activo disponible para Guías de Despacho (52) en sucursal {sucursal.nombre}. Por favor, cargue un CAF tipo 52.'
             })
         
         # Verificar que el CAF esté vigente
@@ -622,11 +634,22 @@ def transferencia_generar_guia(request, pk):
                 # Crear objeto temporal tipo venta para el generador
                 class TransferenciaWrapper:
                     def __init__(self, transferencia, subtotal, iva, total):
-                        self.fecha = getattr(transferencia, 'fecha_transferencia', timezone.now())
+                        self.empresa = transferencia.empresa
                         self.cliente = None
-                        self.subtotal = subtotal
-                        self.iva = iva
-                        self.total = total
+                        self.tipo_documento = '52'
+                        self.fecha_emision = timezone.now().date()
+                        # Receptor (es la misma empresa para traslado interno)
+                        self.rut_receptor = transferencia.empresa.rut
+                        self.razon_social_receptor = transferencia.empresa.nombre
+                        self.giro_receptor = transferencia.empresa.giro
+                        self.direccion_receptor = transferencia.empresa.direccion
+                        self.comuna_receptor = transferencia.empresa.comuna
+                        self.ciudad_receptor = transferencia.empresa.ciudad
+                        # Montos (usar nombres exactos esperados por el generador)
+                        self.monto_neto = subtotal
+                        self.monto_exento = Decimal('0')
+                        self.monto_iva = iva
+                        self.monto_total = total
                         self.descuento = Decimal('0')
                         self.items = transferencia.detalles
                         
@@ -643,31 +666,65 @@ def transferencia_generar_guia(request, pk):
                 )
                 xml_firmado = firmador.firmar_xml(xml_sin_firmar)
                 
-                # 3. Generar TED
-                dte_data = {
-                    'rut_emisor': request.empresa.rut,
-                    'tipo_dte': '52',
-                    'folio': folio,
-                    'fecha_emision': timezone.now().date().strftime('%Y-%m-%d'),
-                    'rut_receptor': request.empresa.rut,
-                    'razon_social_receptor': request.empresa.nombre,
-                    'monto_total': total,
-                    'item_1': 'Guía de Despacho Electrónica',
-                }
+                # 3. Generar TED (Timbre Electrónico)
+                ted_xml = None
+                pdf417_data = None
                 
-                caf_data = {
-                    'rut_emisor': request.empresa.rut,
-                    'razon_social': request.empresa.razon_social_sii or request.empresa.razon_social,
-                    'tipo_documento': '52',
-                    'folio_desde': caf.folio_desde,
-                    'folio_hasta': caf.folio_hasta,
-                    'fecha_autorizacion': caf.fecha_autorizacion.strftime('%Y-%m-%d'),
-                    'modulo': 'MODULO_RSA',
-                    'exponente': 'EXPONENTE_RSA',
-                    'firma': caf.firma_electronica,
-                }
+                # Intentar usar DTEBox para timbrar si está habilitado
+                if getattr(request.empresa, 'dtebox_habilitado', False):
+                    try:
+                        from facturacion_electronica.dtebox_service import DTEBoxService
+                        dtebox = DTEBoxService(request.empresa)
+                        print(f"Solicitando timbre a DTEBox para Guía {folio}...")
+                        res_dtebox = dtebox.timbrar_dte(xml_firmado)
+                        if res_dtebox['success'] and res_dtebox.get('ted'):
+                            ted_xml = res_dtebox['ted']
+                            print("✅ Timbre obtenido exitosamente desde DTEBox")
+                    except Exception as e_dtebox:
+                        print(f"⚠️ Error al timbrar con DTEBox: {e_dtebox}. Intentando local...")
+
+                # Si no se obtuvo de DTEBox, generar localmente
+                if not ted_xml:
+                    print("Generando timbre localmente (Offline)...")
+                    dte_data = {
+                        'rut_emisor': request.empresa.rut,
+                        'tipo_dte': '52',
+                        'folio': folio,
+                        'fecha_emision': timezone.now().date().strftime('%Y-%m-%d'),
+                        'rut_receptor': request.empresa.rut,
+                        'razon_social_receptor': request.empresa.nombre,
+                        'monto_total': int(total),
+                        'item_1': 'Guía de Despacho Electrónica',
+                    }
+                    
+                    # Extraer datos reales del CAF
+                    datos_caf = {'modulo': '', 'exponente': ''}
+                    try:
+                        # Usar el método existente en DTEService para parsear el CAF
+                        service_temp = DTEServiceReal(request.empresa)
+                        datos_parsed = service_temp._parsear_datos_caf(caf)
+                        datos_caf['modulo'] = datos_parsed.get('M', 'MODULO_ERROR')
+                        datos_caf['exponente'] = datos_parsed.get('E', 'EXPONENTE_ERROR')
+                    except Exception as e_caf:
+                        print(f"Error parseando CAF: {e_caf}")
+                        datos_caf['modulo'] = 'ERROR'
+                        datos_caf['exponente'] = 'ERROR'
+
+                    caf_data = {
+                        'rut_emisor': request.empresa.rut,
+                        'razon_social': request.empresa.razon_social_sii or request.empresa.razon_social,
+                        'tipo_documento': '52',
+                        'folio_desde': caf.folio_desde,
+                        'folio_hasta': caf.folio_hasta,
+                        'fecha_autorizacion': caf.fecha_autorizacion.strftime('%Y-%m-%d'),
+                        'modulo': datos_caf['modulo'],
+                        'exponente': datos_caf['exponente'],
+                        'firma': caf.firma_electronica,
+                    }
+                    
+                    ted_xml = firmador.generar_ted(dte_data, caf_data)
                 
-                ted_xml = firmador.generar_ted(dte_data, caf_data)
+                # Generar datos PDF417 (siempre necesario para la imagen)
                 pdf417_data = firmador.generar_datos_pdf417(ted_xml)
                 
                 # 4. Crear DTE en BD
@@ -725,8 +782,8 @@ def transferencia_generar_guia(request, pk):
                 print(f"✅ Guía de Despacho generada con timbre: Folio {folio}")
                 
             except Exception as e:
-                print(f"❌ Error generando DTE con timbre: {e}")
                 import traceback
+                print(f"❌ Error generando DTE con timbre: {e}")
                 traceback.print_exc()
                 
                 # Crear DTE básico sin timbre
