@@ -217,3 +217,87 @@ def eliminar_caf(request, caf_id):
     
     # Si no es POST, redirigir
     return redirect('facturacion_electronica:listar_cafs')
+
+
+@login_required
+@requiere_empresa
+def ajustar_folio_caf(request, caf_id):
+    """Ajusta manualmente el folio actual de un CAF con validaciones"""
+    from django.http import JsonResponse
+    from django.db import transaction
+    from facturacion_electronica.models import DocumentoTributarioElectronico
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    caf = get_object_or_404(ArchivoCAF, id=caf_id, empresa=request.empresa)
+    
+    try:
+        nuevo_folio = int(request.POST.get('nuevo_folio'))
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'El folio debe ser un número válido'})
+    
+    # VALIDACIÓN 1: Rango mínimo
+    if nuevo_folio < (caf.folio_desde - 1):
+        return JsonResponse({
+            'success': False, 
+            'error': f'El folio {nuevo_folio} es menor que el mínimo permitido ({caf.folio_desde - 1})'
+        })
+    
+    # VALIDACIÓN 2: Rango máximo
+    if nuevo_folio > caf.folio_hasta:
+        return JsonResponse({
+            'success': False, 
+            'error': f'El folio {nuevo_folio} excede el máximo autorizado ({caf.folio_hasta})'
+        })
+    
+    # VALIDACIÓN 3: Verificar que no haya DTEs con folios posteriores al nuevo folio
+    dtes_posteriores = DocumentoTributarioElectronico.objects.filter(
+        empresa=request.empresa,
+        caf_utilizado=caf,
+        folio__gt=nuevo_folio
+    ).count()
+    
+    if dtes_posteriores > 0:
+        return JsonResponse({
+            'success': False,
+            'error': f'No se puede ajustar a folio {nuevo_folio} porque existen {dtes_posteriores} documentos emitidos con folios superiores'
+        })
+    
+    # Calcular nuevos valores
+    if nuevo_folio < caf.folio_desde:
+        nuevos_folios_utilizados = 0
+    else:
+        nuevos_folios_utilizados = nuevo_folio - caf.folio_desde + 1
+    
+    nuevo_estado = 'activo'
+    if nuevos_folios_utilizados >= caf.cantidad_folios:
+        nuevo_estado = 'agotado'
+    
+    # Aplicar cambios en transacción atómica
+    with transaction.atomic():
+        caf_bloqueado = ArchivoCAF.objects.select_for_update().get(pk=caf.pk)
+        
+        folio_anterior = caf_bloqueado.folio_actual
+        folios_utilizados_anterior = caf_bloqueado.folios_utilizados
+        
+        caf_bloqueado.folio_actual = nuevo_folio
+        caf_bloqueado.folios_utilizados = nuevos_folios_utilizados
+        caf_bloqueado.estado = nuevo_estado
+        caf_bloqueado.save()
+        
+        print(f"[AJUSTE MANUAL] CAF ID {caf.id}: folio_actual {folio_anterior}→{nuevo_folio}, "
+              f"folios_utilizados {folios_utilizados_anterior}→{nuevos_folios_utilizados}, "
+              f"estado→{nuevo_estado}")
+    
+    return JsonResponse({
+        'success': True,
+        'message': f'''
+            <p class="mb-2"><strong>Folio ajustado correctamente:</strong></p>
+            <ul class="text-start mb-0">
+                <li>Folio actual: {folio_anterior} → {nuevo_folio}</li>
+                <li>Folios utilizados: {folios_utilizados_anterior} → {nuevos_folios_utilizados}</li>
+                <li>Próximo folio: {nuevo_folio + 1}</li>
+            </ul>
+        '''
+    })

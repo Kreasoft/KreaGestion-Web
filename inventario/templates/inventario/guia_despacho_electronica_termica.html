@@ -294,12 +294,23 @@
             <div class="productos-header">DETALLE DE PRODUCTOS</div>
             {% for detalle in detalles %}
             <div class="producto-item">
-                <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
-                <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
-                <div class="producto-detalle">
-                    <span class="producto-cantidad">Cant: {{ detalle.cantidad|floatformat:0 }} {{ detalle.unidad_medida|default:"UN" }}</span>
-                    <span class="producto-precio">${{ detalle.precio_unitario|format_miles }}</span>
-                </div>
+                {% if detalle.item_pedido %}
+                    {# Template para transferencias/órdenes de despacho #}
+                    <div class="producto-codigo">Cód: {{ detalle.item_pedido.articulo.codigo }}</div>
+                    <div class="producto-nombre">{{ detalle.item_pedido.articulo.nombre }}</div>
+                    <div class="producto-detalle">
+                        <span class="producto-cantidad">Cant: {{ detalle.cantidad|floatformat:0 }} {{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UN" }}</span>
+                        <span class="producto-precio">${{ detalle.item_pedido.precio_unitario|format_miles }}</span>
+                    </div>
+                {% else %}
+                    {# Template para ventas #}
+                    <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
+                    <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
+                    <div class="producto-detalle">
+                        <span class="producto-cantidad">Cant: {{ detalle.cantidad|floatformat:0 }} {{ detalle.articulo.unidad_medida.simbolo|default:"UN" }}</span>
+                        <span class="producto-precio">${{ detalle.precio_unitario|format_miles }}</span>
+                    </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -384,6 +395,9 @@
         <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             🖨️ Imprimir
         </button>
+        <a href="{% url 'facturacion_electronica:dte_list' %}" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
+            📋 Libro de Ventas
+        </a>
         <a href="javascript:history.back()" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
             ← Volver
         </a>

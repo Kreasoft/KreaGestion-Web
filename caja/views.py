@@ -991,27 +991,6 @@ def procesar_venta(request, ticket_id):
             # Si NO se va a generar DTE (modo vale), usar un correlativo simple temporal.
             # El folio real se asigna dentro del bloque de generación de DTE usando FolioService.
             
-            # Para vales y casos sin DTE, generar un número temporal
-            from django.db.models import Max
-            
-            max_numero = Venta.objects.filter(
-                empresa=request.empresa
-            ).exclude(
-                tipo_documento='vale'
-            ).aggregate(
-                max_numero=Max('numero_venta')
-            )['max_numero']
-            
-            numero_temp = 1
-            if max_numero:
-                try:
-                    numero_temp = int(max_numero) + 1
-                except (ValueError, TypeError):
-                    numero_temp = 1
-            
-            numero_venta_temporal = f"{numero_temp:06d}"
-            print(f"Número temporal para la venta: {numero_venta_temporal} (se reemplazará con folio CAF si se genera DTE)")
-            
             # Ahora crear la venta dentro de una transacción con manejo de IntegrityError
             max_reintentos = 20
             venta_creada_exitosamente = False
@@ -1020,6 +999,30 @@ def procesar_venta(request, ticket_id):
                 try:
                     with transaction.atomic():
                         print(f"Iniciando transaccion atomica (intento {reintento + 1})...")
+                        
+                        # Para vales y casos sin DTE, generar un número temporal DENTRO de la transacción
+                        # para evitar race conditions
+                        from django.db.models import Max
+                        
+                        max_numero = Venta.objects.filter(
+                            empresa=request.empresa,
+                            tipo_documento=tipo_documento  # Filtrar por el mismo tipo de documento
+                        ).select_for_update().aggregate(
+                            max_numero=Max('numero_venta')
+                        )['max_numero']
+                        
+                        numero_temp = 1
+                        if max_numero:
+                            try:
+                                numero_temp = int(max_numero) + 1
+                            except (ValueError, TypeError):
+                                numero_temp = 1
+                        
+                        # Agregar timestamp para mayor unicidad en caso de colisión
+                        import time
+                        timestamp_suffix = int(time.time() * 1000) % 1000
+                        numero_venta_temporal = f"T{numero_temp:05d}{timestamp_suffix:03d}"
+                        print(f"Número temporal para la venta: {numero_venta_temporal} (se reemplazará con folio CAF si se genera DTE)")
                         
                         # Usar la primera forma de pago como principal (solo si NO es guía y hay formas de pago)
                         primera_forma_pago = None
@@ -1256,19 +1259,33 @@ def procesar_venta(request, ticket_id):
                             # =================================================================
                             print(f"[FOLIO] Obteniendo folio del CAF para tipo DTE {tipo_dte}...")
                             from facturacion_electronica.services import FolioService
+                            from empresas.models import Sucursal
+                            
+                            # Obtener sucursal para asignación de folios
+                            sucursal_facturacion = request.sucursal_activa if hasattr(request, 'sucursal_activa') and request.sucursal_activa else None
+                            if not sucursal_facturacion:
+                                sucursal_facturacion = Sucursal.objects.filter(empresa=request.empresa, es_principal=True).first()
+                            if not sucursal_facturacion:
+                                sucursal_facturacion = Sucursal.objects.filter(empresa=request.empresa).first()
+                            
+                            if not sucursal_facturacion:
+                                raise ValueError("No se encontró sucursal para asignar folios. Debe existir al menos una sucursal activa.")
+                            
+                            print(f"[FOLIO] Sucursal para folios: {sucursal_facturacion.nombre}")
                             
                             # CRÍTICO: Obtener el folio Y el CAF desde FolioService
                             # Esto asegura que el folio esté dentro del rango autorizado
+                            # NOTA: obtener_siguiente_folio retorna (folio, caf) - 2 valores
                             folio_dte, caf_obtenido = FolioService.obtener_siguiente_folio(
                                 empresa=request.empresa,
                                 tipo_documento=tipo_dte,
-                                sucursal=request.empresa.casa_matriz
+                                sucursal=sucursal_facturacion
                             )
                             
                             if folio_dte is None or caf_obtenido is None:
                                 raise ValueError(f"No se pudo obtener folio para tipo DTE {tipo_dte}. Verifique que haya un CAF activo y con folios disponibles.")
                             
-                            print(f"[FOLIO] ✅ Folio obtenido: {folio_dte}")
+                            print(f"[FOLIO] Folio obtenido: {folio_dte}")
                             print(f"[FOLIO] CAF utilizado: ID {caf_obtenido.id}, Rango: {caf_obtenido.folio_desde}-{caf_obtenido.folio_hasta}")
                             
                             # ACTUALIZAR el número de venta con el folio real del CAF
@@ -1427,7 +1444,10 @@ def procesar_venta(request, ticket_id):
                                     sender = get_background_sender()
                                     if sender.enviar_dte(dte.id, request.empresa.id):
                                         print(f"[OK] ✅ DTE agregado a la cola de envío (background)")
-                                        messages.success(request, f'✅ {dte.get_tipo_dte_display()} N° {dte.folio} generada. Enviando al SII en segundo plano...')
+                                        if tipo_documento == 'guia':
+                                            messages.success(request, f'✅ Guía de Despacho N° {dte.folio} generada y enviándose al SII. Puede tardar unos segundos.')
+                                        else:
+                                            messages.success(request, f'✅ {dte.get_tipo_dte_display()} N° {dte.folio} generada y enviándose al SII. Puede tardar unos segundos.')
                                     else:
                                         print(f"[ERROR] ❌ No se pudo agregar DTE a la cola")
                                         messages.warning(request, f'⚠️ {dte.get_tipo_dte_display()} N° {dte.folio} generada con timbre, pero no se pudo iniciar el envío automático.')

@@ -48,14 +48,15 @@ def generar_guia_desde_orden_despacho(orden_despacho, usuario):
             raise Exception("No se encontró sucursal para la empresa.")
         
         # USAR FolioService CENTRALIZADO para asignación de folios
-        caf_disponible, siguiente_folio, error = FolioService.obtener_siguiente_folio(
+        # NOTA: obtener_siguiente_folio retorna (folio, caf) - 2 valores
+        siguiente_folio, caf_disponible = FolioService.obtener_siguiente_folio(
             empresa=orden_despacho.empresa,
             tipo_documento='52',  # Guía de Despacho
             sucursal=sucursal
         )
 
-        if error or not caf_disponible or not siguiente_folio:
-            raise Exception(error or f"No hay CAF activo disponible para Guías de Despacho (52) en sucursal {sucursal.nombre}.")
+        if not caf_disponible or not siguiente_folio:
+            raise Exception(f"No hay CAF activo disponible para Guías de Despacho (52) en sucursal {sucursal.nombre}.")
 
         # Calcular totales de la orden de despacho
         monto_neto = 0
@@ -225,14 +226,15 @@ def generar_factura_desde_orden_despacho(orden_despacho, usuario):
             raise Exception("No se encontró sucursal para la empresa.")
         
         # USAR FolioService CENTRALIZADO para asignación de folios
-        caf_disponible, siguiente_folio, error = FolioService.obtener_siguiente_folio(
+        # NOTA: obtener_siguiente_folio retorna (folio, caf) - 2 valores
+        siguiente_folio, caf_disponible = FolioService.obtener_siguiente_folio(
             empresa=orden_despacho.empresa,
             tipo_documento='33',  # Factura Electrónica
             sucursal=sucursal
         )
 
-        if error or not caf_disponible or not siguiente_folio:
-            raise Exception(error or f"No hay CAF activo disponible para Facturas Electrónicas (33) en sucursal {sucursal.nombre}.")
+        if not caf_disponible or not siguiente_folio:
+            raise Exception(f"No hay CAF activo disponible para Facturas Electrónicas (33) en sucursal {sucursal.nombre}.")
 
         # Calcular totales de la orden de despacho
         monto_neto = 0

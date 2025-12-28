@@ -323,14 +323,11 @@ def ver_factura_electronica(request, dte_id):
         nombre_impresora = getattr(empresa, 'impresora_guia_nombre', None)
         
         if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
-            from django.template.loader import select_template
-            try:
-                select_template(['inventario/guia_despacho_termica.html'])
-                template = 'inventario/guia_despacho_termica.html'
-            except:
-                template = 'inventario/guia_despacho_electronica_html.html' # Fallback a A4
+            template = 'inventario/guia_despacho_electronica_termica.html'
+            print(f"[PRINT] Guia Electronica -> Formato TERMICO 80mm")
         else:
             template = 'inventario/guia_despacho_electronica_html.html'
+            print(f"[PRINT] Guia Electronica -> Formato LASER A4")
     
     else:
         # Fallback para otros tipos de DTE

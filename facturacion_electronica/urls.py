@@ -13,6 +13,7 @@ urlpatterns = [
     path('caf/<int:caf_id>/ocultar/', views_caf.ocultar_caf, name='ocultar_caf'),
     path('caf/<int:caf_id>/mostrar/', views_caf.mostrar_caf, name='mostrar_caf'),
     path('caf/<int:caf_id>/eliminar/', views_caf.eliminar_caf, name='eliminar_caf'),
+    path('caf/<int:caf_id>/ajustar-folio/', views_caf.ajustar_folio_caf, name='ajustar_folio_caf'),
     path('caf/ocultar-agotados/', views_caf.ocultar_cafs_agotados, name='ocultar_cafs_agotados'),
     path('caf/mostrar-ocultos/', views_caf.mostrar_cafs_ocultos, name='mostrar_cafs_ocultos'),
     path('caf/eliminar-sin-uso/', views_caf.eliminar_cafs_sin_uso, name='eliminar_cafs_sin_uso'),

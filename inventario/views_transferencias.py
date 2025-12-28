@@ -570,16 +570,17 @@ def transferencia_generar_guia(request, pk):
         
         # USAR FolioService CENTRALIZADO para asignación de folios
         with transaction.atomic():
-            caf, folio, error = FolioService.obtener_siguiente_folio(
+            # NOTA: obtener_siguiente_folio retorna (folio, caf) - 2 valores
+            folio, caf = FolioService.obtener_siguiente_folio(
                 empresa=request.empresa,
                 tipo_documento='52',
                 sucursal=sucursal
             )
             
-            if error or not caf or not folio:
+            if not caf or not folio:
                 return JsonResponse({
                     'success': False,
-                    'error': error or f'No hay CAF activo disponible para Guías de Despacho (52) en sucursal {sucursal.nombre}. Por favor, cargue un CAF tipo 52.'
+                    'error': f'No hay CAF activo disponible para Guías de Despacho (52) en sucursal {sucursal.nombre}. Por favor, cargue un CAF tipo 52.'
                 })
             
             # Verificar que el CAF esté vigente
@@ -700,41 +701,40 @@ def transferencia_generar_guia(request, pk):
                 pdf417_data = firmador.generar_datos_pdf417(ted_xml)
                 
                 # 4. Crear DTE en BD
-                try:
-                    dte = DocumentoTributarioElectronico.objects.create(
-                        empresa=request.empresa,
-                        caf_utilizado=caf,
-                        tipo_dte='52',
-                        folio=folio,
-                        fecha_emision=timezone.now().date(),
-                        tipo_traslado='5',  # Traslado interno
-                        usuario_creacion=request.user,
-                        # Emisor
-                        rut_emisor=request.empresa.rut,
-                        razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
-                        giro_emisor=request.empresa.giro_sii or request.empresa.giro or '',
-                        direccion_emisor=request.empresa.direccion_casa_matriz or request.empresa.direccion or '',
-                        comuna_emisor=request.empresa.comuna_casa_matriz or request.empresa.comuna or '',
-                        # Receptor (usar datos de la empresa para traslado interno)
-                        rut_receptor=request.empresa.rut,
-                        razon_social_receptor=request.empresa.nombre,
-                        giro_receptor=request.empresa.giro or '',
-                        direccion_receptor=request.empresa.direccion or '',
-                        comuna_receptor=request.empresa.comuna or '',
-                        ciudad_receptor=request.empresa.ciudad or '',
-                        # Montos
-                        monto_neto=subtotal.quantize(Decimal('1')),
-                        monto_exento=Decimal('0'),
-                        monto_iva=iva.quantize(Decimal('1')),
-                        monto_total=total.quantize(Decimal('1')),
-                        # XML y Timbre
-                        xml_dte=xml_sin_firmar,
-                        xml_firmado=xml_firmado,
-                        timbre_electronico=ted_xml,
-                        datos_pdf417=pdf417_data,
-                        # Estado
-                        estado_sii='generado'
-                    )
+                dte = DocumentoTributarioElectronico.objects.create(
+                    empresa=request.empresa,
+                    caf_utilizado=caf,
+                    tipo_dte='52',
+                    folio=folio,
+                    fecha_emision=timezone.now().date(),
+                    tipo_traslado='5',  # Traslado interno
+                    usuario_creacion=request.user,
+                    # Emisor
+                    rut_emisor=request.empresa.rut,
+                    razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
+                    giro_emisor=request.empresa.giro_sii or request.empresa.giro or '',
+                    direccion_emisor=request.empresa.direccion_casa_matriz or request.empresa.direccion or '',
+                    comuna_emisor=request.empresa.comuna_casa_matriz or request.empresa.comuna or '',
+                    # Receptor (usar datos de la empresa para traslado interno)
+                    rut_receptor=request.empresa.rut,
+                    razon_social_receptor=request.empresa.nombre,
+                    giro_receptor=request.empresa.giro or '',
+                    direccion_receptor=request.empresa.direccion or '',
+                    comuna_receptor=request.empresa.comuna or '',
+                    ciudad_receptor=request.empresa.ciudad or '',
+                    # Montos
+                    monto_neto=subtotal.quantize(Decimal('1')),
+                    monto_exento=Decimal('0'),
+                    monto_iva=iva.quantize(Decimal('1')),
+                    monto_total=total.quantize(Decimal('1')),
+                    # XML y Timbre
+                    xml_dte=xml_sin_firmar,
+                    xml_firmado=xml_firmado,
+                    timbre_electronico=ted_xml,
+                    datos_pdf417=pdf417_data,
+                    # Estado
+                    estado_sii='generado'
+                )
                 
                 # 5. Generar imagen PDF417
                 PDF417Generator.guardar_pdf417_en_dte(dte)

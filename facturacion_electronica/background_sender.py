@@ -129,7 +129,7 @@ class BackgroundDTESender:
                     dte.timbre_electronico = resultado['ted']
                     dte.fecha_envio_sii = timezone.now()
                     dte.estado_sii = 'enviado'
-                    dte.error_envio = None
+                    dte.error_envio = ''  # String vacío en lugar de None
                     dte.save(update_fields=['timbre_electronico', 'fecha_envio_sii', 'estado_sii', 'error_envio'])
                 
                 self.stats['total_enviados'] += 1

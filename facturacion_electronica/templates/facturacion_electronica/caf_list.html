@@ -1,270 +1,553 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block body_class %}hide-top-bar{% endblock %}
+
 {% block title %}Gestión de CAFs{% endblock %}
 
-{% block extra_css %}
+{% block extra_head %}
 <style>
-    /* Ocultamos cualquier tarjeta que se cuele de otros sistemas */
-    .page-header-card,
-    .empresa-info-card,
-    .user-info-card,
-    .card.mb-4:first-of-type {
-        display: none !important;
-    }
-
-    .stat-card {
-        border: 1px solid rgba(139, 115, 85, 0.2);
-        border-radius: 30px;
-        /* Súper redondeado */
-        padding: 20px;
-        text-align: center;
-        transition: transform 0.2s, box-shadow 0.2s;
-        background: #FFFFFF;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
-    }
-
-    .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.06);
-    }
-
-    .stat-card.activos {
-        border-bottom: 5px solid #D4A574;
-    }
-
-    .stat-card.agotados {
-        border-bottom: 5px solid #B8956A;
-    }
-
-    .stat-card.vencidos {
-        border-bottom: 5px solid #8B7355;
-    }
-
-    .stat-card.ocultos {
-        border-bottom: 5px solid #A0826D;
-    }
-
-    .stat-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #4b321f;
-        line-height: 1.2;
-    }
-
-    .stat-label {
-        font-size: 0.7rem;
-        color: #8F765F;
-        text-transform: uppercase;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-    }
-
-    .table thead th {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%) !important;
-        color: white !important;
-        height: 32px;
-        line-height: 32px;
-        padding: 0 10px !important;
-        border: none !important;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-    }
-
-    .table tbody td {
-        height: 32px;
-        line-height: 32px;
-        padding: 0 10px !important;
-        vertical-align: middle;
-        font-size: 0.85rem;
-    }
-
-    .badge-brown {
-        background: #D4A574;
-        border-radius: 6px;
-        padding: 4px 8px;
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-{% csrf_token %}
-<div class="container-fluid mt-3">
-    <div class="card shadow-sm border-0" style="border-radius: 15px; overflow: hidden;">
-        <div class="card-header border-0 d-flex justify-content-between align-items-center"
-            style="background: #6B4423; color: white; padding: 15px 20px;">
-            <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Gestión de CAFs</h5>
-            <button class="btn btn-light btn-sm fw-bold px-3" style="border-radius: 8px;" data-bs-toggle="modal"
-                data-bs-target="#modalCargarCAF">
-                <i class="fas fa-upload me-1"></i> Cargar CAF
-            </button>
-        </div>
-        <div class="card-body" style="background: #FAFAF8;">
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="stat-card activos">
-                        <div class="stat-value">{{ stats.activos }}</div>
-                        <div class="stat-label">CAFs Activos</div>
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <!-- Mensajes del sistema -->
+    {% if messages %}
+        <div class="row mb-3">
+            <div class="col-12">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert" style="border-left: 4px solid {% if message.tags == 'error' or message.tags == 'danger' %}#dc3545{% elif message.tags == 'warning' %}#ffc107{% elif message.tags == 'success' %}#28a745{% else %}#8B7355{% endif %};">
+                        <i class="fas {% if message.tags == 'error' or message.tags == 'danger' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% elif message.tags == 'success' %}fa-check-circle{% else %}fa-info-circle{% endif %} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card agotados">
-                        <div class="stat-value">{{ stats.agotados }}</div>
-                        <div class="stat-label">CAFs Agotados</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card vencidos">
-                        <div class="stat-value">{{ stats.vencidos }}</div>
-                        <div class="stat-label">CAFs Vencidos</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card ocultos">
-                        <div class="stat-value">{{ stats.ocultos }}</div>
-                        <div class="stat-label">CAFs Ocultos</div>
-                    </div>
-                </div>
+                {% endfor %}
             </div>
+        </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <!-- Header -->
+                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-bottom: 3px solid #D4C4A8; padding: 15px 20px;">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-invoice me-3" style="font-size: 1.8rem; color: #F5F1E8;"></i>
+                            <div>
+                                <h5 class="mb-1" style="font-size: 1.3rem; font-weight: 600; color: white;">
+                                    Gestión de CAFs
+                                </h5>
+                                <small style="font-size: 0.75rem; color: #F5F1E8;">
+                                    Administra los folios autorizados por el SII
+                                </small>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalCargarCAF">
+                            <i class="fas fa-upload me-1"></i> Cargar CAF
+                        </button>
+                    </div>
+                </div>
 
-            <div class="table-responsive">
-                <table class="table table-hover table-sm">
-                    <thead>
-                        <tr>
-                            <th>Sucursal</th>
-                            <th>Tipo Documento</th>
-                            <th>Rango</th>
-                            <th>Folios</th>
-                            <th>Estado</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for caf in cafs %}
-                        <tr>
-                            <td>{{ caf.sucursal.nombre|default:"Sin Sucursal" }}</td>
-                            <td><span class="badge badge-brown">{{ caf.tipo_nombre }}</span></td>
-                            <td><strong>{{ caf.folio_desde }} - {{ caf.folio_hasta }}</strong></td>
-                            <td>{{ caf.folios_utilizados }} / {{ caf.cantidad_folios }}</td>
-                            <td>
-                                {% if caf.estado == 'activo' %}<span class="text-success fw-bold">Activo</span>
-                                {% elif caf.estado == 'agotado' %}<span class="text-warning fw-bold">Agotado</span>
-                                {% elif caf.estado == 'vencido' %}<span class="text-danger fw-bold">Vencido</span>
-                                {% else %}<span class="text-muted">{{ caf.estado_nombre }}</span>{% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if caf.oculto %}
-                                <a href="{% url 'facturacion_electronica:mostrar_caf' caf.id %}"
-                                    class="text-success mx-1" title="Mostrar"><i class="fas fa-eye"></i></a>
-                                {% else %}
-                                <button
-                                    onclick="confirmarSimple('{% url 'facturacion_electronica:ocultar_caf' caf.id %}', '¿Ocultar este CAF?')"
-                                    class="btn btn-sm btn-link p-0 text-muted mx-1" title="Ocultar">
-                                    <i class="fas fa-eye-slash"></i>
-                                </button>
-                                {% endif %}
-                                
-                                {% if caf.folios_utilizados == 0 %}
-                                <button
-                                    onclick="confirmarEliminar({{ caf.id }}, '{{ caf.tipo_nombre }}', '{{ caf.folio_desde }}-{{ caf.folio_hasta }}')"
-                                    class="btn btn-sm btn-link p-0 text-danger mx-1" title="Eliminar CAF (sin uso)">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                                {% else %}
-                                <span class="text-muted mx-1" title="No se puede eliminar (tiene folios utilizados)">
-                                    <i class="fas fa-lock"></i>
-                                </span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <div class="card-body" style="background: #FAFAF8; padding: 15px;">
+                    <!-- Estadísticas -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-3">
+                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">CAFs Activos</div>
+                                            <div style="font-size: 1.3rem; color: #8B7355; font-weight: 700;">{{ stats.activos }}</div>
+                                        </div>
+                                        <i class="fas fa-check-circle" style="font-size: 1.5rem; color: rgba(40, 167, 69, 0.5);"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">CAFs Agotados</div>
+                                            <div style="font-size: 1.3rem; color: #8B7355; font-weight: 700;">{{ stats.agotados }}</div>
+                                        </div>
+                                        <i class="fas fa-exclamation-triangle" style="font-size: 1.5rem; color: rgba(255, 193, 7, 0.5);"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">CAFs Vencidos</div>
+                                            <div style="font-size: 1.3rem; color: #8B7355; font-weight: 700;">{{ stats.vencidos }}</div>
+                                        </div>
+                                        <i class="fas fa-ban" style="font-size: 1.5rem; color: rgba(220, 53, 69, 0.5);"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">CAFs Ocultos</div>
+                                            <div style="font-size: 1.3rem; color: #8B7355; font-weight: 700;">{{ stats.ocultos }}</div>
+                                        </div>
+                                        <i class="fas fa-eye-slash" style="font-size: 1.5rem; color: rgba(139, 115, 85, 0.3);"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla -->
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 table-compact">
+                            <thead>
+                                <tr>
+                                    <th style="width: 15%;">Sucursal</th>
+                                    <th style="width: 15%;">Tipo Documento</th>
+                                    <th style="width: 15%;">Rango</th>
+                                    <th style="width: 12%;">Folios</th>
+                                    <th style="width: 10%; text-align: center;">Estado</th>
+                                    <th style="width: 8%; text-align: center;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for caf in cafs %}
+                                <tr style="border-bottom: 1px solid #F5F1E8;">
+                                    <td style="font-size: 0.75rem;">
+                                        <div class="fw-semibold" style="color: #8B7355;">{{ caf.sucursal.nombre|default:"Sin Sucursal" }}</div>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">
+                                        <span class="badge" style="background: #17a2b8; font-size: 0.65rem;">{{ caf.tipo_nombre }}</span>
+                                    </td>
+                                    <td style="font-size: 0.75rem;">
+                                        <strong style="color: #6F5B44;">{{ caf.folio_desde }} - {{ caf.folio_hasta }}</strong>
+                                    </td>
+                                    <td style="font-size: 0.7rem;">
+                                        <div class="text-muted">{{ caf.folios_utilizados }} / {{ caf.cantidad_folios }}</div>
+                                        <small class="text-success" style="font-size: 0.65rem;">Próximo: {{ caf.folio_actual|add:1 }}</small>
+                                    </td>
+                                    <td style="font-size: 0.7rem; text-align: center;">
+                                        {% if caf.estado == 'activo' %}
+                                            <span class="badge bg-success" style="font-size: 0.65rem;">Activo</span>
+                                        {% elif caf.estado == 'agotado' %}
+                                            <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Agotado</span>
+                                        {% elif caf.estado == 'vencido' %}
+                                            <span class="badge bg-danger" style="font-size: 0.65rem;">Vencido</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary" style="font-size: 0.65rem;">{{ caf.estado_nombre }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="text-align: center;">
+                                        {% if caf.oculto %}
+                                            <a href="{% url 'facturacion_electronica:mostrar_caf' caf.id %}" class="btn btn-sm btn-outline-success" title="Mostrar" style="padding:2px 6px; font-size:0.7rem; border-color:#28a745;">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        {% else %}
+                                            <button onclick="confirmarOcultar({% url 'facturacion_electronica:ocultar_caf' caf.id %})" class="btn btn-sm btn-outline-secondary" title="Ocultar" style="padding:2px 6px; font-size:0.7rem; border-color:#D4C4A8;">
+                                                <i class="fas fa-eye-slash"></i>
+                                            </button>
+                                        {% endif %}
+                                        
+                                        <button onclick="abrirModalAjustarFolio({{ caf.id }}, '{{ caf.tipo_nombre }}', {{ caf.folio_desde }}, {{ caf.folio_hasta }}, {{ caf.folio_actual }}, {{ caf.folios_utilizados }}, {{ caf.cantidad_folios }})" class="btn btn-sm btn-outline-primary" title="Ajustar Folio" style="padding:2px 6px; font-size:0.7rem; border-color:#17a2b8;">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        
+                                        {% if caf.folios_utilizados == 0 %}
+                                            <button onclick="confirmarEliminar({{ caf.id }}, '{{ caf.tipo_nombre }}', '{{ caf.folio_desde }}-{{ caf.folio_hasta }}')" class="btn btn-sm btn-outline-danger" title="Eliminar" style="padding:2px 6px; font-size:0.7rem;">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-outline-secondary" title="No se puede eliminar (tiene folios usados)" style="padding:2px 6px; font-size:0.7rem; border-color:#D4C4A8;" disabled>
+                                                <i class="fas fa-lock"></i>
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <i class="fas fa-file-invoice fa-3x mb-3" style="color: #D4C4A8;"></i>
+                                        <h6 style="color: #8B7355;">No hay CAFs cargados</h6>
+                                        <p style="color: #6c757d; font-size: 0.85rem;">Comienza cargando tu primer CAF del SII</p>
+                                        <button class="btn btn-sm" style="background: #8B7355; color: white;" data-bs-toggle="modal" data-bs-target="#modalCargarCAF">
+                                            <i class="fas fa-upload me-2"></i>Cargar CAF
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal simplificado -->
+<!-- Modal Cargar CAF -->
 <div class="modal fade" id="modalCargarCAF" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content border-0">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
             <form method="post" action="{% url 'facturacion_electronica:cargar_caf' %}" enctype="multipart/form-data">
                 {% csrf_token %}
-                <div class="modal-header text-white" style="background: #6B4423;">
-                    <h5 class="modal-title">Cargar XML de CAF</h5>
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
+                    <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Cargar XML de CAF</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3"><label class="form-label fw-bold small">Sucursal</label><select name="sucursal"
-                            class="form-select">{% for s in sucursales %}<option value="{{ s.id }}">{{ s.nombre }}
-                            </option>{% endfor %}</select></div>
-                    <div class="mb-3"><label class="form-label fw-bold small">Tipo de Documento</label><select
-                            name="tipo_documento" class="form-select">{% for k, v in tipo_documento_choices %}<option
-                                value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
-                    <div class="mb-3"><label class="form-label fw-bold small">Archivo XML (SII)</label><input
-                            type="file" name="archivo_xml" class="form-control" accept=".xml" required></div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Sucursal</label>
+                        <select name="sucursal" class="form-select" required>
+                            {% for s in sucursales %}
+                                <option value="{{ s.id }}">{{ s.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Tipo de Documento</label>
+                        <select name="tipo_documento" class="form-select" required>
+                            {% for k, v in tipo_documento_choices %}
+                                <option value="{{ k }}">{{ v }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Archivo XML (SII)</label>
+                        <input type="file" name="archivo_xml" class="form-control" accept=".xml" required>
+                    </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="submit" class="btn text-white w-100" style="background: #6B4423;">Procesar y
-                        Guardar</button>
+                    <button type="submit" class="btn text-white w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
+                        <i class="fas fa-save me-2"></i>Procesar y Guardar
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<!-- Modal Ajustar Folio -->
+<div class="modal fade" id="modalAjustarFolio" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Ajustar Folio Actual</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Información del CAF -->
+                <div class="alert alert-info border-0 mb-3" style="background: #E8F4F8;">
+                    <h6 class="fw-bold mb-2" id="cafTipoDoc"></h6>
+                    <p class="mb-1 small"><strong>Rango Autorizado:</strong> <span id="cafRango"></span></p>
+                    <p class="mb-0 small"><strong>Folio Actual:</strong> <span id="cafFolioActual"></span></p>
+                </div>
+
+                <!-- Input del nuevo folio -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nuevo Folio Actual</label>
+                    <input type="number" 
+                           id="nuevoFolio" 
+                           class="form-control form-control-lg text-center" 
+                           style="font-size: 1.5rem; font-weight: bold;"
+                           oninput="validarYCalcular()">
+                    <div class="form-text text-center">
+                        Rango válido: <span id="rangoValido"></span>
+                    </div>
+                    <div id="errorFolio" class="text-danger small text-center mt-2" style="display: none;"></div>
+                </div>
+
+                <!-- Vista previa de cambios -->
+                <div id="vistaPrevia" style="display: none;">
+                    <div class="card border-success mb-3">
+                        <div class="card-header bg-success text-white">
+                            <i class="fas fa-check-circle me-2"></i>Vista Previa de Cambios
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <td class="text-muted">Folio Actual:</td>
+                                    <td><strong><span id="prevFolioActual"></span> → <span id="prevNuevoFolio" class="text-success"></span></strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Folios Utilizados:</td>
+                                    <td><strong><span id="prevFoliosUtilizados"></span> → <span id="prevNuevosFoliosUtilizados" class="text-success"></span></strong></td>
+                                </tr>
+                                <tr id="prevCambioEstado" style="display: none;">
+                                    <td class="text-muted">Estado:</td>
+                                    <td><strong><span id="prevEstadoActual"></span> → <span id="prevNuevoEstado" class="text-success"></span></strong></td>
+                                </tr>
+                            </table>
+                            <div class="alert alert-warning border-0 mt-2 mb-0 small" style="background: #FFF3CD;">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                El próximo folio a asignar será: <strong><span id="prevProximoFolio"></span></strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" 
+                        id="btnConfirmarAjuste" 
+                        class="btn text-white" 
+                        style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);"
+                        onclick="confirmarAjusteFolio()"
+                        disabled>
+                    <i class="fas fa-save me-2"></i>Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    function confirmarSimple(url, msg) {
-        Swal.fire({
-            title: msg,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#8B7355',
-            confirmButtonText: 'Sí, ocultar',
-            cancelButtonText: 'Cancelar'
-        }).then((result) => { if (result.isConfirmed) window.location.href = url; });
+let cafActual = null;
+
+function abrirModalAjustarFolio(cafId, tipoDoc, folioDesde, folioHasta, folioActual, foliosUtilizados, cantidadFolios) {
+    cafActual = {
+        id: cafId,
+        tipoDoc: tipoDoc,
+        folioDesde: folioDesde,
+        folioHasta: folioHasta,
+        folioActual: folioActual,
+        foliosUtilizados: foliosUtilizados,
+        cantidadFolios: cantidadFolios
+    };
+    
+    document.getElementById('cafTipoDoc').textContent = tipoDoc;
+    document.getElementById('cafRango').textContent = `${folioDesde} - ${folioHasta}`;
+    document.getElementById('cafFolioActual').textContent = folioActual;
+    document.getElementById('rangoValido').textContent = `${folioDesde - 1} a ${folioHasta}`;
+    
+    document.getElementById('nuevoFolio').value = '';
+    document.getElementById('vistaPrevia').style.display = 'none';
+    document.getElementById('errorFolio').style.display = 'none';
+    document.getElementById('btnConfirmarAjuste').disabled = true;
+    
+    new bootstrap.Modal(document.getElementById('modalAjustarFolio')).show();
+}
+
+function validarYCalcular() {
+    const input = document.getElementById('nuevoFolio');
+    const nuevoFolio = parseInt(input.value);
+    const errorDiv = document.getElementById('errorFolio');
+    const vistaPrevia = document.getElementById('vistaPrevia');
+    const btnConfirmar = document.getElementById('btnConfirmarAjuste');
+    
+    errorDiv.style.display = 'none';
+    vistaPrevia.style.display = 'none';
+    btnConfirmar.disabled = true;
+    
+    if (isNaN(nuevoFolio) || input.value === '') return;
+    
+    if (nuevoFolio < (cafActual.folioDesde - 1)) {
+        errorDiv.textContent = `El folio ${nuevoFolio} es menor que el mínimo permitido (${cafActual.folioDesde - 1})`;
+        errorDiv.style.display = 'block';
+        input.classList.add('is-invalid');
+        return;
     }
     
-    function confirmarEliminar(cafId, tipoDoc, rango) {
-        Swal.fire({
-            title: '¿Eliminar este CAF?',
-            html: `
-                <div class="text-start">
-                    <p class="mb-2"><strong>Tipo:</strong> ${tipoDoc}</p>
-                    <p class="mb-2"><strong>Rango:</strong> ${rango}</p>
-                    <p class="text-danger mt-3"><i class="fas fa-exclamation-triangle me-2"></i>Esta acción no se puede deshacer.</p>
-                    <p class="text-muted small">Solo se pueden eliminar CAFs que no tienen folios utilizados.</p>
-                </div>
-            `,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="fas fa-trash-alt me-2"></i>Sí, eliminar',
-            cancelButtonText: 'Cancelar',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Crear form para enviar POST
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/facturacion-electronica/caf/' + cafId + '/eliminar/';
-                
-                // Agregar CSRF token
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
-                if (csrfToken) {
-                    const csrfInput = document.createElement('input');
-                    csrfInput.type = 'hidden';
-                    csrfInput.name = 'csrfmiddlewaretoken';
-                    csrfInput.value = csrfToken.value;
-                    form.appendChild(csrfInput);
-                }
-                
-                document.body.appendChild(form);
-                form.submit();
-            }
-        });
+    if (nuevoFolio > cafActual.folioHasta) {
+        errorDiv.textContent = `El folio ${nuevoFolio} excede el máximo autorizado (${cafActual.folioHasta})`;
+        errorDiv.style.display = 'block';
+        input.classList.add('is-invalid');
+        return;
     }
+    
+    input.classList.remove('is-invalid');
+    input.classList.add('is-valid');
+    
+    let nuevosFoliosUtilizados = nuevoFolio < cafActual.folioDesde ? 0 : nuevoFolio - cafActual.folioDesde + 1;
+    let nuevoEstado = nuevosFoliosUtilizados >= cafActual.cantidadFolios ? 'agotado' : 'activo';
+    let proximoFolio = nuevoFolio + 1;
+    
+    document.getElementById('prevFolioActual').textContent = cafActual.folioActual;
+    document.getElementById('prevNuevoFolio').textContent = nuevoFolio;
+    document.getElementById('prevFoliosUtilizados').textContent = cafActual.foliosUtilizados;
+    document.getElementById('prevNuevosFoliosUtilizados').textContent = nuevosFoliosUtilizados;
+    document.getElementById('prevProximoFolio').textContent = proximoFolio;
+    
+    const cambioEstadoRow = document.getElementById('prevCambioEstado');
+    if (nuevoEstado !== 'activo' || nuevosFoliosUtilizados >= cafActual.cantidadFolios) {
+        document.getElementById('prevEstadoActual').textContent = 'activo';
+        document.getElementById('prevNuevoEstado').textContent = nuevoEstado;
+        cambioEstadoRow.style.display = 'table-row';
+    } else {
+        cambioEstadoRow.style.display = 'none';
+    }
+    
+    vistaPrevia.style.display = 'block';
+    btnConfirmar.disabled = false;
+}
+
+function confirmarAjusteFolio() {
+    const nuevoFolio = parseInt(document.getElementById('nuevoFolio').value);
+    
+    Swal.fire({
+        title: '¿Confirmar ajuste de folio?',
+        html: `
+            <div class="text-start">
+                <p class="mb-2"><strong>CAF:</strong> ${cafActual.tipoDoc}</p>
+                <p class="mb-2"><strong>Folio Actual:</strong> ${cafActual.folioActual} → <span class="text-success">${nuevoFolio}</span></p>
+                <p class="mb-3"><strong>Próximo folio a asignar:</strong> <span class="text-primary">${nuevoFolio + 1}</span></p>
+                <div class="alert alert-warning small mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Esta acción modificará el estado interno del CAF. Asegúrese de que el folio sea correcto.
+                </div>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-check me-2"></i>Sí, ajustar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = new FormData();
+            form.append('nuevo_folio', nuevoFolio);
+            form.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            
+            fetch(`/facturacion-electronica/caf/${cafActual.id}/ajustar-folio/`, {
+                method: 'POST',
+                body: form
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: '¡Folio Ajustado!',
+                        html: data.message,
+                        icon: 'success',
+                        confirmButtonColor: '#8B7355'
+                    }).then(() => location.reload());
+                } else {
+                    Swal.fire({
+                        title: 'Error',
+                        text: data.error,
+                        icon: 'error',
+                        confirmButtonColor: '#8B7355'
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Error al comunicarse con el servidor: ' + error,
+                    icon: 'error',
+                    confirmButtonColor: '#8B7355'
+                });
+            });
+        }
+    });
+}
+
+function confirmarOcultar(url) {
+    Swal.fire({
+        title: '¿Ocultar este CAF?',
+        text: 'Podrás mostrarlo nuevamente desde la vista de CAFs ocultos',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        confirmButtonText: 'Sí, ocultar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => { 
+        if (result.isConfirmed) window.location.href = url; 
+    });
+}
+
+function confirmarEliminar(cafId, tipoDoc, rango) {
+    Swal.fire({
+        title: '¿Eliminar este CAF?',
+        html: `
+            <div class="text-start">
+                <p class="mb-2"><strong>Tipo:</strong> ${tipoDoc}</p>
+                <p class="mb-2"><strong>Rango:</strong> ${rango}</p>
+                <p class="text-danger mt-3"><i class="fas fa-exclamation-triangle me-2"></i>Esta acción no se puede deshacer.</p>
+                <p class="text-muted small">Solo se pueden eliminar CAFs que no tienen folios utilizados.</p>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-trash-alt me-2"></i>Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/facturacion-electronica/caf/' + cafId + '/eliminar/';
+            
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfToken) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrfToken.value;
+                form.appendChild(csrfInput);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
 </script>
+
+<style>
+.table-compact {
+    font-size: 0.75rem;
+    line-height: 1.1;
+}
+
+.table-compact thead th {
+    padding: 8px 6px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+    color: white;
+    border: none;
+    font-size: 0.75rem;
+    text-align: left;
+    white-space: nowrap;
+    line-height: 1.1;
+}
+
+.table-compact tbody td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 4px 6px;
+    vertical-align: middle;
+    line-height: 1.2;
+    border: none;
+    height: 34px;
+}
+
+.table-compact tbody tr {
+    height: 34px;
+}
+
+.table-compact tbody tr:hover {
+    background-color: #F5F1E8;
+    transition: background-color 0.2s ease;
+}
+</style>
 {% endblock %}

@@ -335,6 +335,10 @@
             style="padding: 10px 20px; background: #6B8E23; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
             <i class="fas fa-print"></i> Imprimir
         </button>
+        <a href="{% url 'facturacion_electronica:dte_list' %}" 
+            style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; text-decoration: none; display: inline-block;">
+            📋 Ver Libro de Ventas
+        </a>
         <button onclick="safeCloseWindow()"
             style="padding: 10px 20px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
             ❌ Cerrar
@@ -449,14 +453,25 @@
             <tbody>
                 {% for detalle in detalles %}
                 <tr>
-                    <td style="text-align: center;">{{ detalle.item_pedido.articulo.codigo }}</td>
-                    <td>{{ detalle.item_pedido.articulo.nombre }}</td>
-                    <td style="text-align: center;">{{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UND"
-                        }}</td>
-                    <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
-                    <td style="text-align: right;">${{ detalle.item_pedido.precio_unitario|floatformat:0 }}</td>
-                    <td style="text-align: right;">$0</td>
-                    <td style="text-align: right;">${{ detalle.subtotal|floatformat:0 }}</td>
+                    {% if detalle.item_pedido %}
+                        {# Template para transferencias/órdenes de despacho #}
+                        <td style="text-align: center;">{{ detalle.item_pedido.articulo.codigo }}</td>
+                        <td>{{ detalle.item_pedido.articulo.nombre }}</td>
+                        <td style="text-align: center;">{{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UND" }}</td>
+                        <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
+                        <td style="text-align: right;">${{ detalle.item_pedido.precio_unitario|floatformat:0 }}</td>
+                        <td style="text-align: right;">$0</td>
+                        <td style="text-align: right;">${{ detalle.subtotal|floatformat:0 }}</td>
+                    {% else %}
+                        {# Template para ventas #}
+                        <td style="text-align: center;">{{ detalle.articulo.codigo }}</td>
+                        <td>{{ detalle.articulo.nombre }}</td>
+                        <td style="text-align: center;">{{ detalle.articulo.unidad_medida.simbolo|default:"UND" }}</td>
+                        <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
+                        <td style="text-align: right;">${{ detalle.precio_unitario|floatformat:0 }}</td>
+                        <td style="text-align: right;">$0</td>
+                        <td style="text-align: right;">${{ detalle.precio_total|floatformat:0 }}</td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
