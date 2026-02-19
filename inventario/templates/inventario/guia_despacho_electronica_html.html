@@ -335,7 +335,7 @@
             style="padding: 10px 20px; background: #6B8E23; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
             <i class="fas fa-print"></i> Imprimir
         </button>
-        <a href="{% url 'facturacion_electronica:dte_list' %}" 
+        <a href="{% url 'facturacion_electronica:dte_list' %}"
             style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; text-decoration: none; display: inline-block;">
             📋 Ver Libro de Ventas
         </a>
@@ -454,23 +454,24 @@
                 {% for detalle in detalles %}
                 <tr>
                     {% if detalle.item_pedido %}
-                        {# Template para transferencias/órdenes de despacho #}
-                        <td style="text-align: center;">{{ detalle.item_pedido.articulo.codigo }}</td>
-                        <td>{{ detalle.item_pedido.articulo.nombre }}</td>
-                        <td style="text-align: center;">{{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UND" }}</td>
-                        <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
-                        <td style="text-align: right;">${{ detalle.item_pedido.precio_unitario|floatformat:0 }}</td>
-                        <td style="text-align: right;">$0</td>
-                        <td style="text-align: right;">${{ detalle.subtotal|floatformat:0 }}</td>
+                    {# Template para transferencias/órdenes de despacho #}
+                    <td style="text-align: center;">{{ detalle.item_pedido.articulo.codigo }}</td>
+                    <td>{{ detalle.item_pedido.articulo.nombre }}</td>
+                    <td style="text-align: center;">{{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UN"
+                        }}</td>
+                    <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
+                    <td style="text-align: right;">${{ detalle.item_pedido.precio_unitario|floatformat:0 }}</td>
+                    <td style="text-align: right;">$0</td>
+                    <td style="text-align: right;">${{ detalle.subtotal|floatformat:0 }}</td>
                     {% else %}
-                        {# Template para ventas #}
-                        <td style="text-align: center;">{{ detalle.articulo.codigo }}</td>
-                        <td>{{ detalle.articulo.nombre }}</td>
-                        <td style="text-align: center;">{{ detalle.articulo.unidad_medida.simbolo|default:"UND" }}</td>
-                        <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
-                        <td style="text-align: right;">${{ detalle.precio_unitario|floatformat:0 }}</td>
-                        <td style="text-align: right;">$0</td>
-                        <td style="text-align: right;">${{ detalle.precio_total|floatformat:0 }}</td>
+                    {# Template para ventas #}
+                    <td style="text-align: center;">{{ detalle.articulo.codigo }}</td>
+                    <td>{{ detalle.articulo.nombre }}</td>
+                    <td style="text-align: center;">{{ detalle.articulo.unidad_medida.simbolo|default:"UN" }}</td>
+                    <td style="text-align: right;">{{ detalle.cantidad|floatformat:2 }}</td>
+                    <td style="text-align: right;">${{ detalle.precio_unitario|floatformat:0 }}</td>
+                    <td style="text-align: right;">$0</td>
+                    <td style="text-align: right;">${{ detalle.precio_total|floatformat:0 }}</td>
                     {% endif %}
                 </tr>
                 {% endfor %}
@@ -559,35 +560,59 @@
 
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <script>
+        // Parámetros de URL para autoclose
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoPrint = urlParams.get('auto');
+        const autoClose = urlParams.get('autoclose');
+        const autoCloseDelay = parseInt(urlParams.get('autoclose_delay')) || 2000;
+        const returnUrl = urlParams.get('return_url');
+
+        console.log('[GUIA HTML AUTO] Parámetros:', { autoPrint, autoClose, autoCloseDelay, returnUrl });
+
         function safeCloseWindow() {
-            // Intentar cerrar la ventana de varias formas
-            try {
-                // Si la ventana fue abierta por un script, intentar cerrarla
-                if (window.opener && window.opener !== window) {
-                    window.close();
-                    return;
-                }
-            } catch (e) {
-                console.log('No se pudo cerrar con window.close()');
+            // Si es un popup, cerrarlo
+            if (window.opener) {
+                console.log('[GUIA HTML] Cerrando popup...');
+                try { window.close(); } catch (e) { }
+                return;
             }
 
-            // Si no se puede cerrar, intentar volver atrás
-            try {
-                if (window.history.length > 1) {
-                    window.history.back();
-                } else {
-                    // Si no hay historial, redirigir a una página por defecto
-                    window.location.href = '/';
+            // PRIORIDAD: Si hay return_url, ir ahí (decodificando)
+            if (returnUrl) {
+                console.log('[GUIA HTML] Volviendo a:', decodeURIComponent(returnUrl));
+                window.location.href = decodeURIComponent(returnUrl);
+                return;
+            }
+
+            // Sino, volver atrás
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/';
+            }
+        }
+
+        // Auto print y autoclose
+        if (autoPrint === '1') {
+            console.log('[GUIA HTML AUTO] Imprimiendo automáticamente...');
+            setTimeout(function () {
+                window.print();
+
+                // Si autoclose está activo, cerrar después
+                if (autoClose === '1') {
+                    console.log('[GUIA HTML AUTO] Programando cierre en', autoCloseDelay, 'ms');
+                    setTimeout(safeCloseWindow, autoCloseDelay);
                 }
-            } catch (e) {
-                console.log('No se pudo volver atrás');
-                // Último recurso: intentar cerrar de todas formas
-                try {
-                    window.close();
-                } catch (e2) {
-                    // Si nada funciona, mostrar mensaje
-                    alert('No se puede cerrar esta ventana. Por favor, ciérrela manualmente.');
-                }
+            }, 500);
+
+            // También cerrar cuando se complete la impresión
+            if ('onafterprint' in window) {
+                window.addEventListener('afterprint', function () {
+                    console.log('[GUIA HTML AUTO] afterprint detectado');
+                    if (autoClose === '1' || window.opener) {
+                        setTimeout(safeCloseWindow, 500);
+                    }
+                });
             }
         }
     </script>

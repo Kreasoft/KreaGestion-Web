@@ -1,168 +1,313 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ titulo }}{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block extra_head %}
+<!-- CSS variables and styles for Stone Premium -->
 <style>
+    /* VARIABLES ESTILO STONE PREMIUM */
+    :root {
+        --stone-primary: #C2B7AE;
+        --stone-secondary: #AAA098;
+        --stone-light: #F2EFE9;
+        --stone-bg: #FCFBF9;
+        --stone-gradient: linear-gradient(135deg, #F8F8F8 0%, #EEEEEE 100%);
+        --stone-text: #6B6560;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #556B2F;
+        --stone-danger: #e53935;
+        --stone-warning: #FB8C00;
+        --stone-info: #039BE5;
+    }
+
     body {
-        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
-        min-height: 100vh;
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.25rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .header-icon-box {
+        width: 52px; height: 52px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 14px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text h1 span { font-weight: 700; }
+    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* ACTION BUTTONS */
+    .btn-action-secondary {
+        background: white; border: 1px solid var(--stone-light); color: var(--stone-text);
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-action-secondary:hover { background: var(--stone-bg); transform: translateY(-1px); }
+
+    .btn-stone-primary {
+        background: linear-gradient(135deg, #C2B7AE 0%, #AAA098 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+        text-decoration: none;
+        box-shadow: 0 4px 6px rgba(170, 160, 152, 0.2);
+    }
+    .btn-stone-primary:hover {
+        background: linear-gradient(135deg, #CFC5BC 0%, #B8AEA6 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(170, 160, 152, 0.25);
+        color: white;
+    }
+    
+    .btn-stone-secondary {
+        background: transparent;
+        border: 1px solid var(--stone-light);
+        color: var(--stone-text);
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+        display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+        text-decoration: none;
+    }
+    .btn-stone-secondary:hover {
+        background: #F5F1E8;
+        border-color: var(--stone-primary);
+        color: var(--stone-primary);
+    }
+    
+    /* FORM ELEMENTS */
+    .form-group-stone label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--stone-secondary);
+        margin-bottom: 0.35rem;
+        display: flex; align-items: center; gap: 0.4rem;
+    }
+    .form-group-stone label i { font-size: 0.9rem; opacity: 0.8; }
+    
+    .form-control-stone {
+        padding: 0.6rem 1rem;
+        border: 1px solid var(--stone-light);
+        border-radius: 8px;
+        font-size: 0.9rem;
+        width: 100%; box-sizing: border-box;
+        background: #FAFAF8;
+        transition: all 0.2s;
+    }
+    .form-control-stone:focus {
+        border-color: var(--stone-primary);
+        box-shadow: 0 0 0 3px rgba(194, 183, 174, 0.15);
+        outline: none;
+        background: white;
+    }
+
+    input[type="text"], input[type="email"], input[type="number"], select, textarea {
+        padding: 0.6rem 1rem;
+        border: 1px solid var(--stone-light);
+        border-radius: 8px;
+        font-size: 0.9rem;
+        width: 100%; box-sizing: border-box;
+        background: #FAFAF8;
+        transition: all 0.2s;
+    }
+    input:focus, select:focus, textarea:focus {
+        border-color: var(--stone-primary);
+        box-shadow: 0 0 0 3px rgba(194, 183, 174, 0.15);
+        outline: none;
+        background: white;
+    }
+    
+    /* SPECIAL CARD */
+    .alert-card-info {
+        background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
+        border-left: 4px solid var(--stone-warning);
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    .form-check-label {
+        font-weight: 500; color: var(--stone-text);
+        display: flex; align-items: center; gap: 0.5rem;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="margin-top: 20px;">
-    <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
-                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 15px 20px;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-store fa-2x me-3" style="color: #6F5B44;"></i>
-                            <div>
-                                <h5 class="mb-0" style="font-size: 1.3rem; font-weight: 600; color: #6F5B44;">
-                                    {{ titulo }}
-                                </h5>
-                                <small style="font-size: 0.85rem; color: #8B7355;">
-                                    {{ empresa.nombre }}
-                                </small>
-                            </div>
-                        </div>
-                        <a href="{% url 'empresas:sucursal_list' %}" class="btn btn-sm btn-outline-secondary" style="padding: 8px 16px;">
-                            <i class="fas fa-arrow-left me-2"></i>Volver
-                        </a>
-                    </div>
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- Header Premium -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-store-alt"></i>
                 </div>
-                <div class="card-body" style="padding: 25px 30px; background: #FAFAF8;">
-                    <form method="post">
-                        {% csrf_token %}
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-store me-2"></i>Nombre de la Sucursal *
-                                </label>
-                                {{ form.nombre }}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-barcode me-2"></i>Código de Sucursal *
-                                </label>
-                                {{ form.codigo }}
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                <i class="fas fa-map-marker-alt me-2"></i>Dirección *
-                            </label>
-                            {{ form.direccion }}
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-city me-2"></i>Comuna *
-                                </label>
-                                {{ form.comuna }}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-map me-2"></i>Ciudad *
-                                </label>
-                                {{ form.ciudad }}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-map-marked-alt me-2"></i>Región *
-                                </label>
-                                {{ form.region }}
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-phone me-2"></i>Teléfono
-                                </label>
-                                {{ form.telefono }}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-envelope me-2"></i>Email
-                                </label>
-                                {{ form.email }}
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-clock me-2"></i>Hora de Apertura
-                                </label>
-                                {{ form.horario_apertura }}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-clock me-2"></i>Hora de Cierre
-                                </label>
-                                {{ form.horario_cierre }}
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-toggle-on me-2"></i>Estado *
-                                </label>
-                                {{ form.estado }}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-user-tie me-2"></i>Gerente
-                                </label>
-                                {{ form.gerente }}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-phone-alt me-2"></i>Teléfono Gerente
-                                </label>
-                                {{ form.telefono_gerente }}
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-12 mb-3">
-                                <div class="card" style="background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%); border-left: 4px solid #FFA726; border-radius: 8px;">
-                                    <div class="card-body py-2">
-                                        <div class="form-check">
-                                            {{ form.es_principal }}
-                                            <label class="form-check-label" for="{{ form.es_principal.id_for_label }}" style="font-weight: 600; color: #6F5B44;">
-                                                <i class="fas fa-star me-2" style="color: #FFA726;"></i>Marcar como Sucursal Principal
-                                            </label>
-                                            <small class="d-block text-muted mt-1">
-                                                La sucursal principal será la predeterminada del sistema
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="d-flex justify-content-end gap-3 mt-4">
-                            <a href="{% url 'empresas:sucursal_list' %}" class="btn btn-outline-secondary" style="padding: 10px 25px;">
-                                <i class="fas fa-times me-2"></i>Cancelar
-                            </a>
-                            <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 10px 25px;">
-                                <i class="fas fa-save me-2"></i>{{ accion }} Sucursal
-                            </button>
-                        </div>
-                    </form>
+                <div class="header-text">
+                    <h1>{{ titulo }}</h1>
+                    <p>Gestionar sucursal para <span>{{ empresa.nombre }}</span></p>
                 </div>
             </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'empresas:sucursal_list' %}" class="btn-action-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver a Lista
+                </a>
+            </div>
+        </div>
+
+        <div class="card-body p-4 pt-4">
+            
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="row g-4">
+                    <!-- Basic Info -->
+                    <div class="col-12">
+                         <h6 class="mb-3 text-uppercase text-muted fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">Información Básica</h6>
+                    </div>
+                    
+                    <div class="col-md-6 form-group-stone">
+                        <label><i class="fas fa-tag"></i>Nombre de la Sucursal <span class="text-danger">*</span></label>
+                        {{ form.nombre }}
+                    </div>
+                    
+                    <div class="col-md-6 form-group-stone">
+                        <label><i class="fas fa-barcode"></i>Código Interno <span class="text-danger">*</span></label>
+                        {{ form.codigo }}
+                    </div>
+                    
+                    <!-- Location -->
+                    <div class="col-12 mt-4">
+                        <h6 class="mb-3 text-uppercase text-muted fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">Ubicación</h6>
+                    </div>
+                    
+                    <div class="col-md-12 form-group-stone">
+                        <label><i class="fas fa-map-marker-alt"></i>Dirección <span class="text-danger">*</span></label>
+                        {{ form.direccion }}
+                    </div>
+                    
+                    <div class="col-md-4 form-group-stone">
+                        <label><i class="fas fa-city"></i>Comuna <span class="text-danger">*</span></label>
+                        {{ form.comuna }}
+                    </div>
+                    
+                    <div class="col-md-4 form-group-stone">
+                        <label><i class="fas fa-map"></i>Ciudad <span class="text-danger">*</span></label>
+                        {{ form.ciudad }}
+                    </div>
+                    
+                    <div class="col-md-4 form-group-stone">
+                        <label><i class="fas fa-globe-americas"></i>Región <span class="text-danger">*</span></label>
+                        {{ form.region }}
+                    </div>
+                    
+                    <!-- Contact -->
+                    <div class="col-12 mt-4">
+                        <h6 class="mb-3 text-uppercase text-muted fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">Contacto y Horario</h6>
+                    </div>
+                    
+                    <div class="col-md-6 form-group-stone">
+                        <label><i class="fas fa-phone"></i>Teléfono de Contacto</label>
+                        {{ form.telefono }}
+                    </div>
+                    
+                    <div class="col-md-6 form-group-stone">
+                        <label><i class="fas fa-envelope"></i>Email de Contacto</label>
+                        {{ form.email }}
+                    </div>
+
+                    <div class="col-md-6 form-group-stone">
+                        <label><i class="far fa-clock"></i>Horario Apertura</label>
+                        {{ form.horario_apertura }}
+                    </div>
+                    
+                    <div class="col-md-6 form-group-stone">
+                        <label><i class="far fa-clock"></i>Horario Cierre</label>
+                        {{ form.horario_cierre }}
+                    </div>
+
+                    <!-- Management -->
+                    <div class="col-12 mt-4">
+                        <h6 class="mb-3 text-uppercase text-muted fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">Administración</h6>
+                    </div>
+                    
+                    <div class="col-md-4 form-group-stone">
+                        <label><i class="fas fa-toggle-on"></i>Estado Sucursal <span class="text-danger">*</span></label>
+                        {{ form.estado }}
+                    </div>
+                    
+                    <div class="col-md-4 form-group-stone">
+                        <label><i class="fas fa-user-tie"></i>Gerente / Encargado</label>
+                        {{ form.gerente }}
+                    </div>
+                    
+                    <div class="col-md-4 form-group-stone">
+                        <label><i class="fas fa-mobile-alt"></i>Teléfono Gerente</label>
+                        {{ form.telefono_gerente }}
+                    </div>
+                    
+                    <!-- Settings -->
+                    <div class="col-12 mt-4">
+                        <div class="alert-card-info">
+                            <div class="form-check d-flex align-items-center">
+                                {{ form.es_principal }}
+                                <label class="form-check-label ms-2" for="{{ form.es_principal.id_for_label }}">
+                                    <i class="fas fa-star" style="color: var(--stone-warning);"></i> Marcar como Sucursal Principal
+                                </label>
+                            </div>
+                            <small class="d-block text-muted mt-2 ms-4 ps-1">
+                                <i class="fas fa-info-circle me-1"></i> La sucursal principal será la predeterminada para las operaciones del sistema.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-end gap-3 mt-5 pt-3 border-top border-light">
+                    <a href="{% url 'empresas:sucursal_list' %}" class="btn-stone-secondary">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                    <button type="submit" class="btn-stone-primary">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
+            
         </div>
     </div>
 </div>

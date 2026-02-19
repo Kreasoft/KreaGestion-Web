@@ -21,7 +21,7 @@ urlpatterns = [
     path('unidades/', views.unidad_medida_list, name='unidad_medida_list'),
     path('unidades/crear/', views.unidad_medida_create, name='unidad_medida_create'),
     path('unidades/<int:pk>/editar/', views.unidad_medida_update, name='unidad_medida_update'),
-    # path('unidades/<int:pk>/eliminar/', views.unidad_medida_delete, name='unidad_medida_delete'),
+    path('unidades/<int:pk>/eliminar/', views.unidad_medida_delete, name='unidad_medida_delete'),
     
     # Impuestos Específicos
     path('impuestos/', views.impuesto_especifico_list, name='impuesto_especifico_list'),

@@ -6,362 +6,284 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Estilos para la tabla Estilo Piedra y Variables */
+    :root {
+        --color-piedra-primario: #8B7355;
+        --color-piedra-secundario: #6F5B44;
+        --color-piedra-claro: #E8DCC8;
+        --color-piedra-fondo: #FAFAF8;
+        /* Gradiente CLARO original del sistema */
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --color-piedra-texto: #5D4037;
+        --color-piedra-borde: #D4C4A8;
+    }
+
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+
+    .card-piedra {
+        border: 2px solid #E8DCC8; 
+        border-radius: 15px; 
+        overflow: hidden; 
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+    }
+
+    .table-piedra {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .table-piedra thead th {
+        background: #FDFCFB;
+        border-bottom: 2px solid #E8DCC8;
+        color: #8B7355;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        padding: 12px 15px;
+    }
+
+    .table-piedra tbody tr {
+        height: 32px;
+        transition: all 0.2s ease;
+    }
+
+    /* Efecto Zebra */
+    .table-piedra tbody tr:nth-of-type(odd) {
+        background-color: rgba(245, 241, 232, 0.3);
+    }
+
+    .table-piedra tbody tr:nth-of-type(even) {
+        background-color: white;
+    }
+
+    .table-piedra tbody tr:hover {
+        background-color: #F5F1E8 !important;
+    }
+
+    .table-piedra tbody td {
+        padding: 5px 15px;
+        border-bottom: 1px solid #F5F1E8;
+        vertical-align: middle;
+        font-size: 0.85rem;
+        color: #4A5568;
+    }
+
+    .btn-action-piedra {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border: 1px solid #D4C4A8;
+        border-radius: 6px;
+        color: #8B7355;
+        font-size: 0.75rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .btn-action-piedra:hover {
+        background: #8B7355;
+        color: white !important;
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-file-excel fa-lg text-white me-2"></i>
-                            <div>
-                                <h5 class="mb-0 text-white" style="font-size: 1.2rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                                    Gestión de Notas de Débito
-                                </h5>
-                                <small class="text-white-50" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">Administra las notas de débito electrónicas</small>
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card card-piedra">
+        <!-- Header con Estilo Piedra Premium -->
+        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-file-invoice-dollar me-3" style="font-size: 2.2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                        <div>
+                            <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
+                                Notas de <span class="fw-bold">Débito</span>
+                            </h2>
+                            <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                                Gestión de cargos adicionales y correcciones contables
                             </div>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <!-- Toggle de Vista -->
-                            <div class="btn-group me-2" role="group" aria-label="Toggle de vista">
-                                <input type="radio" class="btn-check" name="viewToggle" id="cardView" value="card" autocomplete="off">
-                                <label class="btn btn-outline-light btn-sm" for="cardView" title="Vista de Tarjetas">
-                                    <i class="fas fa-th-large"></i>
-                                </label>
-                                
-                                <input type="radio" class="btn-check" name="viewToggle" id="listView" value="list" autocomplete="off">
-                                <label class="btn btn-outline-light btn-sm" for="listView" title="Vista de Lista">
-                                    <i class="fas fa-list"></i>
-                                </label>
-                            </div>
-                            
-                            {% if perms.ventas.add_notadebito or user.is_superuser %}
-                            <a href="{% url 'ventas:notadebito_create' %}" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; font-family: 'Poppins', sans-serif;">
-                                <i class="fas fa-plus me-1"></i> Nueva Nota de Débito
-                            </a>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
-                
-                <!-- Estadísticas dentro de la tarjeta -->
-                <div class="card-body" style="padding: 10px 15px;">
-                    <div class="row mb-2">
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 10px 15px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Total ND</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.total }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">Registradas</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-file-alt" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="col-md-4 text-end">
+                    {% if perms.ventas.add_notadebito or user.is_superuser %}
+                    <a href="{% url 'ventas:notadebito_create' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                        <i class="fas fa-plus me-1"></i> Nueva Nota de Débito
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filtros y Estadísticas -->
+        <div class="card-body" style="background: #FAFAF8; padding: 15px;">
+            <!-- Estadísticas Soft UI Pastel -->
+            <div class="row g-3 mb-4 justify-content-center">
+                <div class="col-md-3">
+                    <div class="card card-stats-pastel-terracota card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
+                        <div class="card-body p-3" style="position: relative; z-index: 2;">
+                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Total ND</div>
+                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ stats.total }}</h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">Registradas</small>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); border: none; box-shadow: 0 2px 8px rgba(160, 130, 109, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 10px 15px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Borradores</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.borradores }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">Por emitir</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-clock" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #C19A6B 0%, #A0826D 100%); border: none; box-shadow: 0 2px 8px rgba(193, 154, 107, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 10px 15px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Emitidas</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.emitidas }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">En proceso</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-check-circle" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #6B8E23 0%, #556B1C 100%); border: none; box-shadow: 0 2px 8px rgba(107, 142, 35, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 10px 15px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Aceptadas SII</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.aceptadas_sii }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">Validadas</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-stamp" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #e39d7e; pointer-events: none; z-index: 1;">
+                            <i class="fas fa-file-invoice"></i>
                         </div>
                     </div>
-
-                    <!-- Formulario de búsqueda -->
-                    <div class="card" style="background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%); border: 1px solid #e3e6f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-radius: 10px; margin-bottom: 15px;">
-                        <div class="card-body" style="padding: 15px;">
-                            <form method="get" class="row g-2">
-                                <div class="col-md-3">
-                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">Estado</label>
-                                    <select name="estado" class="form-select form-select-sm">
-                                        <option value="">Todos</option>
-                                        <option value="borrador" {% if estado_filtro == 'borrador' %}selected{% endif %}>Borrador</option>
-                                        <option value="emitida" {% if estado_filtro == 'emitida' %}selected{% endif %}>Emitida</option>
-                                        <option value="enviada_sii" {% if estado_filtro == 'enviada_sii' %}selected{% endif %}>Enviada al SII</option>
-                                        <option value="aceptada_sii" {% if estado_filtro == 'aceptada_sii' %}selected{% endif %}>Aceptada por SII</option>
-                                        <option value="anulada" {% if estado_filtro == 'anulada' %}selected{% endif %}>Anulada</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">Tipo ND</label>
-                                    <select name="tipo_nd" class="form-select form-select-sm">
-                                        <option value="">Todos</option>
-                                        <option value="AUMENTA_MONTO" {% if tipo_nd_filtro == 'AUMENTA_MONTO' %}selected{% endif %}>Aumenta Monto</option>
-                                        <option value="CORRIGE_TEXTO" {% if tipo_nd_filtro == 'CORRIGE_TEXTO' %}selected{% endif %}>Corrige Texto</option>
-                                        <option value="INTERESES" {% if tipo_nd_filtro == 'INTERESES' %}selected{% endif %}>Intereses por Mora</option>
-                                        <option value="OTROS" {% if tipo_nd_filtro == 'OTROS' %}selected{% endif %}>Otros</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-1 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-sm w-100" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; border-radius: 6px; font-weight: 500; font-family: 'Poppins', sans-serif;">
-                                        <i class="fas fa-search"></i>
-                                    </button>
-                                </div>
-                                <div class="col-md-1 d-flex align-items-end">
-                                    <a href="{% url 'ventas:notadebito_list' %}" class="btn btn-sm btn-outline-secondary w-100">
-                                        <i class="fas fa-times"></i>
-                                    </a>
-                                </div>
-                            </form>
+                </div>
+                <div class="col-md-3">
+                    <div class="card card-stats-pastel-rosa card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
+                        <div class="card-body p-3" style="position: relative; z-index: 2;">
+                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Borradores</div>
+                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ stats.borradores }}</h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">Por emitir</small>
+                        </div>
+                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #d63384; pointer-events: none; z-index: 1;">
+                            <i class="fas fa-edit"></i>
                         </div>
                     </div>
-
-                    <!-- Vista de Tarjetas (compacta) -->
-                    <div id="cardViewContainer" class="row">
-                        {% for nota in notas %}
-                        <div class="col-md-6 col-lg-4 mb-2">
-                            <div class="card h-100" style="border: 1px solid #e3e6f0; border-radius: 10px; transition: all 0.3s ease; background: white; overflow: hidden; position: relative;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'">
-                                <div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(135deg, #8B7355 0%, #A0826D 100%);"></div>
-                                <div class="card-body" style="padding: 10px;">
-                                    <div class="d-flex justify-content-between align-items-start mb-1">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">NC {{ nota.numero }}</h6>
-                                            <p class="text-muted mb-0" style="font-size: 0.75rem; font-family: 'Poppins', sans-serif;">{{ nota.cliente.nombre|truncatechars:30 }}</p>
-                                        </div>
-                                        <div class="text-end">
-                                            {% if nota.estado == 'borrador' %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; font-size: 0.6rem; padding: 0.25rem 0.5rem; border-radius: 12px; font-weight: 500;">Borrador</span>
-                                            {% elif nota.estado == 'emitida' %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #6B8E23 0%, #556B1C 100%); color: white; font-size: 0.6rem; padding: 0.25rem 0.5rem; border-radius: 12px; font-weight: 500;">Emitida</span>
-                                            {% elif nota.estado == 'aceptada_sii' %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; font-size: 0.6rem; padding: 0.25rem 0.5rem; border-radius: 12px; font-weight: 500;">Aceptada SII</span>
-                                            {% elif nota.estado == 'anulada' %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white; font-size: 0.6rem; padding: 0.25rem 0.5rem; border-radius: 12px; font-weight: 500;">Anulada</span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    <div class="mb-1">
-                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif; font-size: 0.7rem;">
-                                            <i class="fas fa-calendar me-1"></i>
-                                            {{ nota.fecha|date:"d/m/Y" }}
-                                        </small>
-                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif; font-size: 0.7rem;">
-                                            <i class="fas fa-file-alt me-1"></i>
-                                            {{ nota.get_tipo_nd_display }}
-                                        </small>
-                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif; font-size: 0.7rem;">
-                                            <i class="fas fa-link me-1"></i>
-                                            Doc. {{ nota.numero_doc_afectado }}
-                                        </small>
-                                    </div>
-                                    
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <small class="text-muted" style="font-family: 'Poppins', sans-serif; font-size: 0.7rem;">Total: </small>
-                                            <strong style="color: #2c3e50; font-family: 'Poppins', sans-serif; font-size: 0.85rem;">$<span class="format-number">{{ nota.total|floatformat:0 }}</span></strong>
-                                        </div>
-                                        <div class="btn-group" role="group">
-                                            <a href="{% url 'ventas:notadebito_detail' nota.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; border-radius: 6px 0 0 6px; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 0.2rem 0.4rem;" title="Ver Detalle">
-                                                <i class="fas fa-eye" style="font-size: 0.7rem;"></i>
-                                            </a>
-                                            {% if nota.dte %}
-                                            <a href="{% url 'facturacion_electronica:ver_notadebito_electronica' nota.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; color: white; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 0.2rem 0.4rem;" title="Ver DTE">
-                                                <i class="fas fa-print" style="font-size: 0.7rem;"></i>
-                                            </a>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card card-stats-pastel-azul card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
+                        <div class="card-body p-3" style="position: relative; z-index: 2;">
+                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Emitidas</div>
+                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ stats.emitidas }}</h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">En proceso</small>
                         </div>
-                        {% empty %}
-                        <div class="col-12">
-                            <div class="text-center py-5">
-                                <div style="background: white; border-radius: 20px; padding: 3rem 2rem; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border: 1px solid #e3e6f0;">
-                                    <div class="mb-4" style="opacity: 0.6;">
-                                        <i class="fas fa-file-excel fa-4x text-muted"></i>
-                                    </div>
-                                    <h3 class="text-muted mb-3" style="font-family: 'Poppins', sans-serif;">No hay notas de crédito</h3>
-                                    <p class="text-muted mb-4" style="font-family: 'Poppins', sans-serif;">Comienza creando tu primera nota de crédito</p>
-                                    {% if perms.ventas.add_notadebito or user.is_superuser %}
-                                    <a href="{% url 'ventas:notadebito_create' %}" class="btn btn-lg" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; border-radius: 25px; font-weight: 500; font-family: 'Poppins', sans-serif;">
-                                        <i class="fas fa-plus me-2"></i>
-                                        Crear Primera Nota de Crédito
-                                    </a>
-                                    {% endif %}
-                                </div>
-                            </div>
+                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #1e3c72; pointer-events: none; z-index: 1;">
+                            <i class="fas fa-paper-plane"></i>
                         </div>
-                        {% endfor %}
                     </div>
-                    
-                    <!-- Vista de Lista (compacta) -->
-                    <div id="listViewContainer" class="d-none">
-                        <div class="table-responsive">
-                            <table class="table table-hover table-sm">
-                                <thead style="background: linear-gradient(135deg, #D2B48C 0%, #DEB887 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(210, 180, 140, 0.2);">
-                                    <tr>
-                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.85rem; padding: 8px 10px;">N° NC</th>
-                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.85rem; padding: 8px 10px;">Cliente</th>
-                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.85rem; padding: 8px 10px;">Fecha</th>
-                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.85rem; padding: 8px 10px;">Tipo NC</th>
-                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.85rem; padding: 8px 10px;">Estado</th>
-                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.85rem; padding: 8px 10px;">Total</th>
-                                        <th style="border: none; font-weight: 700; color: #8B4513; font-family: 'Poppins', sans-serif; font-size: 0.85rem; padding: 8px 10px;">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for nota in notas %}
-                                    <tr style="border-bottom: 1px solid #e3e6f0;">
-                                        <td style="border: none; padding: 6px 8px; font-family: 'Poppins', sans-serif; font-size: 0.8rem;">
-                                            <strong style="color: #2c3e50;">NC {{ nota.numero }}</strong>
-                                        </td>
-                                        <td style="border: none; padding: 6px 8px; font-family: 'Poppins', sans-serif; font-size: 0.8rem;">
-                                            {{ nota.cliente.nombre|truncatechars:40 }}
-                                        </td>
-                                        <td style="border: none; padding: 6px 8px; font-family: 'Poppins', sans-serif; font-size: 0.8rem;">
-                                            {{ nota.fecha|date:"d/m/Y" }}
-                                        </td>
-                                        <td style="border: none; padding: 6px 8px; font-family: 'Poppins', sans-serif; font-size: 0.8rem;">
-                                            {{ nota.get_tipo_nd_display }}
-                                        </td>
-                                        <td style="border: none; padding: 6px 8px;">
-                                            {% if nota.estado == 'borrador' %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; font-size: 0.6rem;">Borrador</span>
-                                            {% elif nota.estado == 'emitida' %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #6B8E23 0%, #556B1C 100%); color: white; font-size: 0.6rem;">Emitida</span>
-                                            {% elif nota.estado == 'aceptada_sii' %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; font-size: 0.6rem;">Aceptada SII</span>
-                                            {% elif nota.estado == 'anulada' %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white; font-size: 0.6rem;">Anulada</span>
-                                            {% endif %}
-                                        </td>
-                                        <td style="border: none; padding: 6px 8px; font-family: 'Poppins', sans-serif; font-size: 0.8rem;">
-                                            <strong style="color: #2c3e50;">$<span class="format-number">{{ nota.total|floatformat:0 }}</span></strong>
-                                        </td>
-                                        <td style="border: none; padding: 6px 8px;">
-                                            <div class="btn-group" role="group">
-                                                <a href="{% url 'ventas:notadebito_detail' nota.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); border: none; color: white; border-radius: 6px 0 0 6px; padding: 0.15rem 0.35rem;" title="Ver">
-                                                    <i class="fas fa-eye" style="font-size: 0.65rem;"></i>
-                                                </a>
-                                                {% if nota.dte %}
-                                                <a href="{% url 'facturacion_electronica:ver_notadebito_electronica' nota.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); border: none; color: white; padding: 0.15rem 0.35rem;" title="Ver DTE">
-                                                    <i class="fas fa-print" style="font-size: 0.65rem;"></i>
-                                                </a>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% empty %}
-                                    <tr>
-                                        <td colspan="7" class="text-center py-5">
-                                            <div style="background: white; border-radius: 20px; padding: 3rem 2rem;">
-                                                <i class="fas fa-file-excel fa-4x text-muted mb-3" style="opacity: 0.6;"></i>
-                                                <h3 class="text-muted mb-3" style="font-family: 'Poppins', sans-serif;">No hay notas de crédito</h3>
-                                                <p class="text-muted mb-4" style="font-family: 'Poppins', sans-serif;">Comienza creando tu primera nota de crédito</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                </div>
+                <div class="col-md-3">
+                    <div class="card card-stats-pastel-azul card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
+                        <div class="card-body p-3" style="position: relative; z-index: 2;">
+                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Aceptadas SII</div>
+                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ stats.aceptadas_sii }}</h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">Validadas</small>
+                        </div>
+                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #1e3c72; pointer-events: none; z-index: 1;">
+                            <i class="fas fa-check-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Filtros -->
+            <form method="get" class="row g-2 mb-3 align-items-end" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #E8DCC8;">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold" style="font-size: 0.75rem; color: #6F5B44;">
+                        <i class="fas fa-tag me-1"></i>Estado
+                    </label>
+                    <select name="estado" class="form-select form-select-sm" style="border: 1px solid #D4C4A8;">
+                        <option value="">Todos</option>
+                        <option value="borrador" {% if estado_filtro == 'borrador' %}selected{% endif %}>Borrador</option>
+                        <option value="emitida" {% if estado_filtro == 'emitida' %}selected{% endif %}>Emitida</option>
+                        <option value="enviada_sii" {% if estado_filtro == 'enviada_sii' %}selected{% endif %}>Enviada al SII</option>
+                        <option value="aceptada_sii" {% if estado_filtro == 'aceptada_sii' %}selected{% endif %}>Aceptada por SII</option>
+                        <option value="anulada" {% if estado_filtro == 'anulada' %}selected{% endif %}>Anulada</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold" style="font-size: 0.75rem; color: #6F5B44;">
+                        <i class="fas fa-list me-1"></i>Tipo ND
+                    </label>
+                    <select name="tipo_nd" class="form-select form-select-sm" style="border: 1px solid #D4C4A8;">
+                        <option value="">Todos</option>
+                        <option value="AUMENTA_MONTO" {% if tipo_nd_filtro == 'AUMENTA_MONTO' %}selected{% endif %}>Aumenta Monto</option>
+                                        <option value="CORRIGE_TEXTO" {% if tipo_nd_filtro == 'CORRIGE_TEXTO' %}selected{% endif %}>Corrige Texto</option>
+                                        <option value="INTERESES" {% if tipo_nd_filtro == 'INTERESES' %}selected{% endif %}>Intereses por Mora</option>
+                                        <option value="OTROS" {% if tipo_nd_filtro == 'OTROS' %}selected{% endif %}>Otros</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; font-weight: 600; font-size: 0.75rem; height: 31px;">
+                        <i class="fas fa-search me-1"></i>Filtrar
+                    </button>
+                </div>
+                <div class="col-md-1">
+                    <a href="{% url 'ventas:notadebito_list' %}" class="btn btn-sm btn-outline-secondary w-100" style="height: 31px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+            </form>
+
+            <!-- Tabla de Notas de Débito -->
+            <div class="table-responsive rounded-bottom" style="background: white;">
+                <table class="table-piedra mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">N° ND</th>
+                            <th style="width: 25%;">Cliente</th>
+                            <th style="width: 10%;">Fecha</th>
+                            <th style="width: 15%;">Tipo ND</th>
+                            <th style="width: 15%;">Doc. Afectado</th>
+                            <th style="width: 10%; text-align: center;">Estado</th>
+                            <th style="width: 10%; text-align: right;">Total</th>
+                            <th style="width: 5%; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for nota in notas %}
+                        <tr>
+                            <td><span class="fw-bold" style="color: #6F5B44;">ND {{ nota.numero }}</span></td>
+                            <td>{{ nota.cliente.nombre|truncatechars:35 }}</td>
+                            <td class="small opacity-75">{{ nota.fecha|date:"d/m/Y" }}</td>
+                            <td class="small">{{ nota.get_tipo_nd_display|default:"-" }}</td>
+                            <td class="small text-muted">{{ nota.numero_doc_afectado|default:"-" }}</td>
+                            <td class="text-center">
+                                {% if nota.estado == 'borrador' %}
+                                    <span class="badge bg-secondary" style="font-size: 0.65rem;">Borrador</span>
+                                {% elif nota.estado == 'emitida' %}
+                                    <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Emitida</span>
+                                {% elif nota.estado == 'aceptada_sii' %}
+                                    <span class="badge bg-success" style="font-size: 0.65rem;">Aceptada SII</span>
+                                {% elif nota.estado == 'enviada_sii' %}
+                                    <span class="badge bg-info" style="font-size: 0.65rem;">Enviada SII</span>
+                                {% elif nota.estado == 'anulada' %}
+                                    <span class="badge bg-danger" style="font-size: 0.65rem;">Anulada</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-bold" style="color: #6F5B44;">${{ nota.total|floatformat:0|format_price }}</td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-1">
+                                    <a href="{% url 'ventas:notadebito_detail' nota.pk %}" class="btn-action-piedra" title="Ver Detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if nota.dte %}
+                                    <a href="{% url 'facturacion_electronica:ver_notadebito_electronica' nota.pk %}" class="btn-action-piedra" target="_blank" title="Ver DTE">
+                                        <i class="fas fa-print"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <i class="fas fa-file-invoice-dollar fa-3x mb-3" style="color: #D4C4A8;"></i>
+                                <h6 style="color: #8B7355;">No se encontraron notas de débito</h6>
+                                <p style="color: #6c757d; font-size: 0.85rem;">Intenta ajustar los filtros de búsqueda</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Obtener elementos
-    const cardViewRadio = document.getElementById('cardView');
-    const listViewRadio = document.getElementById('listView');
-    const cardViewContainer = document.getElementById('cardViewContainer');
-    const listViewContainer = document.getElementById('listViewContainer');
-    
-    // Función para cambiar vista
-    function toggleView(viewType) {
-        if (viewType === 'card') {
-            cardViewContainer.classList.remove('d-none');
-            listViewContainer.classList.add('d-none');
-            cardViewRadio.checked = true;
-            localStorage.setItem('notaCreditoView', 'card');
-        } else {
-            cardViewContainer.classList.add('d-none');
-            listViewContainer.classList.remove('d-none');
-            listViewRadio.checked = true;
-            localStorage.setItem('notaCreditoView', 'list');
-        }
-    }
-    
-    // Event listeners para los radio buttons
-    cardViewRadio.addEventListener('change', function() {
-        if (this.checked) {
-            toggleView('card');
-        }
-    });
-    
-    listViewRadio.addEventListener('change', function() {
-        if (this.checked) {
-            toggleView('list');
-        }
-    });
-    
-    // Cargar preferencia guardada
-    const savedView = localStorage.getItem('notaCreditoView');
-    if (savedView === 'list') {
-        toggleView('list');
-    } else {
-        toggleView('card');
-    }
-    
-    // Formatear números con separador de miles
-    document.querySelectorAll('.format-number').forEach(function(element) {
-        const number = parseInt(element.textContent);
-        if (!isNaN(number)) {
-            element.textContent = number.toLocaleString('es-CL');
-        }
-    });
-});
-</script>
 {% endblock %}

@@ -383,6 +383,9 @@ def sucursal_list(request, empresa_id=None):
 	})
 
 
+from django.views.decorators.clickjacking import xframe_options_sameorigin
+
+@xframe_options_sameorigin
 @requiere_empresa
 @permission_required('empresas.add_sucursal', raise_exception=True)
 def sucursal_create(request, empresa_id=None):
@@ -431,6 +434,7 @@ def sucursal_detail(request, pk):
 	return render(request, 'empresas/sucursal_detail.html', {'sucursal': sucursal})
 
 
+@xframe_options_sameorigin
 @requiere_empresa
 @permission_required('empresas.change_sucursal', raise_exception=True)
 def sucursal_update(request, pk):

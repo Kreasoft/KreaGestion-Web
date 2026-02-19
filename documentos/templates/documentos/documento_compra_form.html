@@ -1,12 +1,9 @@
 {% extends "base.html" %}
 {% load static %}
+{% load currency_filters %}
 
 {% block title %}
-    {% if documento %}
-        Editar Documento de Compra - GestionCloud
-    {% else %}
-        Crear Documento de Compra - GestionCloud
-    {% endif %}
+    {% if documento %}Editar Documento{% else %}Nuevo Documento de Compra{% endif %}
 {% endblock %}
 
 {% block body_class %}hide-top-bar{% if documento %} edit-mode{% endif %}{% endblock %}
@@ -14,1952 +11,759 @@
 {% block extra_css %}
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
 <style>
-    /* TARJETA ÚNICA BLANCA - SIN FONDOS DE COLORES */
-    .form-container {
-        background: white;
-        border-radius: 10px;
-        padding: 1.5rem;
-        box-shadow: 0 3px 15px rgba(0,0,0,0.08);
-        border: 1px solid #e3e6f0;
-        margin-bottom: 1rem;
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
     }
-    
-    .form-section h5 {
-        color: #2c3e50;
-        font-weight: 600;
-        margin-bottom: 0.75rem;
+
+    body {
+        background-color: var(--stone-bg);
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL (Contenedor general) */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden; /* Para que el header no se salga */
+        max-width: 1400px;
+        margin: 1.5rem auto;
+    }
+
+    /* HEADER PREMIUM AJUSTADO */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
         display: flex;
         align-items: center;
-        font-size: 1rem;
+        justify-content: space-between;
+        position: relative;
     }
     
-    .form-section h5 i {
-        margin-right: 0.5rem;
-        color: #4e73df;
-        font-size: 0.9rem;
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        z-index: 2;
     }
     
-    .btn-primary {
-        background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
-        border: none;
-        border-radius: 20px;
-        padding: 0.5rem 1.5rem;
+    .header-icon-box {
+        width: 48px;
+        height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text);
+        font-size: 1.35rem;
+        margin: 0;
+        letter-spacing: -0.5px;
+        line-height: 1.1;
+    }
+    
+    .header-text p {
+        color: #795548;
+        font-size: 0.85rem;
+        margin: 0;
         font-weight: 500;
-        transition: all 0.3s ease;
-        font-size: 0.9rem;
+        opacity: 0.9;
     }
     
-    .btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 3px 10px rgba(78, 115, 223, 0.3);
+    .header-actions {
+        display: flex;
+        gap: 0.5rem;
+        z-index: 2;
     }
-    
-    .btn-secondary {
-        border-radius: 20px;
-        padding: 0.5rem 1.5rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        font-size: 0.9rem;
-    }
-    
-    .items-container {
-        background: white;
-        border: 1px solid #e3e6f0;
-        border-radius: 10px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .item-form {
-        background: #f8f9fc;
-        border: 1px solid #e3e6f0;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .item-form:last-child {
-        margin-bottom: 0;
-    }
-    
-    .add-item-btn {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        border: none;
-        border-radius: 4px;
-        color: white;
-        padding: 0.4rem 0.7rem;
-        font-weight: 600;
-        font-size: 0.8rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 1px 4px rgba(40, 167, 69, 0.3);
-        height: 28px;
-    }
-    
-    .add-item-btn:hover {
-        background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(40, 167, 69, 0.4);
-        color: white;
-    }
-    
-    .add-item-btn:active {
-        transform: translateY(0);
-        box-shadow: 0 1px 4px rgba(40, 167, 69, 0.3);
-    }
-    
-    .remove-item-btn {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        border: none;
-        border-radius: 20px;
-        color: white;
-        padding: 0.25rem 0.75rem;
-        font-size: 0.875rem;
-        transition: all 0.3s ease;
-    }
-    
-    .remove-item-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 3px 10px rgba(220, 53, 69, 0.4);
-        color: white;
-    }
-    
-    .total-section {
-        background: linear-gradient(135deg, #6f42c1 0%, #563d7c 100%);
-        color: white;
-        border-radius: 10px;
+
+    /* Formulario Container */
+    .form-container-body {
         padding: 1.5rem;
-        margin-top: 1rem;
+    }
+
+    /* INPUTS & SELECTS (Estilo Base) */
+    .form-label {
+        font-weight: 600;
+        color: var(--stone-secondary);
+        font-size: 0.75rem;
+        margin-bottom: 0.4rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: block;
+    }
+
+    .form-control, .form-select {
+        border: 1px solid #D7CCC8; /* Borde suave */
+        border-radius: 8px;
+        font-size: 0.9rem;
+        color: #495057;
+        padding: 0.5rem 0.75rem;
+        transition: all 0.2s;
+        background-color: #fff;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--stone-primary);
+        box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1);
+        outline: none;
+    }
+
+    /* SELECT2 OVERRIDES (Corrección de "tosco y cuadrado") */
+    .select2-container .select2-selection--single {
+        height: 38px !important; /* Altura estándar Bootstrap */
+        border: 1px solid #D7CCC8 !important;
+        border-radius: 8px !important;
+        background-color: #fff !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: normal !important;
+        padding-left: 0.75rem !important;
+        color: #495057 !important;
+        font-size: 0.9rem !important;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 4px !important;
+    }
+
+    .select2-dropdown {
+        border: 1px solid var(--stone-primary) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+        z-index: 9999;
+    }
+    
+    .select2-results__option--highlighted[aria-selected] {
+        background-color: var(--stone-primary) !important;
+        color: white !important;
+    }
+
+    /* Items List (Table Style) */
+    .items-list-compact {
+        border: 1px solid var(--stone-light);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-top: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+
+    .items-list-header {
+        background: #fdfbf7;
+        padding: 0.75rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--stone-secondary);
+        border-bottom: 1px solid var(--stone-light);
+        letter-spacing: 0.5px;
+    }
+    
+    /* MODALIDAD ITEM ULTRAFINO (33px) */
+    .item-line {
+        height: 33px !important;
+        padding: 0 0.5rem;
+        border-bottom: 1px solid #f0f0f0;
+        background: white;
+        transition: background 0.1s;
+        display: flex;
+        align-items: center;
+    }
+    .item-line:hover {
+        background-color: #fff8e1; /* Highlight suave */
+    }
+    
+    /* Inputs dentro de Item (muy compactos) */
+    .item-line .form-control-sm, 
+    .item-line .form-select-sm {
+        height: 28px !important;
+        padding: 0 0.5rem;
+        font-size: 0.85rem;
+        border-color: #e0e0e0;
+        border-radius: 4px;
+        box-shadow: none !important; /* Flat look en grid */
+    }
+    .item-line .form-control-sm:focus {
+        border-color: var(--stone-primary);
+        background-color: #fff;
+    }
+    
+    /* Select2 en Items (Override específico) */
+    .item-line .select2-container .select2-selection--single {
+        height: 28px !important;
+        min-height: 28px !important;
+        border-radius: 4px !important;
+        border-color: #e0e0e0 !important;
+    }
+    .item-line .select2-container .select2-selection__arrow {
+        height: 26px !important;
+    }
+    .item-line .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 26px !important;
+    }
+
+    /* Proveedor Flex Container */
+    .proveedor-container {
+        display: flex;
+        width: 100%;
+        box-shadow: 0 2px 5px rgba(rgba(0,0,0,0.02));
+        border-radius: 8px;
+    }
+    .proveedor-container .select2-container {
+        flex-grow: 1;
+        width: auto !important;
+    }
+    .proveedor-container .select2-selection {
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+        height: 38px !important; /* Match standard inputs */
+    }
+    .btn-add-prov {
+        border: 1px solid #D7CCC8;
+        border-left: 0;
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+        background: #f8f9fa;
+        color: var(--stone-secondary);
+        width: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-add-prov:hover {
+        background-color: var(--stone-light);
+        color: var(--stone-text);
+    }
+
+    /* Layout Botones */
+    .header-btn {
+        padding: 0.5rem 1.25rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .btn-stone-light {
+        background: rgba(255,255,255,0.6);
+        color: var(--stone-text);
+        border-color: rgba(255,255,255,0.8);
+    }
+    .btn-stone-light:hover {
+        background: white;
+        transform: translateY(-2px);
+    }
+
+    /* Paneles y Utilidades */
+    .totals-panel {
+        background-color: #fdfbf7;
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 2rem;
     }
     
     .total-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--stone-secondary);
+        margin-bottom: 0.3rem;
     }
     
-    .total-row:last-child {
-        margin-bottom: 0;
-        font-weight: bold;
-        font-size: 1.1rem;
-        border-top: 1px solid rgba(255,255,255,0.2);
+    .total-row input {
+        text-align: right;
+        border: none;
+        background: transparent;
+        font-weight: 600;
+        color: #495057;
+        width: 120px;
+    }
+
+    .total-row.final {
+        border-top: 2px solid var(--stone-light);
+        margin-top: 0.5rem;
         padding-top: 0.5rem;
-    }
-    
-    .form-control:focus, .form-select:focus {
-        border-color: #4e73df;
-        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
-    }
-    
-     /* Estilos para el resumen de valores - Tarjeta Elegante */
-     .summary-card {
-         background: linear-gradient(135deg, #ffffff 0%, #f8f9fc 100%);
-         border-radius: 16px;
-         border: 1px solid rgba(255, 255, 255, 0.2);
-         overflow: hidden;
-         margin-top: 2rem;
-         padding: 0;
-         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.1);
-         min-height: 220px;
-         position: relative;
-         backdrop-filter: blur(10px);
-     }
-     
-     .summary-card::before {
-         content: '';
-         position: absolute;
-         top: 0;
-         left: 0;
-         right: 0;
-         height: 4px;
-         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-     }
-     
-     .summary-header {
-         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-         padding: 1.2rem 1.5rem;
-         border-bottom: none;
-         position: relative;
-     }
-     
-     .summary-header::after {
-         content: '';
-         position: absolute;
-         bottom: 0;
-         left: 0;
-         right: 0;
-         height: 1px;
-         background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
-     }
-     
-     .summary-title {
-         color: white;
-         font-weight: 700;
-         margin: 0;
-         font-size: 1.1rem;
-         text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-         letter-spacing: 0.5px;
-     }
-     
-     .summary-title i {
-         color: rgba(255, 255, 255, 0.9);
-         margin-right: 0.7rem;
-         font-size: 1.2rem;
-     }
-     
-     .summary-body {
-         padding: 1.2rem 1.5rem;
-         background: rgba(255, 255, 255, 0.5);
-     }
-     
-     .summary-row-compact {
-         display: flex;
-         justify-content: space-between;
-         align-items: center;
-         margin-bottom: 0;
-         padding: 0.8rem 0;
-         font-size: 0.95rem;
-         border-bottom: 1px solid rgba(108, 117, 125, 0.1);
-         transition: all 0.3s ease;
-         position: relative;
-     }
-     
-     .summary-row-compact:hover {
-         background: rgba(102, 126, 234, 0.05);
-         border-radius: 8px;
-         margin: 0 -0.5rem;
-         padding-left: 0.5rem;
-         padding-right: 0.5rem;
-     }
-     
-     .summary-row-compact:last-child {
-         border-bottom: none;
-         background: linear-gradient(135deg, #f8f9fc 0%, #e9ecef 100%);
-         border-radius: 12px;
-         margin: 0.5rem -0.5rem -0.5rem -0.5rem;
-         padding: 1rem 0.5rem;
-         box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-     }
-     
-     .summary-label {
-         font-weight: 600;
-         color: #495057;
-         font-size: 0.9rem;
-         letter-spacing: 0.3px;
-     }
-     
-     .summary-value {
-         font-weight: 700;
-         color: #2c3e50;
-         font-size: 0.95rem;
-         text-align: right;
-         font-family: 'Courier New', monospace;
-     }
-     
-     .summary-row-compact:last-child .summary-label,
-     .summary-row-compact:last-child .summary-value {
-         font-size: 1.1rem;
-         color: #667eea;
-         font-weight: 800;
-     }
-    
-    .summary-line {
-        margin: 0;
-        border: none;
-        border-top: 1px solid #e9ecef;
-        opacity: 0.5;
-    }
-    
-    .summary-divider {
-        margin: 0.5rem 0;
-        border: none;
-        border-top: 2px solid #6b8e23;
-        opacity: 0.8;
-    }
-    
-    .summary-divider-compact {
-        margin: 0.3rem 0;
-        border: none;
-        border-top: 1px solid #6b8e23;
-        opacity: 0.6;
-    }
-    
-    .total-row {
-        background: linear-gradient(135deg, #f8f9fc 0%, #e9ecef 100%);
-        margin: 0 -1.5rem -1.5rem -1.5rem;
-        padding: 1rem 1.5rem;
-        border-top: 2px solid #6b8e23;
-    }
-    
-    .total-row .summary-label,
-    .total-row .summary-value {
-        font-size: 1.2rem;
-        color: #6b8e23;
         font-weight: 700;
+        font-size: 1.1rem;
+        color: var(--stone-text);
     }
     
-    .section-divider {
+    .btn-stone-primary { 
+        background-color: var(--stone-primary); 
+        color: white; 
         border: none;
-        border-top: 2px solid #e9ecef;
-        margin: 1rem 0;
-        opacity: 0.6;
-    }
-    
-    /* Estilos para lista compacta de items */
-    .item-form-compact {
-        transition: background-color 0.2s ease;
-    }
-    
-    .item-form-compact:hover {
-        background-color: #f0f8ff !important;
-    }
-    
-    .item-form-compact:nth-child(even) {
-        background-color: #f8f9fc;
-    }
-    
-    .item-form-compact:nth-child(odd) {
-        background-color: #ffffff;
-    }
-    
-    .items-container {
-        border: 1px solid #e3e6f0;
+        padding: 0.6rem 1.5rem;
         border-radius: 8px;
-        overflow: hidden;
-        background: white;
+        font-weight: 600;
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.2);
+    }
+    .btn-stone-primary:hover {
+        background-color: var(--stone-secondary);
+        transform: translateY(-1px);
+        color: white;
     }
     
-    /* Campos más compactos para items */
-    .item-form-compact .form-control-sm,
-    .item-form-compact .form-select-sm {
-        padding: 0.1rem 0.25rem;
-        font-size: 0.7rem;
-        line-height: 1;
-        height: 24px;
+    .btn-stone-danger-global {
+        color: #d32f2f;
+        background: #ffebee;
+        border: 1px solid #ffcdd2;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
     }
-    
-    /* SOLO Cantidad, Precio y Descuento - mismo tamaño que Total */
-    .item-form-compact input[name*="cantidad"],
-    .item-form-compact input[name*="precio_unitario"],
-    .item-form-compact input[name*="descuento_porcentaje"] {
-        height: 32px !important;
-        padding: 0.25rem 0.5rem !important;
-        font-size: 0.75rem !important;
-    }
-    
-    .item-form-compact .form-control-sm:focus,
-    .item-form-compact .form-select-sm:focus {
-        box-shadow: 0 0 0 0.2rem rgba(107, 142, 35, 0.25);
-        border-color: #6b8e23;
-    }
-    
-    .item-total {
-        font-weight: 600 !important;
-        background-color: #f8f9fc !important;
-        color: #495057 !important;
-        text-align: right !important;
-    }
-
-    .alert {
-        border-radius: 10px;
+    .item-line .btn-stone-danger {
+        color: #d32f2f;
+        background: transparent;
         border: none;
     }
-    
-    .alert-success {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        color: #155724;
-    }
-    
-    .alert-danger {
-        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-        color: #721c24;
+    .item-line .btn-stone-danger:hover {
+        background: #ffebee;
+        border-radius: 4px;
     }
 
-    /* === ESTILOS SELECT2 PERSONALIZADOS === */
-    .select2-container--default .select2-selection--single {
-        border: 1px solid #e3e6f0 !important;
-        border-radius: 4px !important;
-        height: 32px !important;
-        padding: 0.25rem 0.5rem !important;
-        background-color: #fff !important;
-        min-height: 32px !important;
-    }
-    
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 30px !important;
-        font-size: 0.8rem !important;
-        color: #495057 !important;
-        padding-left: 0 !important;
-        padding-right: 20px !important;
-    }
-    
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 30px !important;
-        right: 5px !important;
-        top: 1px !important;
-    }
-    
-    .select2-container--default .select2-selection--single .select2-selection__arrow b {
-        margin-top: 0 !important;
-    }
-    
-    .select2-container--default.select2-container--focus .select2-selection--single {
-        border-color: #4e73df !important;
-        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25) !important;
-    }
-    
-    .select2-dropdown {
-        border: 1px solid #e3e6f0 !important;
-        border-radius: 6px !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-    }
-    
-    .select2-search--dropdown .select2-search__field {
-        border: 1px solid #e3e6f0 !important;
-        border-radius: 4px !important;
-        padding: 6px 12px !important;
-        font-size: 0.875rem !important;
-    }
-    
-    .select2-search--dropdown .select2-search__field:focus {
-        border-color: #4e73df !important;
-        outline: none !important;
-        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25) !important;
-    }
-    
-    .select2-results__option {
-        font-size: 0.875rem !important;
-        padding: 8px 12px !important;
-        border-bottom: 1px solid #f8f9fc !important;
-    }
-    
-    .select2-results__option--highlighted {
-        background-color: #4e73df !important;
-        color: white !important;
-    }
-    
-    .select2-results__option--selected {
-        background-color: #e9ecef !important;
-        color: #495057 !important;
-    }
-
-    .select2-container {
-        width: 100% !important;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 12px 16px; font-family: 'Poppins', sans-serif;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-file-invoice-dollar text-white me-2" style="font-size: 1.2rem;"></i>
-                            <div>
-                                <h5 class="mb-0 text-white" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                                    {% if documento %}
-                                        Editar Documento de Compra
-                                    {% else %}
-                                        Crear Documento de Compra
-                                    {% endif %}
-                                </h5>
-                                <small class="text-white-50" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">
-                                    {% if documento %}
-                                        {{ documento.numero_documento }}
-                                    {% else %}
-                                        Nuevo documento
-                                    {% endif %}
-                                </small>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-sm btn-info" id="cargar-oc-btn" disabled style="background: rgba(23, 162, 184, 0.9); border: none; color: white; font-family: 'Poppins', sans-serif;">
-                                <i class="fas fa-file-invoice me-1"></i> Cargar desde OC
-                            </button>
-                            <a href="{% url 'documentos:documento_compra_list' %}" class="btn btn-sm" style="background: rgba(255,255,255,0.2); border: none; color: white; font-family: 'Poppins', sans-serif;">
-                                <i class="fas fa-arrow-left me-1"></i> Volver
-                            </a>
+<div class="container-fluid py-3">
+    
+    <!-- CARD PRINCIPAL -->
+    <div class="single-card-container">
+        
+        <!-- HEADER PREMIUM -->
+        <div class="stone-header-premium">
+            <div class="header-content">
+                <div class="header-icon-box">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div class="header-text">
+                    <h1>
+                        {% if documento %}
+                            <span class="fw-light">Editar</span> <span class="fw-bold">Documento</span>
+                        {% else %}
+                            <span class="fw-light">Nuevo</span> <span class="fw-bold">Documento de Compra</span>
+                        {% endif %}
+                    </h1>
+                    <p>{% if documento %}Modificando documento #{{ documento.numero_documento }}{% else %}Registre los detalles de la compra.{% endif %}</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button type="button" class="header-btn btn-stone-light" onclick="abrirModalOrdenesCompra()">
+                    <i class="fas fa-cloud-download-alt me-2"></i> Traer OC
+                </button>
+                <a href="{% url 'documentos:documento_compra_list' %}" class="header-btn btn-stone-light">
+                    <i class="fas fa-arrow-left me-2"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <div class="form-container-body">
+            <form method="post" enctype="multipart/form-data" id="documentoForm">
+                {% csrf_token %}
+                
+                <!-- Datos Generales -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Tipo Documento <span class="text-danger">*</span></label>
+                        {{ form.tipo_documento }}
+                    </div>
+                     <div class="col-md-3">
+                        <label class="form-label">N° Documento <span class="text-danger">*</span></label>
+                        {{ form.numero_documento }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Proveedor <span class="text-danger">*</span></label>
+                        <div class="proveedor-container">
+                            {{ form.proveedor }}
+                             <a href="#" class="btn-add-prov" onclick="abrirModalCrearProveedor(event)" title="Nuevo Proveedor">
+                                <i class="fas fa-plus"></i>
+                             </a>
                         </div>
                     </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Emisión <span class="text-danger">*</span></label>
+                         <input type="date" name="{{ form.fecha_emision.name }}" class="form-control" 
+                               value="{% if form.fecha_emision.value %}{{ form.fecha_emision.value|date:'Y-m-d' }}{% else %}{{ 'now'|date:'Y-m-d' }}{% endif %}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Vencimiento</label>
+                        <input type="date" name="{{ form.fecha_vencimiento.name }}" class="form-control" 
+                               value="{% if form.fecha_vencimiento.value %}{{ form.fecha_vencimiento.value|date:'Y-m-d' }}{% endif %}">
+                    </div>
+                     <div class="col-md-3">
+                        <label class="form-label">Bodega Destino <span class="text-danger">*</span></label>
+                        {{ form.bodega }}
+                    </div>
+                     <div class="col-md-3">
+                        <label class="form-label">Estado Pago</label>
+                        {{ form.estado_pago }}
+                    </div>
+                     <div class="col-md-12">
+                        <label class="form-label">Observaciones</label>
+                        {{ form.observaciones }}
+                    </div>
+                </div>
+            
+             <!-- Campos Ocultos -->
+            {{ form.estado_documento.as_hidden }}
+            <input type="hidden" id="orden_compra_id" name="orden_compra_id" value="">
+
+            <!-- Sección Items -->
+            <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+                <h5 class="m-0 text-muted text-uppercase fs-6 fw-bold" style="color: var(--stone-primary) !important;">
+                    <i class="fas fa-boxes me-2"></i> Items Documento
+                </h5>
+                <button type="button" class="btn-stone-primary btn-sm" id="addItemBtn">
+                    <i class="fas fa-plus me-1"></i> Agregar Item
+                </button>
+            </div>
+
+            {{ formset.management_form }}
+            
+            <div class="items-list-compact">
+                <!-- Header Tabla -->
+                <div class="items-list-header row g-0">
+                    <div class="col-4 ps-2">Artículo</div>
+                    <div class="col-2 text-center">Cant</div>
+                    <div class="col-2 text-end pe-2">Precio U.</div>
+                    <div class="col-2 text-center">Desc %</div>
+                    <div class="col-2 text-end pe-3">Total</div>
                 </div>
                 
-                <!-- Contenido del formulario -->
-                <div class="card-body" style="padding: 12px;">
-
-    <!-- Mensajes -->
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
-
-    <form method="post" enctype="multipart/form-data" id="documentoForm">
-        {% csrf_token %}
-        
-        <!-- UNA SOLA TARJETA BLANCA CON TODO EL CONTENIDO -->
-        <div class="form-container">
-                <h5 style="font-weight: 700; color: #495057; font-size: 0.9rem; margin-bottom: 0.5rem;">
-                    <i class="fas fa-file-alt me-1"></i>Información del Documento
-                </h5>
-                <div class="row g-2">
-                    <div class="col-md-2">
-                        <label for="{{ form.tipo_documento.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">Tipo *</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-file-alt"></i></span>
-                            {{ form.tipo_documento }}
-                        </div>
-                        {% if form.tipo_documento.errors %}
-                            <div class="text-danger small">{{ form.tipo_documento.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-2">
-                        <label for="{{ form.numero_documento.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">Número *</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-hashtag"></i></span>
-                            {{ form.numero_documento }}
-                        </div>
-                        {% if form.numero_documento.errors %}
-                            <div class="text-danger small">{{ form.numero_documento.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label for="{{ form.proveedor.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">
-                            Proveedor *
-                            <button type="button" class="btn btn-sm btn-success" id="btnCrearProveedor" 
-                                    style="padding: 0.15rem 0.4rem; font-size: 0.65rem; margin-left: 0.5rem;" 
-                                    title="Crear nuevo proveedor">
-                                <i class="fas fa-plus"></i> Nuevo
-                            </button>
-                        </label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-truck"></i></span>
-                            {{ form.proveedor }}
-                        </div>
-                        {% if form.proveedor.errors %}
-                            <div class="text-danger small">{{ form.proveedor.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <input type="hidden" id="orden_compra_id" name="orden_compra_id" value="">
-                    <input type="hidden" id="orden-compra-selector" value="">
-                     <div class="col-md-2">
-                         <label for="{{ form.fecha_emision.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">F. Emisión *</label>
-                         <div class="input-group input-group-sm">
-                             <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-calendar-alt"></i></span>
-                             <input type="date" name="{{ form.fecha_emision.name }}" id="{{ form.fecha_emision.id_for_label }}" class="form-control form-control-sm" 
-                                    value="{% if documento.fecha_emision %}{{ documento.fecha_emision|date:'Y-m-d' }}{% elif form.fecha_emision.value %}{{ form.fecha_emision.value|date:'Y-m-d' }}{% elif form.initial.fecha_emision %}{{ form.initial.fecha_emision|date:'Y-m-d' }}{% endif %}" 
-                                    required>
-                         </div>
-                         {% if form.fecha_emision.errors %}
-                             <div class="text-danger small">{{ form.fecha_emision.errors.0 }}</div>
-                         {% endif %}
-                     </div>
-                     <div class="col-md-2">
-                         <label for="{{ form.fecha_vencimiento.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">F. Vencimiento</label>
-                         <div class="input-group input-group-sm">
-                             <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-calendar-times"></i></span>
-                             <input type="date" name="{{ form.fecha_vencimiento.name }}" id="{{ form.fecha_vencimiento.id_for_label }}" class="form-control form-control-sm" 
-                                    value="{% if documento.fecha_vencimiento %}{{ documento.fecha_vencimiento|date:'Y-m-d' }}{% elif form.fecha_vencimiento.value %}{{ form.fecha_vencimiento.value|date:'Y-m-d' }}{% elif form.initial.fecha_vencimiento %}{{ form.initial.fecha_vencimiento|date:'Y-m-d' }}{% endif %}">
-                         </div>
-                         {% if form.fecha_vencimiento.errors %}
-                             <div class="text-danger small">{{ form.fecha_vencimiento.errors.0 }}</div>
-                         {% endif %}
-                     </div>
-                </div>
-                <div class="row g-2 mt-1">
-                    <div class="col-md-4">
-                        <label for="{{ form.bodega.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">Bodega *</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-warehouse"></i></span>
-                            {{ form.bodega }}
-                        </div>
-                        {% if form.bodega.errors %}
-                            <div class="text-danger small">{{ form.bodega.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label for="{{ form.estado_pago.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057; font-size: 0.8rem;">Estado Pago</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-credit-card"></i></span>
-                            {{ form.estado_pago }}
-                        </div>
-                        {% if form.estado_pago.errors %}
-                            <div class="text-danger small">{{ form.estado_pago.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    <!-- Estado del documento oculto temporalmente -->
-                    {{ form.estado_documento.as_hidden }}
-                </div>
-
-                <!-- Divisor sutil -->
-                <hr style="border: none; border-top: 1px solid #dee2e6; margin: 1rem 0; opacity: 0.5;">
-
-                <!-- Items del Documento -->
-                <h5 style="font-weight: 700; color: #495057; font-size: 0.9rem; margin-bottom: 0.5rem;">
-                    <i class="fas fa-list me-1"></i>Items del Documento
-                    <button type="button" class="btn btn-success btn-sm float-end" id="addItemBtn" style="padding: 0.3rem 0.8rem; font-size: 0.75rem; font-weight: 600; border-radius: 4px;">
-                        <i class="fas fa-plus me-1"></i>Agregar
-                    </button>
-                </h5>
-                <div class="items-container">
-                    {{ formset.management_form }}
-                     <!-- Headers de columnas -->
-                     <div class="row mb-1 align-items-center" style="font-weight: 600; color: #6F5B44; font-size: 0.7rem; background: #F5F1E8; padding: 0.2rem 0.5rem; border-radius: 4px; border-bottom: 1px solid #E0D5C7;">
-                         <div class="col-md-5">Artículo</div>
-                         <div class="col-md-1">Cant.</div>
-                         <div class="col-md-2">Precio Unit.</div>
-                         <div class="col-md-1">Desc. %</div>
-                         <div class="col-md-2">Total</div>
-                         <div class="col-md-1 text-center">Acciones</div>
-                     </div>
-                    
-                    <!-- Items compactos -->
+                <!-- Body Tabla -->
+                <div id="items-wrapper">
                     {% for item_form in formset %}
-                        <div class="item-form-compact" data-form-index="{{ forloop.counter0 }}" style="margin-bottom: 0; padding: 0.05rem 0.5rem; border-bottom: 1px solid #e9ecef; {% cycle 'background: #ffffff;' 'background: #f8f9fc;' %}">
-                            <div class="row align-items-center">
-                                <div class="col-md-5">
-                                    <select name="{{ item_form.articulo.html_name }}" class="form-select form-select-sm articulo-select" data-index="{{ forloop.counter0 }}" style="font-size: 0.8rem; padding: 0.25rem 0.5rem; height: 32px;">
-                                        <option value="">Seleccionar artículo</option>
-                                        {% for articulo in articulos_empresa %}
-                                            <option value="{{ articulo.id }}" 
-                                                    data-codigo="{{ articulo.codigo }}" 
-                                                    data-nombre="{{ articulo.nombre }}"
-                                                    data-precio-costo="{% if articulo.precio_costo %}{{ articulo.precio_costo|floatformat:0 }}{% else %}0{% endif %}"
-                                                    {% if item_form.articulo.value == articulo.id %}selected{% endif %}>
-                                                {{ articulo.codigo }} - {{ articulo.nombre|truncatechars:50 }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                    {% if item_form.articulo.errors %}
-                                        <div class="text-danger small" style="font-size: 0.7rem;">{{ item_form.articulo.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-1">
-                                    {{ item_form.cantidad }}
-                                    {% if item_form.cantidad.errors %}
-                                        <div class="text-danger small" style="font-size: 0.65rem;">{{ item_form.cantidad.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="position-relative">
-                                        {{ item_form.precio_unitario }}
-                                        <span class="badge badge-costo-actual" style="display: none; position: absolute; top: -18px; right: 0; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; z-index: 10; white-space: nowrap;">
-                                            Costo: $<span class="costo-valor">0</span>
-                                        </span>
-                                    </div>
-                                    {% if item_form.precio_unitario.errors %}
-                                        <div class="text-danger small" style="font-size: 0.65rem;">{{ item_form.precio_unitario.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-1">
-                                    {{ item_form.descuento_porcentaje }}
-                                    {% if item_form.descuento_porcentaje.errors %}
-                                        <div class="text-danger small" style="font-size: 0.65rem;">{{ item_form.descuento_porcentaje.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-2">
-                                    <input type="text" class="form-control form-control-sm item-total" readonly placeholder="0" style="font-weight: 600; background-color: #f8f9fc; font-size: 0.75rem; padding: 0.25rem 0.5rem; height: 32px;">
-                                </div>
-                                <div class="col-md-1">
-                                    <div class="d-flex gap-1 justify-content-center">
-                                        {% for hidden in item_form.hidden_fields %}
-                                            {{ hidden }}
-                                        {% endfor %}
-                                        <button type="button" class="btn btn-sm btn-outline-danger delete-item-btn" 
-                                                data-form-index="{{ forloop.counter0 }}" 
-                                                title="Eliminar item"
-                                                style="padding: 0.25rem 0.5rem; font-size: 0.75rem; height: 32px;"
-                                                onclick="eliminarItem(this)">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
+                        <div class="item-line item-row row g-0 align-items-center" data-form-index="{{ forloop.counter0 }}">
+                            <div class="col-4 ps-2 pe-2">
+                                <select name="{{ item_form.articulo.html_name }}" class="form-select articulo-select form-control-sm">
+                                    <option value="">...</option>
+                                    {% for articulo in articulos_empresa %}
+                                        <option value="{{ articulo.id }}" 
+                                                data-precio-costo="{% if articulo.precio_costo %}{{ articulo.precio_costo|floatformat:0 }}{% else %}0{% endif %}"
+                                                {% if item_form.articulo.value == articulo.id %}selected{% endif %}>
+                                            {{ articulo.codigo }} - {{ articulo.nombre|truncatechars:35 }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                {% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}
+                            </div>
+                            <div class="col-2 px-1">
+                                <input type="number" name="{{ item_form.cantidad.html_name }}" value="{{ item_form.cantidad.value|default:1 }}" class="form-control form-control-sm text-center">
+                            </div>
+                            <div class="col-2 px-1">
+                                <input type="number" name="{{ item_form.precio_unitario.html_name }}" value="{{ item_form.precio_unitario.value|default:0 }}" class="form-control form-control-sm text-end">
+                            </div>
+                             <div class="col-2 px-1">
+                                <input type="number" name="{{ item_form.descuento_porcentaje.html_name }}" value="{{ item_form.descuento_porcentaje.value|default:0 }}" class="form-control form-control-sm text-center">
+                            </div>
+                            <div class="col-2 ps-1 pe-2 d-flex align-items-center">
+                                <input type="text" class="form-control form-control-sm text-end item-total bg-transparent border-0 fw-bold" readonly placeholder="0">
+                                <button type="button" class="btn-stone-danger ms-2" onclick="eliminarItem(this)">
+                                    <i class="fas fa-times"></i>
+                                </button>
                             </div>
                         </div>
                     {% endfor %}
                 </div>
+            </div>
 
-                <!-- Divisor sutil -->
-                <hr style="border: none; border-top: 1px solid #dee2e6; margin: 1rem 0; opacity: 0.5;">
-        
-        <!-- Resumen de Valores y Botones -->
-        <div class="row g-2">
-            <div class="col-lg-8">
-                <!-- Observaciones -->
-                <div class="mb-3">
-                    <label class="form-label" style="font-weight: 600; color: #495057; font-size: 0.85rem;">
-                        <i class="fas fa-comment-alt me-2"></i>Observaciones
-                    </label>
-                    {{ form.observaciones }}
-                    {% if form.observaciones.errors %}
-                        <div class="text-danger small">{{ form.observaciones.errors.0 }}</div>
-                    {% endif %}
-                </div>
-                <!-- Botones -->
-                <div class="d-flex justify-content-end gap-2 mt-2">
-                    <a href="{% url 'documentos:documento_compra_list' %}" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-times me-1"></i>
-                        Cancelar
-                    </a>
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class="fas fa-save me-1"></i>
-                        {% if documento %}
-                            Actualizar
-                        {% else %}
-                            Crear
-                        {% endif %}
+            <!-- Totales -->
+            <div class="row justify-content-end">
+                <div class="col-md-4">
+                    <div class="totals-panel">
+                        <div class="total-row"><span>Subtotal Neto:</span> <input type="text" id="subtotal-total-input" readonly value="0"></div>
+                        <div class="total-row"><span>Descuentos:</span> <input type="text" id="descuentos-total-input" class="text-danger" readonly value="0"></div>
+                        <div class="total-row"><span>IVA (19%):</span> <input type="text" id="iva-total-input" readonly value="0"></div>
+                        <div class="total-row align-items-center"><span>Impuesto Único:</span> <input type="number" name="{{ form.impuesto_unico.html_name }}" id="impuesto-unico-input" class="form-control form-control-sm d-inline-block w-50 text-end" value="{{ form.impuesto_unico.value|default:0 }}"></div>
+                        <div class="total-row final"><span>TOTAL:</span> <input type="text" id="total-documento-input" readonly value="0"></div>
+                    </div>
+                    
+                    <button type="submit" class="btn-stone-primary w-100 mt-3 py-2 fs-6">
+                        <i class="fas fa-save me-2"></i> Guardar Documento
                     </button>
                 </div>
             </div>
-            <div class="col-lg-4">
-                <div style="background: #f8f9fa !important; border: 1px solid #dee2e6 !important; border-radius: 8px !important; padding: 10px !important; box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;">
-                    <div style="background: #6c757d !important; color: white !important; padding: 6px !important; margin: -10px -10px 8px -10px !important; border-radius: 6px 6px 0 0 !important; font-weight: bold !important; text-align: center !important; font-size: 0.8rem;">
-                        <i class="fas fa-calculator"></i> RESUMEN (Editable)
-                    </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #dee2e6; font-size: 0.75rem;">
-                        <span style="font-weight: 600;">Neto:</span>
-                        <input type="number" id="subtotal-total-input" class="form-control form-control-sm text-end" 
-                               style="width: 120px; font-weight: 700; font-size: 0.75rem; padding: 0.15rem 0.3rem; height: 26px;" 
-                               value="0" step="1" min="0">
-                    </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #dee2e6; font-size: 0.75rem;">
-                        <span style="font-weight: 600;">Descuentos:</span>
-                        <input type="number" id="descuentos-total-input" class="form-control form-control-sm text-end" 
-                               style="width: 120px; font-weight: 700; font-size: 0.75rem; padding: 0.15rem 0.3rem; height: 26px;" 
-                               value="0" step="1" min="0">
-                    </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #dee2e6; font-size: 0.75rem;">
-                        <span style="font-weight: 600;">IVA (19%):</span>
-                        <input type="number" id="iva-total-input" class="form-control form-control-sm text-end" 
-                               style="width: 120px; font-weight: 700; font-size: 0.75rem; padding: 0.15rem 0.3rem; height: 26px;" 
-                               value="0" step="1" min="0">
-                    </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #dee2e6; font-size: 0.75rem;">
-                        <span style="font-weight: 600;">Imp. Único:</span>
-                        <input type="number" id="impuesto-unico-input" class="form-control form-control-sm text-end" 
-                               style="width: 120px; font-weight: 700; font-size: 0.75rem; padding: 0.15rem 0.3rem; height: 26px;" 
-                               value="0" step="1" min="0" placeholder="Manual">
-                    </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; background: #e9ecef; margin: 6px -10px -10px -10px; border-radius: 0 0 6px 6px; font-size: 0.8rem;">
-                        <span style="font-weight: 800; color: #495057;">TOTAL:</span>
-                        <input type="number" id="total-documento-input" class="form-control form-control-sm text-end" 
-                               style="width: 120px; font-weight: 800; color: #495057; font-size: 0.8rem; padding: 0.2rem 0.3rem; height: 28px; background: white;" 
-                               value="0" step="1" min="0">
-                    </div>
+        </form>
+        </div> <!-- Fin form-container-body -->
+    </div> <!-- Fin single-card-container -->
+</div>
+
+<!-- Template Oculto de Item -->
+<div id="empty-form-template" style="display:none;">
+    <div class="item-line item-row row g-0 align-items-center" data-form-index="__prefix__">
+        <div class="col-4 ps-2 pe-2">
+            <select name="items-__prefix__-articulo" class="form-select articulo-select form-control-sm">
+                <option value="">...</option>
+                {% for articulo in articulos_empresa %}
+                    <option value="{{ articulo.id }}" data-precio-costo="{% if articulo.precio_costo %}{{ articulo.precio_costo|floatformat:0 }}{% else %}0{% endif %}">
+                        {{ articulo.codigo }} - {{ articulo.nombre|truncatechars:35 }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-2 px-1"><input type="number" name="items-__prefix__-cantidad" class="form-control form-control-sm text-center" value="1"></div>
+        <div class="col-2 px-1"><input type="number" name="items-__prefix__-precio_unitario" class="form-control form-control-sm text-end" value="0"></div>
+        <div class="col-2 px-1"><input type="number" name="items-__prefix__-descuento_porcentaje" class="form-control form-control-sm text-center" value="0"></div>
+        <div class="col-2 ps-1 pe-2 d-flex align-items-center">
+            <input type="text" class="form-control form-control-sm text-end item-total bg-transparent border-0 fw-bold" readonly placeholder="0">
+            <button type="button" class="btn-stone-danger ms-2" onclick="eliminarItem(this)">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal OCs -->
+<div class="modal fade" id="modalOrdenesCompra" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header stone-header-card" style="border-bottom: 2px solid var(--stone-light);">
+                <h5 class="modal-title stone-title">Órdenes de Compra Disponibles</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="tablaOrdenesCompra">
+                        <thead>
+                            <tr>
+                                <th>N° Orden</th>
+                                <th>Fecha</th>
+                                <th>Estado</th>
+                                <th>Total</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- JS fill -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
-        <!-- FIN DE LA TARJETA ÚNICA -->
-    </form>
     </div>
-</div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<!-- Función global para eliminar items -->
 <script>
-function eliminarItem(button) {
-    console.log('*** ELIMINANDO ITEM - FUNCIÓN GLOBAL ***');
-    console.log('Botón:', button);
-    
-    const itemForm = button.closest('.item-form-compact');
-    console.log('Form encontrado:', itemForm);
-    
-    if (!itemForm) {
-        console.error('No se encontró el formulario del item');
-        return;
-    }
-    
-    // Verificar si es un item existente (tiene checkbox DELETE)
-    const deleteCheckbox = itemForm.querySelector('input[name$="-DELETE"]');
-    if (deleteCheckbox) {
-        deleteCheckbox.checked = true;
-        console.log('Checkbox DELETE marcado para item existente');
-    } else {
-        // Si no tiene checkbox DELETE, es un item nuevo - crear uno
-        const formIndex = button.getAttribute('data-form-index');
-        const deleteInput = document.createElement('input');
-        deleteInput.type = 'hidden';
-        deleteInput.name = `items-${formIndex}-DELETE`;
-        deleteInput.value = 'on';
-        itemForm.appendChild(deleteInput);
-        console.log('Checkbox DELETE creado para item nuevo');
-    }
-    
-    // Ocultar el formulario
-    itemForm.style.display = 'none';
-    console.log('Item ocultado');
-    
-    // Recalcular totales usando la función global
-    setTimeout(function() {
-        if (typeof calculateTotals === 'function') {
-            calculateTotals();
-        } else {
-            console.log('Función calculateTotals no disponible');
-        }
-    }, 100);
-}
-</script>
-
-{% if documento %}
-<script>
-    // Inicializar totales
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Inicializando totales...');
-        
-        // Si estamos editando, calcular desde los items existentes
-        console.log('Editando documento, calculando desde items existentes...');
-        calculateFromExistingItems();
-        
-        function calculateFromExistingItems() {
-            let subtotal = 0;
-            
-            // Calcular subtotal desde items existentes
-            document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
-                const cantidadInput = form.querySelector('input[name*="cantidad"]');
-                const precioInput = form.querySelector('input[name*="precio_unitario"]');
-                
-                if (cantidadInput && precioInput && cantidadInput.value && precioInput.value) {
-                    const cantidad = parseFloat(cantidadInput.value) || 0;
-                    const precioUnitario = parseFloat(precioInput.value) || 0;
-                    subtotal += cantidad * precioUnitario;
-                }
-            });
-            
-            const iva = Math.round(subtotal * 0.19);
-            const total = subtotal + iva;
-            const descuentos = 0;
-            const impuestoEsp = 0;
-            
-            console.log('Totales calculados desde items:', {subtotal: subtotal, descuentos: descuentos, iva: iva, impuestoEsp: impuestoEsp, total: total});
-            updateTotalsDisplay(subtotal, descuentos, iva, impuestoEsp, total);
-        }
-        
-        
-        function updateTotalsDisplay(subtotal, descuentos, iva, impuestoEsp, total) {
-            const subtotalElement = document.getElementById('subtotal-total');
-            const descuentosElement = document.getElementById('descuentos-total');
-            const ivaElement = document.getElementById('iva-total');
-            const impuestoEspElement = document.getElementById('impuesto-esp-total');
-            const totalElement = document.getElementById('total-documento');
-            
-            if (subtotalElement) subtotalElement.textContent = '$' + subtotal.toLocaleString();
-            if (descuentosElement) descuentosElement.textContent = '$' + descuentos.toLocaleString();
-            if (ivaElement) ivaElement.textContent = '$' + iva.toLocaleString();
-            if (impuestoEspElement) impuestoEspElement.textContent = '$' + impuestoEsp.toLocaleString();
-            if (totalElement) totalElement.textContent = '$' + total.toLocaleString();
-        }
-        
-        // Función para calcular totales de líneas individuales
-        function calculateLineTotals() {
-            console.log('Calculando totales de líneas...');
-            
-            document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
-                const cantidadInput = form.querySelector('input[name*="cantidad"]');
-                const precioInput = form.querySelector('input[name*="precio_unitario"]');
-                const totalField = form.querySelector('.item-total');
-                
-                if (cantidadInput && precioInput && totalField) {
-                    const cantidad = parseInt(cantidadInput.value) || 0;
-                    const precioUnitario = parseInt(precioInput.value) || 0;
-                    const totalItem = cantidad * precioUnitario;
-                    
-                    if (totalItem > 0) {
-                        totalField.value = '$' + totalItem.toLocaleString();
-                        console.log('Línea calculada:', {cantidad: cantidad, precioUnitario: precioUnitario, totalItem: totalItem});
-                    }
+    $(document).ready(function() {
+        // Init Select2 Global (Excluyendo el template oculto para evitar "suciar" el HTML base)
+        function initSelect2Global() {
+            // Seleccionar todos los .form-select que NO estén dentro de #empty-form-template
+            $('.form-select').not('#empty-form-template .form-select').each(function() {
+                // Evitar reinicializar
+                if (!$(this).hasClass("select2-hidden-accessible")) {
+                    $(this).select2({ 
+                        theme: 'default', 
+                        width: '100%', 
+                        placeholder: 'Seleccione...' 
+                    });
                 }
             });
         }
         
-        // Configurar eventos para recalcular cuando cambien los valores
-        setTimeout(function() {
-            document.querySelectorAll('input[name*="cantidad"], input[name*="precio_unitario"]').forEach(function(input) {
-                input.addEventListener('input', function() {
-                    setTimeout(calculateFromExistingItems, 100);
-                });
+        // Ejecutar inicialización global (afecta header y items existentes)
+        initSelect2Global();
+
+        // Calcular Totales
+        function calcularTotales() {
+            let totalNeto = 0;
+            let totalDescuentos = 0;
+            
+            // Usar clase .item-line que es la real, no .item-row que a veces falla si no está sync
+            $('.item-line:visible').each(function() {
+                // Ignorar el template si por error fuera visible
+                if($(this).closest('#empty-form-template').length > 0) return;
+                
+                const formIdx = $(this).attr('data-form-index');
+                if(formIdx === '__prefix__') return;
+                
+                const cantidad = parseFloat($(this).find('input[name$="-cantidad"]').val()) || 0;
+                const precio = parseFloat($(this).find('input[name$="-precio_unitario"]').val()) || 0;
+                const descuentoPorc = parseFloat($(this).find('input[name$="-descuento_porcentaje"]').val()) || 0;
+                
+                const bruto = cantidad * precio;
+                const desc = bruto * (descuentoPorc / 100);
+                const neto = bruto - desc;
+                
+                $(this).find('.item-total').val(Math.round(neto).toLocaleString('es-CL'));
+                
+                totalNeto += neto;
+                totalDescuentos += desc;
             });
             
-            // Calcular totales de líneas individuales
-            calculateLineTotals();
-        }, 100);
-    });
-</script>
-{% endif %}
+            const iva = Math.round(totalNeto * 0.19);
+            const impUnico = parseFloat($('#impuesto-unico-input').val()) || 0;
+            const total = totalNeto + iva + impUnico;
+            
+            $('#subtotal-total-input').val(Math.round(totalNeto).toLocaleString('es-CL'));
+            $('#descuentos-total-input').val(Math.round(totalDescuentos).toLocaleString('es-CL'));
+            $('#iva-total-input').val(iva.toLocaleString('es-CL'));
+            $('#total-documento-input').val(Math.round(total).toLocaleString('es-CL'));
+        }
 
-<!-- Manejo de mensajes con SweetAlert -->
-{% if messages %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    {% for message in messages %}
-        {% if message.tags == 'success' %}
-            Swal.fire({
-                icon: 'success',
-                title: '¡Éxito!',
-                text: '{{ message }}',
-                timer: 3000,
-                showConfirmButton: false
-            });
-        {% elif message.tags == 'error' %}
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: '{{ message }}',
-                confirmButtonText: 'Entendido'
-            });
-        {% elif message.tags == 'warning' %}
-            Swal.fire({
-                icon: 'warning',
-                title: 'Advertencia',
-                text: '{{ message }}',
-                confirmButtonText: 'Entendido'
-            });
-        {% else %}
-            Swal.fire({
-                icon: 'info',
-                title: 'Información',
-                text: '{{ message }}',
-                timer: 3000,
-                showConfirmButton: false
-            });
-        {% endif %}
-    {% endfor %}
-});
-</script>
-{% endif %}
+        $(document).on('input change', 'input', calcularTotales);
 
-<script>
-// Variables globales
-let formCount = {{ formset.total_form_count }};
-const maxForms = 1000;
-
-// Función para agregar nuevo item - REESCRITA DESDE CERO
-window.addItemForm = function() {
-    if (formCount >= maxForms) {
-        console.warn('Se alcanzó el máximo de formularios permitidos');
-        return;
-    }
-    
-    // Obtener el primer formulario como template
-    const templateForm = document.querySelector('.item-form-compact');
-    if (!templateForm) {
-        console.error('No se encontró template para clonar');
-        return;
-    }
-    
-    // Obtener el select original ANTES de clonar (para copiar opciones después)
-    const originalSelect = templateForm.querySelector('.articulo-select');
-    if (!originalSelect) {
-        console.error('No se encontró select de artículo en el template');
-        return;
-    }
-    
-    // IMPORTANTE: Destruir Select2 del template ANTES de clonar para evitar duplicados
-    if ($(originalSelect).data('select2')) {
-        $(originalSelect).select2('destroy');
-    }
-    
-    // Clonar el formulario SIN eventos ni datos de Select2
-    const emptyForm = templateForm.cloneNode(true);
-    const formIndex = formCount;
-    
-    // Restaurar Select2 en el template original
-    $(originalSelect).select2({
-        placeholder: 'Buscar artículo por código o nombre...',
-        allowClear: true,
-        width: '100%'
-    });
-    
-    // Obtener el select clonado
-    const clonedSelect = emptyForm.querySelector('.articulo-select');
-    
-    // Limpiar completamente el select clonado y reconstruirlo desde cero
-    clonedSelect.innerHTML = originalSelect.innerHTML;
-    clonedSelect.selectedIndex = 0;
-    clonedSelect.removeAttribute('data-select2-id');
-    
-    // Eliminar cualquier elemento de Select2 que se haya clonado
-    emptyForm.querySelectorAll('.select2-container').forEach(function(el) {
-        el.remove();
-    });
-    
-    // Actualizar nombres e IDs de TODOS los campos
-    emptyForm.querySelectorAll('input, select, textarea, button').forEach(function(element) {
-        // Actualizar name
-        if (element.name) {
-            const nameMatch = element.name.match(/^(.+-)(\d+)(-.+)$/);
-            if (nameMatch) {
-                element.name = nameMatch[1] + formIndex + nameMatch[3];
-            } else if (element.name.includes('-')) {
-                element.name = element.name.replace(/-\d+-/, '-' + formIndex + '-');
-            }
-        }
-        
-        // Actualizar id
-        if (element.id) {
-            const idMatch = element.id.match(/^(.+-)(\d+)(-.+)$/);
-            if (idMatch) {
-                element.id = idMatch[1] + formIndex + idMatch[3];
-            } else if (element.id.includes('-')) {
-                element.id = element.id.replace(/-\d+-/, '-' + formIndex + '-');
-            }
-        }
-        
-        // Limpiar atributos de Select2
-        if (element.classList.contains('articulo-select')) {
-            element.removeAttribute('data-select2-id');
-            element.setAttribute('data-index', formIndex);
-        }
-    });
-    
-    // Limpiar valores de campos
-    emptyForm.querySelectorAll('input:not([type="hidden"]), textarea').forEach(function(element) {
-        if (element.classList.contains('item-total')) {
-            element.value = '$0';
-        } else if (!element.classList.contains('articulo-select')) {
-            element.value = '';
-        }
-    });
-    
-    // Limpiar campos hidden
-    const deleteInput = emptyForm.querySelector('input[name*="DELETE"]');
-    if (deleteInput) {
-        deleteInput.value = '';
-        deleteInput.checked = false;
-    }
-    
-    // Ocultar badge de costo
-    const badgeCosto = emptyForm.querySelector('.badge-costo-actual');
-    if (badgeCosto) {
-        badgeCosto.style.display = 'none';
-    }
-    
-    // Actualizar botón eliminar
-    const deleteBtn = emptyForm.querySelector('.delete-item-btn');
-    if (deleteBtn) {
-        deleteBtn.setAttribute('data-form-index', formIndex);
-    }
-    
-    // Insertar en el contenedor
-    const container = document.querySelector('.items-container');
-    container.appendChild(emptyForm);
-    
-    // Inicializar Select2 en el nuevo select DESPUÉS de insertarlo
-    setTimeout(function() {
-        const newSelect = emptyForm.querySelector('.articulo-select');
-        if (newSelect && !$(newSelect).data('select2')) {
-            $(newSelect).select2({
-                placeholder: 'Buscar artículo por código o nombre...',
-                allowClear: true,
-                language: {
-                    noResults: function() {
-                        return "No se encontraron resultados";
-                    },
-                    searching: function() {
-                        return "Buscando...";
-                    }
-                },
-                width: '100%'
+        // Agregar Item
+        $('#addItemBtn').click(function() {
+            const formIdx = parseInt($('#id_items-TOTAL_FORMS').val());
+            
+            // Obtener HTML limpio del template
+            let tmplHtml = $('#empty-form-template').html();
+            // Reemplazar prefijo
+            tmplHtml = tmplHtml.replace(/__prefix__/g, formIdx);
+            
+            // Crear elemento jQuery
+            let $tmpl = $(tmplHtml);
+            
+            // LIMPIEMZA CRÍTICA: Eliminar cualquier contenedor select2 que se haya colado en el template
+            $tmpl.find('.select2-container').remove();
+            $tmpl.find('.select2-hidden-accessible').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').removeAttr('aria-hidden').removeAttr('tabindex');
+            $tmpl.find('select').show(); // Asegurar que el select base sea visible antes de aplicar select2
+            
+            // Agregar al DOM
+            $('#items-wrapper').append($tmpl);
+            
+            // Actualizar contador
+            $('#id_items-TOTAL_FORMS').val(formIdx + 1);
+            
+            // Inicializar Select2 SOLAMENTE en el nuevo select
+            $tmpl.find('.articulo-select').select2({
+                theme: 'default',
+                width: '100%',
+                placeholder: '...'
             });
-        }
-    }, 100);
-    
-    // Actualizar contador
-    formCount++;
-    const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
-    if (totalFormsInput) {
-        totalFormsInput.value = formCount;
-    }
-    
-    // Recalcular totales
-    if (typeof calculateTotals === 'function') {
-        calculateTotals();
-    }
-};
-    
-     // Función para calcular totales
-     window.calculateTotals = function() {
-         console.log('Calculando totales...');
-         let subtotal = 0;
-         
-         document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
-             // Buscar campos por name attribute
-             const cantidadInput = form.querySelector('input[name*="cantidad"]');
-             const precioInput = form.querySelector('input[name*="precio_unitario"]');
-             
-             const cantidad = parseInt(cantidadInput?.value) || 0;
-             const precioUnitario = parseInt(precioInput?.value) || 0;
-             
-             console.log('Item:', {cantidad: cantidad, precioUnitario: precioUnitario});
-             
-             const subtotalItem = cantidad * precioUnitario;
-             
-             // Actualizar total del item
-             const totalField = form.querySelector('.item-total');
-             if (totalField && subtotalItem > 0) {
-                 totalField.value = '$' + subtotalItem.toLocaleString();
-             }
-             
-             subtotal += subtotalItem;
-         });
-         
-         // Calcular IVA del documento (19% sobre el neto)
-         const ivaDocumento = Math.round(subtotal * 0.19);
-         
-         console.log('Totales calculados:', {
-             subtotal: subtotal, 
-             ivaDocumento: ivaDocumento
-         });
-         
-         // Actualizar campos editables en la interfaz
-         const subtotalInput = document.getElementById('subtotal-total-input');
-         const descuentosInput = document.getElementById('descuentos-total-input');
-         const ivaInput = document.getElementById('iva-total-input');
-         const impuestoUnicoInput = document.getElementById('impuesto-unico-input');
-         const totalInput = document.getElementById('total-documento-input');
-         
-         if (subtotalInput) subtotalInput.value = subtotal;
-         if (descuentosInput && !descuentosInput.value) descuentosInput.value = 0;
-         if (ivaInput) ivaInput.value = ivaDocumento;
-         if (impuestoUnicoInput && !impuestoUnicoInput.value) impuestoUnicoInput.value = 0;
-         
-         // Calcular total final
-         recalcularTotalFinal();
-     };
-     
-     // Función para recalcular total final cuando se editan los campos manualmente
-     window.recalcularTotalFinal = function() {
-         const subtotal = parseInt(document.getElementById('subtotal-total-input')?.value) || 0;
-         const descuentos = parseInt(document.getElementById('descuentos-total-input')?.value) || 0;
-         const iva = parseInt(document.getElementById('iva-total-input')?.value) || 0;
-         const impuestoUnico = parseInt(document.getElementById('impuesto-unico-input')?.value) || 0;
-         
-         const total = subtotal - descuentos + iva + impuestoUnico;
-         
-         const totalInput = document.getElementById('total-documento-input');
-         if (totalInput) {
-             totalInput.value = total;
-         }
-         
-         console.log('Total final recalculado:', total);
-     };
+        });
 
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM cargado, inicializando...');
-    
-     // Función para actualizar campos cuando se selecciona un artículo
-     function updateArticleFields(selectElement) {
-         const selectedOption = selectElement.options[selectElement.selectedIndex];
-         const form = selectElement.closest('.item-form-compact');
-         
-         if (selectedOption.value) {
-             // Obtener el costo actual del artículo desde el atributo data
-             // El precio_costo viene como string, puede tener formato con puntos/comas
-             let precioCostoStr = selectedOption.getAttribute('data-precio-costo') || '0';
-             // Limpiar el string: remover puntos de miles y reemplazar coma por punto
-             precioCostoStr = precioCostoStr.replace(/\./g, '').replace(',', '.');
-             const precioCosto = parseFloat(precioCostoStr) || 0;
-             
-             // Mostrar badge con costo actual
-             const badgeCosto = form.querySelector('.badge-costo-actual');
-             const costoValor = form.querySelector('.costo-valor');
-             if (badgeCosto && costoValor) {
-                 if (precioCosto > 0) {
-                     // Formatear el número sin decimales para mostrar
-                     costoValor.textContent = Math.round(precioCosto).toLocaleString('es-CL');
-                     badgeCosto.style.display = 'inline-block';
-                 } else {
-                     badgeCosto.style.display = 'none';
-                 }
-             }
-             
-             // Auto-calcular total de línea basado en cantidad * precio + descuentos + impuestos
-             const cantidadInput = form.querySelector('input[name*="cantidad"]');
-             const precioInput = form.querySelector('input[name*="precio_unitario"]');
-             const descuentoInput = form.querySelector('input[name*="descuento_porcentaje"]');
-             const impuestoInput = form.querySelector('input[name*="impuesto_porcentaje"]');
-             
-             const cantidad = parseInt(cantidadInput?.value) || 1;
-             const precioUnitario = parseInt(precioInput?.value) || 0;
-             const descuentoPorcentaje = parseInt(descuentoInput?.value) || 0;
-             const impuestoPorcentaje = parseInt(impuestoInput?.value) || 0;
-             
-             // Calcular total de línea con descuentos e impuestos
-             const subtotalItem = cantidad * precioUnitario;
-             const descuentoItem = Math.round(subtotalItem * (descuentoPorcentaje / 100));
-             const impuestoItem = Math.round((subtotalItem - descuentoItem) * (impuestoPorcentaje / 100));
-             const totalItem = subtotalItem - descuentoItem + impuestoItem;
-             
-             // Actualizar el campo de total del item
-             const totalField = form.querySelector('.item-total');
-             if (totalField) {
-                 totalField.value = '$' + totalItem.toLocaleString();
-             }
-             
-             // Recalcular totales generales
-             calculateTotals();
-         } else {
-             // Ocultar badge si no hay artículo seleccionado
-             const badgeCosto = form.querySelector('.badge-costo-actual');
-             if (badgeCosto) {
-                 badgeCosto.style.display = 'none';
-             }
-         }
-     }
-    
-     // Función para auto-calcular cuando cambia cantidad o precio
-     function autoCalculateItem(quantityInput) {
-         const form = quantityInput.closest('.item-form-compact');
-         const cantidad = parseInt(quantityInput.value) || 1;
-         const precioInput = form.querySelector('input[name*="precio_unitario"]');
-         const precioUnitario = parseInt(precioInput?.value) || 0;
-         const descuentoInput = form.querySelector('input[name*="descuento_porcentaje"]');
-         const descuentoPorcentaje = parseInt(descuentoInput?.value) || 0;
-         const impuestoInput = form.querySelector('input[name*="impuesto_porcentaje"]');
-         const impuestoPorcentaje = parseInt(impuestoInput?.value) || 0;
-         
-         // Calcular total de línea (solo cantidad * precio, sin descuentos ni impuestos por ahora)
-         const totalItem = cantidad * precioUnitario;
-         
-         const totalField = form.querySelector('.item-total');
-         if (totalField) {
-             totalField.value = '$' + totalItem.toLocaleString();
-         }
-         calculateTotals();
-     }
-    
-     // Función para auto-calcular cuando cambia precio
-     function autoCalculatePrice(priceInput) {
-         const form = priceInput.closest('.item-form-compact');
-         const precioUnitario = parseInt(priceInput.value) || 0;
-         const cantidadInput = form.querySelector('input[name*="cantidad"]');
-         const cantidad = parseInt(cantidadInput?.value) || 1;
-         
-         // Calcular total de línea (solo cantidad * precio, sin descuentos ni impuestos por ahora)
-         const totalItem = cantidad * precioUnitario;
-         
-         const totalField = form.querySelector('.item-total');
-         if (totalField) {
-             totalField.value = '$' + totalItem.toLocaleString();
-         }
-         calculateTotals();
-     }
-    
-    // Función para eliminar item directamente
-    function deleteItem(button) {
-        console.log('Eliminando item...');
-        const formIndex = button.getAttribute('data-form-index');
-        const itemForm = button.closest('.item-form-compact');
-        
-        console.log('Form index:', formIndex);
-        console.log('Item form:', itemForm);
-        
-        // Verificar si es un item existente (tiene ID)
-        const deleteCheckbox = itemForm.querySelector('input[name$="-DELETE"]');
-        if (deleteCheckbox) {
-            // Es un item existente, marcarlo para eliminación
-            deleteCheckbox.checked = true;
-            console.log('Checkbox DELETE marcado para item existente');
-        }
-        
-        // Ocultar el formulario
-        itemForm.style.display = 'none';
-        console.log('Item ocultado');
-        
-        // Recalcular totales si la función está disponible
-        if (typeof calculateTotals === 'function') {
-            calculateTotals();
-        } else {
-            console.log('Función calculateTotals no disponible, recalculando manualmente...');
-            // Recalcular manualmente
-            setTimeout(function() {
-                let subtotal = 0;
-                document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
-                    const cantidadInput = form.querySelector('input[name*="cantidad"]');
-                    const precioInput = form.querySelector('input[name*="precio_unitario"]');
-                    const cantidad = parseInt(cantidadInput?.value) || 0;
-                    const precioUnitario = parseInt(precioInput?.value) || 0;
-                    subtotal += cantidad * precioUnitario;
-                });
-                
-                const iva = Math.round(subtotal * 0.19);
-                const total = subtotal + iva;
-                
-                const subtotalElement = document.getElementById('subtotal-total');
-                const ivaElement = document.getElementById('iva-total');
-                const totalElement = document.getElementById('total-documento');
-                
-                if (subtotalElement) subtotalElement.textContent = '$' + subtotal.toLocaleString();
-                if (ivaElement) ivaElement.textContent = '$' + iva.toLocaleString();
-                if (totalElement) totalElement.textContent = '$' + total.toLocaleString();
-                
-                console.log('Totales recalculados manualmente:', {subtotal: subtotal, iva: iva, total: total});
-            }, 100);
-        }
-    }
-    
-    // Configurar botón agregar
-    console.log('DOM cargado, configurando botón...');
-    const addBtn = document.getElementById('addItemBtn');
-    console.log('Botón encontrado:', addBtn);
-    if (addBtn) {
-        addBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('Botón clickeado!');
-            console.log('addItemForm existe?', typeof window.addItemForm);
-            if (typeof window.addItemForm === 'function') {
-                console.log('Llamando addItemForm...');
-                window.addItemForm();
+        // Eliminar Item
+        window.eliminarItem = function(button) {
+            const row = $(button).closest('.item-line');
+            if (row.find('input[name$="-DELETE"]').length) {
+                row.find('input[name$="-DELETE"]').prop('checked', true);
+                row.hide();
             } else {
-                console.error('addItemForm no está disponible');
+                row.remove();
             }
-        });
-        console.log('Event listener agregado al botón');
-    } else {
-        console.error('NO SE ENCONTRÓ EL BOTÓN addItemBtn');
-    }
-    
-    // Eliminación directa de items - VERSIÓN MEJORADA
-    document.addEventListener('click', function(e) {
-        console.log('Click detectado en:', e.target);
-        console.log('Clases del elemento:', e.target.className);
-        
-        // Verificar si es el botón de eliminar o el ícono dentro del botón
-        const deleteButton = e.target.closest('.delete-item-btn');
-        const isIcon = e.target.classList.contains('fa-trash');
-        const isButton = e.target.classList.contains('delete-item-btn');
-        
-        console.log('deleteButton encontrado:', deleteButton);
-        console.log('Es ícono trash:', isIcon);
-        console.log('Es botón delete:', isButton);
-        
-        if (deleteButton || isIcon || isButton) {
-            console.log('*** ELIMINANDO ITEM ***');
-            const button = deleteButton || e.target.closest('button') || e.target;
-            deleteItem(button);
+            calcularTotales();
         }
-    });
-    
-     // Calcular totales cuando cambien los valores
-     document.addEventListener('input', function(e) {
-         if (e.target.name && e.target.name.includes('cantidad')) {
-             autoCalculateItem(e.target);
-         } else if (e.target.name && e.target.name.includes('precio_unitario')) {
-             autoCalculatePrice(e.target);
-         } else if ((e.target.name && e.target.name.includes('descuento_porcentaje')) || 
-                    (e.target.name && e.target.name.includes('impuesto_porcentaje'))) {
-             calculateTotals();
-         }
-         
-         // Recalcular total cuando se editen manualmente los campos de resumen
-         if (e.target.id === 'subtotal-total-input' || 
-             e.target.id === 'descuentos-total-input' || 
-             e.target.id === 'iva-total-input' || 
-             e.target.id === 'impuesto-unico-input') {
-             recalcularTotalFinal();
-         }
-     });
-    
-     // Función para cargar totales existentes en modo edición
-     function loadExistingTotals() {
-         console.log('Cargando totales existentes...');
-         
-         // Verificar si estamos en modo edición
-         const isEditMode = document.body.classList.contains('edit-mode') || 
-                           document.querySelector('input[name="numero_documento"]')?.value !== '';
-         
-         if (isEditMode) {
-             // Los totales se cargarán desde el servidor
-             console.log('Modo edición detectado, cargando totales...');
-         }
-     }
-     
-     // Función para configurar botones de eliminar
-     function setupDeleteButtons() {
-         console.log('Configurando botones de eliminar...');
-         const deleteButtons = document.querySelectorAll('.delete-item-btn');
-         console.log('Botones encontrados:', deleteButtons.length);
-         
-         deleteButtons.forEach(function(button, index) {
-             console.log(`Configurando botón ${index}:`, button);
-             
-             // Agregar evento directo
-             button.addEventListener('click', function(e) {
-                 e.preventDefault();
-                 e.stopPropagation();
-                 console.log('Botón de eliminar clickeado directamente:', button);
-                 deleteItem(button);
-             });
-         });
-     }
-     
-     // Calcular totales iniciales al cargar la página - INMEDIATO
-     document.addEventListener('DOMContentLoaded', function() {
-         console.log('Calculando totales iniciales...');
-         
-         // Cargar totales existentes si estamos en modo edición
-         loadExistingTotals();
-         
-         setTimeout(function() {
-             calculateTotals();
-             console.log('Totales calculados');
-             
-             // Configurar botones de eliminar
-             setupDeleteButtons();
-         }, 500);
-     });
-    
-    // Actualizar campos cuando se selecciona un artículo
-    document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('articulo-select')) {
-            updateArticleFields(e.target);
-        }
-    });
-    
-    // Inicializar badges de costo para items existentes al cargar la página
-    function initializeCostoBadges() {
-        document.querySelectorAll('.articulo-select').forEach(function(select) {
-            if (select.value) {
-                updateArticleFields(select);
-            }
-        });
-    }
-    
-    // Ejecutar inicialización después de que el DOM esté completamente cargado
-    setTimeout(function() {
-        initializeCostoBadges();
-    }, 1000);
-    
-    // Calcular totales iniciales
-    calculateTotals();
-    
-    // Validación del formulario antes de enviar
-    document.getElementById('documentoForm').addEventListener('submit', function(e) {
-        console.log('=== ENVIANDO FORMULARIO ===');
-        console.log('Formulario encontrado:', this);
-        console.log('Método:', this.method);
-        console.log('Action:', this.action);
-        
-        // Verificar si hay items
-        const items = document.querySelectorAll('.item-form-compact:not([style*="display: none"])');
-        console.log('Items encontrados:', items.length);
-        
-        // Verificar campos de fecha
-        const fechaEmision = document.querySelector('input[name="fecha_emision"]');
-        const fechaVencimiento = document.querySelector('input[name="fecha_vencimiento"]');
-        console.log('Fecha emisión:', fechaEmision?.value);
-        console.log('Fecha vencimiento:', fechaVencimiento?.value);
-        
-        // Verificar checkboxes DELETE
-        const deleteCheckboxes = document.querySelectorAll('input[name$="-DELETE"]:checked');
-        console.log('Items marcados para eliminar:', deleteCheckboxes.length);
-        
-        console.log('ENVIANDO FORMULARIO...');
-        // NO hacer preventDefault() - dejar que Django maneje la validación
-    });
 
-    // ============================================
-    // FUNCIONALIDAD DE ORDEN DE COMPRA
-    // ============================================
-    
-    // Función auxiliar para formatear números con separador de miles
-    function formatNumber(num) {
-        if (!num && num !== 0) return '0';
-        return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    }
-    
-    const proveedorSelect = document.getElementById('id_proveedor');
-    const ordenCompraSelector = document.getElementById('orden-compra-selector');
-    const cargarOcBtn = document.getElementById('cargar-oc-btn');
-    const ordenCompraIdInput = document.getElementById('orden_compra_id');
-    const ocHelpText = document.getElementById('oc-help-text');
-    
-    console.log('🔍 Inicializando funcionalidad de OC...');
-    console.log('Proveedor select:', proveedorSelect);
-    console.log('OC selector:', ordenCompraSelector);
-    console.log('Cargar OC btn:', cargarOcBtn);
-    console.log('Help text:', ocHelpText);
-    
-    // Función para buscar OCs disponibles cuando cambia el proveedor
-    function buscarOCsDisponibles(proveedorId) {
-        console.log('🔄 Buscando OCs para proveedor:', proveedorId);
-        
-        // Guardar OCs disponibles en variable global
-        window.ordenesDisponibles = [];
-        if (ordenCompraIdInput) {
-            ordenCompraIdInput.value = '';
-        }
-        
-        if (!proveedorId) {
-            if (cargarOcBtn) {
-                cargarOcBtn.disabled = true;
-            }
-            if (ocHelpText) {
-                ocHelpText.innerHTML = '<i class="fas fa-info-circle me-1"></i>Selecciona un proveedor primero';
-                ocHelpText.className = 'text-muted';
-            }
-            console.log('⚠️ No hay proveedor seleccionado');
-            return;
-        }
-        
-        console.log('📡 Buscando OCs para proveedor:', proveedorId);
-        
-        // Buscar OCs del proveedor
-        fetch(`/documentos/ajax/ordenes-compra-disponibles/?proveedor_id=${proveedorId}`)
-            .then(response => response.json())
-            .then(data => {
-                console.log('📦 Respuesta del servidor:', data);
-                if (data.success && data.count > 0) {
-                    console.log(`✅ Se encontraron ${data.count} OCs disponibles`);
-                    window.ordenesDisponibles = data.ordenes;
-                    if (cargarOcBtn) {
-                        cargarOcBtn.disabled = false;
-                        cargarOcBtn.innerHTML = `<i class="fas fa-file-invoice me-2"></i>Cargar desde OC (${data.count} disponible${data.count > 1 ? 's' : ''})`;
-                    }
-                    if (ocHelpText) {
-                        ocHelpText.innerHTML = `<i class="fas fa-check-circle me-1"></i>${data.count} orden(es) de compra disponible(s)`;
-                        ocHelpText.className = 'text-success';
-                    }
-                    console.log('✅ Botón de OC habilitado');
-                } else {
-                    console.log('⚠️ No se encontraron OCs disponibles para este proveedor');
-                    window.ordenesDisponibles = [];
-                    if (cargarOcBtn) {
-                        cargarOcBtn.disabled = true;
-                        cargarOcBtn.innerHTML = '<i class="fas fa-file-invoice me-2"></i>Cargar desde Orden de Compra';
-                    }
-                    if (ocHelpText) {
-                        ocHelpText.innerHTML = '<i class="fas fa-info-circle me-1"></i>No hay órdenes disponibles';
-                        ocHelpText.className = 'text-muted';
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('❌ Error cargando OCs:', error);
-                if (cargarOcBtn) {
-                    cargarOcBtn.disabled = true;
-                }
-            });
-    }
-    
-    // Cuando cambie el proveedor, buscar OCs disponibles
-    // Evento nativo para el select
-    if (proveedorSelect) {
-        console.log('✅ Evento change agregado al selector de proveedor (nativo)');
-        proveedorSelect.addEventListener('change', function() {
-            const proveedorId = this.value;
-            buscarOCsDisponibles(proveedorId);
-        });
-    } else {
-        console.error('❌ No se encontró el selector de proveedor #id_proveedor');
-    }
-    
-    // También escuchar eventos de Select2 si está disponible
-    if (typeof jQuery !== 'undefined' && jQuery('#{{ form.proveedor.id_for_label }}').length) {
-        console.log('✅ Configurando evento para Select2');
-        jQuery('#{{ form.proveedor.id_for_label }}').on('select2:select select2:clear change', function() {
-            const proveedorId = jQuery(this).val();
-            console.log('🔄 Select2 - Proveedor cambiado:', proveedorId);
-            buscarOCsDisponibles(proveedorId);
-        });
-    }
-    
-    // Cuando se hace clic en "Cargar OC"
-    if (cargarOcBtn) {
-        cargarOcBtn.addEventListener('click', function() {
-            if (!window.ordenesDisponibles || window.ordenesDisponibles.length === 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Sin órdenes disponibles',
-                    text: 'No hay órdenes de compra disponibles para este proveedor',
-                    confirmButtonText: 'Entendido'
-                });
+        // FUNCIONALIDAD TRAER OC
+        window.abrirModalOrdenesCompra = function() {
+            const proveedorId = $('#id_proveedor').val();
+            if (!proveedorId) {
+                Swal.fire('Atención', 'Seleccione un proveedor primero', 'warning');
                 return;
             }
             
-            // Crear opciones HTML para el select
-            let opcionesHTML = '<option value="">Seleccionar orden de compra...</option>';
-            window.ordenesDisponibles.forEach(oc => {
-                opcionesHTML += `<option value="${oc.id}" data-bodega="${oc.bodega_id}">
-                    ${oc.numero_orden} - ${oc.fecha_orden} - $${formatNumber(oc.total_orden)} (${oc.items_count} items)
-                </option>`;
-            });
+            const url = "{% url 'documentos:ordenes_compra_disponibles' %}?proveedor_id=" + proveedorId;
             
-            // Mostrar modal con selector
-            Swal.fire({
-                title: 'Seleccionar Orden de Compra',
-                html: `
-                    <div class="text-start">
-                        <label class="form-label fw-bold">Orden de Compra:</label>
-                        <select id="swal-oc-select" class="form-select">
-                            ${opcionesHTML}
-                        </select>
-                        <small class="text-muted d-block mt-2">
-                            <i class="fas fa-info-circle me-1"></i>Los artículos actuales serán reemplazados
-                        </small>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonText: 'Sí, cargar',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#4e73df',
-                cancelButtonColor: '#6c757d',
-                preConfirm: () => {
-                    const ocId = document.getElementById('swal-oc-select').value;
-                    if (!ocId) {
-                        Swal.showValidationMessage('Debes seleccionar una orden de compra');
-                        return false;
-                    }
-                    return ocId;
-                }
-            }).then((result) => {
-                if (result.isConfirmed && result.value) {
-                    cargarDatosOC(result.value);
-                }
-            });
-        });
-    }
-    
-    function cargarDatosOC(ocId) {
-        // Mostrar loading
-        Swal.fire({
-            title: 'Cargando datos...',
-            html: 'Por favor espera',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-        
-        fetch(`/documentos/ajax/orden-compra/${ocId}/detalle/`)
-            .then(response => response.json())
-            .then(data => {
+            $.get(url, function(data) {
                 if (data.success) {
-                    const oc = data.orden;
-                    const items = data.items;
+                    const tbody = $('#tablaOrdenesCompra tbody');
+                    tbody.empty();
                     
-                    // Guardar ID de OC
-                    ordenCompraIdInput.value = ocId;
-                    
-                    // Llenar bodega si está disponible
-                    if (oc.bodega_id) {
-                        const bodegaSelect = document.querySelector('select[name="bodega"]');
-                        if (bodegaSelect) {
-                            bodegaSelect.value = oc.bodega_id;
-                        }
-                    }
-                    
-                    // Limpiar items actuales
-                    const itemsContainer = document.querySelector('.items-container');
-                    if (!itemsContainer) {
-                        console.error('❌ No se encontró el contenedor de items');
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: 'No se encontró el contenedor de items en el formulario'
-                        });
-                        return;
-                    }
-                    
-                    // Limpiar solo los items, NO el management_form
-                    const itemForms = itemsContainer.querySelectorAll('.item-form-compact');
-                    console.log(`🗑️ Eliminando ${itemForms.length} items existentes`);
-                    itemForms.forEach(item => item.remove());
-                    
-                    // Agregar items de la OC
-                    const totalForms = document.querySelector('input[name="items-TOTAL_FORMS"]');
-                    
-                    // Resetear contador a 0
-                    totalForms.value = '0';
-                    console.log(`📝 Agregando ${items.length} items de la OC`);
-                    
-                    items.forEach((item, index) => {
-                        console.log(`  ➕ Item ${index}: ${item.articulo_nombre} - Cantidad: ${item.cantidad_solicitada}`);
-                        const newForm = createItemFormFromData(index, item);
-                        itemsContainer.insertAdjacentHTML('beforeend', newForm);
-                    });
-                    
-                    // Actualizar total de formularios
-                    totalForms.value = items.length.toString();
-                    console.log(`✅ Total de formularios actualizado a: ${items.length}`);
-                    
-                    // Recalcular totales (los eventos ya están delegados globalmente)
-                    if (typeof window.calculateTotals === 'function') {
-                        console.log('🧮 Recalculando totales...');
-                        window.calculateTotals();
+                    if (data.ordenes.length === 0) {
+                        tbody.append('<tr><td colspan="5" class="text-center">No hay órdenes disponibles para este proveedor.</td></tr>');
                     } else {
-                        console.warn('⚠️ calculateTotals no está disponible');
-                    }
-                    
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Datos cargados!',
-                        text: `Se cargaron ${items.length} artículos de la OC ${oc.numero_orden}`,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'No se pudieron cargar los datos de la OC'
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Ocurrió un error al cargar los datos de la OC'
-                });
-            });
-    }
-    
-    function createItemFormFromData(index, item) {
-        return `
-            <div class="item-form-compact" id="item-${index}">
-                <div class="row g-2 align-items-center">
-                    <div class="col-md-3">
-                        <select name="items-${index}-articulo" class="form-select form-select-sm" required>
-                            <option value="${item.articulo_id}" selected>${item.articulo_codigo} - ${item.articulo_nombre}</option>
-                        </select>
-                    </div>
-                    <div class="col-md-1">
-                        <input type="number" name="items-${index}-cantidad" class="form-control form-control-sm text-center item-cantidad" 
-                               value="${item.cantidad_solicitada}" min="0.01" step="0.01" required>
-                    </div>
-                    <div class="col-md-2">
-                        <input type="number" name="items-${index}-precio_unitario" class="form-control form-control-sm text-end item-precio" 
-                               value="${item.precio_unitario}" min="0" step="1" required>
-                    </div>
-                    <div class="col-md-1">
-                        <input type="number" name="items-${index}-descuento_porcentaje" class="form-control form-control-sm text-center item-descuento" 
-                               value="${item.descuento_porcentaje}" min="0" max="100" step="0.01">
-                    </div>
-                    <div class="col-md-1">
-                        <input type="number" name="items-${index}-impuesto_porcentaje" class="form-control form-control-sm text-center item-impuesto" 
-                               value="${item.impuesto_porcentaje}" min="0" max="100" step="0.01">
-                    </div>
-                    <div class="col-md-2">
-                        <input type="text" class="form-control form-control-sm text-end item-subtotal" readonly 
-                               value="$${formatNumber(item.subtotal)}">
-                    </div>
-                    <div class="col-md-2">
-                        <input type="text" name="items-${index}-notas" class="form-control form-control-sm" placeholder="Notas">
-                    </div>
-                    <div class="col-md-auto">
-                        <button type="button" class="btn btn-sm btn-danger remove-item-btn" style="padding: 0.25rem 0.5rem;">
-                            <i class="fas fa-trash" style="font-size: 0.75rem;"></i>
-                        </button>
-                    </div>
-                    <input type="hidden" name="items-${index}-id" value="">
-                    <input type="hidden" name="items-${index}-DELETE" value="false">
-                </div>
-            </div>
-        `;
-    }
-
-    // ========================================
-    // INICIALIZACIÓN DE SELECT2
-    // ========================================
-    $(document).ready(function() {
-        console.log('🔧 Inicializando Select2...');
-        
-        // Inicializar Select2 para el selector de proveedor
-        const proveedorSelect2 = $('#{{ form.proveedor.id_for_label }}').select2({
-            placeholder: 'Buscar proveedor por RUT, razón social o nombre...',
-            allowClear: true,
-            language: {
-                noResults: function() {
-                    return "No se encontraron resultados";
-                },
-                searching: function() {
-                    return "Buscando...";
-                }
-            },
-            width: '100%'
-        });
-        
-        // Agregar evento de Select2 para buscar OCs cuando se selecciona un proveedor
-        proveedorSelect2.on('select2:select select2:clear change', function(e) {
-            const proveedorId = $(this).val();
-            console.log('🔄 Select2 - Proveedor cambiado:', proveedorId);
-            buscarOCsDisponibles(proveedorId);
-        });
-        
-        // También verificar si ya hay un proveedor seleccionado al cargar la página
-        const proveedorInicial = proveedorSelect2.val();
-        if (proveedorInicial) {
-            console.log('🔍 Proveedor inicial encontrado:', proveedorInicial);
-            buscarOCsDisponibles(proveedorInicial);
-        }
-
-        // Inicializar Select2 para todos los selectores de artículos
-        $('.articulo-select').select2({
-            placeholder: 'Buscar artículo por código o nombre...',
-            allowClear: true,
-            language: {
-                noResults: function() {
-                    return "No se encontraron resultados";
-                },
-                searching: function() {
-                    return "Buscando...";
-                }
-            },
-            width: '100%'
-        });
-
-        console.log('✅ Select2 inicializado correctamente');
-
-        // ========================================
-        // BOTÓN CREAR NUEVO PROVEEDOR
-        // ========================================
-        $('#btnCrearProveedor').on('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            console.log('🆕 Abriendo modal para crear proveedor...');
-            
-            Swal.fire({
-                title: 'Crear Nuevo Proveedor',
-                html: `
-                    <div class="text-start">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">RUT *</label>
-                            <input type="text" id="swal-rut" class="form-control" placeholder="12345678-9" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Razón Social *</label>
-                            <input type="text" id="swal-razon-social" class="form-control" placeholder="Empresa S.A." required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Nombre Fantasía</label>
-                            <input type="text" id="swal-nombre-fantasia" class="form-control" placeholder="Nombre comercial">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Email</label>
-                            <input type="email" id="swal-email" class="form-control" placeholder="contacto@empresa.cl">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Teléfono</label>
-                            <input type="text" id="swal-telefono" class="form-control" placeholder="+56912345678">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Dirección</label>
-                            <input type="text" id="swal-direccion" class="form-control" placeholder="Calle 123, Ciudad">
-                        </div>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonText: '<i class="fas fa-save me-1"></i> Crear Proveedor',
-                cancelButtonText: '<i class="fas fa-times me-1"></i> Cancelar',
-                confirmButtonColor: '#28a745',
-                cancelButtonColor: '#6c757d',
-                width: '600px',
-                preConfirm: () => {
-                    const rut = document.getElementById('swal-rut').value;
-                    const razonSocial = document.getElementById('swal-razon-social').value;
-                    const nombreFantasia = document.getElementById('swal-nombre-fantasia').value;
-                    const email = document.getElementById('swal-email').value;
-                    const telefono = document.getElementById('swal-telefono').value;
-                    const direccion = document.getElementById('swal-direccion').value;
-
-                    if (!rut || !razonSocial) {
-                        Swal.showValidationMessage('RUT y Razón Social son obligatorios');
-                        return false;
-                    }
-
-                    return {
-                        rut: rut,
-                        razon_social: razonSocial,
-                        nombre_fantasia: nombreFantasia,
-                        email: email,
-                        telefono: telefono,
-                        direccion: direccion
-                    };
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    console.log('📤 Enviando datos del proveedor:', result.value);
-                    
-                    // Obtener el token CSRF
-                    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-                    
-                    // Enviar petición AJAX para crear el proveedor
-                    fetch('{% url "compras:proveedor_create_ajax" %}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken
-                        },
-                        body: JSON.stringify(result.value)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            console.log('✅ Proveedor creado exitosamente:', data.proveedor);
-                            
-                            // Agregar el nuevo proveedor al select
-                            const proveedorSelect = $('#{{ form.proveedor.id_for_label }}');
-                            const newOption = new Option(
-                                `${data.proveedor.rut} - ${data.proveedor.razon_social}`,
-                                data.proveedor.id,
-                                true,
-                                true
-                            );
-                            proveedorSelect.append(newOption).trigger('change');
-                            
-                            Swal.fire({
-                                icon: 'success',
-                                title: '¡Proveedor creado!',
-                                text: `${data.proveedor.razon_social} ha sido agregado exitosamente`,
-                                timer: 2000,
-                                showConfirmButton: false
-                            });
-                        } else {
-                            console.error('❌ Error al crear proveedor:', data.message);
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: data.message || 'No se pudo crear el proveedor'
-                            });
-                        }
-                    })
-                    .catch(error => {
-                        console.error('❌ Error en la petición:', error);
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: 'Ocurrió un error al crear el proveedor. Verifique que la URL de creación esté configurada correctamente.'
+                        data.ordenes.forEach(oc => {
+                            tbody.append(`
+                                <tr>
+                                    <td>${oc.numero_orden}</td>
+                                    <td>${oc.fecha_orden}</td>
+                                    <td><span class="badge bg-secondary">${oc.estado}</span></td>
+                                    <td>$${oc.total_orden.toLocaleString('es-CL')}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-stone-primary" 
+                                            onclick="cargarOC(${oc.id})">
+                                            Seleccionar
+                                        </button>
+                                    </td>
+                                </tr>
+                            `);
                         });
-                    });
+                    }
+                    var modal = new bootstrap.Modal(document.getElementById('modalOrdenesCompra'));
+                    modal.show();
+                } else {
+                    Swal.fire('Error', data.message, 'error');
                 }
             });
-        });
+        };
+        
+        window.cargarOC = function(ocId) {
+             const url = "{% url 'documentos:orden_compra_detalle_json' 0 %}".replace('0', ocId);
+             
+             $.get(url, function(data) {
+                 if (data.success) {
+                      $('#orden_compra_id').val(data.orden.id);
+                      $('#id_bodega').val(data.orden.bodega_id).trigger('change');
+                      
+                      data.items.forEach(item => {
+                          $('#addItemBtn').click(); 
+                          const row = $('#items-wrapper .item-line:last-child');
+                          
+                          // Set Articulo
+                          const select = row.find('.articulo-select');
+                          if(select.find(`option[value="${item.articulo_id}"]`).length) {
+                              select.val(item.articulo_id).trigger('change');
+                          }
+                          
+                          row.find('input[name$="-cantidad"]').val(item.cantidad_solicitada);
+                          row.find('input[name$="-precio_unitario"]').val(item.precio_unitario);
+                          row.find('input[name$="-descuento_porcentaje"]').val(item.descuento_porcentaje);
+                      });
+                      
+                      calcularTotales();
+                      
+                      var modalEl = document.getElementById('modalOrdenesCompra');
+                      var modal = bootstrap.Modal.getInstance(modalEl);
+                      modal.hide();
+                      
+                      Swal.fire('Éxito', 'Orden #' + data.orden.numero_orden + ' cargada.', 'success');
+                 }
+             });
+        };
+
+        // Create Provider dummy function
+        window.abrirModalCrearProveedor = function(e) {
+            e.preventDefault();
+            Swal.fire('Información', 'Funcionalidad de crear proveedor rápido en desarrollo.', 'info');
+        };
+
+        calcularTotales();
     });
-});
 </script>
 {% endblock %}

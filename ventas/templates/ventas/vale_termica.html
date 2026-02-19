@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=302">
-    <title>Vale - {{ vale.numero_venta }}</title>
+    <title>{% if vale.tipo_documento == 'ticket' %}Ticket Facturable{% else %}Vale Interno{% endif %} - {{ vale.numero_venta }}</title>
 
     {% load format_filters %}
 
@@ -227,7 +227,7 @@
 
         <!-- CUADRO DEL DOCUMENTO -->
         <div class="document-box">
-            <div class="document-type">VALE / PRE-VENTA</div>
+            <div class="document-type">{% if vale.tipo_documento == 'ticket' %}TICKET FACTURABLE{% else %}VALE INTERNO{% endif %}</div>
             <div class="document-folio">N° {{ vale.numero_venta }}</div>
             <div class="document-fecha">
                 {% load l10n %}
@@ -315,18 +315,26 @@
         </div>
         {% endif %}
 
-        <!-- NOTA IMPORTANTE -->
+        <!-- NOTA IMPORTANTE (Solo para tickets) -->
+        {% if vale.tipo_documento == 'ticket' %}
         <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 2mm; margin: 2mm 0; font-size: 7pt; border-radius: 2mm; text-align: center;">
             <strong>IMPORTANTE:</strong><br>
-            Este vale debe ser procesado en caja<br>
+            Este ticket debe ser procesado en caja<br>
             para emitir el documento tributario correspondiente
         </div>
+        {% else %}
+        <div style="background: #f8f9fa; border: 1px solid #dee2e6; padding: 2mm; margin: 2mm 0; font-size: 7pt; border-radius: 2mm; text-align: center;">
+            <strong>VALE INTERNO:</strong><br>
+            Este documento es un comprobante interno<br>
+            y no es válido como documento tributario.
+        </div>
+        {% endif %}
 
         <!-- FOOTER -->
         <div class="footer">
             {{ vale.empresa.nombre }}<br>
             Impreso: {{ vale.fecha_creacion|date:"d/m/Y H:i" }}<br>
-            Documento interno - No válido como factura
+            {% if vale.tipo_documento == 'ticket' %}Documento interno - No válido como factura{% else %}Comprobante interno - No válido como documento tributario{% endif %}
         </div>
 
     </div>
@@ -346,7 +354,33 @@
         try {
           const params = new URLSearchParams(window.location.search);
           const auto = params.get('auto');
+          const autoClose = params.get('autoclose');
+          const autoCloseDelay = parseInt(params.get('autoclose_delay')) || 2000;
+          const returnUrl = params.get('return_url');
           const nombreImpresora = "{{ nombre_impresora|default:'' }}";
+
+          console.log('[VALE AUTO] Parámetros:', { auto, autoClose, autoCloseDelay, returnUrl });
+
+          // Función para cerrar o volver
+          function cerrarVentana() {
+            // Si es un popup, cerrarlo
+            if (window.opener) {
+              console.log('[VALE AUTO] Cerrando popup...');
+              try { window.close(); } catch(e) {}
+              return;
+            }
+            
+            // PRIORIDAD: Si hay return_url, ir ahí (decodificando)
+            if (returnUrl) {
+              console.log('[VALE AUTO] Volviendo a:', decodeURIComponent(returnUrl));
+              window.location.href = decodeURIComponent(returnUrl);
+              return;
+            }
+            
+            // Fallback: volver atrás
+            console.log('[VALE AUTO] Volviendo atrás...');
+            window.history.back();
+          }
 
           if (auto === '1') {
             setTimeout(() => { 
@@ -354,21 +388,28 @@
                 if (nombreImpresora) {
                   console.log('[PRINT] Impresora configurada:', nombreImpresora);
                 }
-                window.print(); 
-              } catch(e) {} 
+                window.print();
+                
+                // Si autoclose está activo, cerrar después del delay
+                if (autoClose === '1') {
+                  console.log('[VALE AUTO] Programando cierre en', autoCloseDelay, 'ms');
+                  setTimeout(cerrarVentana, autoCloseDelay);
+                }
+              } catch(e) { console.error(e); } 
             }, 150);
             
+            // También cerrar cuando se complete la impresión
             if ('onafterprint' in window) {
-              window.addEventListener('afterprint', () => setTimeout(() => {
-                // Solo cerrar si la ventana fue abierta por el script
-                if (window.opener && window.opener !== window) {
-                  try { window.close(); } catch(e) {}
+              window.addEventListener('afterprint', () => {
+                console.log('[VALE AUTO] afterprint detectado');
+                if (autoClose === '1' || window.opener) {
+                  setTimeout(cerrarVentana, 500);
                 }
-              }, 100));
+              });
             }
           }
         } catch (e) {
-          // noop
+          console.error('[VALE AUTO] Error:', e);
         }
       })();
     </script>

@@ -2,211 +2,341 @@
 {% load static %}
 {% load format_filters %}
 
+{% block title %}Facturas SII - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
 {% block extra_css %}
 <style>
-    .empresa-info {
-        display: none !important;
+    /* VARIABLES ESTILO PIEDRA & SOFT UI */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+        
+        /* Paleta Soft UI Dashboard */
+        --soft-bg: #fdfaf7;
+        --soft-cream: #f9f1e8;
+        --soft-blue: #a5c1d6;
+        --soft-peach: #fbd5c5;
+        --soft-pink: #f7e0d6;
+        --soft-green: #dcedc8;
+        --soft-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        --neumorphic-shadow: 8px 8px 16px #ebe1d6, -8px -8px 16px #ffffff;
     }
 
-    .header-section {
-        background: linear-gradient(135deg, #6B4423 0%, #8B5A3C 100%);
-        padding: 1.5rem 2rem;
-        border-radius: 15px;
-        margin-bottom: 1.5rem;
-        color: white;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    body {
+        background-color: var(--stone-bg);
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
     }
 
-    .stat-card-refined {
-        border: none;
-        border-radius: 15px;
-        padding: 1.25rem;
-        background: white;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        height: 100%;
-        border-left: 4px solid #6B4423;
+    /* --- SOFT UI PASTEL CARDS --- */
+    .card-stats-pastel-base {
+        border-radius: 20px !important;
+        border: 1px solid rgba(255, 255, 255, 0.6) !important;
+        box-shadow: var(--neumorphic-shadow) !important;
+        position: relative !important;
+        overflow: hidden !important;
+        min-height: 100px !important;
+        color: #6a5a4d !important;
+        transition: transform 0.3s ease !important;
+    }
+    .card-stats-pastel-base:hover { transform: translateY(-5px) !important; }
+
+    /* Variantes de color SOFT UI */
+    .card-stats-pastel-cafe {
+        background: var(--soft-cream) !important;
+    }
+    .card-stats-pastel-verde {
+        background: var(--soft-green) !important;
+    }
+    .card-stats-pastel-amarillo {
+        background: var(--soft-peach) !important;
+    }
+    .card-stats-pastel-azul {
+        background: var(--soft-blue) !important;
     }
 
-    .filter-section {
-        background: #f8f9fa;
-        border-radius: 12px;
-        padding: 1.25rem;
-        margin-bottom: 1.5rem;
-        border: 1px solid #eef0f2;
+    .card-title-pastel {
+        font-size: 0.7rem !important;
+        letter-spacing: 1px !important;
+        font-weight: 700 !important;
+        opacity: 0.7 !important;
+        color: #6a5a4d !important;
+        text-transform: uppercase !important;
+        margin-bottom: 0.25rem !important;
+    }
+    .card-value-pastel {
+        color: #5D4037 !important;
+        font-weight: 700 !important;
+        font-size: 1.6rem !important;
+    }
+    .card-icon-bg {
+        position: absolute !important;
+        right: -10px !important;
+        top: 5px !important;
+        bottom: 0 !important;
+        font-size: 90px !important;
+        opacity: 0.15 !important;
+        pointer-events: none !important;
+        z-index: 1 !important;
+        color: #6a5a4d !important;
     }
 
-    .table-container {
-        background: white;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    /* Estilos tabla Piedra (Compacta - Replicada de orden_compra_list) */
+    .table-piedra {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-family: 'Poppins', sans-serif !important;
     }
 
-    .btn-brown-small {
-        background: #6B4423;
-        color: white;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-size: 0.9rem;
-        border: none;
+    .table-piedra thead th {
+        background: #FDFCFB !important;
+        border-bottom: 2px solid #E8DCC8 !important;
+        color: #8B7355 !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        font-size: 0.7rem !important;
+        letter-spacing: 1px !important;
+        padding: 12px 15px !important;
     }
 
-    .btn-brown-small:hover {
-        background: #8B5A3C;
-        color: white;
+    .table-piedra tbody tr {
+        height: 32px !important;
+        transition: all 0.2s ease !important;
     }
 
-    .form-control-sm-custom {
-        border-radius: 8px;
-        border: 1px solid #dee2e6;
-        padding: 0.4rem 0.8rem;
-        font-size: 0.9rem;
+    .table-piedra tbody tr:nth-of-type(odd) {
+        background-color: rgba(245, 241, 232, 0.3) !important;
+    }
+    
+    .table-piedra tbody tr:nth-of-type(even) {
+        background-color: white !important;
+    }
+
+    .table-piedra tbody tr:hover {
+        background-color: #F5F1E8 !important;
+    }
+
+    .table-piedra tbody td {
+        padding: 4px 15px !important;
+        border-bottom: 1px solid #F5F1E8 !important;
+        vertical-align: middle !important;
+        font-size: 0.85rem !important;
+        color: #4A5568 !important;
+    }
+
+    /* Botones de acción */
+    .btn-action-piedra {
+        width: 28px !important;
+        height: 28px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: white !important;
+        border: 1px solid #D4C4A8 !important;
+        border-radius: 6px !important;
+        color: #8B7355 !important;
+        font-size: 0.75rem !important;
+        transition: all 0.2s ease !important;
+        text-decoration: none !important;
+        cursor: pointer !important;
+    }
+    .btn-action-piedra:hover {
+        background: #8B7355 !important;
+        color: white !important;
+        transform: scale(1.1) !important;
+    }
+    
+    /* Badges */
+    .badge-stone {
+        font-size: 0.65rem !important;
+        padding: 4px 8px !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        border: 1px solid transparent !important;
+        background: #ECEFF1 !important; 
+        color: #455A64 !important; 
+        border-color: #CFD8DC !important;
     }
 </style>
 {% endblock %}
 
-{% block title %}Facturas Recibidas - SII{% endblock %}
-
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Encabezado sobrio -->
-    <div class="header-section d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center">
-            <i class="fas fa-file-invoice-dollar fa-2x me-3"></i>
-            <div>
-                <h4 class="mb-0 fw-bold">Facturas Recibidas (SII)</h4>
-                <p class="mb-0 small opacity-75">Consulta de documentos tributarios electrónicos de proveedores</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Filtros compactos -->
-    <div class="filter-section">
-        <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label small fw-bold">Buscar Proveedor/Folio</label>
-                <input type="text" name="search" class="form-control form-control-sm-custom"
-                    placeholder="RUT o Nombre..." value="{{ search }}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small fw-bold">Desde</label>
-                <input type="date" name="fecha_desde" class="form-control form-control-sm-custom"
-                    value="{{ fecha_desde }}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small fw-bold">Hasta</label>
-                <input type="date" name="fecha_hasta" class="form-control form-control-sm-custom"
-                    value="{{ fecha_hasta }}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small fw-bold">Periodo</label>
-                <select name="dias" class="form-select form-control-sm-custom">
-                    <option value="7" {% if dias_7 %}selected{% endif %}>Últimos 7 días</option>
-                    <option value="30" {% if dias_30 %}selected{% endif %}>Últimos 30 días</option>
-                    <option value="90" {% if dias_90 %}selected{% endif %}>Últimos 90 días</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-brown-small w-100">
-                    <i class="fas fa-search me-2"></i>Filtrar Documentos
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Estadísticas -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="stat-card-refined">
-                <div class="d-flex align-items-center">
-                    <div class="bg-light p-2 rounded-circle me-3">
-                        <i class="fas fa-calculator text-dark"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-bold" style="font-size: 0.7rem;">TOTAL NETO</small>
-                        <h5 class="mb-0 fw-bold">{{ total_neto|format_moneda }}</h5>
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    
+    <div class="row">
+        <div class="col-12">
+            <!-- TARJETA PRINCIPAL CONTENEDORA (Estilo Piedra Unificado) -->
+            <div class="card" style="border: 2px solid #E8DCC8 !important; border-radius: 15px !important; overflow: hidden !important; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15) !important;">
+                
+                <!-- HEADER INTEGRADO -->
+                <div class="card-header" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%) !important; border-bottom: 3px solid #D4C4A8 !important; padding: 15px 20px !important;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-invoice-dollar me-3" style="font-size: 2.2rem; color: #5D4037; opacity: 0.8;"></i>
+                            <div>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: #5D4037; letter-spacing: -1px; font-size: 1.8rem;">
+                                    Facturas <span class="fw-bold">Recibidas SII</span>
+                                </h2>
+                                <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: #5D4037; opacity: 0.8; margin-top: 2px;">
+                                    Consulta de Documentos Tributarios Electrónicos.
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Botón de acción (Opcional, si hubiera carga manual) -->
+                         <button type="button" class="btn btn-sm" onclick="location.reload()" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                            <i class="fas fa-sync-alt me-1"></i> Actualizar
+                        </button>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="stat-card-refined" style="border-left-color: #B8956A;">
-                <div class="d-flex align-items-center">
-                    <div class="bg-light p-2 rounded-circle me-3">
-                        <i class="fas fa-percent text-dark"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-bold" style="font-size: 0.7rem;">TOTAL IVA</small>
-                        <h5 class="mb-0 fw-bold">{{ total_iva|format_moneda }}</h5>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="stat-card-refined" style="border-left-color: #8B5A3C;">
-                <div class="d-flex align-items-center">
-                    <div class="bg-light p-2 rounded-circle me-3">
-                        <i class="fas fa-wallet text-dark"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-bold" style="font-size: 0.7rem;">TOTAL GENERAL</small>
-                        <h5 class="mb-0 fw-bold">{{ total_general|format_moneda }}</h5>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Tabla -->
-    <div class="table-container">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="bg-light">
-                    <tr>
-                        <th class="small border-0">Tipo</th>
-                        <th class="small border-0">Folio</th>
-                        <th class="small border-0">Fecha</th>
-                        <th class="small border-0">RUT Proveedor</th>
-                        <th class="small border-0">Razón Social</th>
-                        <th class="small border-0 text-end">Neto</th>
-                        <th class="small border-0 text-end">IVA</th>
-                        <th class="small border-0 text-end">Total</th>
-                        <th class="small border-0 text-center">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for doc in documentos %}
-                    <tr>
-                        <td class="small align-middle">{{ doc.tipo_documento }}</td>
-                        <td class="small align-middle fw-bold">{{ doc.numero }}</td>
-                        <td class="small align-middle text-muted">{{ doc.fecha_emision }}</td>
-                        <td class="small align-middle">{{ doc.rut_emisor }}</td>
-                        <td class="small align-middle">{{ doc.razon_social_emisor|truncatechars:35 }}</td>
-                        <td class="small align-middle text-end">{{ doc.neto|format_moneda }}</td>
-                        <td class="small align-middle text-end">{{ doc.iva|format_moneda }}</td>
-                        <td class="small align-middle text-end fw-bold">{{ doc.total|format_moneda }}</td>
-                        <td class="text-center align-middle">
-                            {% if doc.download_pdf_url %}
-                            <a href="{{ doc.download_pdf_url }}" target="_blank" class="btn btn-sm p-0 me-2"
-                                title="Bajar PDF">
-                                <i class="fas fa-file-pdf text-danger"></i>
-                            </a>
-                            {% endif %}
-                            <a href="{% url 'compras:descargar_xml_factura_sii' doc.numero %}" class="btn btn-sm p-0"
-                                title="Bajar XML">
-                                <i class="fas fa-file-code text-brown"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="9" class="text-center py-5 text-muted">
-                            <i class="fas fa-info-circle me-2"></i>No se encontraron documentos en este periodo.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                <div class="card-body" style="background: #FAFAF8 !important; padding: 15px !important;">
+                    
+                    <!-- ESTADISTICAS SOFT UI -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <!-- Café (Cream): Total Neto -->
+                            <div class="card card-stats-pastel-cafe card-stats-pastel-base">
+                                <div class="card-body p-3" style="position: relative; z-index: 2;">
+                                    <div class="card-title-pastel">Total Neto</div>
+                                    <h3 class="card-value-pastel">{{ total_neto|format_moneda }}</h3>
+                                </div>
+                                <div class="card-icon-bg" style="color: #616161;">
+                                    <i class="fas fa-calculator"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                             <!-- Amarillo (Peach): Total IVA -->
+                            <div class="card card-stats-pastel-amarillo card-stats-pastel-base">
+                                <div class="card-body p-3" style="position: relative; z-index: 2;">
+                                    <div class="card-title-pastel">Total IVA</div>
+                                    <h3 class="card-value-pastel">{{ total_iva|format_moneda }}</h3>
+                                </div>
+                                <div class="card-icon-bg" style="color: #F57C00;">
+                                    <i class="fas fa-percent"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                             <!-- Azul (Soft Blue): Total General -->
+                            <div class="card card-stats-pastel-azul card-stats-pastel-base">
+                                <div class="card-body p-3" style="position: relative; z-index: 2;">
+                                    <div class="card-title-pastel">Total General</div>
+                                    <h3 class="card-value-pastel">{{ total_general|format_moneda }}</h3>
+                                </div>
+                                <div class="card-icon-bg" style="color: #2E7D32;">
+                                    <i class="fas fa-wallet"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FILTROS -->
+                    <div style="padding: 15px; background: #FAFAF8; border-bottom: 1px solid #E8DCC8; margin-bottom: 15px; border-radius: 8px;">
+                        <form method="GET" class="row g-2 align-items-center">
+                            <div class="col-md-4">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text" style="background: white; border-right: none; color: #8B7355; border-color: #D4C4A8;"><i class="fas fa-search"></i></span>
+                                    <input type="text" name="search" class="form-control form-control-sm" style="border-color: #D4C4A8; font-size: 0.75rem;" 
+                                           placeholder="Buscar por RUT, Razón Social o Folio..." value="{{ search|default:'' }}">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <input type="date" name="fecha_desde" class="form-control form-control-sm" style="border-color: #D4C4A8; font-size: 0.75rem;" value="{{ fecha_desde }}">
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <input type="date" name="fecha_hasta" class="form-control form-control-sm" style="border-color: #D4C4A8; font-size: 0.75rem;" value="{{ fecha_hasta }}">
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <select name="dias" class="form-select form-select-sm" style="border-color: #D4C4A8; font-size: 0.75rem;" onchange="this.form.submit()">
+                                    <option value="7" {% if dias_7 %}selected{% endif %}>Últimos 7 días</option>
+                                    <option value="30" {% if dias_30 %}selected{% endif %}>Últimos 30 días</option>
+                                    <option value="90" {% if dias_90 %}selected{% endif %}>Últimos 90 días</option>
+                                    <option value="all" {% if dias_all %}selected{% endif %}>Todo el historial</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-1 text-end">
+                                <button type="submit" class="btn btn-sm w-100" style="background: #8B7355; color: white; font-size: 0.75rem; border: none; padding: 4px 10px;">
+                                    <i class="fas fa-filter"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- TABLA -->
+                    <div class="table-responsive">
+                        <table class="table-piedra mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%;">TIPO</th>
+                                    <th style="width: 10%;">FOLIO</th>
+                                    <th style="width: 12%;">EMISIÓN</th>
+                                    <th style="width: 25%;">PROVEEDOR</th>
+                                    <th style="width: 10%; text-align: right;">NETO</th>
+                                    <th style="width: 10%; text-align: right;">IVA</th>
+                                    <th style="width: 13%; text-align: right;">TOTAL</th>
+                                    <th style="width: 10%; text-align: center;">ACCIONES</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in documentos %}
+                                <tr>
+                                    <td><span class="badge-stone">{{ doc.tipo_documento }}</span></td>
+                                    <td><strong style="color: #6F5B44; font-size: 0.9rem;">#{{ doc.numero }}</strong></td>
+                                    <td class="text-muted small">{{ doc.fecha_emision }}</td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span style="color: #4A5568; font-size: 0.85rem; font-weight: 600;">{{ doc.razon_social_emisor|truncatechars:35 }}</span>
+                                            <span class="small text-muted" style="font-size: 0.75rem;">{{ doc.rut_emisor }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-end text-muted small">{{ doc.neto|format_moneda }}</td>
+                                    <td class="text-end text-muted small">{{ doc.iva|format_moneda }}</td>
+                                    <td class="text-end fw-bold" style="color: #6F5B44;">{{ doc.total|format_moneda }}</td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-1">
+                                            {% if doc.download_pdf_url %}
+                                            <a href="{{ doc.download_pdf_url }}" target="_blank" class="btn-action-piedra" title="Ver PDF Original" style="color: #D32F2F !important; border-color: #ef9a9a !important;">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
+                                            {% endif %}
+                                            <a href="{% url 'compras:descargar_xml_factura_sii' doc.numero %}" class="btn-action-piedra" title="Descargar XML">
+                                                <i class="fas fa-file-code"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-5">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="fas fa-search fa-3x mb-3 opacity-25" style="color: #8B7355;"></i>
+                                            <h6 class="fw-bold" style="color: #8B7355;">No se encontraron documentos</h6>
+                                            <p class="text-muted small mb-0">Intenta cambiar los filtros de búsqueda.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3 text-end text-muted small fst-italic" style="font-size: 0.75rem;">
+                         <i class="fas fa-check-circle me-1 text-success"></i> Sincronizado con SII
+                    </div>
+
+                </div> <!-- Fin Card Body -->
+            </div> <!-- Fin Card Principal -->
         </div>
     </div>
 </div>

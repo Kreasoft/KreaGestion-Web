@@ -1,0 +1,190 @@
+{% load widget_tweaks %}
+{% load l10n %}
+
+<div class="modal-header stone-modal-header" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%); padding: 1.5rem 2rem; border-bottom: 1px solid #E8DCC8; border-radius: 16px 16px 0 0;">
+    <div class="d-flex align-items-center gap-3">
+        <div class="header-icon-box" style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15); color: #6F5B44; font-size: 1.25rem;">
+            {% if receta %}
+                <i class="fas fa-edit"></i>
+            {% else %}
+                <i class="fas fa-flask"></i>
+            {% endif %}
+        </div>
+        <div>
+            <h5 class="modal-title fw-bold m-0" style="color: #5D4037; font-family: 'Poppins', sans-serif;">
+                {% if receta %}Editar Receta{% else %}Nueva Receta{% endif %}
+            </h5>
+            <p class="m-0 text-muted small" style="font-size: 0.85rem;">
+                {% if receta %}Modifique los datos y la fórmula{% else %}Defina la fórmula de producción{% endif %}
+            </p>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.5;"></button>
+</div>
+
+<div class="modal-body p-4" style="background: white;">
+    
+    <!-- Mensajes de error/info -->
+    <div id="modal-messages">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <form id="recetaFormModal" method="post" action="{% if receta %}{% url 'produccion:receta_update' receta.pk %}{% else %}{% url 'produccion:receta_create' %}{% endif %}">
+        {% csrf_token %}
+        
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase" style="color: #8B7355 !important;">Código *</label>
+                <input type="text" name="codigo" class="form-control form-control-stone" value="{{ receta.codigo|default:'' }}" required placeholder="Ej: REC-001">
+            </div>
+            <div class="col-md-9">
+                <label class="form-label small fw-bold text-muted text-uppercase" style="color: #8B7355 !important;">Nombre Receta *</label>
+                <input type="text" name="nombre" class="form-control form-control-stone" value="{{ receta.nombre|default:'' }}" required placeholder="Nombre descriptivo">
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small fw-bold text-muted text-uppercase" style="color: #8B7355 !important;">Producto Final *</label>
+            <select name="producto_final" class="form-select form-select-stone" required>
+                <option value="">Seleccione el producto a fabricar...</option>
+                {% for producto in productos %}
+                    <option value="{{ producto.id|stringformat:'d' }}" {% if receta and receta.producto_final_id == producto.id %}selected{% endif %}>
+                        {{ producto.codigo }} - {{ producto.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="form-text small text-muted"><i class="fas fa-info-circle me-1"></i>Solo artículos de tipo "Producción".</div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label small fw-bold text-muted text-uppercase" style="color: #8B7355 !important;">Descripción</label>
+            <textarea name="descripcion" class="form-control form-control-stone" rows="2" placeholder="Instrucciones o notas adicionales...">{{ receta.descripcion|default:'' }}</textarea>
+        </div>
+
+        <hr style="border-color: #E8DCC8; margin: 1.5rem 0;">
+
+        <!-- Insumos Section -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold m-0" style="color: #6F5B44;"><i class="fas fa-boxes me-2"></i>Insumos Requeridos</h6>
+            <button type="button" class="btn btn-sm btn-action-primary" onclick="agregarInsumoModal()">
+                <i class="fas fa-plus me-1"></i> Agregar
+            </button>
+        </div>
+
+        <div class="table-responsive border rounded" style="border-color: #E8DCC8 !important; max-height: 300px;">
+            <table class="table table-borderless table-sm mb-0 table-piedra">
+                <thead style="position: sticky; top: 0; background: #EEE; z-index: 1;">
+                    <tr style="height: 32px;">
+                        <th style="width: 50%; padding-left: 1rem;">Insumo</th>
+                        <th style="width: 20%;">Cantidad</th>
+                        <th style="width: 25%;">Notas</th>
+                        <th style="width: 5%;"></th>
+                    </tr>
+                </thead>
+                <tbody id="insumosContainerModal">
+                    {% if receta %}
+                        {% for insumo in receta.insumos.all %}
+                        <tr class="insumo-row" style="height: 32px;">
+                            <td style="padding-left: 1rem;">
+                                <select name="insumo_articulo[]" class="form-select form-select-sm border-0 bg-transparent p-0" required>
+                                    <option value="">Seleccionar...</option>
+                                    {% for ins in insumos %}
+                                        <option value="{{ ins.id|stringformat:'d' }}" {% if ins.id == insumo.articulo_id %}selected{% endif %}>{{ ins.codigo }} - {{ ins.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="number" name="insumo_cantidad[]" class="form-control form-control-sm border-0 bg-transparent p-0" step="0.01" min="0" value="{{ insumo.cantidad|unlocalize }}" placeholder="0.00" required>
+                            </td>
+                            <td>
+                                <input type="text" name="insumo_notas[]" class="form-control form-control-sm border-0 bg-transparent p-0" value="{{ insumo.notas }}" placeholder="...">
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-link text-danger p-0" onclick="eliminarInsumoModal(this)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        {% if not receta %}
+            <div class="text-center py-2 text-muted small fst-italic" id="emptyInsumosMsg" {% if receta and receta.insumos.count > 0 %}style="display:none;"{% endif %}>
+                No hay insumos agregados.
+            </div>
+        {% endif %}
+
+        <div class="mt-4 pt-3 border-top" style="border-color: #E8DCC8 !important;">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="id_activo" name="activo" {% if not receta or receta.activo %}checked{% endif %} style="background-color: #8B7355; border-color: #8B7355;">
+                <label class="form-check-label fw-medium" for="id_activo">Receta Activa</label>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn btn-light border" data-bs-dismiss="modal" style="color: #6F5B44;">Cancelar</button>
+            <button type="submit" class="btn text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
+                <i class="fas fa-save me-2"></i>Guardar Receta
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Variables globales para el modal
+    var insumosDisponiblesModal = {{ insumos_json|safe }};
+
+    function agregarInsumoModal() {
+        var container = document.getElementById('insumosContainerModal');
+        var msg = document.getElementById('emptyInsumosMsg');
+        if(msg) msg.style.display = 'none';
+
+        var tr = document.createElement('tr');
+        tr.className = 'insumo-row';
+        tr.style.height = '32px';
+
+        var optionsHtml = '<option value="">Seleccionar...</option>';
+        insumosDisponiblesModal.forEach(function(ins) {
+            optionsHtml += `<option value="${ins.id}">${ins.codigo} - ${ins.nombre}</option>`;
+        });
+
+        tr.innerHTML = `
+            <td style="padding-left: 1rem;">
+                <select name="insumo_articulo[]" class="form-select form-select-sm border-0 bg-transparent p-0" required>
+                    ${optionsHtml}
+                </select>
+            </td>
+            <td>
+                <input type="number" name="insumo_cantidad[]" class="form-control form-control-sm border-0 bg-transparent p-0" step="0.01" min="0" placeholder="0.00" required>
+            </td>
+            <td>
+                <input type="text" name="insumo_notas[]" class="form-control form-control-sm border-0 bg-transparent p-0" placeholder="...">
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-link text-danger p-0" onclick="eliminarInsumoModal(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+        container.appendChild(tr);
+    }
+
+    function eliminarInsumoModal(btn) {
+        var row = btn.closest('tr');
+        row.remove();
+        var container = document.getElementById('insumosContainerModal');
+        if (container.children.length === 0) {
+            var msg = document.getElementById('emptyInsumosMsg');
+            if(msg) msg.style.display = 'block';
+        }
+    }
+</script>

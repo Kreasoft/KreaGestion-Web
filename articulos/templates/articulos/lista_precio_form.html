@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load widget_tweaks %}
+{% load static widget_tweaks %}
 
 {% block title %}{{ titulo }} - GestionCloud{% endblock %}
 
@@ -9,182 +9,154 @@
 <style>
     body {
         background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
-        min-height: 100vh;
     }
 
-    .form-container {
-        background: white;
-        border: 2px solid #E8DCC8;
-        border-radius: 15px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        overflow: hidden;
+    /* Ocultar top-bar si existe y ajustar layout */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-top: 2rem !important; }
+
+    /* Estilo Piedra - Variables Locales */
+    :root {
+        --color-piedra-texto: #5D4037;
+        --color-piedra-boton: #8D6E63;
+        --color-piedra-borde: #d7ccc8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --shadow-piedra: 0 4px 15px rgba(93, 64, 55, 0.15);
     }
 
-    .form-header {
-        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
-        color: #6F5B44;
-        padding: 1.5rem;
-        margin: 0;
-        border-bottom: 2px solid #D4C4A8;
+    .card-header-piedra {
+        background: var(--gradient-piedra);
+        border-bottom: 2px solid var(--color-piedra-borde);
+        padding: 1.5rem 2rem;
     }
 
-    .form-body {
-        padding: 2rem;
-        background: #FAFAF8;
-    }
-
-    .btn-save {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        border: none;
-        color: white;
-        padding: 8px 24px;
-        font-weight: 500;
-        border-radius: 8px;
+    .btn-piedra {
+        background: var(--gradient-piedra);
+        border: 1px solid var(--color-piedra-borde);
+        color: var(--color-piedra-texto) !important;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        border-radius: 10px;
+        box-shadow: var(--shadow-piedra);
         transition: all 0.3s ease;
     }
 
-    .btn-save:hover {
+    .btn-piedra:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
-        color: white;
+        box-shadow: 0 6px 20px rgba(93, 64, 55, 0.25);
+        filter: brightness(0.95);
     }
 
-    .btn-cancel {
-        background: rgba(139, 115, 85, 0.15);
-        border: 1px solid rgba(139, 115, 85, 0.25);
-        color: #8B7355;
-        padding: 8px 24px;
-        font-weight: 500;
-        border-radius: 8px;
-    }
-
-    .btn-cancel:hover {
-        background: rgba(139, 115, 85, 0.25);
-        color: #6F5B44;
-    }
-
-    .form-label {
-        color: #6F5B44;
-        font-weight: 600;
-        font-size: 0.9rem;
+    .form-label-premium {
+        font-weight: 700;
+        color: var(--color-piedra-texto);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
         margin-bottom: 0.5rem;
     }
 
-    .form-control:focus, .form-select:focus {
-        border-color: #8B7355;
-        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
-    }
-
     .form-control, .form-select {
-        border-color: #D4C4A8;
+        border-radius: 10px;
+        border: 1px solid var(--color-piedra-borde);
+        padding: 0.7rem 1rem;
+        transition: all 0.2s ease;
     }
 
-    .form-control:hover, .form-select:hover {
-        border-color: #8B7355;
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-piedra-boton);
+        box-shadow: 0 0 0 0.2rem rgba(141, 110, 99, 0.1);
     }
 
-    .form-check-input:checked {
-        background-color: #8B7355;
-        border-color: #8B7355;
-    }
-
-    .form-check-input:focus {
-        border-color: #8B7355;
-        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+    .card-premium {
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid var(--color-piedra-borde) !important;
+        background: white;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Banner superior -->
-<div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #F5F1E8 0%, #E8DED5 100%); color: #6F5B44; text-align: center; padding: 8px; font-size: 0.8rem; font-weight: 500; font-family: 'Poppins', sans-serif; z-index: 9999; border-bottom: 1px solid #D4C4A8;">
-    {{ titulo }}
-</div>
-
-<div class="container-fluid" style="margin-top: 80px;">
+<div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="form-container">
-                <div class="form-header">
-                    <div class="d-flex justify-content-between align-items-center">
+            <div class="card card-premium shadow-sm">
+                <div class="card-header-piedra">
+                    <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-tags fa-lg me-2" style="color: #6F5B44;"></i>
+                            <div class="p-3 bg-white bg-opacity-50 rounded-circle me-3 shadow-sm">
+                                <i class="fas fa-list-alt fa-lg" style="color: var(--color-piedra-texto);"></i>
+                            </div>
                             <div>
-                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
+                                <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto);">
                                     {{ titulo }}
-                                </h5>
-                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
-                                    {% if form.instance.pk %}Modifica los datos de la lista{% else %}Crea una nueva lista de precios{% endif %}
-                                </small>
+                                </h4>
+                                <p class="mb-0 small opacity-75" style="color: var(--color-piedra-texto);">
+                                    {% if form.instance.pk %}Modificación de preferencias de lista{% else %}Configuración de nueva segmentación{% endif %}
+                                </p>
                             </div>
                         </div>
-                        <a href="{% url 'articulos:lista_precio_list' %}" class="btn btn-sm btn-cancel">
-                            <i class="fas fa-arrow-left me-1"></i> Volver
+                        <a href="{% url 'articulos:lista_precio_list' %}" class="btn btn-sm" style="color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 8px;">
+                            <i class="fas fa-times me-1"></i> Cancelar
                         </a>
                     </div>
                 </div>
-
-                <div class="form-body">
+                
+                <div class="card-body p-4">
                     <form method="post">
                         {% csrf_token %}
-
-                        <div class="row g-3">
-                            <!-- Nombre -->
-                            <div class="col-md-12">
-                                <label for="{{ form.nombre.id_for_label }}" class="form-label">
-                                    <i class="fas fa-tag me-1"></i>Nombre de la Lista *
-                                </label>
-                                {{ form.nombre }}
-                                {% if form.nombre.errors %}
-                                    <div class="text-danger small">{{ form.nombre.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-
-                            <!-- Descripción -->
-                            <div class="col-12">
-                                <label for="{{ form.descripcion.id_for_label }}" class="form-label">
-                                    <i class="fas fa-align-left me-1"></i>Descripción
-                                </label>
-                                {{ form.descripcion }}
-                                {% if form.descripcion.errors %}
-                                    <div class="text-danger small">{{ form.descripcion.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-
-                            <!-- Activa -->
+                        
+                        <div class="mb-4">
+                            <label for="{{ form.nombre.id_for_label }}" class="form-label-premium">
+                                <i class="fas fa-tag me-1"></i>Nombre de la Lista
+                            </label>
+                            {{ form.nombre|add_class:"form-control" }}
+                            {% if form.nombre.errors %}
+                                <div class="text-danger small mt-1"><i class="fas fa-exclamation-circle me-1"></i>{{ form.nombre.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="{{ form.descripcion.id_for_label }}" class="form-label-premium">
+                                <i class="fas fa-align-left me-1"></i>Descripción (Opcional)
+                            </label>
+                            {{ form.descripcion|add_class:"form-control"|attr:"rows:3" }}
+                            {% if form.descripcion.errors %}
+                                <div class="text-danger small mt-1"><i class="fas fa-exclamation-circle me-1"></i>{{ form.descripcion.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row mb-4">
                             <div class="col-md-6">
-                                <div class="form-check">
-                                    {{ form.activa }}
-                                    <label class="form-check-label" for="{{ form.activa.id_for_label }}">
-                                        <i class="fas fa-check-circle me-1"></i>Lista Activa
-                                    </label>
+                                <div class="p-3 rounded-3" style="background: rgba(141, 110, 99, 0.03); border: 1px dashed var(--color-piedra-borde);">
+                                    <div class="form-check form-switch m-0">
+                                        {{ form.activa|add_class:"form-check-input" }}
+                                        <label class="form-check-label fw-bold" for="{{ form.activa.id_for_label }}" style="color: var(--color-piedra-texto);">
+                                            LISTA ACTIVA
+                                        </label>
+                                    </div>
+                                    <p class="mb-0 text-muted extra-small mt-1">Permite usar esta lista en ventas y documentos.</p>
                                 </div>
-                                {% if form.activa.errors %}
-                                    <div class="text-danger small">{{ form.activa.errors.0 }}</div>
-                                {% endif %}
                             </div>
-
-                            <!-- Predeterminada -->
                             <div class="col-md-6">
-                                <div class="form-check">
-                                    {{ form.es_predeterminada }}
-                                    <label class="form-check-label" for="{{ form.es_predeterminada.id_for_label }}">
-                                        <i class="fas fa-star me-1"></i>Lista Predeterminada
-                                    </label>
+                                <div class="p-3 rounded-3" style="background: rgba(141, 110, 99, 0.03); border: 1px dashed var(--color-piedra-borde);">
+                                    <div class="form-check form-switch m-0">
+                                        {{ form.es_predeterminada|add_class:"form-check-input" }}
+                                        <label class="form-check-label fw-bold" for="{{ form.es_predeterminada.id_for_label }}" style="color: var(--color-piedra-texto);">
+                                            USAR POR DEFECTO
+                                        </label>
+                                    </div>
+                                    <p class="mb-0 text-muted extra-small mt-1">Se seleccionará automáticamente en cada venta nueva.</p>
                                 </div>
-                                {% if form.es_predeterminada.errors %}
-                                    <div class="text-danger small">{{ form.es_predeterminada.errors.0 }}</div>
-                                {% endif %}
-                                <small class="text-muted">Solo puede haber una lista predeterminada</small>
                             </div>
                         </div>
 
-                        <!-- Botones -->
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{% url 'articulos:lista_precio_list' %}" class="btn btn-cancel">
-                                <i class="fas fa-arrow-left me-2"></i>Cancelar
+                        <div class="d-flex justify-content-end gap-3 mt-5">
+                            <a href="{% url 'articulos:lista_precio_list' %}" class="btn px-4" style="background: rgba(93, 64, 55, 0.05); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 10px; font-weight: 500;">
+                                Cancelar
                             </a>
-                            <button type="submit" class="btn btn-save">
+                            <button type="submit" class="btn btn-piedra px-5">
                                 <i class="fas fa-save me-2"></i>Guardar Lista
                             </button>
                         </div>
@@ -194,4 +166,14 @@
         </div>
     </div>
 </div>
+
+<style>
+    .extra-small {
+        font-size: 0.75rem;
+    }
+    .form-check-input:checked {
+        background-color: var(--color-piedra-boton);
+        border-color: var(--color-piedra-boton);
+    }
+</style>
 {% endblock %}

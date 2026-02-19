@@ -1,55 +1,134 @@
 {% extends "base.html" %}
 
+{% block title %}Eliminar Unidad de Medida - GestionCloud{% endblock %}
+
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block page_title %}{{ title }}{% endblock %}
-{% block page_heading %}{{ title }}{% endblock %}
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
+
+    /* Ocultar top-bar si existe y ajustar layout */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-top: 5rem !important; }
+
+    /* Estilo Piedra - Variables Locales */
+    :root {
+        --color-piedra-texto: #5D4037;
+        --color-piedra-boton: #8D6E63;
+        --color-piedra-borde: #d7ccc8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --shadow-piedra: 0 4px 15px rgba(93, 64, 55, 0.15);
+    }
+
+    .card-confirm-piedra {
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(220, 53, 69, 0.2) !important;
+        background: white;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+
+    .header-danger-piedra {
+        background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+        padding: 1.5rem 2rem;
+        color: white;
+        border-bottom: 2px solid rgba(0,0,0,0.05);
+    }
+
+    .btn-piedra-cancel {
+        background: white;
+        border: 1px solid var(--color-piedra-borde);
+        color: var(--color-piedra-texto) !important;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-piedra-danger {
+        background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+        border: none;
+        color: white !important;
+        font-weight: 600;
+        padding: 0.6rem 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(211, 47, 47, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .btn-piedra-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(211, 47, 47, 0.4);
+        filter: brightness(1.1);
+    }
+
+    .info-box-delete {
+        background: rgba(141, 110, 99, 0.05);
+        border: 1px dashed var(--color-piedra-borde);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+
+    .simbolo-badge-grande {
+        background: white;
+        color: var(--color-piedra-texto);
+        padding: 0.4rem 1rem;
+        border-radius: 10px;
+        font-family: monospace;
+        font-weight: bold;
+        font-size: 1.2rem;
+        border: 1px solid var(--color-piedra-borde);
+        display: inline-block;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-danger text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-warning">
-                        <h6><i class="fas fa-warning"></i> ¿Estás seguro de que deseas eliminar esta unidad de medida?</h6>
-                        <p class="mb-0">Esta acción no se puede deshacer.</p>
+        <div class="col-md-7 col-lg-6">
+            <div class="card card-confirm-piedra">
+                <div class="header-danger-piedra text-center">
+                    <div class="mb-2">
+                        <i class="fas fa-ruler-combined fa-3x opacity-50"></i>
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Información de la Unidad:</h6>
-                            <table class="table table-sm">
-                                <tr>
-                                    <td><strong>Nombre:</strong></td>
-                                    <td>{{ unidad.nombre }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Símbolo:</strong></td>
-                                    <td>{{ unidad.simbolo }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Descripción:</strong></td>
-                                    <td>{{ unidad.descripcion|default:"Sin descripción" }}</td>
-                                </tr>
-                            </table>
+                    <h4 class="mb-0 fw-bold" style="font-family: 'Poppins', sans-serif;">¿Eliminar Unidad?</h4>
+                </div>
+                
+                <div class="card-body p-4 p-lg-5">
+                    <div class="alert alert-danger border-0 rounded-3 shadow-sm d-flex align-items-center mb-4" style="background: rgba(220, 53, 69, 0.08); color: #b71c1c;">
+                        <i class="fas fa-exclamation-circle fa-2x me-3 opacity-50"></i>
+                        <div>
+                            <div class="fw-bold">Advertencia Crítica</div>
+                            <div class="small">Si existen artículos que USAN esta unidad, podrías provocar errores en los reportes de stock.</div>
                         </div>
                     </div>
                     
-                    <div class="d-flex justify-content-between">
-                        <a href="{% url 'articulos:unidad_medida_list' %}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Cancelar
-                        </a>
-                        <form method="post" class="d-inline">
+                    <p class="text-center text-muted mb-4">Está a punto de remover la siguiente unidad de medida:</p>
+                    
+                    <div class="info-box-delete text-center">
+                        <h4 class="fw-bold mb-1" style="color: var(--color-piedra-texto);">{{ unidad.nombre }}</h4>
+                        <div class="simbolo-badge-grande">
+                            {{ unidad.simbolo }}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-5">
+                        <form method="post">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-danger">
-                                <i class="fas fa-trash"></i> Eliminar Unidad
-                            </button>
+                            <div class="d-flex flex-column flex-sm-row gap-3">
+                                <a href="{% url 'articulos:unidad_medida_list' %}" class="btn btn-piedra-cancel flex-grow-1 order-2 order-sm-1 text-center">
+                                    <i class="fas fa-times me-2"></i>No, Cancelar
+                                </a>
+                                <button type="submit" class="btn btn-piedra-danger flex-grow-1 order-1 order-sm-2">
+                                    <i class="fas fa-trash-alt me-2"></i>Sí, Eliminar Unidad
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -58,4 +137,3 @@
     </div>
 </div>
 {% endblock %}
-

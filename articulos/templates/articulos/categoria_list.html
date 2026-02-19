@@ -1,198 +1,343 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block body_class %}hide-top-bar{% endblock %}
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
 
-{% block title %}Categorías de Artículos{% endblock %}
+    /* Ocultar top-bar si existe y ajustar layout */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-top: 2rem !important; }
+
+    /* Estilo Piedra - Variables Locales (Sincronizadas con custom-colors.css) */
+    :root {
+        --color-piedra-texto: #5D4037;
+        --color-piedra-boton: #8D6E63;
+        --color-piedra-borde: #d7ccc8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --shadow-piedra: 0 4px 15px rgba(93, 64, 55, 0.15);
+    }
+
+    .card-header-piedra {
+        background: var(--gradient-piedra);
+        border-bottom: 2px solid var(--color-piedra-borde);
+        padding: 1.5rem 2rem;
+    }
+
+    .btn-piedra {
+        background: var(--gradient-piedra);
+        border: 1px solid var(--color-piedra-borde);
+        color: var(--color-piedra-texto) !important;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        border-radius: 10px;
+        box-shadow: var(--shadow-piedra);
+        transition: all 0.3s ease;
+    }
+
+    .btn-piedra:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(93, 64, 55, 0.25);
+        filter: brightness(0.95);
+    }
+
+    .stats-card-piedra {
+        position: relative;
+        border: 1px solid var(--color-piedra-borde);
+        border-radius: 15px;
+        transition: all 0.3s ease;
+        overflow: hidden;
+        padding: 1.2rem !important;
+        min-height: 110px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        z-index: 1;
+    }
+
+    .stats-card-piedra:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-piedra);
+    }
+
+    .stats-bg-icon {
+        position: absolute;
+        right: -15px;
+        bottom: -15px;
+        font-size: 6.5rem;
+        opacity: 0.12;
+        z-index: -1;
+        pointer-events: none;
+        transform: rotate(-15deg);
+        line-height: 1;
+    }
+
+    .stats-icon-container {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.4);
+        color: var(--color-piedra-texto);
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        font-size: 1.2rem;
+    }
+
+    .table-piedra thead th {
+        background: rgba(215, 204, 200, 0.2);
+        color: var(--color-piedra-texto);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid var(--color-piedra-borde);
+        padding: 0.5rem 1rem;
+        height: 32px;
+    }
+
+    .table-piedra tbody tr {
+        height: 32px !important;
+    }
+
+    .table-piedra tbody td {
+        padding: 0 1rem !important;
+        vertical-align: middle;
+        color: #444;
+        height: 32px !important;
+        font-size: 0.85rem;
+        border-bottom: 1px solid rgba(215, 204, 200, 0.3);
+    }
+
+    .badge-piedra {
+        background: rgba(141, 110, 99, 0.1);
+        color: var(--color-piedra-texto);
+        border: 1px solid var(--color-piedra-borde);
+        font-weight: 600;
+        border-radius: 6px;
+        padding: 0.4rem 0.7rem;
+    }
+
+    /* Modal Styling */
+    .modal-content-piedra {
+        border-radius: 20px;
+        border: none;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+    }
+
+    .modal-header-piedra {
+        background: var(--gradient-piedra);
+        border-bottom: 1px solid var(--color-piedra-borde);
+        padding: 1.5rem;
+    }
+
+    .form-label-piedra {
+        font-weight: 600;
+        color: var(--color-piedra-texto);
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control-piedra {
+        border-radius: 10px;
+        border: 1px solid var(--color-piedra-borde);
+        padding: 0.7rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control-piedra:focus {
+        border-color: var(--color-piedra-boton);
+        box-shadow: 0 0 0 0.2rem rgba(141, 110, 99, 0.1);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm">
-                <!-- Header de la Tarjeta -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-11">
+            <div class="card shadow-sm border-0" style="border-radius: 20px; overflow: hidden; border: 1px solid var(--color-piedra-borde) !important;">
+                <!-- Header Premium -->
+                <div class="card-header-piedra">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-tags fa-2x text-white me-3"></i>
+                            <div class="p-3 bg-white bg-opacity-50 rounded-circle me-3 shadow-sm">
+                                <i class="fas fa-tags fa-lg" style="color: var(--color-piedra-texto);"></i>
+                            </div>
                             <div>
-                                <h5 class="mb-0 text-white">
-                                    Categorías de Artículos
-                                </h5>
-                                <small class="text-white-50">Gestiona las categorías de tu inventario</small>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
+                                    Categorías de <span class="fw-bold">Artículos</span>
+                                </h2>
+                                <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                                    Organización jerárquica del catálogo de productos y servicios.
+                                </div>
                             </div>
                         </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#categoriaModal" onclick="abrirModalCrear()" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3);">
-                                <i class="fas fa-plus me-2"></i> Nueva Categoría
-                            </button>
-                        </div>
+                        <button type="button" class="btn btn-piedra" data-bs-toggle="modal" data-bs-target="#categoriaModal" onclick="abrirModalCrear()">
+                            <i class="fas fa-plus-circle me-2"></i> Nueva Categoría
+                        </button>
                     </div>
                 </div>
                 
-                <!-- Estadísticas dentro de la tarjeta -->
-                <div class="card-body" style="padding: 1.5rem;">
-                    <div class="row mb-4">
+                <div class="card-body p-4">
+                    <!-- Estadísticas Estilo Piedra -->
+                    <div class="row g-4 mb-5">
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Total Categorías</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">{{ total_categorias }}</h4>
-                                        </div>
-                                        <i class="fas fa-tags fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                            <div class="stats-card-piedra shadow-sm" style="background: #E3F2FD; border-color: #BBDEFB;">
+                                <i class="fas fa-layer-group stats-bg-icon" style="color: #1976D2;"></i>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div class="stats-icon-container">
+                                        <i class="fas fa-layer-group" style="color: #1976D2;"></i>
                                     </div>
+                                    <span class="badge rounded-pill px-2" style="font-size: 0.6rem; background: rgba(25, 118, 210, 0.1); color: #1976D2; border: 1px solid rgba(25, 118, 210, 0.2);">CATEGORÍAS</span>
                                 </div>
+                                <h2 class="mb-0 fw-bold" style="color: #0D47A1;">{{ total_categorias }}</h2>
+                                <p class="text-muted small mb-0 fw-500">Total registradas</p>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); border: none; box-shadow: 0 2px 8px rgba(160, 130, 109, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Activas</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">{{ categorias_activas }}</h4>
-                                        </div>
-                                        <i class="fas fa-check-circle fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                            <div class="stats-card-piedra shadow-sm" style="background: #E8F5E9; border-color: #C8E6C9;">
+                                <i class="fas fa-check-circle stats-bg-icon" style="color: #388E3C;"></i>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div class="stats-icon-container">
+                                        <i class="fas fa-check-circle" style="color: #388E3C;"></i>
                                     </div>
+                                    <span class="badge rounded-pill px-2" style="font-size: 0.6rem; background: rgba(56, 142, 60, 0.1); color: #388E3C; border: 1px solid rgba(56, 142, 60, 0.2);">ACTIVAS</span>
                                 </div>
+                                <h2 class="mb-0 fw-bold" style="color: #1B5E20;">{{ categorias_activas }}</h2>
+                                <p class="text-muted small mb-0 fw-500">Disponibles para uso</p>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #C19A6B 0%, #A0826D 100%); border: none; box-shadow: 0 2px 8px rgba(193, 154, 107, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Con IVA</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">{{ categorias_con_iva }}</h4>
-                                        </div>
-                                        <i class="fas fa-percentage fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                            <div class="stats-card-piedra shadow-sm" style="background: #FFF3E0; border-color: #FFE0B2;" title="Categorías gravadas con IVA (19%)">
+                                <i class="fas fa-percent stats-bg-icon" style="color: #F57C00;"></i>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div class="stats-icon-container">
+                                        <i class="fas fa-percent" style="color: #F57C00;"></i>
                                     </div>
+                                    <span class="badge rounded-pill px-2" style="font-size: 0.6rem; background: rgba(245, 124, 0, 0.1); color: #F57C00; border: 1px solid rgba(245, 124, 0, 0.2);">AFECTAS</span>
                                 </div>
+                                <h2 class="mb-0 fw-bold" style="color: #E65100;">{{ categorias_con_iva }}</h2>
+                                <p class="text-muted small mb-0 fw-500">Con IVA 19%</p>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%); border: none; box-shadow: 0 2px 8px rgba(212, 165, 116, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Exentas</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">{{ categorias_exentas }}</h4>
-                                        </div>
-                                        <i class="fas fa-ban fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
+                            <div class="stats-card-piedra shadow-sm" style="background: #F3E5F5; border-color: #E1BEE7;" title="Categorías sin IVA">
+                                <i class="fas fa-ban stats-bg-icon" style="color: #7B1FA2;"></i>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div class="stats-icon-container">
+                                        <i class="fas fa-ban" style="color: #7B1FA2;"></i>
                                     </div>
+                                    <span class="badge rounded-pill px-2" style="font-size: 0.6rem; background: rgba(123, 31, 162, 0.1); color: #7B1FA2; border: 1px solid rgba(123, 31, 162, 0.2);">EXENTAS</span>
                                 </div>
+                                <h2 class="mb-0 fw-bold" style="color: #4A148C;">{{ categorias_exentas }}</h2>
+                                <p class="text-muted small mb-0 fw-500">Sin cargo de IVA</p>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
+
+                    <!-- Tabla Estilo Piedra -->
+                    <div class="table-responsive rounded-3" style="border: 1px solid var(--color-piedra-borde);">
+                        <table class="table table-piedra table-hover mb-0">
+                            <thead>
                                 <tr>
-                                    <th class="border-0 py-1 px-2">
-                                        <div class="form-check">
+                                    <th width="50">
+                                        <div class="form-check m-0">
                                             <input class="form-check-input" type="checkbox" id="selectAll">
-                                            <label class="form-check-label" for="selectAll">
-                                                <strong>Nombre</strong>
-                                            </label>
                                         </div>
                                     </th>
-                                    <th class="border-0 py-1 px-2"><strong>Descripción</strong></th>
-                                    <th class="border-0 py-1 px-2"><strong>IVA</strong></th>
-                                    <th class="border-0 py-1 px-2"><strong>Impuesto Específico</strong></th>
-                                    <th class="border-0 py-1 px-2"><strong>Estado</strong></th>
-                                    <th class="border-0 py-1 px-2"><strong>Fecha Creación</strong></th>
-                                    <th class="border-0 py-1 px-2 text-center"><strong>Acciones</strong></th>
+                                    <th>Nombre de Categoría</th>
+                                    <th>Descripción</th>
+                                    <th class="text-center">Impuestos</th>
+                                    <th class="text-center">Estado</th>
+                                    <th>Creada</th>
+                                    <th class="text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for categoria in categorias %}
-                                <tr class="border-bottom">
-                                    <td class="py-1 px-2">
-                                        <div class="d-flex align-items-center">
-                                            <div class="form-check me-2">
-                                                <input class="form-check-input" type="checkbox" value="{{ categoria.id }}">
-                                            </div>
-                                            <div>
-                                                <span class="fw-medium text-dark">{{ categoria.nombre }}</span>
-                                            </div>
+                                <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="{{ categoria.id }}">
                                         </div>
                                     </td>
-                                    <td class="py-1 px-2">
-                                        {% if categoria.descripcion %}
-                                            <span class="text-muted small">{{ categoria.descripcion|truncatechars:40 }}</span>
-                                        {% else %}
-                                            <span class="text-muted small">Sin descripción</span>
-                                        {% endif %}
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="p-2 rounded bg-light me-3">
+                                                <i class="fas fa-tag opacity-50"></i>
+                                            </div>
+                                            <span class="fw-bold" style="color: var(--color-piedra-texto);">{{ categoria.nombre }}</span>
+                                        </div>
                                     </td>
-                                    <td class="py-1 px-2">
-                                        {% if categoria.exenta_iva %}
-                                            <span class="badge bg-warning text-dark">
-                                                <i class="fas fa-ban me-1"></i>Sin IVA
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-primary">
-                                                <i class="fas fa-percentage me-1"></i>IVA 19%
-                                            </span>
-                                        {% endif %}
+                                    <td>
+                                        <span class="text-muted small">{{ categoria.descripcion|default:"Sin descripción"|truncatechars:100 }}</span>
                                     </td>
-                                    <td class="py-1 px-2">
-                                        {% if categoria.impuesto_especifico %}
-                                            <span class="badge bg-info">
-                                                <i class="fas fa-tag me-1"></i>{{ categoria.impuesto_especifico.nombre }} ({{ categoria.impuesto_especifico.porcentaje }}%)
-                                            </span>
-                                        {% else %}
-                                            <span class="text-muted small">Ninguno</span>
-                                        {% endif %}
+                                    <td class="text-center">
+                                        <div class="d-flex flex-column gap-1 align-items-center">
+                                            {% if categoria.exenta_iva %}
+                                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-ban me-1"></i>Exenta IVA
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-percentage me-1"></i>Afecta IVA
+                                                </span>
+                                            {% endif %}
+                                            
+                                            {% if categoria.impuesto_especifico %}
+                                                <span class="badge-piedra" style="font-size: 0.65rem; padding: 0.2rem 0.5rem;">
+                                                    <i class="fas fa-receipt me-1"></i>{{ categoria.impuesto_especifico.nombre }} ({{ categoria.impuesto_especifico.porcentaje }}%)
+                                                </span>
+                                            {% endif %}
+                                        </div>
                                     </td>
-                                    <td class="py-1 px-2">
+                                    <td class="text-center">
                                         {% if categoria.activa %}
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-check me-1"></i>Activa
-                                            </span>
+                                            <span class="badge bg-success rounded-pill px-3" style="font-size: 0.7rem;">Activa</span>
                                         {% else %}
-                                            <span class="badge bg-danger">
-                                                <i class="fas fa-times me-1"></i>Inactiva
-                                            </span>
+                                            <span class="badge bg-danger rounded-pill px-3" style="font-size: 0.7rem;">Inactiva</span>
                                         {% endif %}
                                     </td>
-                                    <td class="py-1 px-2">
-                                        <span class="text-muted small">{{ categoria.fecha_creacion|date:"d/m/Y" }}</span>
+                                    <td>
+                                        <span class="text-muted" style="font-size: 0.8rem;">
+                                            <i class="far fa-calendar-alt me-1"></i> {{ categoria.fecha_creacion|date:"d/m/Y" }}
+                                        </span>
                                     </td>
-                                    <td class="py-1 px-2 text-center">
-                                        <div class="btn-group" role="group">
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-2">
                                             <button type="button" 
-                                                    class="btn btn-sm" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#categoriaModal"
+                                                    class="btn btn-sm btn-light border" 
                                                     data-bs-toggle="tooltip" 
-                                                    title="Editar"
-                                                    onclick="abrirModalEditar({{ categoria.pk }}, '{{ categoria.nombre }}', '{{ categoria.descripcion }}', {{ categoria.exenta_iva|yesno:"true,false" }}, {{ categoria.impuesto_especifico.id|default:"null" }}, {{ categoria.activa|yesno:"true,false" }})"
-                                                    style="border: none; background: none; padding: 4px 8px;">
-                                                <i class="fas fa-edit" style="color: #B8860B; font-size: 16px;"></i>
+                                                    title="Editar Categoría"
+                                                    onclick="abrirModalEditar({{ categoria.pk }}, '{{ categoria.nombre|escapejs }}', '{{ categoria.descripcion|escapejs }}', {{ categoria.exenta_iva|yesno:'true,false' }}, {{ categoria.impuesto_especifico.id|default:'null' }}, {{ categoria.activa|yesno:'true,false' }})"
+                                                    style="border-radius: 6px; width: 28px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-edit" style="color: var(--color-piedra-boton); font-size: 0.8rem;"></i>
                                             </button>
                                             <a href="{% url 'articulos:categoria_delete' categoria.pk %}" 
-                                               class="btn btn-sm" 
+                                               class="btn btn-sm btn-light border" 
                                                data-bs-toggle="tooltip" 
                                                title="Eliminar"
-                                               style="border: none; background: none; padding: 4px 8px;">
-                                                <i class="fas fa-trash" style="color: #DC143C; font-size: 16px;"></i>
+                                               style="border-radius: 6px; width: 28px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-trash-alt" style="color: #7B5E57; font-size: 0.8rem;"></i>
                                             </a>
                                         </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="6" class="text-center py-5">
-                                        <div class="text-muted">
-                                            <i class="fas fa-tags fa-3x mb-3 text-gray-300"></i>
-                                            <h5 class="text-gray-600">No hay categorías</h5>
-                                            <p class="mb-4">Comienza creando tu primera categoría para organizar tus artículos.</p>
-                                            <a href="{% url 'articulos:categoria_create' %}" class="btn btn-primary">
-                                                <i class="fas fa-plus me-2"></i>Crear Primera Categoría
-                                            </a>
+                                    <td colspan="7" class="text-center py-5">
+                                        <div class="py-4">
+                                            <div class="p-4 bg-light rounded-circle d-inline-block mb-3">
+                                                <i class="fas fa-tags fa-3x opacity-25"></i>
+                                            </div>
+                                            <h5 class="text-muted">No se encontraron categorías</h5>
+                                            <p class="text-muted small">Haz clic en "Nueva Categoría" para comenzar.</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -206,91 +351,84 @@
     </div>
 </div>
 
-<!-- Modal para Categorías -->
+<!-- Modal Premium Estilo Piedra -->
 <div class="modal fade" id="categoriaModal" tabindex="-1" aria-labelledby="categoriaModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
-                <h5 class="modal-title" id="categoriaModalLabel">
-                    <i class="fas fa-tags me-2" style="color: white;"></i>
-                    <span id="modalTitulo">Nueva Categoría</span>
-                </h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-piedra">
+            <div class="modal-header-piedra">
+                <div class="d-flex align-items-center">
+                    <div class="p-2 bg-white bg-opacity-50 rounded-circle me-3">
+                        <i class="fas fa-layer-group" style="color: var(--color-piedra-texto);"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold" id="categoriaModalLabel" style="color: var(--color-piedra-texto);">Nueva Categoría</h5>
+                        <p class="mb-0 small opacity-75" id="modalSubtitulo" style="color: var(--color-piedra-texto);">Complete los datos de clasificación</p>
+                    </div>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            
             <form id="categoriaForm" method="post" onsubmit="enviarFormulario(event)">
                 {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="id_nombre" class="form-label" style="color: #495057; font-weight: bold;">
-                            Nombre
-                        </label>
+                <div class="modal-body p-4">
+                    <div class="mb-4">
+                        <label for="id_nombre" class="form-label-piedra">NOMBRE DE CATEGORÍA</label>
                         <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-tag" style="color: #6c757d;"></i>
+                            <span class="input-group-text bg-light border-end-0" style="border-radius: 10px 0 0 10px; border-color: var(--color-piedra-borde);">
+                                <i class="fas fa-tag text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control form-control-piedra border-start-0" id="id_nombre" name="nombre" required 
+                                   placeholder="Ej: Abarrotes, Herramientas, Electrónica..." style="border-radius: 0 10px 10px 0;">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="id_descripcion" class="form-label-piedra">DESCRIPCIÓN (OPCIONAL)</label>
+                        <textarea class="form-control form-control-piedra" id="id_descripcion" name="descripcion" rows="3" 
+                                  placeholder="Detalles adicionales sobre esta categoría..."></textarea>
+                    </div>
+                    
+                    <div class="card bg-light border-0 mb-4" style="border-radius: 12px;">
+                        <div class="card-body p-3">
+                            <h6 class="form-label-piedra mb-3" style="font-size: 0.75rem;"><i class="fas fa-percentage me-2"></i>CONFIGURACIÓN TRIBUTARIA</h6>
+                            
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="id_exenta_iva" name="exenta_iva">
+                                <label class="form-check-label fw-600" for="id_exenta_iva" style="color: var(--color-piedra-texto); font-size: 0.85rem;">
+                                    Categoría Exenta de IVA (19%)
+                                </label>
+                                <div class="form-text mt-0" style="font-size: 0.7rem;">Si activa esto, los artículos vinculados no pagarán IVA.</div>
                             </div>
-                            <input type="text" class="form-control" id="id_nombre" name="nombre" required 
-                                   placeholder="Ingrese el nombre de la categoría" style="color: #6c757d; border-left: none;">
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="id_descripcion" class="form-label" style="color: #495057; font-weight: bold;">
-                            Descripción
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da; align-items: flex-start; padding-top: 12px;">
-                                <i class="fas fa-align-left" style="color: #6c757d;"></i>
+                            
+                            <div>
+                                <label for="id_impuesto_especifico" class="form-label-piedra" style="font-size: 0.7rem;">IMPUESTO ESPECÍFICO ADICIONAL</label>
+                                <select class="form-select form-control-piedra" id="id_impuesto_especifico" name="impuesto_especifico">
+                                    <option value="">Ninguno (Solo IVA normal)</option>
+                                    {% for impuesto in impuestos_especificos %}
+                                        <option value="{{ impuesto.id }}">{{ impuesto.nombre }} ({{ impuesto.porcentaje }}%)</option>
+                                    {% endfor %}
+                                </select>
                             </div>
-                            <textarea class="form-control" id="id_descripcion" name="descripcion" rows="3" 
-                                      placeholder="Ingrese una descripción (opcional)" style="color: #6c757d; border-left: none;"></textarea>
                         </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="id_exenta_iva" name="exenta_iva">
-                            <label class="form-check-label" for="id_exenta_iva" style="color: #495057; font-weight: bold;">
-                                <i class="fas fa-percentage me-1" style="color: #6B8E23;"></i>Exenta de IVA
-                            </label>
-                            <div class="form-text" style="color: #6c757d;">Si está marcado, los artículos de esta categoría no tendrán IVA (19%)</div>
+                    <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: rgba(141, 110, 99, 0.05); border: 1px dashed var(--color-piedra-borde);">
+                        <div>
+                            <span class="fw-bold" style="color: var(--color-piedra-texto); font-size: 0.85rem;">Estado de Disponibilidad</span>
+                            <p class="mb-0 text-muted small">Permite usar esta categoría en productos</p>
                         </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="id_impuesto_especifico" class="form-label" style="color: #495057; font-weight: bold;">
-                            Impuesto Específico
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-receipt" style="color: #6c757d;"></i>
-                            </div>
-                            <select class="form-select" id="id_impuesto_especifico" name="impuesto_especifico" style="border-left: none;">
-                                <option value="">Seleccione un impuesto específico (opcional)</option>
-                                {% for impuesto in impuestos_especificos %}
-                                    <option value="{{ impuesto.id }}">{{ impuesto.nombre }} ({{ impuesto.porcentaje }}%)</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-text" style="color: #6c757d;">Seleccione un impuesto específico si aplica para esta categoría</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="id_activa" name="activa" checked>
-                            <label class="form-check-label" for="id_activa" style="color: #495057; font-weight: bold;">
-                                <i class="fas fa-check-circle me-1" style="color: #6B8E23;"></i>Activa
-                            </label>
-                            <div class="form-text" style="color: #6c757d;">La categoría estará disponible para usar</div>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" id="id_activa" name="activa" checked style="width: 3rem; height: 1.5rem;">
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i>Cancelar
+                
+                <div class="modal-footer border-top-0 p-4">
+                    <button type="button" class="btn px-4" data-bs-dismiss="modal" style="background: rgba(93, 64, 55, 0.05); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 10px; font-weight: 500;">
+                        Cancelar
                     </button>
-                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white;">
-                        <i class="fas fa-save me-1"></i>
-                        <span id="modalBoton">Crear Categoría</span>
+                    <button type="submit" class="btn btn-piedra px-4" id="btnGuardar">
+                        <i class="fas fa-save me-2"></i>Guardar Categoría
                     </button>
                 </div>
             </form>
@@ -318,60 +456,50 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Modal cleanup when hidden
-    const categoriaModal = document.getElementById('categoriaModal');
-    if (categoriaModal) {
-        categoriaModal.addEventListener('hidden.bs.modal', function() {
-            // Reset form
+    const categoriaModalElement = document.getElementById('categoriaModal');
+    if (categoriaModalElement) {
+        categoriaModalElement.addEventListener('hidden.bs.modal', function() {
             document.getElementById('categoriaForm').reset();
             document.getElementById('id_activa').checked = true;
-            
-            // Reset modal title and button
-            document.getElementById('modalTitulo').textContent = 'Nueva Categoría';
-            document.getElementById('modalBoton').textContent = 'Crear Categoría';
+            document.getElementById('categoriaModalLabel').textContent = 'Nueva Categoría';
+            document.getElementById('modalSubtitulo').textContent = 'Complete los datos de clasificación';
             document.getElementById('categoriaForm').action = '{% url "articulos:categoria_create" %}';
-            
-            // Remove any backdrop issues
-            document.body.classList.remove('modal-open');
-            const backdrops = document.querySelectorAll('.modal-backdrop');
-            backdrops.forEach(backdrop => backdrop.remove());
         });
     }
 });
 
-// Funciones para el modal
 function abrirModalCrear() {
-    document.getElementById('modalTitulo').textContent = 'Nueva Categoría';
-    document.getElementById('modalBoton').textContent = 'Crear Categoría';
+    document.getElementById('categoriaModalLabel').textContent = 'Nueva Categoría';
+    document.getElementById('modalSubtitulo').textContent = 'Complete los datos de clasificación';
     document.getElementById('categoriaForm').action = '{% url "articulos:categoria_create" %}';
-    
-    // Limpiar formulario
     document.getElementById('categoriaForm').reset();
     document.getElementById('id_activa').checked = true;
 }
 
 function abrirModalEditar(id, nombre, descripcion, exentaIva, impuestoEspecifico, activa) {
-    document.getElementById('modalTitulo').textContent = 'Editar Categoría';
-    document.getElementById('modalBoton').textContent = 'Actualizar Categoría';
+    document.getElementById('categoriaModalLabel').textContent = 'Editar Categoría';
+    document.getElementById('modalSubtitulo').textContent = 'Modifique los atributos de la categoría';
     document.getElementById('categoriaForm').action = '{% url "articulos:categoria_update" 0 %}'.replace('0', id);
     
-    // Llenar formulario
     document.getElementById('id_nombre').value = nombre;
     document.getElementById('id_descripcion').value = descripcion;
     document.getElementById('id_exenta_iva').checked = exentaIva;
     document.getElementById('id_impuesto_especifico').value = impuestoEspecifico || '';
     document.getElementById('id_activa').checked = activa;
     
-    // Asegurar que el modal se abra
     var modal = new bootstrap.Modal(document.getElementById('categoriaModal'));
     modal.show();
 }
 
 function enviarFormulario(event) {
     event.preventDefault();
-    
     const form = document.getElementById('categoriaForm');
     const formData = new FormData(form);
     const url = form.action;
+    const btn = document.getElementById('btnGuardar');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
     
     fetch(url, {
         method: 'POST',
@@ -382,32 +510,18 @@ function enviarFormulario(event) {
     })
     .then(response => {
         if (response.ok) {
-            // Cerrar modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('categoriaModal'));
-            modal.hide();
-            
-            // Recargar la página para mostrar los cambios
             location.reload();
         } else {
-            // Mostrar errores si los hay
-            return response.text().then(html => {
-                // Crear un elemento temporal para parsear el HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = html;
-                
-                // Buscar errores de formulario
-                const errors = tempDiv.querySelectorAll('.errorlist');
-                if (errors.length > 0) {
-                    alert('Por favor corrija los errores en el formulario.');
-                } else {
-                    alert('Error al procesar el formulario. Intente nuevamente.');
-                }
-            });
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save me-2"></i>Guardar Categoría';
+            alert('Error al guardar la categoría. Por favor verifique los datos.');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error de conexión. Intente nuevamente.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-2"></i>Guardar Categoría';
+        alert('Error de conexión.');
     });
 }
 </script>

@@ -8,6 +8,7 @@ from .models import Cliente, ContactoCliente
 from .forms import ClienteForm, ContactoClienteForm, ContactoClienteInlineFormSet
 from empresas.models import Empresa
 from core.decorators import requiere_empresa
+from ventas.models import Vendedor
 
 
 def obtener_empresa_usuario(request):
@@ -55,6 +56,7 @@ def cliente_list(request):
     search = request.GET.get('search', '')
     estado = request.GET.get('estado', '')
     tipo_cliente = request.GET.get('tipo_cliente', '')
+    vendedor_id = request.GET.get('vendedor_id', '')
     
     # Query base
     clientes = Cliente.objects.filter(empresa=empresa)
@@ -79,6 +81,9 @@ def cliente_list(request):
     
     if tipo_cliente:
         clientes = clientes.filter(tipo_cliente=tipo_cliente)
+
+    if vendedor_id:
+        clientes = clientes.filter(vendedor_id=vendedor_id)
     
     # Ordenamiento
     clientes = clientes.order_by('nombre')
@@ -111,6 +116,8 @@ def cliente_list(request):
         'limite_total': limite_total,
         'estados': Cliente.ESTADO_CHOICES,
         'tipos_cliente': Cliente.TIPO_CLIENTE_CHOICES,
+        'vendedor_filtro': vendedor_id,
+        'vendedores': Vendedor.objects.filter(empresa=empresa, activo=True).order_by('nombre'),
     }
     
     return render(request, 'clientes/cliente_list.html', context)

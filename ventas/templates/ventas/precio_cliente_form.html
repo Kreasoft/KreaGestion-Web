@@ -1,118 +1,147 @@
-<form method="post" action="{% if precio %}{% url 'ventas:precio_cliente_edit' precio.id %}{% else %}{% url 'ventas:precio_cliente_create' %}{% endif %}">
+{% load widget_tweaks %}
+<style>
+    .form-label-premium {
+        font-weight: 700;
+        color: #5D4037;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    .form-control-premium, .form-select-premium {
+        border-radius: 12px;
+        border: 1px solid #d7ccc8;
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        background-color: white;
+    }
+    .form-control-premium:focus, .form-select-premium:focus {
+        border-color: #8D6E63;
+        box-shadow: 0 0 0 3px rgba(141, 110, 99, 0.1);
+        outline: none;
+    }
+    .section-divider-piedra {
+        border-bottom: 2px solid rgba(141, 110, 99, 0.15);
+        margin: 2rem 0 1.5rem 0;
+        padding-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+    }
+    .section-divider-piedra h6 {
+        margin: 0;
+        color: #5D4037;
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+    }
+    .info-box-form {
+        background: rgba(141, 110, 99, 0.05);
+        border: 1px dashed #d7ccc8;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+</style>
+
+<form method="post" action="{% if precio %}{% url 'ventas:precio_cliente_edit' precio.id %}{% else %}{% url 'ventas:precio_cliente_create' %}{% endif %}" id="precioEspecialForm">
     {% csrf_token %}
     
-    <!-- Sección: Selección de Cliente y Artículo -->
-    <div class="mb-3" style="border-bottom: 2px solid #E8DCC8; padding-bottom: 10px;">
-        <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 5px;">
-            <i class="fas fa-user-tag me-2"></i>Selección de Cliente y Artículo
-        </h6>
-        <small style="color: #999;">Seleccione el cliente y el artículo para el cual desea configurar un precio especial</small>
+    <!-- Sección: Cliente y Artículo -->
+    <div class="section-divider-piedra mt-0">
+        <i class="fas fa-id-card me-2 text-brown"></i>
+        <h6>Identificación del Cliente y Producto</h6>
     </div>
     
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">{{ form.cliente.label }} *</label>
-            {{ form.cliente }}
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label-premium">{{ form.cliente.label }} <span class="text-danger">*</span></label>
+            {{ form.cliente|add_class:"form-select form-select-premium" }}
             {% if form.cliente.errors %}
-                <div class="text-danger small">{{ form.cliente.errors.0 }}</div>
+                <div class="text-danger extra-small mt-1">{{ form.cliente.errors.0 }}</div>
             {% endif %}
         </div>
         
-        <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">{{ form.articulo.label }} *</label>
-            {{ form.articulo }}
+        <div class="col-md-6">
+            <label class="form-label-premium">{{ form.articulo.label }} <span class="text-danger">*</span></label>
+            {{ form.articulo|add_class:"form-select form-select-premium" }}
             {% if form.articulo.errors %}
-                <div class="text-danger small">{{ form.articulo.errors.0 }}</div>
+                <div class="text-danger extra-small mt-1">{{ form.articulo.errors.0 }}</div>
             {% endif %}
         </div>
     </div>
     
-    <!-- Sección: Configuración de Precio -->
-    <div class="mb-3 mt-4" style="border-bottom: 2px solid #E8DCC8; padding-bottom: 10px;">
-        <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 5px;">
-            <i class="fas fa-dollar-sign me-2"></i>Configuración de Precio Especial
-        </h6>
-        <small style="color: #999;">Defina el precio personalizado para este cliente. El precio debe incluir todos los impuestos (IVA + impuestos específicos)</small>
+    <!-- Sección: Precio -->
+    <div class="section-divider-piedra">
+        <i class="fas fa-coins me-2 text-brown"></i>
+        <h6>Definición de Tarifa Especial</h6>
     </div>
     
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">{{ form.precio_especial.label }} *</label>
+    <div class="row g-3">
+        <div class="col-md-7">
+            <label class="form-label-premium">{{ form.precio_especial.label }} <span class="text-danger">*</span></label>
             <div class="input-group">
-                <span class="input-group-text">$</span>
-                {{ form.precio_especial }}
+                <span class="input-group-text bg-light border-end-0" style="border-radius: 12px 0 0 12px; border-color: #d7ccc8;">$</span>
+                {{ form.precio_especial|add_class:"form-control form-control-premium border-start-0"|attr:"style:border-radius: 0 12px 12px 0;" }}
             </div>
-            <div id="precioListaInfo" class="alert alert-info mt-2" style="padding: 10px; font-size: 0.9rem; border-left: 4px solid #0c5460;">
-                <i class="fas fa-info-circle me-1"></i>
-                <strong>Precio de Lista (con IVA e impuestos):</strong> <span id="precioListaValor" style="font-weight: 700; font-size: 1.1rem; color: #0c5460;">Seleccione un artículo</span>
+            
+            <div id="precioListaInfo" class="info-box-form shadow-sm">
+                <div class="d-flex align-items-center">
+                    <div class="p-2 bg-white rounded-circle me-3">
+                        <i class="fas fa-tag text-brown"></i>
+                    </div>
+                    <div>
+                        <div class="extra-small text-muted text-uppercase fw-bold">Precio de Lista Base</div>
+                        <div id="precioListaValor" class="fw-bold fs-5 text-brown">Seleccione un artículo</div>
+                    </div>
+                </div>
             </div>
-            <small class="text-muted">
-                <i class="fas fa-exclamation-triangle me-1"></i>
-                <strong>Importante:</strong> Ingrese el precio especial <strong>CON TODOS LOS IMPUESTOS INCLUIDOS</strong> (IVA + impuestos específicos)
-            </small>
-            {% if form.precio_especial.errors %}
-                <div class="text-danger small">{{ form.precio_especial.errors.0 }}</div>
-            {% endif %}
+            
+            <p class="extra-small text-muted mt-3 mb-0">
+                <i class="fas fa-info-circle me-1 opacity-50"></i>
+                El precio debe contemplar todos los impuestos (IVA + Específicos).
+            </p>
         </div>
         
-        <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">{{ form.descuento_porcentaje.label }}</label>
+        <div class="col-md-5">
+            <label class="form-label-premium">{{ form.descuento_porcentaje.label }}</label>
             <div class="input-group">
-                {{ form.descuento_porcentaje }}
-                <span class="input-group-text">%</span>
+                {{ form.descuento_porcentaje|add_class:"form-control form-control-premium border-end-0"|attr:"style:border-radius: 12px 0 0 12px;" }}
+                <span class="input-group-text bg-light border-start-0" style="border-radius: 0 12px 12px 0; border-color: #d7ccc8;">%</span>
             </div>
-            <small class="text-muted">Descuento adicional sobre el precio especial (opcional)</small>
-            {% if form.descuento_porcentaje.errors %}
-                <div class="text-danger small">{{ form.descuento_porcentaje.errors.0 }}</div>
-            {% endif %}
+            <p class="extra-small text-muted mt-2">Dcto. adicional sobre el precio especial.</p>
         </div>
     </div>
     
-    <!-- Sección: Vigencia y Estado -->
-    <div class="mb-3 mt-4" style="border-bottom: 2px solid #E8DCC8; padding-bottom: 10px;">
-        <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 5px;">
-            <i class="fas fa-calendar-alt me-2"></i>Vigencia y Estado
-        </h6>
-        <small style="color: #999;">Configure el período de validez del precio especial y su estado de activación (opcional)</small>
+    <!-- Sección: Cronograma -->
+    <div class="section-divider-piedra">
+        <i class="fas fa-history me-2 text-brown"></i>
+        <h6>Vigencia y Control</h6>
     </div>
     
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">{{ form.fecha_inicio.label }}</label>
-            {{ form.fecha_inicio }}
-            <small class="text-muted">
-                <i class="fas fa-play-circle me-1"></i>
-                Fecha desde la cual aplica el precio. Dejar vacío para aplicar desde hoy
-            </small>
-            {% if form.fecha_inicio.errors %}
-                <div class="text-danger small">{{ form.fecha_inicio.errors.0 }}</div>
-            {% endif %}
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label-premium">{{ form.fecha_inicio.label }}</label>
+            {{ form.fecha_inicio|add_class:"form-control form-control-premium"|attr:"type:date" }}
+            <p class="extra-small text-muted mt-2">Vacío = Inicia hoy.</p>
         </div>
         
-        <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">{{ form.fecha_fin.label }}</label>
-            {{ form.fecha_fin }}
-            <small class="text-muted">
-                <i class="fas fa-stop-circle me-1"></i>
-                Fecha hasta la cual aplica el precio. Dejar vacío para vigencia indefinida
-            </small>
-            {% if form.fecha_fin.errors %}
-                <div class="text-danger small">{{ form.fecha_fin.errors.0 }}</div>
-            {% endif %}
+        <div class="col-md-6">
+            <label class="form-label-premium">{{ form.fecha_fin.label }}</label>
+            {{ form.fecha_fin|add_class:"form-control form-control-premium"|attr:"type:date" }}
+            <p class="extra-small text-muted mt-2">Vacío = Sin límite.</p>
         </div>
     </div>
     
-    <div class="mb-3">
-        <div class="form-check form-switch">
-            {{ form.activo }}
-            <label class="form-check-label" for="{{ form.activo.id_for_label }}">
-                {{ form.activo.label }}
+    <div class="mt-4 p-3 rounded-3" style="background: rgba(141, 110, 99, 0.03); border: 1px dashed #d7ccc8;">
+        <div class="form-check form-switch m-0">
+            {{ form.activo|add_class:"form-check-input" }}
+            <label class="form-check-label fw-bold text-brown" for="{{ form.activo.id_for_label }}" style="font-size: 0.85rem;">
+                ESTADO DE LA TARIFA ACTIVO
             </label>
         </div>
-        <small class="text-muted">
-            <i class="fas fa-toggle-on me-1"></i>
-            Desactive temporalmente el precio especial sin eliminarlo
-        </small>
     </div>
 </form>
 

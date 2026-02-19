@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect
 from . import views
 from . import views_notas_credito
 from . import api_views
+from . import views_pos_procesar
 
 app_name = 'ventas'
 
@@ -50,7 +51,14 @@ urlpatterns = [
     path('pos/crear-cliente/', views.pos_crear_cliente, name='pos_crear_cliente'),
     path('pos/procesar-preventa/', views.pos_procesar_preventa, name='pos_procesar_preventa'),
     
+    # POS - Procesar venta (vistas dedicadas para POS)
+    # Modo VALE (cierre_directo=False): Solo genera vale
+    path('pos/procesar-venta/<int:ticket_id>/', views_pos_procesar.procesar_venta_pos, name='procesar_venta_pos'),
+    # Modo FACTURA DIRECTA (cierre_directo=True): Emite DTE inmediatamente
+    path('pos/procesar-venta-directo/<int:ticket_id>/', views_pos_procesar.procesar_venta_pos_directo, name='procesar_venta_pos_directo'),
+    
     # Vales/Tickets
+    path('vales/', views.vale_list, name='vale_list'),
     path('vales/<int:pk>/html/', views.vale_html, name='vale_html'),
     path('vales/<int:pk>/termica/', views.vale_termica, name='vale_termica'),
     path('tickets/', views.ticket_list, name='ticket_list'),
@@ -76,6 +84,9 @@ urlpatterns = [
     path('cotizaciones/<int:pk>/debug/', views.cotizacion_html_debug, name='cotizacion_html_debug'),
     path('cotizaciones/<int:pk>/cambiar-estado/', views.cotizacion_cambiar_estado, name='cotizacion_cambiar_estado'),
     path('cotizaciones/<int:pk>/convertir-venta/', views.cotizacion_convertir_venta, name='cotizacion_convertir_venta'),
+    
+    # Dashboard Premium
+    path('dashboard-premium/', lambda request: render(request, 'ventas/dashboard_premium.html'), name='dashboard_premium'),
     
     # Libro de Ventas
     path('libro-ventas/', lambda request: redirect('facturacion_electronica:dte_list', permanent=True), name='libro_ventas'),
@@ -104,4 +115,17 @@ urlpatterns = [
 
     # API AJAX para buscar documentos afectados
     path('ajax/buscar-documento-afectado/', views_notas_credito.ajax_buscar_documento_afectado, name='ajax_buscar_documento_afectado'),
+
+    # --- VENTAS MÓVILES (PWA / MOBILE) ---
+    path('movil/', views.mobile_sales_app, name='mobile_sales_app'),
+    path('movil/gestion/', views.mobile_sales_gestion, name='mobile_sales_gestion'),
+    path('movil/gestion/dispositivo/<int:pk>/toggle/', views.mobile_api_toggle_device, name='mobile_api_toggle_device'),
+    path('movil/api/sincronizar/', views.mobile_api_sync, name='mobile_api_sync'),
+    path('movil/api/verificar-dispositivo/', views.mobile_api_verify_device, name='mobile_api_verify_device'),
+    path('movil/api/guardar-venta/', views.mobile_api_save_sale, name='mobile_api_save_sale'),
+    path('movil/api/guardar-cliente/', views.mobile_api_save_client, name='mobile_api_save_client'),
+    path('movil/api/historial-ventas/', views.mobile_api_sales_history, name='mobile_api_sales_history'),
+    path('movil/api/registrar-ubicacion/', views.mobile_api_register_location, name='mobile_api_register_location'),
+    path('movil/api/cliente-historial/', views.mobile_api_cliente_historial, name='mobile_api_cliente_historial'),
+    path('monitoreo/vendedores/', views.ventas_mapa_vendedores, name='ventas_mapa_vendedores'),
 ]

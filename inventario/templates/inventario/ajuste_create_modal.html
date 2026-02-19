@@ -1,0 +1,519 @@
+<style>
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+    }
+
+    /* FORMS */
+    .form-label-stone {
+        font-size: 0.8rem; font-weight: 600; color: #6F5B44; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.4rem;
+    }
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.6rem 0.75rem; font-size: 0.9rem; background-color: white; width: 100%; color: #5D4037; transition: all 0.2s;
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: #8B7355; box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+
+    /* DETALLES TABLE STYLE */
+    .details-container {
+        background: white; border: 1px solid #E8DCC8; border-radius: 12px; overflow: hidden;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.05);
+    }
+    
+    .table-stone {
+        width: 100%;
+        margin-bottom: 0;
+        border-collapse: collapse;
+    }
+    
+    .table-stone th {
+        background: #FAFAF8;
+        color: #8B7355;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        padding: 8px 12px;
+        border-bottom: 1px solid #E8DCC8;
+        height: 32px;
+        vertical-align: middle;
+    }
+    
+    .table-stone td {
+        padding: 0 5px; /* Minimal horizontal padding */
+        border-bottom: 1px solid #F5F1E8;
+        height: 32px; /* Fixed height requested */
+        vertical-align: middle;
+    }
+    
+    .table-stone tr:last-child td {
+        border-bottom: none;
+    }
+    
+    /* COMPACT INPUTS FOR 32PX LINE HEIGHT */
+    .table-input {
+        height: 28px; /* Slightly smaller than 32px to fit */
+        padding: 0 8px;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        border: 1px solid #D4C4A8;
+        width: 100%;
+        background: white;
+        color: #5D4037;
+    }
+    .table-input:focus {
+        border-color: #8B7355;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(139, 115, 85, 0.1);
+    }
+    
+    .table-select {
+        height: 28px;
+        padding: 0 25px 0 8px; /* Space for arrow */
+        font-size: 0.85rem;
+        border-radius: 4px;
+        border: 1px solid #D4C4A8;
+        width: 100%;
+        background: white; /* Add arrow icon if needed or rely on default */
+        color: #5D4037;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238B7355' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 10px 10px;
+        appearance: none;
+    }
+    .table-select:focus {
+        border-color: #8B7355;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(139, 115, 85, 0.1);
+    }
+    
+    .btn-add-row {
+        width: 100%;
+        background: #FDFCFB;
+        color: #8B7355;
+        border: none;
+        border-top: 1px solid #E8DCC8;
+        padding: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    .btn-add-row:hover {
+        background: #FAFAF8;
+        color: #6F5B44;
+    }
+
+    .btn-remove-item {
+        width: 24px; height: 24px; 
+        display: flex; align-items: center; justify-content: center; 
+        border-radius: 4px; 
+        background: transparent; 
+        color: #C62828; 
+        border: none; 
+        transition: all 0.2s;
+        padding: 0;
+    }
+    .btn-remove-item:hover { background: #FFEBEE; }
+
+    /* BOTÓN GUARDAR */
+    .btn-save-stone {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; padding: 0.75rem 2rem; border-radius: 10px; font-weight: 600; letter-spacing: 0.5px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2);
+    }
+    .btn-save-stone:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(139, 115, 85, 0.3); color: white; }
+
+    /* SIGNOS (+/-) COMPACT */
+    .cantidad-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .cantidad-sign-icon {
+        position: absolute;
+        left: 8px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        z-index: 5;
+        pointer-events: none;
+    }
+    .sign-entrada { color: #2E7D32; }
+    .sign-salida { color: #C62828; }
+    
+    .cantidad-input {
+        padding-left: 20px !important; /* Space for sign */
+    }
+</style>
+
+<div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+    <!-- HEADER -->
+    <div class="stone-header-premium">
+        <div class="d-flex align-items-center gap-3">
+            <div class="header-icon-box">
+                <i class="fas fa-adjust"></i>
+            </div>
+            <div class="header-text">
+                <h1>Nuevo Ajuste de <span class="fw-bold">Stock</span></h1>
+                <p>Registro de entrada o salida manual de inventario</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.8;"></button>
+    </div>
+
+    <!-- BODY -->
+    <div class="modal-body p-4 bg-white">
+        <form method="post" id="ajusteCreateForm" action="{% url 'inventario:ajuste_create_simple' %}">
+            {% csrf_token %}
+            <input type="hidden" name="detalles_data" id="detalles_data_create">
+            
+            <!-- DATOS PRINCIPALES -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label-stone">Tipo de Ajuste</label>
+                    <select name="tipo_ajuste" class="form-select-stone" required id="tipoAjusteSelectCreate">
+                        <option value="">Seleccionar tipo...</option>
+                        <option value="ENTRADA">Entrada (Aumentar Stock)</option>
+                        <option value="SALIDA">Salida (Disminuir Stock)</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-stone">Fecha</label>
+                    <input type="date" name="fecha_ajuste" class="form-control-stone" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-stone">Bodega</label>
+                    <select name="bodega" class="form-select-stone" required onchange="cargarArticulosCreate()">
+                        <option value="">Seleccionar bodega...</option>
+                        {% for bodega in bodegas %}
+                            <option value="{{ bodega.id }}">{{ bodega.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-stone">Descripción</label>
+                    <input type="text" name="descripcion" class="form-control-stone" required 
+                           placeholder="Motivo del ajuste...">
+                </div>
+            </div>
+
+            <!-- SECCIÓN DETALLES (TABLA ÚNICA) -->
+            <div class="details-container">
+                <table class="table-stone">
+                    <thead>
+                        <tr>
+                            <th style="width: 45%;">Artículo</th>
+                            <th style="width: 20%;">Stock</th>
+                            <th style="width: 15%;">Cantidad</th>
+                            <th style="width: 20%;">Comentario</th>
+                            <th style="width: 30px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="detallesBodyCreate">
+                        <!-- Filas dinámicas aquí -->
+                    </tbody>
+                </table>
+                
+                <button type="button" class="btn-add-row" onclick="agregarDetalleCreate()">
+                    <i class="fas fa-plus me-2"></i>Agregar artículo
+                </button>
+                
+                <div id="emptyMessage" class="text-center py-4 text-muted fst-italic" style="display: none;">
+                    <small>No hay artículos seleccionados</small>
+                </div>
+            </div>
+            
+            <!-- FOOTER ACCIONES -->
+            <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top" style="border-color: #E8DCC8 !important;">
+                <button type="button" class="btn btn-light border" data-bs-dismiss="modal" style="color: #6F5B44; padding: 0.75rem 1.5rem;">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn-save-stone">
+                    <i class="fas fa-check-circle me-2"></i> Confirmar Ajuste
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+var detalleCountCreate = 0;
+var detalleCountCreate = 0;
+
+// Inicialización
+(function() {
+    // Verificar si Select2 está cargado, si no, cargarlo dinámicamente
+    if (typeof $.fn.select2 === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
+        script.onload = initForm;
+        document.head.appendChild(script);
+        
+        // También CSS si falta (aunque ya lo pusimos en base, por si acaso)
+        if (!document.querySelector('link[href*="select2"]')) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css';
+            document.head.appendChild(link);
+        }
+    } else {
+        initForm();
+    }
+})();
+
+function initForm() {
+    // Establecer fecha actual
+    const now = new Date();
+    const fechaInput = document.querySelector('#ajusteCreateForm input[name="fecha_ajuste"]');
+    if (fechaInput) {
+        fechaInput.value = now.toISOString().slice(0, 10);
+    }
+    
+    // Listeners
+    document.getElementById('tipoAjusteSelectCreate').addEventListener('change', actualizarSignosCantidadCreate);
+    
+    // Iniciar con una fila vacía
+    setTimeout(() => {
+        agregarDetalleCreate();
+    }, 100);
+}
+
+function cargarArticulosCreate() {
+    // Al cambiar la bodega, limpiar las filas existentes para evitar inconsistencias
+    const tbody = document.getElementById('detallesBodyCreate');
+    tbody.innerHTML = '';
+    detalleCountCreate = 0;
+    agregarDetalleCreate();
+}
+
+// Función ya no necesaria, Select2 maneja la carga
+function actualizarSelectsArticulosCreate() {}
+
+function agregarDetalleCreate() {
+    const tbody = document.getElementById('detallesBodyCreate');
+    document.getElementById('emptyMessage').style.display = 'none';
+
+    detalleCountCreate++;
+    const tipoAjuste = document.getElementById('tipoAjusteSelectCreate').value;
+    
+    const signClass = tipoAjuste === 'SALIDA' ? 'sign-salida' : 'sign-entrada';
+    const signSymbol = tipoAjuste === 'SALIDA' ? '-' : '+';
+    
+    const tr = document.createElement('tr');
+    tr.id = `row-create-${detalleCountCreate}`;
+    
+    const bodegaSelect = document.querySelector('#ajusteCreateForm select[name="bodega"]');
+    
+    tr.innerHTML = `
+        <td>
+            <select class="table-select articulo-select" name="detalles-${detalleCountCreate}-articulo" style="width: 100%;">
+                <option value="">Buscar artículo...</option>
+            </select>
+        </td>
+        <td>
+            <span id="stock-display-${detalleCountCreate}" class="small text-muted">-</span>
+        </td>
+        <td>
+            <div class="cantidad-wrapper">
+                <span class="cantidad-sign-icon ${signClass}" id="sign-create-${detalleCountCreate}">${signSymbol}</span>
+                <input type="number" class="table-input cantidad-input" name="detalles-${detalleCountCreate}-cantidad" 
+                       step="0.01" min="0.01" placeholder="0.00" required>
+            </div>
+        </td>
+        <td>
+            <input type="text" class="table-input" name="detalles-${detalleCountCreate}-comentario" 
+                   placeholder="Opcional">
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn-remove-item" onclick="eliminarDetalleCreate(${detalleCountCreate})" title="Eliminar fila">
+                <i class="fas fa-times"></i>
+            </button>
+        </td>
+    `;
+    
+    tbody.appendChild(tr);
+    
+    // Inicializar Select2
+    $(`select[name="detalles-${detalleCountCreate}-articulo"]`).select2({
+        dropdownParent: $('#detalleModal'), // Importante para que funcione dentro del modal
+        ajax: {
+            url: '/inventario/api/articulos-ajuste/',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    q: params.term, // search term
+                    bodega_id: bodegaSelect.value
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: data.articulos.map(function(item) {
+                        return {
+                            id: item.id,
+                            text: `${item.codigo} - ${item.nombre}`,
+                            stock: item.stock_actual,
+                            unidad: item.unidad_medida,
+                            precio: item.precio_promedio
+                        };
+                    })
+                };
+            },
+            cache: true
+        },
+        placeholder: 'Buscar por código o nombre...',
+        minimumInputLength: 0,
+        language: {
+            noResults: function() {
+                return "No se encontraron resultados";
+            },
+            searching: function() {
+                return "Buscando...";
+            },
+            inputTooShort: function() {
+                return "Ingrese al menos un carácter";
+            },
+            errorLoading: function() {
+                return "Error al cargar resultados";
+            }
+        },
+        templateResult: formatRepo,
+        templateSelection: formatRepoSelection
+    }).on('select2:select', function (e) {
+        const data = e.params.data;
+        // Actualizar stock display
+        const stockDisplay = document.getElementById(`stock-display-${detalleCountCreate}`);
+        stockDisplay.innerHTML = `<strong>${data.stock}</strong> ${data.unidad}`;
+    });
+}
+
+function formatRepo (repo) {
+    if (repo.loading) {
+        return repo.text;
+    }
+    return $(`<span><strong>${repo.text}</strong> <small class="text-muted ms-2">(Stock: ${repo.stock})</small></span>`);
+}
+
+function formatRepoSelection (repo) {
+    return repo.text || repo.id;
+}
+
+// Función dummy para compatibilidad si quedó algun llamado
+function actualizarInfoStock(select, id) {}
+
+function eliminarDetalleCreate(id) {
+    const row = document.getElementById(`row-create-${id}`);
+    if (row) {
+        row.remove();
+        
+        const tbody = document.getElementById('detallesBodyCreate');
+        if (tbody.children.length === 0) {
+            document.getElementById('emptyMessage').style.display = 'block';
+            // Opcional: Agregar automáticamente una nueva fila si se queda vacío
+            setTimeout(() => agregarDetalleCreate(), 100);
+        }
+    }
+}
+
+function actualizarSignosCantidadCreate() {
+    const tipoAjuste = document.getElementById('tipoAjusteSelectCreate').value;
+    const signos = document.querySelectorAll('#ajusteCreateForm .cantidad-sign-icon');
+    
+    const isSalida = tipoAjuste === 'SALIDA';
+    const newClass = isSalida ? 'sign-salida' : 'sign-entrada';
+    const oldClass = isSalida ? 'sign-entrada' : 'sign-salida';
+    const symbol = isSalida ? '-' : '+';
+    
+    signos.forEach(signo => {
+        signo.textContent = symbol;
+        signo.classList.remove(oldClass);
+        signo.classList.add(newClass);
+    });
+}
+
+// Validación y envío del formulario
+document.getElementById('ajusteCreateForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const rows = document.querySelectorAll('#detallesBodyCreate tr');
+    let detallesData = [];
+    
+    rows.forEach(row => {
+        const articuloSelect = row.querySelector('.articulo-select');
+        const cantidadInput = row.querySelector('input[name*="cantidad"]');
+        const comentarioInput = row.querySelector('input[name*="comentario"]');
+        
+        if (articuloSelect && articuloSelect.value && cantidadInput && cantidadInput.value) {
+            detallesData.push({
+                articulo_id: articuloSelect.value,
+                cantidad: parseFloat(cantidadInput.value),
+                comentario: comentarioInput ? comentarioInput.value : ''
+            });
+        }
+    });
+    
+    if (detallesData.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Atención',
+            text: 'Debe agregar al menos un artículo con cantidad válida.',
+            confirmButtonColor: '#8B7355'
+        });
+        return;
+    }
+    
+    document.getElementById('detalles_data_create').value = JSON.stringify(detallesData);
+    
+    const formData = new FormData(this);
+    
+    // Deshabilitar botón
+    const btnSubmit = this.querySelector('button[type="submit"]');
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Éxito!',
+                text: data.message,
+                confirmButtonColor: '#8B7355',
+                timer: 1500,
+                showConfirmButton: false
+            }).then(() => {
+                window.location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message,
+                confirmButtonColor: '#8B7355'
+            });
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = '<i class="fas fa-check-circle me-2"></i> Confirmar Ajuste';
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error de Conexión',
+            text: 'No se pudo contactar con el servidor.',
+            confirmButtonColor: '#8B7355'
+        });
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<i class="fas fa-check-circle me-2"></i> Confirmar Ajuste';
+    });
+});
+</script>

@@ -3,6 +3,7 @@ URLs para el módulo de caja
 """
 from django.urls import path
 from . import views
+from . import views_procesar_caja
 
 app_name = 'caja'
 
@@ -21,7 +22,7 @@ urlpatterns = [
     
     # Procesamiento de Ventas
     path('procesar-venta/', views.procesar_venta_buscar, name='procesar_venta_buscar'),
-    path('procesar-venta/<int:ticket_id>/', views.procesar_venta, name='procesar_venta'),
+    path('procesar-venta/<int:ticket_id>/', views_procesar_caja.procesar_venta_caja, name='procesar_venta'),
 
     # Estado CAF (AJAX)
     path('estado-caf/', views.estado_caf_pos, name='estado_caf_pos'),

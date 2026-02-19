@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% load static %}
+{% load articulo_filters %}
+
+{% block title %}Gestión de Ventas Móviles - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos Piedra y Variables Globales */
+    :root {
+        --color-piedra-primario: #8B7355;
+        --color-piedra-secundario: #6F5B44;
+        --color-piedra-claro: #E8DCC8;
+        --color-piedra-fondo: #FAFAF8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --color-piedra-texto: #5D4037;
+        --color-piedra-borde: #D4C4A8;
+        
+        /* Colores Soft UI Pastel */
+        --pastel-terracota: #E6B8A2;
+        --pastel-azul: #B4C5E4;
+        --pastel-rosa: #F3C4C4;
+        --pastel-verde: #C1E1C1;
+    }
+
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+
+    .card-piedra {
+        border: 2px solid #E8DCC8; 
+        border-radius: 15px; 
+        overflow: hidden; 
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        background: white;
+    }
+
+    .table-piedra {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .table-piedra thead th {
+        background: #FDFCFB;
+        border-bottom: 2px solid #E8DCC8;
+        color: #8B7355;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        padding: 12px 15px;
+    }
+
+    .table-piedra tbody tr {
+        height: 32px;
+        transition: all 0.2s ease;
+    }
+
+    .table-piedra tbody tr:nth-of-type(odd) {
+        background-color: rgba(245, 241, 232, 0.3);
+    }
+
+    .table-piedra tbody tr:nth-of-type(even) {
+        background-color: white;
+    }
+
+    .table-piedra tbody tr:hover {
+        background-color: #F5F1E8 !important;
+    }
+
+    .table-piedra tbody td {
+        padding: 8px 15px;
+        border-bottom: 1px solid #F5F1E8;
+        vertical-align: middle;
+        font-size: 0.85rem;
+        color: #4A5568;
+    }
+    
+    .btn-action-piedra {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border: 1px solid #D4C4A8;
+        border-radius: 4px;
+        color: #8B7355;
+        font-size: 0.7rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .btn-action-piedra:hover {
+        background: #8B7355;
+        color: white !important;
+        transform: scale(1.1);
+    }
+
+    /* Pestañas Soft UI */
+    .nav-tabs {
+        border-bottom: 2px solid #E8DCC8;
+    }
+
+    .nav-tabs .nav-link {
+        color: #6F5B44;
+        font-weight: 500;
+        border: none;
+        border-bottom: 3px solid transparent;
+        padding: 12px 20px;
+        font-family: 'Poppins', sans-serif;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: #8B7355;
+        background: rgba(245, 241, 232, 0.5);
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #8B7355;
+        background: transparent;
+        border-bottom: 3px solid #8B7355;
+        font-weight: 600;
+    }
+
+    /* Cards Stats Soft UI */
+    .card-stats-soft {
+        border-radius: 12px;
+        border: 1px solid rgba(139, 115, 85, 0.2);
+        padding: 15px;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.3s ease;
+    }
+    
+    .card-stats-soft:hover {
+        transform: translateY(-3px);
+    }
+    
+    .card-stats-soft-1 { background: linear-gradient(135deg, #FFF8E1 0%, #FFE0B2 100%); }
+    .card-stats-soft-2 { background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); }
+    .card-stats-soft-3 { background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card card-piedra">
+                <!-- Header con Estilo Piedra Premium -->
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-mobile-alt me-3" style="font-size: 2.2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                                <div>
+                                    <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
+                                        Gestión de <span class="fw-bold">Ventas Móviles</span>
+                                    </h2>
+                                    <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                                        Preventas enviadas desde dispositivos móviles para su procesamiento
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="badge bg-white text-dark shadow-sm border p-2">
+                                <i class="fas fa-sync-alt me-1 text-muted"></i> Sincronizado: {% now "H:i" %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="card-header border-0 pb-0 pt-0" style="background: white;">
+                    <ul class="nav nav-tabs" id="mgmtTabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales-pane" type="button" role="tab">
+                                <i class="fas fa-shopping-cart me-2"></i>Preventas Pendientes
+                                <span class="badge rounded-pill bg-danger ms-2" style="font-size: 0.65rem;">{{ ventas|length }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="devices-tab" data-bs-toggle="tab" data-bs-target="#devices-pane" type="button" role="tab">
+                                <i class="fas fa-mobile-screen me-2"></i>Dispositivos Autorizados
+                                <span class="badge rounded-pill bg-secondary ms-2" style="font-size: 0.65rem;">{{ dispositivos|length }}</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="tab-content" id="mgmtTabsContent">
+                    <!-- Tabla de preventas -->
+                    <div class="tab-pane fade show active" id="sales-pane" role="tabpanel">
+                        <div class="card-body p-0">
+                            <!-- Estadísticas Rápidas -->
+                            <div class="row g-3 m-3">
+                                <div class="col-md-4">
+                                    <div class="card-stats-soft card-stats-soft-1">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-circle me-3" style="background: rgba(255,255,255,0.6); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-clock text-warning"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold" style="color: #5D4037;">Pendientes</h6>
+                                                <small style="color: #6F5B44;">{{ ventas|length }} órdenes por procesar</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if ventas|length > 0 %}
+                            <div class="table-responsive" style="background: white;">
+                                <table class="table-piedra">
+                                    <thead>
+                                        <tr>
+                                            <th>N° Preventa</th>
+                                            <th>Fecha/Hora</th>
+                                            <th>Vendedor</th>
+                                            <th>Cliente</th>
+                                            <th>Doc. Solicitado</th>
+                                            <th class="text-end">Total</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for venta in ventas %}
+                                        <tr>
+                                            <td>
+                                                <span class="fw-bold" style="color: #6F5B44;">{{ venta.numero_venta }}</span>
+                                            </td>
+                                            <td style="color: #6c757d; font-size: 0.8rem;">
+                                                <i class="far fa-clock me-1"></i>{{ venta.fecha_creacion|date:"d/m/Y H:i" }}
+                                            </td>
+                                            <td class="fw-bold text-dark">{{ venta.vendedor.nombre|default:"Desconocido" }}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-2" style="width: 24px; height: 24px; background: #E8DCC8; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #6F5B44;">
+                                                        {{ venta.cliente.nombre|slice:":1" }}
+                                                    </div>
+                                                    {{ venta.cliente.nombre|default:"Sin cliente" }}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge" style="background: #E8DCC8; color: #6F5B44; border: 1px solid #D4C4A8; font-weight: 500;">
+                                                    {{ venta.tipo_documento_planeado }}
+                                                </span>
+                                            </td>
+                                            <td class="text-end fw-bold" style="color: #2D3748;">
+                                                ${{ venta.total|format_price }}
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="d-flex justify-content-center gap-1">
+                                                    <a href="{% url 'ventas:procesar_venta_pos' venta.pk %}" class="btn btn-sm" style="background: #8B7355; color: white; border: none; font-size: 0.75rem;" title="Procesar y Emitir">
+                                                        <i class="fas fa-check me-1"></i>Emitir
+                                                    </a>
+                                                    <a href="{% url 'ventas:ticket_detail' venta.pk %}" class="btn-action-piedra" title="Ver Detalle">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-check-circle fa-4x mb-3" style="color: #E8DCC8;"></i>
+                                <h5 style="color: #8B7355; font-family: 'Poppins', sans-serif;">Todo al día</h5>
+                                <p class="text-muted" style="font-family: 'Poppins', sans-serif;">No hay ventas móviles pendientes de procesar.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Dispositivos -->
+                    <div class="tab-pane fade" id="devices-pane" role="tabpanel">
+                        <div class="card-body p-0">
+                            <div class="table-responsive" style="background: white;">
+                                <table class="table-piedra">
+                                    <thead>
+                                        <tr>
+                                            <th>Dispositivo</th>
+                                            <th>SO / Modelo</th>
+                                            <th>ID Único</th>
+                                            <th>Vendedor Asignado</th>
+                                            <th class="text-center">Estado</th>
+                                            <th class="text-center">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for d in dispositivos %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <i class="fas fa-mobile-alt me-2 text-muted"></i>
+                                                    <strong>{{ d.nombre_dispositivo }}</strong>
+                                                </div>
+                                            </td>
+                                            <td><small class="text-muted">{{ d.modelo|default:"Desconocido" }}</small></td>
+                                            <td><code style="color: #8B7355; background: #FAFAF8; padding: 2px 4px; border-radius: 4px;">{{ d.unique_id }}</code></td>
+                                            <td>{{ d.vendedor.nombre|default:"-" }}</td>
+                                            <td class="text-center">
+                                                {% if d.autorizado %}
+                                                    <span class="badge rounded-pill" style="background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;">
+                                                        <i class="fas fa-check-circle me-1"></i>AUTORIZADO
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge rounded-pill" style="background-color: #fff3e0; color: #e65100; border: 1px solid #ffe0b2;">
+                                                        <i class="fas fa-exclamation-circle me-1"></i>PENDIENTE
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                <button onclick="toggleDevice({{ d.id }})" class="btn btn-sm" style="font-size: 0.7rem; font-weight: 500; {% if d.autorizado %}background: white; border: 1px solid #ef5350; color: #ef5350;{% else %}background: #8B7355; color: white; border: none;{% endif %}">
+                                                    {% if d.autorizado %}
+                                                        <i class="fas fa-ban me-1"></i>Revocar
+                                                    {% else %}
+                                                        <i class="fas fa-check me-1"></i>Autorizar
+                                                    {% endif %}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function toggleDevice(id) {
+    Swal.fire({
+        title: '¿Cambiar estado?',
+        text: "¿Desea cambiar el estado de autorización para este dispositivo?",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, cambiar',
+        cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch(`/ventas/movil/gestion/dispositivo/${id}/toggle/`);
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire({
+                        title: '¡Actualizado!',
+                        text: 'El estado del dispositivo ha sido actualizado.',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
+                } else {
+                    Swal.fire('Error', 'No se pudo actualizar el estado.', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Ocurrió un error de conexión.', 'error');
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% load static %}
+{% load humanize %}
+
+<div class="modal-header stone-modal-header" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%); padding: 1.5rem 2rem; border-bottom: 1px solid #E8DCC8; border-radius: 16px 16px 0 0;">
+    <div class="d-flex align-items-center gap-3">
+        <div class="header-icon-box" style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15); color: #6F5B44; font-size: 1.25rem;">
+            <i class="fas fa-file-invoice"></i>
+        </div>
+        <div>
+            <h5 class="modal-title fw-bold" style="color: #5D4037; font-size: 1.1rem; letter-spacing: -0.5px; margin: 0;">Detalle de Orden <span class="fw-light small">{{ orden.numero_orden }}</span></h5>
+            <div class="d-flex align-items-center gap-2 mt-1">
+                {% if orden.estado == 'pendiente' %}
+                    <span class="badge bg-secondary">Pendiente</span>
+                {% elif orden.estado == 'en_proceso' %}
+                    <span class="badge bg-primary">En Proceso</span>
+                {% elif orden.estado == 'terminada' %}
+                    <span class="badge bg-success">Terminada</span>
+                {% elif orden.estado == 'cancelada' %}
+                    <span class="badge bg-danger">Cancelada</span>
+                {% endif %}
+                <small class="text-muted" style="font-size: 0.8rem;">Sucursal: {{ orden.sucursal.nombre|default:"-" }}</small>
+            </div>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<div class="modal-body p-4" style="background: white;">
+    <div class="row g-4">
+        <!-- COLUMNA IZQUIERDA: INFORMACIÓN PRINCIPAL -->
+        <div class="col-md-6">
+            <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px; border-bottom: 2px solid #E8DCC8; padding-bottom: 4px;">Información General</h6>
+            
+            <table class="table table-borderless table-sm mb-4" style="font-size: 0.9rem;">
+                <tbody>
+                    <tr>
+                        <td class="text-muted small py-1 ps-0">Receta:</td>
+                        <td class="fw-bold text-dark py-1 text-end"><a href="#" class="text-decoration-none" style="color: #8B7355;">{{ orden.receta.nombre }}</a></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted small py-1 ps-0">Producto:</td>
+                        <td class="fw-bold text-dark py-1 text-end">{{ orden.receta.producto_final.nombre }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted small py-1 ps-0">Sucursal:</td>
+                        <td class="fw-bold text-dark py-1 text-end">{{ orden.sucursal.nombre|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted small py-1 ps-0">Responsable:</td>
+                        <td class="fw-bold text-dark py-1 text-end">{{ orden.responsable|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted small py-1 ps-0">Fecha Planificada:</td>
+                        <td class="fw-bold text-dark py-1 text-end">{{ orden.fecha_planificada|date:"d/m/Y" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted small py-1 ps-0">Fecha Inicio:</td>
+                        <td class="fw-bold text-dark py-1 text-end">{{ orden.fecha_inicio|date:"d/m/Y H:i"|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted small py-1 ps-0">Fecha Fin:</td>
+                        <td class="fw-bold text-dark py-1 text-end">{{ orden.fecha_fin|date:"d/m/Y H:i"|default:"-" }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- COLUMNA DERECHA: CANTIDADES Y COSTOS -->
+        <div class="col-md-6">
+            <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px; border-bottom: 2px solid #E8DCC8; padding-bottom: 4px;">Cantidades y Costos</h6>
+            
+            <div class="mb-4">
+                 <div class="d-flex justify-content-between align-items-center border-bottom border-light pb-2 mb-2">
+                    <small class="text-muted fw-bold">Cantidad Planificada:</small>
+                    <span class="fw-bold text-dark">{{ orden.cantidad_planificada|floatformat:2 }}</span>
+                 </div>
+                 
+                 <div class="d-flex justify-content-between align-items-center border-bottom border-light pb-2 mb-2">
+                    <small class="text-muted fw-bold">Cantidad Producida:</small>
+                    {% if orden.cantidad_producida %}
+                        <span class="fw-bold text-success">{{ orden.cantidad_producida|floatformat:2 }}</span>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                 </div>
+
+                 <div class="d-flex justify-content-between align-items-center border-bottom border-light pb-2 mb-2">
+                    <small class="text-muted fw-bold">Merma Real:</small>
+                    <span class="fw-bold text-danger">{{ orden.merma_real|default:"0,00" }}</span>
+                 </div>
+
+                 <div class="d-flex justify-content-between align-items-center pt-1">
+                    <small class="text-muted fw-bold text-uppercase">Costo Total:</small>
+                    <span class="fw-bold text-dark fs-5">${{ orden.costo_total|floatformat:0|intcomma|default:"0" }}</span>
+                 </div>
+            </div>
+
+            {% if orden.estado == 'terminada' %}
+            <div class="mt-4 p-3 rounded-3" style="background-color: #d1e7dd; border: 1px solid #badbcc;">
+                <div class="d-flex align-items-center text-success">
+                    <i class="fas fa-check-circle me-2"></i> 
+                    <strong>Orden Finalizada</strong>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if orden.estado == 'cancelada' %}
+             <div class="mt-4 p-3 rounded-3" style="background-color: #f8d7da; border: 1px solid #f5c6cb;">
+                <div class="d-flex align-items-center text-danger">
+                    <i class="fas fa-ban me-2"></i> <strong>Orden Cancelada</strong>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if orden.comentarios %}
+            <div class="mt-4">
+                <small class="text-muted fw-bold d-block mb-1">Observaciones:</small>
+                <div class="p-2 bg-light rounded border small text-muted fst-italic">
+                    {{ orden.comentarios }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="modal-footer border-top border-light" style="background-color: #FAFAF8; border-radius: 0 0 16px 16px;">
+    {% if orden.estado == 'pendiente' %}
+        <button type="button" class="btn btn-danger btn-sm text-white" onclick="confirmarCancelarOrden('{% url 'produccion:orden_delete' orden.pk %}', '{{ orden.numero_orden }}')">
+             <i class="fas fa-trash-alt me-1"></i> Eliminar
+        </button>
+        <button type="button" class="btn btn-success btn-sm text-white" onclick="openOrdenModal('{% url 'produccion:orden_iniciar' orden.pk %}')">
+            <i class="fas fa-play me-1"></i> Iniciar Producción
+        </button>
+    {% elif orden.estado == 'en_proceso' %}
+         <button type="button" class="btn btn-success btn-sm text-white" onclick="openOrdenModal('{% url 'produccion:orden_finalizar' orden.pk %}')">
+            <i class="fas fa-check-circle me-1"></i> Finalizar Orden
+        </button>
+    {% endif %}
+    <button type="button" class="btn btn-light border btn-sm" data-bs-dismiss="modal">Cerrar</button>
+</div>

@@ -91,39 +91,34 @@ def enviar_dte_sii(request, dte_id):
     # Verificar que no haya sido enviado ya
     if dte.estado_sii in ['enviado', 'aceptado']:
         messages.warning(request, 'Este DTE ya fue enviado al SII.')
-        return redirect('facturacion_electronica:dte_detail', pk=dte_id)
-    
-    if request.method == 'POST':
-        try:
-            # Inicializar servicio
-            dte_service = DTEService(request.empresa)
-            
-            # Enviar al SII
-            respuesta = dte_service.enviar_dte_al_sii(dte)
-            
-            if respuesta.get('track_id'):
-                messages.success(
-                    request,
-                    f'DTE enviado exitosamente al SII. Track ID: {respuesta["track_id"]}'
-                )
-            else:
-                messages.warning(
-                    request,
-                    'DTE enviado pero no se recibió Track ID. Revise la respuesta del SII.'
-                )
-            
-            return redirect('facturacion_electronica:dte_detail', pk=dte_id)
-            
-        except Exception as e:
-            messages.error(request, f'Error al enviar DTE: {str(e)}')
-            import traceback
-            traceback.print_exc()
-    
-    context = {
-        'dte': dte,
-    }
-    
-    return render(request, 'facturacion_electronica/enviar_dte_confirm.html', context)
+        return redirect('facturacion_electronica:dte_list')
+
+    # Acción directa: cualquier request que llegue aquí intenta enviar el DTE
+    try:
+        # Inicializar servicio
+        dte_service = DTEService(request.empresa)
+
+        # Enviar al SII (vía DTEBox)
+        respuesta = dte_service.enviar_dte_al_sii(dte)
+
+        if respuesta.get('track_id'):
+            messages.success(
+                request,
+                f'DTE enviado exitosamente al SII. Track ID: {respuesta["track_id"]}'
+            )
+        else:
+            messages.warning(
+                request,
+                'DTE enviado pero no se recibió Track ID. Revise la respuesta del SII.'
+            )
+
+    except Exception as e:
+        messages.error(request, f'Error al enviar DTE: {str(e)}')
+        import traceback
+        traceback.print_exc()
+
+    # Siempre volver al listado de DTE después del intento de envío
+    return redirect('facturacion_electronica:dte_list')
 
 
 

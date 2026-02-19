@@ -17,7 +17,30 @@ def ajustes_list_simple(request):
     ajustes = Inventario.objects.filter(
         empresa=request.empresa,
         tipo_movimiento__in=['AJUSTE', 'REVERSION_AJUSTE']
-    ).order_by('-fecha_movimiento')
+    )
+    
+    # Aplicar filtros
+    bodega_id = request.GET.get('bodega')
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    tipo = request.GET.get('tipo')
+    
+    if bodega_id:
+        ajustes = ajustes.filter(bodega_destino_id=bodega_id)
+        
+    if fecha_desde:
+        ajustes = ajustes.filter(fecha_movimiento__date__gte=fecha_desde)
+        
+    if fecha_hasta:
+        ajustes = ajustes.filter(fecha_movimiento__date__lte=fecha_hasta)
+        
+    if tipo:
+        if tipo == 'entrada':
+            ajustes = ajustes.filter(cantidad__gt=0)
+        elif tipo == 'salida':
+            ajustes = ajustes.filter(cantidad__lt=0)
+            
+    ajustes = ajustes.order_by('-fecha_movimiento')
     
     # Actualizar correlativo de partida si es necesario
     try:
@@ -174,54 +197,80 @@ def ajuste_create_simple(request):
         'titulo': 'Nuevo Ajuste de Stock'
     }
     
-    return render(request, 'inventario/ajuste_form_final.html', context)
+    return render(request, 'inventario/ajuste_create_modal.html', context)
 
 
 @login_required
 @requiere_empresa
 def api_articulos_ajuste_simple(request):
     """API para obtener artículos para ajustes"""
-    bodega_id = clean_id(request.GET.get('bodega_id'))
-    
-    if not bodega_id:
-        return JsonResponse({'error': 'Bodega requerida'}, status=400)
-    
     try:
-        bodega = Bodega.objects.get(id=bodega_id, empresa=request.empresa)
-    except Bodega.DoesNotExist:
-        return JsonResponse({'error': 'Bodega no encontrada'}, status=404)
-    
-    # Obtener todos los artículos de la empresa
-    articulos_empresa = Articulo.objects.filter(
-        empresa=request.empresa,
-        activo=True
-    ).order_by('codigo')
-    
-    articulos = []
-    for articulo in articulos_empresa:
-        # Obtener stock actual en la bodega (0 si no existe)
+        bodega_id_str = request.GET.get('bodega_id', '')
+        q = request.GET.get('q',('').strip())
+        
+        # Validación básica de bodega
+        if not bodega_id_str:
+             return JsonResponse({'error': 'Bodega no especificada'}, status=400)
+             
         try:
-            stock = Stock.objects.get(
+            bodega_id = int(bodega_id_str)
+            bodega = Bodega.objects.get(id=bodega_id, empresa=request.empresa)
+        except (ValueError, TypeError, Bodega.DoesNotExist):
+            return JsonResponse({'error': 'Bodega inválida o no encontrada'}, status=404)
+
+        # Base QuerySet
+        articulos_qs = Articulo.objects.filter(
+            empresa=request.empresa,
+            activo=True
+        )
+        
+        # Búsqueda
+        if q:
+            from django.db.models import Q
+            articulos_qs = articulos_qs.filter(
+                Q(codigo__icontains=q) |
+                Q(nombre__icontains=q) |
+                Q(codigo_barras__icontains=q)
+            ).distinct()
+            
+            # Limitar
+            articulos_qs = articulos_qs.order_by('nombre')[:50]
+        else:
+            # Default
+            articulos_qs = articulos_qs.order_by('nombre')[:20]
+            
+        articulos_data = []
+        for articulo in articulos_qs:
+            # Obtener stock
+            stock_actual = 0
+            precio_promedio = 0
+            
+            # Intentar obtener stock de forma eficiente
+            stock_qs = Stock.objects.filter(
                 empresa=request.empresa,
                 bodega=bodega,
                 articulo=articulo
-            )
-            stock_actual = float(stock.cantidad)
-            precio_promedio = float(stock.precio_promedio) if stock.precio_promedio else 0
-        except Stock.DoesNotExist:
-            stock_actual = 0
-            precio_promedio = 0
+            ).first()
+            
+            if stock_qs:
+                stock_actual = float(stock_qs.cantidad)
+                precio_promedio = float(stock_qs.precio_promedio or 0)
+            
+            articulos_data.append({
+                'id': articulo.id,
+                'codigo': articulo.codigo,
+                'nombre': articulo.nombre,
+                'unidad_medida': str(articulo.unidad_medida),
+                'stock_actual': stock_actual,
+                'precio_promedio': precio_promedio
+            })
+            
+        return JsonResponse({'articulos': articulos_data})
         
-        articulos.append({
-            'id': articulo.id,
-            'codigo': articulo.codigo,
-            'nombre': articulo.nombre,
-            'unidad_medida': str(articulo.unidad_medida),
-            'stock_actual': stock_actual,
-            'precio_promedio': precio_promedio
-        })
-    
-    return JsonResponse({'articulos': articulos})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @login_required

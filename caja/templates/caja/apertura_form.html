@@ -1,86 +1,172 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Abrir Caja{% endblock %}
+{% block title %}Abrir Caja - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #43A047;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+        max-width: 600px;
+        margin-left: auto; margin-right: auto;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 48px; height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p { color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* FORM STYLES */
+    .form-label { font-size: 0.85rem; font-weight: 600; color: #6F5B44; margin-bottom: 0.4rem; display: block; }
+    input[type="text"], input[type="number"], textarea, select {
+        width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #D4C4A8; border-radius: 8px; background: #FAFAF8; color: var(--stone-text); transition: all 0.2s; font-size: 0.95rem;
+    }
+    input:focus, textarea:focus, select:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none; background: white;
+    }
+    
+    /* BOTONES */
+    .btn-action-primary { 
+        background: var(--stone-primary); color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; transition: all 0.2s; 
+        display: inline-flex; align-items: center; gap: 0.5rem; width: 100%; justify-content: center; margin-top: 1rem;
+    }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2); }
+    
+    .btn-back { background: rgba(255,255,255,0.6); border: 1px solid #D4C4A8; color: var(--stone-secondary); transition: all 0.2s; border-radius: 8px; font-weight: 600; padding: 0.6rem 1rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; width: 100%; margin-top: 1rem; }
+    .btn-back:hover { background: white; color: var(--stone-primary); }
+
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow-lg" style="border: none; border-radius: 15px;">
-                <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px;">
-                    <h5 class="mb-0">
-                        <i class="fas fa-lock-open me-2"></i>{{ title }}
-                    </h5>
+    <div class="single-card-container">
+        <!-- HEADER -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-lock-open"></i>
                 </div>
-                <div class="card-body p-4">
-                    <form method="post">
-                        {% csrf_token %}
-                        
-                        <div class="mb-3">
-                            <label for="{{ form.caja.id_for_label }}" class="form-label fw-bold">
-                                <i class="fas fa-cash-register me-2"></i>Caja
-                            </label>
-                            {{ form.caja }}
-                            {% if form.caja.errors %}
-                                <div class="text-danger mt-1">{{ form.caja.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.monto_inicial.id_for_label }}" class="form-label fw-bold">
-                                <i class="fas fa-money-bill-wave me-2"></i>Monto Inicial
-                            </label>
-                            {{ form.monto_inicial }}
-                            <small class="text-muted">Efectivo inicial en caja</small>
-                            {% if form.monto_inicial.errors %}
-                                <div class="text-danger mt-1">{{ form.monto_inicial.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.observaciones_apertura.id_for_label }}" class="form-label fw-bold">
-                                <i class="fas fa-comment me-2"></i>Observaciones
-                            </label>
-                            {{ form.observaciones_apertura }}
-                        </div>
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg">
-                                <i class="fas fa-unlock me-2"></i>{{ submit_text }}
-                            </button>
-                            <a href="{% url 'caja:apertura_list' %}" class="btn btn-secondary">
-                                <i class="fas fa-times me-2"></i>Cancelar
-                            </a>
-                        </div>
-                    </form>
+                <div class="header-text">
+                    <h1>Abrir <span class="fw-bold">Caja</span></h1>
+                    <p>Inicie un nuevo turno de trabajo</p>
                 </div>
             </div>
+        </div>
+
+        <div class="card-body p-4">
+            <form method="post">
+                {% csrf_token %}
+                
+                {% if form.media %}
+                    {{ form.media }}
+                {% endif %}
+
+                <div class="mb-4">
+                    <label for="{{ form.caja.id_for_label }}" class="form-label">
+                        <i class="fas fa-cash-register me-2"></i>Caja
+                    </label>
+                    {{ form.caja }}
+                    {% if form.caja.errors %}
+                        <div class="text-danger small mt-1">{{ form.caja.errors.0 }}</div>
+                    {% else %}
+                        <div class="text-muted x-small mt-1"><i class="fas fa-info-circle me-1"></i>Solo se muestran cajas disponibles</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label for="{{ form.monto_inicial.id_for_label }}" class="form-label">
+                        <i class="fas fa-money-bill-wave me-2"></i>Monto Inicial ($)
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted" style="border: 1px solid #D4C4A8; border-right: none; border-radius: 8px 0 0 8px;">$</span>
+                        <input type="number" name="{{ form.monto_inicial.name }}" id="{{ form.monto_inicial.id_for_label }}" class="form-control border-start-0 ps-0" style="border-radius: 0 8px 8px 0;" step="1" required value="{{ form.monto_inicial.value|default:'0' }}">
+                    </div>
+                    {% if form.monto_inicial.errors %}
+                        <div class="text-danger small mt-1">{{ form.monto_inicial.errors.0 }}</div>
+                    {% else %}
+                        <div class="text-muted x-small mt-1">Efectivo físico real para cambio</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label for="{{ form.observaciones_apertura.id_for_label }}" class="form-label">
+                        <i class="fas fa-comment me-2"></i>Observaciones
+                    </label>
+                    <textarea name="{{ form.observaciones_apertura.name }}" id="{{ form.observaciones_apertura.id_for_label }}" rows="3" placeholder="Ej: Turno mañana...">{{ form.observaciones_apertura.value|default:'' }}</textarea>
+                    {% if form.observaciones_apertura.errors %}
+                        <div class="text-danger small mt-1">{{ form.observaciones_apertura.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger mb-4 rounded-3 small">
+                    <i class="fas fa-exclamation-triangle me-2"></i>{{ form.non_field_errors.0 }}
+                </div>
+                {% endif %}
+
+                <div class="row g-2 pt-2">
+                    <div class="col-6">
+                        <a href="{% url 'caja:apertura_list' %}" class="btn btn-back">
+                            Cancelar
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <button type="submit" class="btn btn-action-primary mt-3">
+                            <i class="fas fa-check me-2"></i>Confirmar Apertura
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 {% endblock %}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

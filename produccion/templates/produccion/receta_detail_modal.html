@@ -1,0 +1,100 @@
+{% load humanize %}
+{% load l10n %}
+
+<div class="modal-header stone-modal-header" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%); padding: 1.5rem 2rem; border-bottom: 1px solid #E8DCC8; border-radius: 16px 16px 0 0;">
+    <div class="d-flex align-items-center gap-3">
+        <div class="header-icon-box" style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15); color: #6F5B44; font-size: 1.25rem;">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div>
+            <h5 class="modal-title fw-bold m-0" style="color: #5D4037; font-family: 'Poppins', sans-serif;">
+                Detalle de Receta
+            </h5>
+            <p class="m-0 text-muted small" style="font-size: 0.85rem;">
+                {{ receta.codigo }} - {{ receta.nombre }}
+            </p>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.5;"></button>
+</div>
+
+<div class="modal-body p-4" style="background: white;">
+    
+    <!-- Info Principal -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="p-3 border rounded" style="background: #FAFAF8; border-color: #E8DCC8 !important;">
+                <label class="small fw-bold text-muted text-uppercase d-block mb-1">Producto Final</label>
+                <div class="fw-bold text-dark">{{ receta.producto_final.nombre }}</div>
+                <div class="small text-muted">{{ receta.producto_final.codigo }}</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="p-3 border rounded" style="background: #FAFAF8; border-color: #E8DCC8 !important;">
+                <label class="small fw-bold text-muted text-uppercase d-block mb-1">Estado</label>
+                {% if receta.activo %}
+                    <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Activa</span>
+                {% else %}
+                    <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Inactiva</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if receta.descripcion %}
+    <div class="mb-4">
+        <label class="small fw-bold text-muted text-uppercase mb-1">Descripción / Notas</label>
+        <p class="text-muted small">{{ receta.descripcion }}</p>
+    </div>
+    {% endif %}
+
+    <hr style="border-color: #E8DCC8; margin: 1.5rem 0;">
+
+    <!-- Insumos List -->
+    <h6 class="fw-bold mb-3" style="color: #6F5B44;"><i class="fas fa-boxes me-2"></i>Insumos Requeridos</h6>
+    
+    <div class="table-responsive border rounded" style="border-color: #E8DCC8 !important;">
+        <table class="table table-sm mb-0 table-piedra table-hover">
+            <thead style="background: #FDFCFB;">
+                <tr>
+                    <th style="padding-left: 1rem; width: 40%;">Insumo</th>
+                    <th class="text-center" style="width: 20%;">Cantidad</th>
+                    <th class="text-center" style="width: 20%;">Costo Est.</th>
+                    <th style="width: 20%;">Notas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for insumo in insumos %}
+                <tr style="height: 32px;">
+                    <td style="padding-left: 1rem;">
+                        <div class="fw-medium text-dark">{{ insumo.articulo.nombre }}</div>
+                        <div class="small text-muted" style="font-size: 0.7rem;">{{ insumo.articulo.codigo }}</div>
+                    </td>
+                    <td class="text-center">{{ insumo.cantidad|floatformat:2 }}</td>
+                    <td class="text-center text-muted small">${{ insumo.costo_estimado|floatformat:0|intcomma }}</td>
+                    <td class="small text-muted fst-italic">{{ insumo.notas|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center py-3 text-muted small">No hay insumos definidos.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot style="background: #FAFAF8; font-weight: 600;">
+                <tr style="height: 32px;">
+                    <td class="text-end pe-3" colspan="2">Costo Total Estimado:</td>
+                    <td class="text-center text-dark">${{ receta.costo_estimado_total|floatformat:0|intcomma }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top" style="border-color: #E8DCC8 !important;">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal" style="color: #6F5B44;">Cerrar</button>
+        <button type="button" class="btn text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);" 
+                onclick="window.location.href='{% url 'produccion:receta_update' receta.pk %}'">
+            <i class="fas fa-edit me-2"></i>Editar Receta
+        </button>
+    </div>
+</div>

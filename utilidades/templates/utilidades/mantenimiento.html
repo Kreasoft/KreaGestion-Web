@@ -3,390 +3,460 @@
 
 {% block title %}Mantenimiento del Sistema{% endblock %}
 
+{% block body_class %}hide-top-bar{% endblock %}
+
 {% block extra_css %}
 <style>
+    /* VARIABLES ESTILO STONE PREMIUM */
+    :root {
+        --stone-primary: #C2B7AE;
+        --stone-secondary: #AAA098;
+        --stone-light: #F2EFE9;
+        --stone-bg: #FCFBF9;
+        --stone-gradient: linear-gradient(135deg, #F8F8F8 0%, #EEEEEE 100%);
+        --stone-text: #6B6560;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #556B2F;
+        --stone-danger: #e53935;
+        --stone-warning: #FB8C00;
+        --stone-info: #039BE5;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.25rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .header-icon-box {
+        width: 52px; height: 52px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 14px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text h1 span { font-weight: 700; }
+    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* ACTION BUTTONS */
+    .btn-action-secondary {
+        background: white; border: 1px solid var(--stone-light); color: var(--stone-text);
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-action-secondary:hover { background: var(--stone-bg); transform: translateY(-1px); }
+
+    /* SECTION TITLE */
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--stone-text);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .section-title i { color: var(--stone-primary); }
+
+    /* MAINTENANCE CARDS */
     .maintenance-card {
-        background: white;
-        border-radius: 10px;
+        background: #FFFFFF;
+        border-radius: 12px;
         padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         transition: all 0.3s ease;
-        border: 1px solid #E8DCC8;
+        border: 1px solid var(--stone-light);
         height: 100%;
         position: relative;
         overflow: hidden;
-    }
-    
-    .maintenance-card .bg-icon {
-        position: absolute;
-        right: -10px;
-        bottom: -10px;
-        font-size: 6rem;
-        color: #F5F1E8;
-        opacity: 0.3;
-        z-index: 0;
+        display: flex;
+        flex-direction: column;
     }
     
     .maintenance-card:hover {
-        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
-        transform: translateY(-2px);
-        border-color: #D4A574;
+        box-shadow: 0 8px 24px rgba(139, 115, 85, 0.15);
+        transform: translateY(-4px);
+        border-color: var(--stone-primary);
     }
     
-    .maintenance-card > * {
-        position: relative;
-        z-index: 1;
+    .bg-icon {
+        position: absolute;
+        right: -15px;
+        bottom: -15px;
+        font-size: 5rem;
+        color: var(--stone-primary);
+        opacity: 0.05;
+        z-index: 0;
+        transition: transform 0.3s ease;
     }
+    .maintenance-card:hover .bg-icon { transform: scale(1.1) rotate(5deg); opacity: 0.1; }
     
     .maintenance-icon {
-        width: 50px;
-        height: 50px;
-        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        width: 48px; height: 48px;
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F0EB 100%);
         border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        display: flex; align-items: center; justify-content: center;
         margin-bottom: 1rem;
+        border: 1px solid var(--stone-light);
+        position: relative; z-index: 1;
     }
-    
-    .maintenance-icon i {
-        font-size: 1.5rem;
-        color: #8B7355;
-    }
+    .maintenance-icon i { font-size: 1.5rem; color: var(--stone-primary); }
     
     .maintenance-title {
         font-size: 1.1rem;
-        font-weight: 600;
-        font-family: 'Poppins', sans-serif;
-        color: #5A4A37;
+        font-weight: 700;
+        color: var(--stone-text);
         margin-bottom: 0.5rem;
+        position: relative; z-index: 1;
     }
     
     .maintenance-description {
-        font-size: 0.875rem;
-        color: #6c757d;
-        margin-bottom: 1rem;
-        line-height: 1.4;
+        font-size: 0.85rem;
+        color: #795548;
+        margin-bottom: 1.25rem;
+        line-height: 1.5;
+        flex-grow: 1;
+        position: relative; z-index: 1;
     }
-    
-    .section-title {
-        font-size: 1.35rem;
-        font-weight: 600;
-        font-family: 'Poppins', sans-serif;
-        color: #5A4A37;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #F5F1E8;
-    }
-    
-    .section-title i {
-        color: #8B7355;
-        margin-right: 0.5rem;
-    }
-    
+
+    /* BUTTONS */
     .btn-maintenance {
-        background: #8B7355 !important;
-        border-color: #8B7355 !important;
-        color: white !important;
+        background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        border: 1px solid #d7ccc8;
+        color: #5D4037 !important;
+        padding: 0.6rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        width: 100%;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        box-shadow: 0 4px 8px rgba(93, 64, 55, 0.1);
+        position: relative; z-index: 1;
     }
-    
     .btn-maintenance:hover {
-        background: #6F5B44 !important;
-        border-color: #6F5B44 !important;
-        color: white !important;
+        background: linear-gradient(135deg, #f5f1f0 0%, #efebe9 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(93, 64, 55, 0.15);
+        color: #5D4037 !important;
+        border-color: #C2B7AE;
     }
     
     .btn-danger-maintenance {
-        background: #dc3545 !important;
-        border-color: #dc3545 !important;
-        color: white !important;
-    }
-    
-    .btn-danger-maintenance:hover {
-        background: #c82333 !important;
-        border-color: #bd2130 !important;
-        color: white !important;
-    }
-    
-    .status-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
-        font-size: 0.75rem;
+        background: linear-gradient(135deg, #e53935 0%, #c62828 100%);
+        border: none;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
         font-weight: 600;
-        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        width: 100%;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        box-shadow: 0 2px 6px rgba(229, 57, 53, 0.2);
+        position: relative; z-index: 1;
     }
-    
-    .status-success {
-        background: #d4edda;
-        color: #155724;
+    .btn-danger-maintenance:hover {
+        background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(229, 57, 53, 0.3);
+        color: white;
     }
-    
-    .status-warning {
-        background: #fff3cd;
-        color: #856404;
-    }
-    
-    .status-danger {
-        background: #f8d7da;
-        color: #721c24;
-    }
+
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <h4 class="mb-1" style="color: #2c3e50;">
-                <i class="fas fa-wrench me-2" style="color: #8B7355;"></i>Mantenimiento del Sistema
-            </h4>
-            <p class="text-muted mb-0">Herramientas para optimizar y mantener el sistema</p>
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- Header Premium -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-wrench"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Mantenimiento del <span>Sistema</span></h1>
+                    <p>Herramientas para optimizar y mantener la integridad del sistema</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'utilidades:dashboard' %}" class="btn-action-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                </a>
+            </div>
         </div>
-    </div>
 
-    <!-- Base de Datos -->
-    <div class="row mb-4">
-        <div class="col-12">
+        <div class="card-body p-4">
+            
+            <!-- Base de Datos -->
             <h3 class="section-title">
                 <i class="fas fa-database"></i>Base de Datos
             </h3>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="maintenance-card">
-                <i class="fas fa-sync bg-icon"></i>
-                <div class="maintenance-icon">
-                    <i class="fas fa-sync"></i>
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="maintenance-card">
+                        <i class="fas fa-sync bg-icon"></i>
+                        <div class="maintenance-icon"><i class="fas fa-sync"></i></div>
+                        <h4 class="maintenance-title">Optimizar Tablas</h4>
+                        <p class="maintenance-description">Optimiza las tablas de la base de datos, reconstruye índices y actualiza estadísticas para mejorar el rendimiento.</p>
+                        <button onclick="optimizarTablas()" class="btn-maintenance mt-auto">
+                            <i class="fas fa-cog"></i> Optimizar
+                        </button>
+                    </div>
                 </div>
-                <h4 class="maintenance-title">Optimizar Tablas</h4>
-                <p class="maintenance-description">Optimiza las tablas de la base de datos, reconstruye índices y actualiza estadísticas.</p>
-                <button onclick="optimizarTablas()" class="btn btn-maintenance btn-sm w-100">
-                    <i class="fas fa-cog me-1"></i>Optimizar
-                </button>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="maintenance-card">
-                <i class="fas fa-save bg-icon"></i>
-                <div class="maintenance-icon">
-                    <i class="fas fa-save"></i>
+                <div class="col-md-4">
+                    <div class="maintenance-card">
+                        <i class="fas fa-save bg-icon"></i>
+                        <div class="maintenance-icon"><i class="fas fa-save"></i></div>
+                        <h4 class="maintenance-title">Backup de Base de Datos</h4>
+                        <p class="maintenance-description">Crea un respaldo completo e inmediato de la base de datos en formato SQL para su resguardo.</p>
+                        <button onclick="crearBackup()" class="btn-maintenance mt-auto">
+                            <i class="fas fa-download"></i> Crear Backup
+                        </button>
+                    </div>
                 </div>
-                <h4 class="maintenance-title">Backup de Base de Datos</h4>
-                <p class="maintenance-description">Crea un respaldo completo de la base de datos en formato SQL.</p>
-                <button onclick="crearBackup()" class="btn btn-maintenance btn-sm w-100">
-                    <i class="fas fa-download me-1"></i>Crear Backup
-                </button>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="maintenance-card">
-                <i class="fas fa-check-circle bg-icon"></i>
-                <div class="maintenance-icon">
-                    <i class="fas fa-check-circle"></i>
+                <div class="col-md-4">
+                    <div class="maintenance-card">
+                        <i class="fas fa-check-circle bg-icon"></i>
+                        <div class="maintenance-icon"><i class="fas fa-check-circle"></i></div>
+                        <h4 class="maintenance-title">Verificar Integridad</h4>
+                        <p class="maintenance-description">Analiza la base de datos para detectar inconsistencias de datos y verificar la integridad referencial.</p>
+                        <button onclick="verificarIntegridad()" class="btn-maintenance mt-auto">
+                            <i class="fas fa-search"></i> Verificar
+                        </button>
+                    </div>
                 </div>
-                <h4 class="maintenance-title">Verificar Integridad</h4>
-                <p class="maintenance-description">Verifica la integridad de los datos y detecta inconsistencias.</p>
-                <button onclick="verificarIntegridad()" class="btn btn-maintenance btn-sm w-100">
-                    <i class="fas fa-search me-1"></i>Verificar
-                </button>
             </div>
-        </div>
-    </div>
 
-    <!-- Limpieza -->
-    <div class="row mb-4">
-        <div class="col-12">
+            <!-- Limpieza de Datos -->
             <h3 class="section-title">
                 <i class="fas fa-broom"></i>Limpieza de Datos
             </h3>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="maintenance-card">
-                <i class="fas fa-user-clock bg-icon"></i>
-                <div class="maintenance-icon">
-                    <i class="fas fa-user-clock"></i>
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="maintenance-card">
+                        <i class="fas fa-user-clock bg-icon"></i>
+                        <div class="maintenance-icon"><i class="fas fa-user-clock"></i></div>
+                        <h4 class="maintenance-title">Limpiar Sesiones</h4>
+                        <p class="maintenance-description">Elimina sesiones de usuario expiradas y libera espacio en la tabla de sesiones del servidor.</p>
+                        <button onclick="limpiarSesiones()" class="btn-maintenance mt-auto">
+                            <i class="fas fa-trash"></i> Limpiar
+                        </button>
+                    </div>
                 </div>
-                <h4 class="maintenance-title">Limpiar Sesiones</h4>
-                <p class="maintenance-description">Elimina sesiones de usuario expiradas y libera espacio.</p>
-                <button onclick="limpiarSesiones()" class="btn btn-maintenance btn-sm w-100">
-                    <i class="fas fa-trash me-1"></i>Limpiar
-                </button>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="maintenance-card">
-                <i class="fas fa-copy bg-icon"></i>
-                <div class="maintenance-icon">
-                    <i class="fas fa-copy"></i>
+                <div class="col-md-4">
+                    <div class="maintenance-card">
+                        <i class="fas fa-copy bg-icon"></i>
+                        <div class="maintenance-icon"><i class="fas fa-copy"></i></div>
+                        <h4 class="maintenance-title">Detectar Duplicados</h4>
+                        <p class="maintenance-description">Escanea la base de datos en busca de posibles duplicados en clientes, proveedores y artículos.</p>
+                        <button onclick="detectarDuplicados()" class="btn-maintenance mt-auto">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
                 </div>
-                <h4 class="maintenance-title">Detectar Duplicados</h4>
-                <p class="maintenance-description">Encuentra clientes, proveedores y artículos duplicados.</p>
-                <button onclick="detectarDuplicados()" class="btn btn-maintenance btn-sm w-100">
-                    <i class="fas fa-search me-1"></i>Buscar
-                </button>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="maintenance-card">
-                <i class="fas fa-file bg-icon"></i>
-                <div class="maintenance-icon">
-                    <i class="fas fa-file"></i>
+                <div class="col-md-4">
+                    <div class="maintenance-card">
+                        <i class="fas fa-file bg-icon"></i>
+                        <div class="maintenance-icon"><i class="fas fa-file"></i></div>
+                        <h4 class="maintenance-title">Limpiar Archivos Temporales</h4>
+                        <p class="maintenance-description">Elimina archivos temporales del sistema, cargas incompletas y archivos de caché antiguos.</p>
+                        <button onclick="limpiarArchivos()" class="btn-maintenance mt-auto">
+                            <i class="fas fa-trash"></i> Limpiar
+                        </button>
+                    </div>
                 </div>
-                <h4 class="maintenance-title">Limpiar Archivos Temporales</h4>
-                <p class="maintenance-description">Elimina archivos temporales y uploads no utilizados.</p>
-                <button onclick="limpiarArchivos()" class="btn btn-maintenance btn-sm w-100">
-                    <i class="fas fa-trash me-1"></i>Limpiar
-                </button>
             </div>
-        </div>
-    </div>
 
-    <!-- Logs y Auditoría -->
-    <div class="row mb-4">
-        <div class="col-12">
+            <!-- Logs y Auditoría -->
             <h3 class="section-title">
                 <i class="fas fa-file-alt"></i>Logs y Auditoría
             </h3>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="maintenance-card">
-                <i class="fas fa-list bg-icon"></i>
-                <div class="maintenance-icon">
-                    <i class="fas fa-list"></i>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="maintenance-card">
+                        <i class="fas fa-list bg-icon"></i>
+                        <div class="maintenance-icon"><i class="fas fa-list"></i></div>
+                        <h4 class="maintenance-title">Ver Logs del Sistema</h4>
+                        <p class="maintenance-description">Consulta los registros de actividad y errores del sistema directamente en una interfaz visual.</p>
+                        <button onclick="verLogs()" class="btn-maintenance mt-auto">
+                            <i class="fas fa-eye"></i> Ver Logs
+                        </button>
+                    </div>
                 </div>
-                <h4 class="maintenance-title">Ver Logs del Sistema</h4>
-                <p class="maintenance-description">Consulta los registros de errores y actividad del sistema.</p>
-                <button onclick="verLogs()" class="btn btn-maintenance btn-sm w-100">
-                    <i class="fas fa-eye me-1"></i>Ver Logs
-                </button>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="maintenance-card">
-                <i class="fas fa-download bg-icon"></i>
-                <div class="maintenance-icon">
-                    <i class="fas fa-download"></i>
+                <div class="col-md-4">
+                    <div class="maintenance-card">
+                        <i class="fas fa-file-download bg-icon"></i>
+                        <div class="maintenance-icon"><i class="fas fa-file-download"></i></div>
+                        <h4 class="maintenance-title">Exportar Logs</h4>
+                        <p class="maintenance-description">Descarga los archivos de log completos para su análisis y almacenamiento externo.</p>
+                        <button onclick="exportarLogs()" class="btn-maintenance mt-auto">
+                            <i class="fas fa-file-download"></i> Descargar
+                        </button>
+                    </div>
                 </div>
-                <h4 class="maintenance-title">Exportar Logs</h4>
-                <p class="maintenance-description">Descarga los logs del sistema para análisis externo.</p>
-                <button onclick="exportarLogs()" class="btn btn-maintenance btn-sm w-100">
-                    <i class="fas fa-file-download me-1"></i>Descargar
-                </button>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="maintenance-card">
-                <i class="fas fa-trash-alt bg-icon"></i>
-                <div class="maintenance-icon">
-                    <i class="fas fa-trash-alt"></i>
+                <div class="col-md-4">
+                    <div class="maintenance-card">
+                        <i class="fas fa-trash-alt bg-icon"></i>
+                        <div class="maintenance-icon"><i class="fas fa-trash-alt"></i></div>
+                        <h4 class="maintenance-title">Purgar Logs Antiguos</h4>
+                        <p class="maintenance-description">Elimina de forma permanente los registros de actividad mayores a 90 días para liberar espacio.</p>
+                        <button onclick="purgarLogs()" class="btn-danger-maintenance mt-auto">
+                            <i class="fas fa-trash"></i> Purgar
+                        </button>
+                    </div>
                 </div>
-                <h4 class="maintenance-title">Purgar Logs Antiguos</h4>
-                <p class="maintenance-description">Elimina registros de logs mayores a 90 días.</p>
-                <button onclick="purgarLogs()" class="btn btn-danger-maintenance btn-sm w-100">
-                    <i class="fas fa-trash me-1"></i>Purgar
-                </button>
             </div>
-        </div>
-    </div>
 
-    <!-- Resultados -->
-    <div class="row" id="resultados" style="display: none;">
-        <div class="col-12">
-            <div class="alert alert-info">
-                <h5><i class="fas fa-info-circle me-2"></i>Resultado de la Operación</h5>
-                <div id="resultado-contenido"></div>
-            </div>
         </div>
     </div>
 </div>
 
 <script>
+// Mantener la funcionalidad original de los scripts
 function optimizarTablas() {
-    if (!confirm('¿Desea optimizar las tablas de la base de datos? Esta operación puede tardar varios minutos.')) return;
-    
     Swal.fire({
-        title: 'Optimizando...',
-        text: 'Por favor espere',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
+        title: '¿Optimizar Tablas?',
+        text: "Esta operación puede tardar varios minutos dependiendo del tamaño de la base de datos.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, optimizar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Optimizando...',
+                html: 'Por favor espere mientras se realiza la operación.<br>No cierre esta ventana.',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+            
+            fetch('{% url "utilidades:optimizar_tablas" %}', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                Swal.close();
+                if (data.success) {
+                    Swal.fire('¡Optimización Completada!', data.message, 'success');
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                Swal.close();
+                Swal.fire('Error Critico', 'Ocurrió un error de conexión', 'error');
+            });
         }
-    });
-    
-    fetch('{% url "utilidades:optimizar_tablas" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        Swal.close();
-        if (data.success) {
-            Swal.fire('¡Éxito!', data.message, 'success');
-        } else {
-            Swal.fire('Error', data.message, 'error');
-        }
-    })
-    .catch(error => {
-        Swal.close();
-        Swal.fire('Error', 'Ocurrió un error al optimizar las tablas', 'error');
     });
 }
 
 function crearBackup() {
-    if (!confirm('¿Desea crear un backup de la base de datos?')) return;
-    
     Swal.fire({
-        title: 'Creando backup...',
-        text: 'Por favor espere',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
+        title: '¿Crear Backup?',
+        text: "Se generará un archivo SQL con el respaldo completo de la base de datos.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, crear backup'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Generando Backup...',
+                text: 'Preparando descarga...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+            
+            // Redireccionar para iniciar descarga
+            window.location.href = '{% url "utilidades:crear_backup" %}';
+            
+            // Cerrar alerta después de un tiempo prudente
+            setTimeout(() => {
+                Swal.close();
+                const Toast = Swal.mixin({
+                    toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true
+                });
+                Toast.fire({ icon: 'success', title: 'Descarga iniciada' });
+            }, 2000);
         }
     });
-    
-    window.location.href = '{% url "utilidades:crear_backup" %}';
-    
-    setTimeout(() => {
-        Swal.close();
-        Swal.fire('¡Éxito!', 'El backup se está descargando', 'success');
-    }, 2000);
 }
 
 function verificarIntegridad() {
     Swal.fire({
-        title: 'Verificando...',
-        text: 'Por favor espere',
+        title: 'Verificando Integridad...',
+        text: 'Analizando base de datos...',
         allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
+        didOpen: () => { Swal.showLoading(); }
     });
     
     fetch('{% url "utilidades:verificar_integridad" %}', {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
+        headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
         Swal.close();
         if (data.success) {
-            let html = '<ul class="text-start">';
+            let html = '<ul class="text-start list-group list-group-flush">';
             for (let key in data.resultados) {
-                html += `<li><strong>${key}:</strong> ${data.resultados[key]}</li>`;
+                html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                            ${key}
+                            <span class="badge bg-primary rounded-pill">${data.resultados[key]}</span>
+                         </li>`;
             }
             html += '</ul>';
+            
             Swal.fire({
-                title: 'Verificación Completa',
+                title: 'Reporte de Integridad',
                 html: html,
                 icon: 'info',
-                width: '600px'
+                confirmButtonColor: '#8B7355'
             });
         } else {
             Swal.fire('Error', data.message, 'error');
@@ -395,55 +465,73 @@ function verificarIntegridad() {
 }
 
 function limpiarSesiones() {
-    if (!confirm('¿Desea eliminar todas las sesiones expiradas?')) return;
-    
-    fetch('{% url "utilidades:limpiar_sesiones" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            Swal.fire('¡Éxito!', data.message, 'success');
-        } else {
-            Swal.fire('Error', data.message, 'error');
+    Swal.fire({
+        title: '¿Limpiar Sesiones?',
+        text: "Se eliminarán todas las sesiones de usuario expiradas.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, limpiar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('{% url "utilidades:limpiar_sesiones" %}', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('¡Limpieza Exitosa!', data.message, 'success');
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            });
         }
     });
 }
 
 function detectarDuplicados() {
     Swal.fire({
-        title: 'Buscando duplicados...',
-        text: 'Por favor espere',
+        title: 'Buscando Duplicados...',
+        text: 'Analizando registros...',
         allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
+        didOpen: () => { Swal.showLoading(); }
     });
     
     fetch('{% url "utilidades:detectar_duplicados" %}', {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
+        headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
         Swal.close();
         if (data.success) {
-            let html = '<div class="text-start">';
-            html += `<p><strong>Clientes duplicados:</strong> ${data.duplicados.clientes}</p>`;
-            html += `<p><strong>Proveedores duplicados:</strong> ${data.duplicados.proveedores}</p>`;
-            html += `<p><strong>Artículos duplicados:</strong> ${data.duplicados.articulos}</p>`;
+            let totalDuplicados = data.duplicados.clientes + data.duplicados.proveedores + data.duplicados.articulos;
+            let icon = totalDuplicados > 0 ? 'warning' : 'success';
+            let title = totalDuplicados > 0 ? 'Duplicados Encontrados' : 'Sin Duplicados';
+            
+            let html = '<div class="list-group text-start">';
+            html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                        Clientes <span class="badge ${data.duplicados.clientes > 0 ? 'bg-warning text-dark' : 'bg-success'} rounded-pill">${data.duplicados.clientes}</span>
+                     </div>`;
+            html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                        Proveedores <span class="badge ${data.duplicados.proveedores > 0 ? 'bg-warning text-dark' : 'bg-success'} rounded-pill">${data.duplicados.proveedores}</span>
+                     </div>`;
+            html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                        Artículos <span class="badge ${data.duplicados.articulos > 0 ? 'bg-warning text-dark' : 'bg-success'} rounded-pill">${data.duplicados.articulos}</span>
+                     </div>`;
             html += '</div>';
+            
+            if(totalDuplicados > 0) {
+                html += '<div class="alert alert-warning mt-3 mb-0 small"><i class="fas fa-exclamation-triangle me-1"></i> Se recomienda revisar manualmente los registros marcados.</div>';
+            }
+            
             Swal.fire({
-                title: 'Duplicados Encontrados',
+                title: title,
                 html: html,
-                icon: data.duplicados.clientes + data.duplicados.proveedores + data.duplicados.articulos > 0 ? 'warning' : 'success'
+                icon: icon,
+                confirmButtonColor: '#8B7355'
             });
         } else {
             Swal.fire('Error', data.message, 'error');
@@ -452,51 +540,61 @@ function detectarDuplicados() {
 }
 
 function limpiarArchivos() {
-    if (!confirm('¿Desea eliminar archivos temporales? Esta acción no se puede deshacer.')) return;
-    
-    fetch('{% url "utilidades:limpiar_archivos" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            Swal.fire('¡Éxito!', data.message, 'success');
-        } else {
-            Swal.fire('Error', data.message, 'error');
+    Swal.fire({
+        title: '¿Limpiar Archivos Temporales?',
+        text: "Se eliminarán archivos en caché y cargas temporales. Esta acción es irreversible.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, eliminar archivos'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('{% url "utilidades:limpiar_archivos" %}', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('¡Limpieza Completada!', data.message, 'success');
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            });
         }
     });
-}
-
-function verLogs() {
-    window.location.href = '{% url "utilidades:ver_logs" %}';
-}
-
-function exportarLogs() {
-    window.location.href = '{% url "utilidades:exportar_logs" %}';
 }
 
 function purgarLogs() {
-    if (!confirm('¿Desea eliminar los logs mayores a 90 días? Esta acción no se puede deshacer.')) return;
-    
-    fetch('{% url "utilidades:purgar_logs" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            Swal.fire('¡Éxito!', data.message, 'success');
-        } else {
-            Swal.fire('Error', data.message, 'error');
+    Swal.fire({
+        title: '¿Purgar Logs Antiguos?',
+        text: "Se eliminarán permanentemente todos los registros de log con más de 90 días de antigüedad.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, purgar logs',
+        focusCancel: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('{% url "utilidades:purgar_logs" %}', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('¡Purgado Exitoso!', data.message, 'success');
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            });
         }
     });
 }
+
+function verLogs() { window.location.href = '{% url "utilidades:ver_logs" %}'; }
+function exportarLogs() { window.location.href = '{% url "utilidades:exportar_logs" %}'; }
 </script>
 {% endblock %}

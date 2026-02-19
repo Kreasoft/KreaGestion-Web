@@ -2,288 +2,343 @@
 {% load static %}
 {% load articulo_filters %}
 
-{% block title %}Lista de Clientes{% endblock %}
+{% block title %}Lista de Clientes - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Estilos para la tabla Estilo Piedra y Variables */
+    :root {
+        --color-piedra-primario: #8B7355;
+        --color-piedra-secundario: #6F5B44;
+        --color-piedra-claro: #E8DCC8;
+        --color-piedra-fondo: #FAFAF8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --color-piedra-texto: #5D4037;
+        --color-piedra-borde: #D4C4A8;
+    }
+
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+
+    .card-piedra {
+        border: 2px solid #E8DCC8; 
+        border-radius: 15px; 
+        overflow: hidden; 
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        background: white;
+    }
+
+    .table-piedra {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .table-piedra thead th {
+        background: #FDFCFB;
+        border-bottom: 2px solid #E8DCC8;
+        color: #8B7355;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        padding: 12px 15px;
+    }
+
+    .table-piedra tbody tr {
+        height: 32px;
+        transition: all 0.2s ease;
+    }
+
+    .table-piedra tbody tr:nth-of-type(odd) {
+        background-color: rgba(245, 241, 232, 0.3);
+    }
+
+    .table-piedra tbody tr:nth-of-type(even) {
+        background-color: white;
+    }
+
+    .table-piedra tbody tr:hover {
+        background-color: #F5F1E8 !important;
+    }
+
+    .table-piedra tbody td {
+        padding: 5px 15px;
+        border-bottom: 1px solid #F5F1E8;
+        vertical-align: middle;
+        font-size: 0.85rem;
+        color: #4A5568;
+    }
+
+    .btn-action-piedra {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border: 1px solid #D4C4A8;
+        border-radius: 6px;
+        color: #8B7355;
+        font-size: 0.75rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .btn-action-piedra:hover {
+        background: #8B7355;
+        color: white !important;
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-users fa-2x text-white me-3"></i>
-                            <div>
-                                <h5 class="mb-0 text-white" style="font-size: 1.4rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                                    Gestión de Clientes
-                                </h5>
-                                <small class="text-white-50" style="font-size: 0.9rem; font-family: 'Poppins', sans-serif;">Administra la información de tus clientes, contactos y datos comerciales</small>
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card card-piedra">
+        <!-- Header con Estilo Piedra Premium -->
+        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-users me-3" style="font-size: 2.2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                        <div>
+                            <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
+                                Gestión de <span class="fw-bold">Clientes</span>
+                            </h2>
+                            <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                                Administra la información de tus clientes y contactos
                             </div>
                         </div>
-                        <a href="{% url 'clientes:cliente_create' %}" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3); font-family: 'Poppins', sans-serif;">
-                            <i class="fas fa-plus me-2"></i> Nuevo Cliente
-                        </a>
                     </div>
                 </div>
-                
-                <!-- Estadísticas dentro de la tarjeta -->
-                <div class="card-body" style="padding: 15px 20px;">
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; box-shadow: 0 4px 15px rgba(139, 115, 85, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 15px 20px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Total Clientes</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ total_clientes }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Registrados</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-users fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'clientes:cliente_create' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                        <i class="fas fa-plus me-1"></i> Nuevo Cliente
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas Soft UI Pastel -->
+        <div class="card-body" style="background: #FAFAF8; padding: 15px;">
+            <div class="row g-3 mb-4 justify-content-center">
+                <div class="col-md-3">
+                    <div class="card card-stats-pastel-terracota card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
+                        <div class="card-body p-3" style="position: relative; z-index: 2;">
+                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Total Clientes</div>
+                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ total_clientes }}</h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">Registrados</small>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); border: none; box-shadow: 0 4px 15px rgba(160, 130, 109, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 15px 20px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Activos</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ clientes_activos }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">En sistema</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-check-circle fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #C19A6B 0%, #A0826D 100%); border: none; box-shadow: 0 4px 15px rgba(193, 154, 107, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 15px 20px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Contribuyentes</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ clientes_contribuyentes }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Con RUT</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-building fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%); border: none; box-shadow: 0 4px 15px rgba(212, 165, 116, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 15px 20px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Consumidor Final</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem; font-family: 'Poppins', sans-serif;">{{ clientes_consumidor_final }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.7rem; font-family: 'Poppins', sans-serif;">Particulares</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-user fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #e39d7e; pointer-events: none; z-index: 1;">
+                            <i class="fas fa-users"></i>
                         </div>
                     </div>
-
-                    <!-- Filtros y búsqueda -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="card shadow-sm" style="border: none; border-radius: 10px;">
-                                <div class="card-body py-3">
-                                    <form method="get" class="row g-2">
-                                        <div class="col-md-4">
-                                            <div class="input-group input-group-sm">
-                                                <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                                    <i class="fas fa-search" style="color: #6c757d;"></i>
-                                                </div>
-                                                <input type="text" class="form-control" name="search" value="{{ search }}" 
-                                                       placeholder="Buscar por nombre, RUT o email" style="border-left: none;">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <select name="estado" class="form-select form-select-sm">
-                                                <option value="">Todos los estados</option>
-                                                {% for value, label in estados %}
-                                                    <option value="{{ value }}" {% if estado == value %}selected{% endif %}>{{ label }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <select name="tipo_cliente" class="form-select form-select-sm">
-                                                <option value="">Todos los tipos</option>
-                                                {% for value, label in tipos_cliente %}
-                                                    <option value="{{ value }}" {% if tipo_cliente == value %}selected{% endif %}>{{ label }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <button type="submit" class="btn btn-primary btn-sm w-100">
-                                                <i class="fas fa-filter me-1"></i>Filtrar
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card card-stats-pastel-azul card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
+                        <div class="card-body p-3" style="position: relative; z-index: 2;">
+                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Activos</div>
+                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ clientes_activos }}</h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">En sistema</small>
+                        </div>
+                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #1e3c72; pointer-events: none; z-index: 1;">
+                            <i class="fas fa-check-circle"></i>
                         </div>
                     </div>
-
-                    <!-- Lista de clientes -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card shadow-sm" style="border: none; border-radius: 15px;">
-                                <div class="card-body p-0">
-                    {% if page_obj %}
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead style="background: #f8f9fa;">
-                                    <tr>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Cliente</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">RUT</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Tipo</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Estado</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Límite Crédito</th>
-                                        <th class="py-2 px-3" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Contactos</th>
-                                        <th class="py-2 px-3 text-center" style="font-weight: 600; color: #495057; font-size: 0.9rem;">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for cliente in page_obj %}
-                                        <tr style="border-bottom: 1px solid #f1f3f4;">
-                                            <td class="py-2 px-3">
-                                                <div>
-                                                    <div class="fw-bold" style="color: #2c3e50; font-size: 0.9rem;">{{ cliente.nombre }}</div>
-                                                </div>
-                                            </td>
-                                            <td class="py-2 px-3">
-                                                <span style="color: #6c757d; font-size: 0.9rem;">{{ cliente.get_rut_formateado }}</span>
-                                            </td>
-                                            <td class="py-2 px-3">
-                                                <span class="badge" style="background-color: #e3f2fd; color: #1976d2; font-size: 0.8rem;">
-                                                    {{ cliente.get_tipo_cliente_display }}
-                                                </span>
-                                            </td>
-                                            <td class="py-2 px-3">
-                                                <span class="badge bg-{{ cliente.get_estado_display_color }}" style="font-size: 0.8rem;">
-                                                    {{ cliente.get_estado_display }}
-                                                </span>
-                                            </td>
-                                            <td class="py-2 px-3">
-                                                <span class="fw-bold" style="color: #2c3e50; font-size: 0.9rem;">${{ cliente.limite_credito|format_price }}</span>
-                                            </td>
-                                            <td class="py-2 px-3">
-                                                <span class="badge bg-info" style="font-size: 0.8rem;">{{ cliente.contactos.count }}</span>
-                                            </td>
-                                            <td class="py-2 px-3 text-center">
-                                                <div class="btn-group" role="group">
-                                                    <a href="{% url 'clientes:cliente_detail' cliente.pk %}" 
-                                                       class="btn btn-sm" 
-                                                       data-bs-toggle="tooltip" 
-                                                       title="Ver detalles"
-                                                       style="border: none; background: none; padding: 2px 6px;">
-                                                        <i class="fas fa-eye" style="color: #4682B4; font-size: 14px;"></i>
-                                                    </a>
-                                                    <a href="{% url 'clientes:cliente_update' cliente.pk %}" 
-                                                       class="btn btn-sm" 
-                                                       data-bs-toggle="tooltip" 
-                                                       title="Editar"
-                                                       style="border: none; background: none; padding: 2px 6px;">
-                                                        <i class="fas fa-edit" style="color: #B8860B; font-size: 14px;"></i>
-                                                    </a>
-                                                    <a href="#" 
-                                                       class="btn btn-sm btn-toggle-estado" 
-                                                       data-bs-toggle="tooltip" 
-                                                       title="{% if cliente.estado == 'activo' %}Desactivar{% else %}Activar{% endif %}"
-                                                       data-cliente-id="{{ cliente.pk }}"
-                                                       data-cliente-nombre="{{ cliente.nombre }}"
-                                                       data-estado-actual="{{ cliente.estado }}"
-                                                       style="border: none; background: none; padding: 2px 6px;">
-                                                        <i class="fas fa-{% if cliente.estado == 'activo' %}toggle-on{% else %}toggle-off{% endif %}" 
-                                                           style="color: {% if cliente.estado == 'activo' %}#28a745{% else %}#6c757d{% endif %}; font-size: 14px;"></i>
-                                                    </a>
-                                                    <a href="{% url 'clientes:cliente_delete' cliente.pk %}" 
-                                                       class="btn btn-sm" 
-                                                       data-bs-toggle="tooltip" 
-                                                       title="Eliminar"
-                                                       style="border: none; background: none; padding: 2px 6px;">
-                                                        <i class="fas fa-trash" style="color: #DC143C; font-size: 14px;"></i>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                </div>
+                <div class="col-md-3">
+                    <div class="card card-stats-pastel-rosa card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
+                        <div class="card-body p-3" style="position: relative; z-index: 2;">
+                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Contribuyentes</div>
+                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ clientes_contribuyentes }}</h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">Con RUT</small>
                         </div>
-                        
-                        <!-- Paginación -->
-                        {% if page_obj.has_other_pages %}
-                            <div class="card-footer" style="background: #f8f9fa; border-top: 1px solid #f1f3f4;">
-                                <nav aria-label="Paginación de clientes">
-                                    <ul class="pagination justify-content-center mb-0">
-                                        {% if page_obj.has_previous %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}">
-                                                    <i class="fas fa-angle-double-left"></i>
-                                                </a>
-                                            </li>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}">
-                                                    <i class="fas fa-angle-left"></i>
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                        
-                                        <li class="page-item active">
-                                            <span class="page-link">
-                                                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
-                                            </span>
-                                        </li>
-                                        
-                                        {% if page_obj.has_next %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}">
-                                                    <i class="fas fa-angle-right"></i>
-                                                </a>
-                                            </li>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}">
-                                                    <i class="fas fa-angle-double-right"></i>
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                    </ul>
-                                </nav>
-                            </div>
-                        {% endif %}
-                    {% else %}
-                        <div class="text-center py-5">
-                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">No se encontraron clientes</h5>
-                            <p class="text-muted">Comienza agregando tu primer cliente al sistema.</p>
-                            <a href="{% url 'clientes:cliente_create' %}" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i>Crear Primer Cliente
-                            </a>
+                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #d63384; pointer-events: none; z-index: 1;">
+                            <i class="fas fa-building"></i>
                         </div>
-                    {% endif %}
-                                </div>
-                            </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card card-stats-pastel-terracota card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
+                        <div class="card-body p-3" style="position: relative; z-index: 2;">
+                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Consumidor Final</div>
+                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ clientes_consumidor_final }}</h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">Particulares</small>
+                        </div>
+                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #e39d7e; pointer-events: none; z-index: 1;">
+                            <i class="fas fa-user"></i>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Filtros -->
+            <form method="get" class="row g-2 mb-3 align-items-end" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #E8DCC8;">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold" style="font-size: 0.75rem; color: #6F5B44;">
+                        <i class="fas fa-search me-1"></i>Buscar
+                    </label>
+                    <input type="text" class="form-control form-control-sm" name="search" value="{{ search }}" 
+                           placeholder="Buscar por nombre, RUT o email" style="border: 1px solid #D4C4A8;">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold" style="font-size: 0.75rem; color: #6F5B44;">
+                        <i class="fas fa-tag me-1"></i>Estado
+                    </label>
+                    <select name="estado" class="form-select form-select-sm" style="border: 1px solid #D4C4A8;">
+                        <option value="">Todos los estados</option>
+                        {% for value, label in estados %}
+                            <option value="{{ value }}" {% if estado == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold" style="font-size: 0.75rem; color: #6F5B44;">
+                        <i class="fas fa-users-cog me-1"></i>Tipo
+                    </label>
+                    <select name="tipo_cliente" class="form-select form-select-sm" style="border: 1px solid #D4C4A8;">
+                        <option value="">Todos los tipos</option>
+                        {% for value, label in tipos_cliente %}
+                             <option value="{{ value }}" {% if tipo_cliente == value %}selected{% endif %}>{{ label }}</option>
+                         {% endfor %}
+                     </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold" style="font-size: 0.75rem; color: #6F5B44;">
+                        <i class="fas fa-user-tie me-1"></i>Vendedor
+                    </label>
+                     <select name="vendedor_id" class="form-select form-select-sm" style="border: 1px solid #D4C4A8;">
+                         <option value="">Todos</option>
+                         {% for v in vendedores %}
+                             <option value="{{ v.id }}" {% if vendedor_filtro == v.id|stringformat:"i" %}selected{% endif %}>{{ v.nombre }}</option>
+                         {% endfor %}
+                     </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-sm w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; font-weight: 600; font-size: 0.75rem; height: 31px;">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Lista de clientes -->
+            <div class="table-responsive rounded-bottom" style="background: white;">
+                <table class="table-piedra mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">Cliente</th>
+                            <th style="width: 15%;">RUT</th>
+                            <th style="width: 12%;">Tipo</th>
+                            <th style="width: 10%;">Estado</th>
+                             <th style="width: 15%;">Vendedor</th>
+                             <th style="width: 13%;">Límite Crédito</th>
+                            <th style="width: 5%; text-align: center;">Contactos</th>
+                            <th style="width: 10%; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if page_obj %}
+                            {% for cliente in page_obj %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold" style="color: #2c3e50;">{{ cliente.nombre }}</div>
+                                    </td>
+                                    <td class="small opacity-75">{{ cliente.get_rut_formateado }}</td>
+                                    <td>
+                                        <span class="badge" style="background-color: #e3f2fd; color: #1976d2; font-size: 0.7rem;">
+                                            {{ cliente.get_tipo_cliente_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                         <span class="badge bg-{{ cliente.get_estado_display_color }}" style="font-size: 0.7rem;">
+                                             {{ cliente.get_estado_display }}
+                                         </span>
+                                     </td>
+                                     <td class="small opacity-75">
+                                         {% if cliente.vendedor %}
+                                             {{ cliente.vendedor.nombre }}
+                                         {% else %}
+                                             <span class="text-muted italic">S/V</span>
+                                         {% endif %}
+                                     </td>
+                                     <td class="fw-bold" style="color: #6F5B44;">${{ cliente.limite_credito|format_price }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary" style="font-size: 0.7rem;">{{ cliente.contactos.count }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <a href="{% url 'clientes:cliente_detail' cliente.pk %}" class="btn-action-piedra" title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'clientes:cliente_update' cliente.pk %}" class="btn-action-piedra" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="#" class="btn-action-piedra btn-toggle-estado" 
+                                               title="{% if cliente.estado == 'activo' %}Desactivar{% else %}Activar{% endif %}"
+                                               data-cliente-id="{{ cliente.pk }}"
+                                               data-cliente-nombre="{{ cliente.nombre }}"
+                                               data-estado-actual="{{ cliente.estado }}">
+                                                <i class="fas fa-{% if cliente.estado == 'activo' %}toggle-on{% else %}toggle-off{% endif %}"></i>
+                                            </a>
+                                            <a href="{% url 'clientes:cliente_delete' cliente.pk %}" class="btn-action-piedra" title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center py-5">
+                                    <i class="fas fa-users fa-3x mb-3" style="color: #D4C4A8;"></i>
+                                    <h6 style="color: #8B7355;">No se encontraron clientes</h6>
+                                    <p style="color: #6c757d; font-size: 0.85rem;">Comienza agregando tu primer cliente al sistema.</p>
+                                    <a href="{% url 'clientes:cliente_create' %}" class="btn btn-sm mt-2" style="background: #8B7355; color: white;">
+                                        <i class="fas fa-plus me-1"></i>Crear Cliente
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginación PIEDRA STYLE -->
+            {% if page_obj.has_other_pages %}
+                <div class="d-flex justify-content-center mt-4">
+                    <nav aria-label="Paginación">
+                        <ul class="pagination pagination-sm">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}" style="color: #8B7355;">&laquo;</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}" style="color: #8B7355;">&lsaquo;</a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link" style="background-color: #8B7355; border-color: #8B7355;">{{ page_obj.number }}</span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}" style="color: #8B7355;">&rsaquo;</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}" style="color: #8B7355;">&raquo;</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -297,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
     
-    // Manejar toggle de estado con SweetAlert
+    // Manejar toggle de estado con SweetAlert Estilo
     document.querySelectorAll('.btn-toggle-estado').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
@@ -307,27 +362,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const estadoActual = this.dataset.estadoActual;
             const accion = estadoActual === 'activo' ? 'desactivar' : 'activar';
             const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
+            const colorConfirm = estadoActual === 'activo' ? '#d33' : '#3085d6';
             
             Swal.fire({
                 title: `¿${accion.charAt(0).toUpperCase() + accion.slice(1)} Cliente?`,
                 html: `
-                    <div style="text-align: left; padding: 1rem;">
-                        <p><strong>Cliente:</strong> ${clienteNombre}</p>
-                        <p><strong>Estado actual:</strong> <span class="badge bg-${estadoActual === 'activo' ? 'success' : 'secondary'}">${estadoActual === 'activo' ? 'Activo' : 'Inactivo'}</span></p>
-                        <p><strong>Nuevo estado:</strong> <span class="badge bg-${nuevoEstado === 'activo' ? 'success' : 'secondary'}">${nuevoEstado === 'activo' ? 'Activo' : 'Inactivo'}</span></p>
+                    <div class="text-center">
+                        <p><strong>${clienteNombre}</strong></p>
+                        <p class="mb-0">Cambiará a estado: <strong>${nuevoEstado.toUpperCase()}</strong></p>
                     </div>
-                    <hr>
-                    <p style="color: #666; font-size: 0.9rem;">
-                        ${accion === 'desactivar' ? 'El cliente no aparecerá en las búsquedas activas.' : 'El cliente volverá a estar disponible en el sistema.'}
-                    </p>
                 `,
-                icon: 'question',
+                icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: `Sí, ${accion}`,
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: estadoActual === 'activo' ? '#dc3545' : '#28a745',
+                confirmButtonColor: colorConfirm,
                 cancelButtonColor: '#6c757d',
-                reverseButtons: true
+                confirmButtonText: `Sí, ${accion}`,
+                cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
                     window.location.href = `/clientes/${clienteId}/toggle-estado/`;

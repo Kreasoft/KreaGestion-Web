@@ -1,191 +1,136 @@
-{% extends "base.html" %}
 {% load static %}
 
-{% block title %}Contacto de Proveedor{% endblock %}
-
-{% block body_class %}hide-top-bar{% endblock %}
-
-{% block content %}
-<div class="modal-dialog modal-lg">
-    <div class="modal-content">
-        <div class="modal-header" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); color: white;">
-            <h5 class="modal-title" style="font-family: 'Poppins', sans-serif;">
-                <i class="fas fa-user-plus me-2"></i>
-                {% if contacto %}Editar Contacto{% else %}Agregar Contacto{% endif %}
-            </h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+        
+        <!-- HEADER STONE MODAL -->
+        <div class="modal-header border-bottom-0 py-3 px-4" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%); display: flex; align-items: center; justify-content: space-between;">
+            <div class="d-flex align-items-center gap-3">
+                <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.8); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #6F5B44;">
+                    <i class="fas {% if form.instance.pk %}fa-user-edit{% else %}fa-user-plus{% endif %}"></i>
+                </div>
+                <div>
+                    <h5 class="modal-title fw-bold text-dark m-0" style="font-size: 1.1rem; letter-spacing: -0.5px;">
+                        {% if form.instance.pk %}Editar Contacto{% else %}Nuevo Contacto{% endif %}
+                    </h5>
+                    <small class="text-muted d-block" style="font-size: 0.75rem;">Complete los datos del contacto.</small>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         
-        <form method="post" id="contactoForm">
-            <div class="modal-body" style="padding: 20px; font-family: 'Poppins', sans-serif;">
-                {% csrf_token %}
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.nombre.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">
-                            <i class="fas fa-user me-2" style="color: #8B4513;"></i>Nombre del Contacto *
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-user" style="color: #6c757d;"></i>
-                            </div>
-                            {{ form.nombre }}
-                        </div>
-                        {% if form.nombre.errors %}
-                            <div class="text-danger mt-1">{{ form.nombre.errors.0 }}</div>
-                        {% endif %}
+        <form method="post" action="{% if form.instance.pk %}{% url 'proveedores:contacto_update' proveedor.pk form.instance.pk %}{% else %}{% url 'proveedores:contacto_create' proveedor.pk %}{% endif %}" id="contactoFormModal">
+            {% csrf_token %}
+            
+            <div class="modal-body p-4 bg-light">
+                <div class="row g-3">
+                    <!-- Fila 1 -->
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Nombre Completo <span class="text-danger">*</span></label>
+                        {{ form.nombre }}
+                        {% if form.nombre.errors %}<div class="text-danger small">{{ form.nombre.errors.0 }}</div>{% endif %}
                     </div>
                     
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.cargo.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">
-                            <i class="fas fa-briefcase me-2" style="color: #8B4513;"></i>Cargo
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-briefcase" style="color: #6c757d;"></i>
-                            </div>
-                            {{ form.cargo }}
-                        </div>
-                        {% if form.cargo.errors %}
-                            <div class="text-danger mt-1">{{ form.cargo.errors.0 }}</div>
-                        {% endif %}
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Cargo</label>
+                        {{ form.cargo }}
+                    </div>
+
+                    <!-- Fila 2 -->
+                    <div class="col-md-6">
+                         <label class="form-label small fw-bold text-uppercase text-muted mb-1">Tipo</label>
+                         {{ form.tipo_contacto }}
                     </div>
                     
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.tipo_contacto.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">
-                            <i class="fas fa-tags me-2" style="color: #8B4513;"></i>Tipo de Contacto
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-tags" style="color: #6c757d;"></i>
-                            </div>
-                            {{ form.tipo_contacto }}
-                        </div>
-                        {% if form.tipo_contacto.errors %}
-                            <div class="text-danger mt-1">{{ form.tipo_contacto.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="col-md-6 mb-3">
-                        <div class="form-check">
+                    <div class="col-md-6 d-flex align-items-end mb-2">
+                        <div class="form-check form-switch">
                             {{ form.es_contacto_principal }}
-                            <label class="form-check-label" for="{{ form.es_contacto_principal.id_for_label }}" style="font-weight: 600; color: #495057;">
-                                <i class="fas fa-star me-2" style="color: #ffc107;"></i>Es Contacto Principal
-                            </label>
+                            <label class="form-check-label small fw-bold text-muted" for="{{ form.es_contacto_principal.id_for_label }}">Contacto Principal</label>
                         </div>
-                        {% if form.es_contacto_principal.errors %}
-                            <div class="text-danger mt-1">{{ form.es_contacto_principal.errors.0 }}</div>
-                        {% endif %}
                     </div>
                     
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.telefono.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">
-                            <i class="fas fa-phone me-2" style="color: #8B4513;"></i>Teléfono
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-phone" style="color: #6c757d;"></i>
-                            </div>
-                            {{ form.telefono }}
-                        </div>
-                        {% if form.telefono.errors %}
-                            <div class="text-danger mt-1">{{ form.telefono.errors.0 }}</div>
-                        {% endif %}
+                    <div class="col-12"><hr class="my-1 border-muted opacity-25"></div>
+
+                    <!-- Fila 3 -->
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Teléfono</label>
+                        {{ form.telefono }}
                     </div>
                     
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.celular.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">
-                            <i class="fas fa-mobile-alt me-2" style="color: #8B4513;"></i>Celular
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-mobile-alt" style="color: #6c757d;"></i>
-                            </div>
-                            {{ form.celular }}
-                        </div>
-                        {% if form.celular.errors %}
-                            <div class="text-danger mt-1">{{ form.celular.errors.0 }}</div>
-                        {% endif %}
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Celular</label>
+                        {{ form.celular }}
                     </div>
                     
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.email.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">
-                            <i class="fas fa-envelope me-2" style="color: #8B4513;"></i>Email
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-envelope" style="color: #6c757d;"></i>
-                            </div>
-                            {{ form.email }}
-                        </div>
-                        {% if form.email.errors %}
-                            <div class="text-danger mt-1">{{ form.email.errors.0 }}</div>
-                        {% endif %}
+                    <div class="col-12">
+                        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Email</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors.0 }}</div>{% endif %}
                     </div>
                     
-                    <div class="col-12 mb-3">
-                        <label for="{{ form.observaciones.id_for_label }}" class="form-label" style="font-weight: 600; color: #495057;">
-                            <i class="fas fa-sticky-note me-2" style="color: #8B4513;"></i>Observaciones
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da; align-items: flex-start; padding-top: 12px;">
-                                <i class="fas fa-sticky-note" style="color: #6c757d;"></i>
-                            </div>
-                            {{ form.observaciones }}
-                        </div>
-                        {% if form.observaciones.errors %}
-                            <div class="text-danger mt-1">{{ form.observaciones.errors.0 }}</div>
-                        {% endif %}
+                    <div class="col-12">
+                         <label class="form-label small fw-bold text-uppercase text-muted mb-1">Observaciones</label>
+                         {{ form.observaciones }}
                     </div>
                 </div>
             </div>
             
-            <div class="modal-footer" style="background: #f8f9fa; border: none; padding: 15px 20px;">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 6px; font-family: 'Poppins', sans-serif;">
-                    <i class="fas fa-times me-2"></i>Cancelar
-                </button>
-                <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); border: none; color: white; border-radius: 6px; font-family: 'Poppins', sans-serif;">
-                    <i class="fas fa-save me-2"></i>
-                    {% if contacto %}Actualizar Contacto{% else %}Agregar Contacto{% endif %}
+            <div class="modal-footer border-top-0 pt-0 pb-4 px-4 bg-light">
+                <button type="button" class="btn btn-light border" data-bs-dismiss="modal" style="font-weight: 600; color: #616161;">Cancelar</button>
+                <button type="submit" class="btn" style="background: #8B7355; color: white; font-weight: 600; box-shadow: 0 4px 10px rgba(139, 115, 85, 0.2);">
+                    <i class="fas fa-save me-2"></i> Guardar
                 </button>
             </div>
         </form>
     </div>
 </div>
 
+<style>
+    /* Estilos Locales Inputs Modal para simular Stone */
+    #contactoFormModal .form-control, #contactoFormModal .form-select {
+        border-radius: 8px;
+        border: 1px solid #D7CCC8;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+    #contactoFormModal .form-control:focus, #contactoFormModal .form-select:focus {
+        border-color: #8B7355; 
+        box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1);
+    }
+</style>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Manejar envío del formulario
-    document.getElementById('contactoForm').addEventListener('submit', function(e) {
+    // Manejo AJAX Submit dentro del modal
+    document.getElementById('contactoFormModal').addEventListener('submit', function(e) {
         e.preventDefault();
+        const form = this;
+        const formData = new FormData(form);
         
-        const formData = new FormData(this);
-        
-        fetch(this.action, {
+        fetch(form.action, {
             method: 'POST',
             body: formData,
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            }
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
         })
         .then(response => {
-            if (response.ok) {
-                // Cerrar modal y recargar página
-                const modal = bootstrap.Modal.getInstance(document.getElementById('contactoModal'));
+            if(response.ok) {
+                // Éxito: Cerrar y recargar
+                const modalEl = document.getElementById('contactoModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
                 modal.hide();
                 window.location.reload();
             } else {
-                // Mostrar errores
-                response.text().then(html => {
-                    document.querySelector('.modal-body').innerHTML = html;
+                // Error: Reemplazar contenido modal con respuesta (que trae errores)
+                return response.text().then(html => {
+                   // Buscamos el body del modal padre y lo actualizamos
+                   const modalBodyContainer = document.querySelector('#contactoModal .modal-dialog').parentNode; // Esto puede variar según implementación
+                   // Mejor: remplazamos todo el contenido del .modal-content
+                   const modalContent = document.querySelector('#contactoModal .modal-content');
+                   // Ojo: el response trae todo el HTML del template modal
+                   // Así que remplazamos el dialog entero o su innerHTML
+                   document.getElementById('contactoModal').innerHTML = html;
                 });
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al procesar la solicitud');
-        });
+        .catch(err => console.error(err));
     });
-});
 </script>
-{% endblock %}

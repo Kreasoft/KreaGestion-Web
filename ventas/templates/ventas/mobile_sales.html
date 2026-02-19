@@ -1,0 +1,2117 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sincronización Móvil - {{ empresa.nombre }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <style>
+        :root {
+            --primary: #8D7B68;
+            --secondary: #543E2B;
+            --accent: #D4A574;
+            --terracota: #A75D5D;
+            --background: #F1EEE9;
+            --card-bg: #FFFFFF;
+            --text-dark: #3C2A21;
+            --text-muted: #8B8070;
+            --success: #6D8B74;
+            --gradient-stone: linear-gradient(135deg, #8D7B68 0%, #543E2B 100%);
+            --gradient-earth: linear-gradient(135deg, #A75D5D 0%, #8D7B68 100%);
+            --gradient-sage: linear-gradient(135deg, #6D8B74 0%, #543E2B 100%);
+            --gradient-sand: linear-gradient(135deg, #D4A574 0%, #8D7B68 100%);
+            --shadow: 0 12px 35px rgba(84, 62, 43, 0.15);
+            --glass: rgba(255, 255, 255, 0.7);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-container {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 110px; /* Un poco más de espacio para evitar solapamiento con nav inferior */
+        }
+
+        .view {
+            display: none;
+            padding: 25px 20px;
+            animation: slideUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Header Premium Piedra */
+        .app-header {
+            background: var(--gradient-stone);
+            color: white;
+            padding: 15px;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 15px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1100;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+        /* Cuando el banner está activo, el header sticky debe bajar */
+        .is-offline .app-header {
+            top: 0; /* Si es sticky, se queda arriba. Si queremos que se vea el banner, el banner debe ser el que stick o el header debe bajar */
+        }
+
+        .header-title {
+            font-weight: 800;
+            letter-spacing: 2px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            display: flex;
+            justify-content: space-around;
+            padding: 15px 0;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.12);
+            z-index: 2100; /* Asegurar que esté siempre sobre el contenido */
+            border-top: 1px solid rgba(139, 115, 85, 0.2);
+            padding-bottom: env(safe-area-inset-bottom, 15px);
+        }
+
+        .nav-item {
+            text-align: center;
+            color: #A8A095;
+            text-decoration: none;
+            font-size: 0.7rem;
+            font-weight: 600;
+            flex: 1;
+            transition: all 0.3s;
+        }
+
+        .nav-item i {
+            font-size: 1.4rem;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+            transform: translateY(-3px);
+        }
+
+        /* Dashboard Cards con Iconos Traslúcidos */
+        .stat-card-premium {
+            background: white;
+            border-radius: 24px;
+            padding: 22px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255,255,255,0.5);
+            height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: transform 0.3s;
+        }
+
+        .stat-card-premium:active { transform: scale(0.97); }
+
+        .stat-card-premium i.bg-icon {
+            position: absolute;
+            right: -10px;
+            bottom: -10px;
+            font-size: 6rem;
+            color: var(--primary);
+            opacity: 0.08;
+            transform: rotate(-15deg);
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--secondary);
+            margin-bottom: 0;
+            line-height: 1.2;
+            word-break: break-all;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 4px;
+        }
+
+        /* Grid de Accesos Rápidos */
+        .quick-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .earth-button {
+            background: var(--gradient-earth);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+            border: none;
+            box-shadow: 0 8px 20px rgba(160, 130, 109, 0.3);
+            color: white;
+            transition: all 0.3s;
+            height: 100px;
+        }
+
+        .earth-button i.bg-icon {
+            position: absolute;
+            right: -10px;
+            bottom: -15px;
+            font-size: 4.5rem;
+            opacity: 0.2;
+            transform: rotate(-10deg);
+        }
+
+        .earth-button span {
+            font-weight: 700;
+            font-size: 1rem;
+            display: block;
+            position: relative;
+            z-index: 2;
+        }
+
+        .earth-button small {
+            font-size: 0.7rem;
+            opacity: 0.9;
+            display: block;
+            margin-top: 5px;
+            font-weight: 400;
+        }
+
+        /* List Groups */
+        .fancy-list .list-group-item {
+            background: white;
+            border-radius: 20px !important;
+            margin-bottom: 12px;
+            border: 1px solid rgba(139, 115, 85, 0.1);
+            padding: 15px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+
+        /* FAB */
+        .fab-premium {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            width: 65px;
+            height: 65px;
+            background: var(--gradient-stone);
+            color: white !important;
+            border-radius: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            box-shadow: 0 10px 25px rgba(111, 91, 68, 0.4);
+            border: 2px solid rgba(255,255,255,0.2);
+            z-index: 1050;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .fab-premium:active { transform: scale(0.9) rotate(45deg); }
+
+        /* Banner */
+        .sync-banner {
+            background: var(--terracota); /* Un tono más llamativo para el aviso */
+            color: white;
+            text-align: center;
+            font-weight: 700;
+            padding: calc(env(safe-area-inset-top, 0px) + 15px) 15px 15px 15px;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            display: none;
+            position: relative;
+            z-index: 2200; /* Por encima de la navegación */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .is-offline .sync-banner { display: block; }
+
+        /* Ajustar SweetAlert para que no se corte arriba en móviles con notch */
+        .swal2-container.swal2-top, 
+        .swal2-container.swal2-top-start, 
+        .swal2-container.swal2-top-end, 
+        .swal2-container.swal2-top-left, 
+        .swal2-container.swal2-top-right,
+        .swal2-safe-top {
+            padding-top: calc(env(safe-area-inset-top, 0px) + 35px) !important;
+            z-index: 9999 !important;
+        }
+        .swal2-popup.swal2-toast {
+            margin-top: 5px !important;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+            border-radius: 12px !important;
+        }
+
+        /* Typography spacing */
+        h4, h5, h6 { margin-bottom: 1rem; line-height: 1.4; }
+        .text-truncate-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-clamp: 2;
+        }
+
+        /* Login Screen */
+        .login-view {
+            background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 2000;
+        }
+
+        .login-card {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 350px;
+            text-align: center;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100vh;
+            background: white;
+            z-index: 3000;
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 5px 0 25px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar.active {
+            left: 0;
+        }
+
+        .sidebar-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: calc(env(safe-area-inset-top, 0px) + 30px) 20px 30px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar-header i.bg-icon {
+            position: absolute;
+            right: -15px;
+            bottom: -15px;
+            font-size: 7rem;
+            color: white;
+            opacity: 0.12;
+            transform: rotate(-15deg);
+            z-index: 0;
+        }
+
+        .sidebar-header > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .sidebar-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+
+        .sidebar-item {
+            padding: 12px 25px;
+            display: flex;
+            align-items: center;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: background 0.2s;
+            border-left: 4px solid transparent;
+        }
+
+        .sidebar-item i {
+            width: 30px;
+            font-size: 1.2rem;
+            margin-right: 15px;
+            color: var(--primary);
+        }
+
+        .sidebar-item:active, .sidebar-item.active {
+            background: #f8f5f0;
+            color: var(--primary);
+            border-left-color: var(--primary);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2999;
+            display: none;
+            backdrop-filter: blur(2px);
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Forms in views */
+        .form-group-terroso {
+            margin-bottom: 15px;
+        }
+
+        .form-group-terroso label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--secondary);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .form-group-terroso input, .form-group-terroso select {
+            border-radius: 10px;
+            border: 1px solid #D4C4A8;
+            padding: 10px;
+        }
+
+        .btn-terroso {
+            background: var(--gradient-stone);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 15px;
+            font-weight: 600;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        /* Product & Add Button Scaling */
+        .product-card {
+            background: white;
+            border-radius: 18px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+            border: 1px solid rgba(139, 115, 85, 0.1);
+        }
+        .product-card:active { transform: scale(0.98); }
+        
+        .btn-add {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            border: none;
+            background: var(--gradient-stone);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+            box-shadow: 0 6px 15px rgba(111, 91, 68, 0.3);
+        }
+        .btn-add:active { transform: scale(0.9); }
+
+        /* Categorías y Búsqueda Premium */
+        .category-scroll {
+            display: flex;
+            overflow-x: auto;
+            padding: 5px 0 15px 0;
+            gap: 10px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .category-scroll::-webkit-scrollbar { display: none; }
+
+        .category-pill {
+            background: white;
+            color: var(--text-muted);
+            border: 1px solid rgba(139, 115, 85, 0.2);
+            padding: 8px 18px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.02);
+        }
+        .category-pill.active {
+            background: var(--gradient-stone);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 6px 15px rgba(111, 91, 68, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .search-premium {
+            background: white;
+            border-radius: 20px;
+            padding: 5px 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            border: 1px solid rgba(139, 115, 85, 0.1);
+            display: flex;
+            align-items: center;
+        }
+        .search-premium input {
+            border: none;
+            padding: 10px;
+            width: 100%;
+            outline: none;
+            font-size: 0.9rem;
+            background: transparent;
+        }
+        .search-premium i { color: var(--primary); opacity: 0.6; }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 12px;
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <!-- Sidebar -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="app.toggleSidebar()"></div>
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-shopping-cart bg-icon"></i>
+            <img src="{% static 'image/LogoCloud.png' %}" alt="Logo" style="width: 100px; filter: brightness(0) invert(1);">
+            <div class="mt-2 fw-bold" id="sidebarSellerNameDisplay">Cargando...</div>
+            <div class="small opacity-75">Venta en Terreno</div>
+        </div>
+        <div class="sidebar-body">
+            <a href="#" class="sidebar-item" onclick="app.showView('viewDashboard', this); app.toggleSidebar()">
+                <i class="fas fa-home"></i> Inicio
+            </a>
+            <a href="#" class="sidebar-item" onclick="app.showView('viewProducts', this); app.toggleSidebar()">
+                <i class="fas fa-box"></i> Productos
+            </a>
+            <a href="#" class="sidebar-item" onclick="app.showView('viewClients', this); app.toggleSidebar()">
+                <i class="fas fa-users"></i> Mis Clientes
+            </a>
+            <a href="#" class="sidebar-item" onclick="app.showView('viewNewClient', this); app.toggleSidebar()">
+                <i class="fas fa-user-plus"></i> Registrar Nuevo Cliente
+            </a>
+            <a href="#" class="sidebar-item" onclick="app.showView('viewSalesHistory', this); app.toggleSidebar()">
+                <i class="fas fa-list-check"></i> Mis Ventas (Historial)
+            </a>
+            <a href="#" class="sidebar-item" onclick="app.showSyncView(this)">
+                <i class="fas fa-sync"></i> Sincronizar Pendientes
+            </a>
+            <hr>
+            <a href="#" class="sidebar-item" onclick="app.showView('viewLocation', this); app.toggleSidebar()">
+                <i class="fas fa-map-marker-alt"></i> Registrar Ubicación
+            </a>
+            <a href="#" class="sidebar-item" onclick="app.showAbout()">
+                <i class="fas fa-info-circle"></i> Acerca de...
+            </a>
+            <a href="#" class="sidebar-item" onclick="app.showConfig()">
+                <i class="fas fa-cog"></i> Configuración
+            </a>
+            <hr>
+            <a href="#" class="sidebar-item text-danger" onclick="app.logout()">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </a>
+        </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="loginView" class="login-view">
+        <div class="login-card">
+            <img src="{% static 'image/LogoCloud.png' %}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
+            <h4 style="color: var(--secondary); font-weight: 700;">Vendedor</h4>
+            <p class="text-muted small">Ingrese su código para comenzar</p>
+            <div class="mb-3">
+                <input type="text" id="sellerCodeInput" class="form-control text-center form-control-lg" placeholder="Código" style="border: 2px solid var(--primary);">
+            </div>
+            <button onclick="app.login()" class="btn-terroso btn-lg">ACCEDER <i class="fas fa-sign-in-alt ms-2"></i></button>
+            
+            <div id="loginError" class="text-danger mt-3 small" style="display: none; background: #ffeeee; padding: 10px; border-radius: 8px;"></div>
+            
+            <div class="mt-4 pt-3 border-top">
+                <p class="text-muted" style="font-size: 0.7rem;">¿Es su primera vez en este dispositivo?</p>
+                <button onclick="app.syncData()" class="btn btn-sm btn-outline-secondary w-100" style="font-size: 0.7rem;">
+                    <i class="fas fa-sync me-1"></i> SINCRONIZAR VENDEDORES
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sync-banner" id="offlineBanner">
+        <i class="fas fa-wifi-slash me-2"></i> MODO OFFLINE ACTIVADO
+    </div>
+
+    <header class="app-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <button id="headerBackBtn" class="btn text-white p-0 me-3" style="display: none;" onclick="app.showView('viewDashboard')">
+                    <i class="fas fa-chevron-left fa-lg"></i>
+                </button>
+                <button class="btn text-white p-0 me-3" onclick="app.toggleSidebar()">
+                    <i class="fas fa-bars fa-lg"></i>
+                </button>
+                <span class="header-title">GestionCloud</span>
+            </div>
+            <div class="d-flex align-items-center">
+                <div id="syncIndicator" class="small opacity-75 me-3 d-none d-sm-block">Online</div>
+                <button onclick="app.syncData()" class="btn btn-sm text-white bg-white bg-opacity-10 rounded-circle" style="width: 32px; height: 32px; padding: 0;">
+                    <i class="fas fa-sync" id="syncIcon" style="font-size: 0.8rem;"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- View: No Auth -->
+        <div id="viewNoAuth" class="view" style="text-align: center; padding-top: 50px;">
+            <div class="card p-4 shadow-lg border-0" style="border-radius: 25px; background: white;">
+                <div class="mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center" style="width: 100px; height: 100px; background: #ffeeee; border-radius: 35px; color: var(--terracota);">
+                        <i class="fas fa-shield-alt fa-3x"></i>
+                    </div>
+                </div>
+                <h4 class="fw-bold" style="color: var(--secondary);">Acceso Restringido</h4>
+                <p class="text-muted px-2">Este dispositivo no cuenta con una matrícula autorizada para realizar ventas en la nube.</p>
+                
+                <div class="my-4 p-3" style="background: #f8f5f0; border-radius: 15px; border: 1px dashed #D4C4A8;">
+                    <small class="fw-bold text-muted d-block mb-2 uppercase" style="letter-spacing: 1px;">Código del Dispositivo</small>
+                    <span id="displayDeviceId" class="fs-4 fw-bold font-monospace" style="color: var(--primary);">...</span>
+                </div>
+                
+                <p class="small text-muted mb-4">
+                    Comunique el código de arriba a su supervisor para activar este teléfono en el sistema.
+                </p>
+                
+                <button onclick="app.checkDevice(true)" class="btn-terroso mb-3">
+                    <i class="fas fa-sync-alt me-2"></i> VERIFICAR AUTORIZACIÓN
+                </button>
+            </div>
+        </div>
+
+        <!-- View: Dashboard (Premium Stone Style) -->
+        <div id="viewDashboard" class="view active">
+            <div class="welcome-header mb-4">
+                <span class="text-muted small uppercase fw-bold" style="letter-spacing: 2px;">Sistema Gestión</span>
+                <h4 class="fw-bold mb-0">Bienvenido, <span id="dashboardSellerName" style="color: var(--terracota);">...</span></h4>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-6">
+                    <div class="stat-card-premium">
+                        <i class="fas fa-receipt bg-icon"></i>
+                        <span class="stat-label">Ventas Hoy</span>
+                        <div class="stat-value" id="statsSalesCount">0</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-card-premium">
+                        <i class="fas fa-coins bg-icon"></i>
+                        <span class="stat-label">Total Gral.</span>
+                        <div class="stat-value" id="statsSalesTotal" style="font-size: 1.3rem;">$0</div>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="fw-bold mb-3 uppercase small text-muted">Panel de Control</h6>
+            <div class="quick-grid">
+                <button class="earth-button" style="background: var(--gradient-earth);" onclick="app.showView('viewProducts', document.querySelectorAll('.nav-item')[1])">
+                    <i class="fas fa-cart-plus bg-icon"></i>
+                    <span>Nueva Venta</span>
+                    <small>Registrar pedido</small>
+                </button>
+                <button class="earth-button" style="background: var(--gradient-sage);" onclick="app.showView('viewNewClient', this)">
+                    <i class="fas fa-user-plus bg-icon"></i>
+                    <span>Alta Cliente</span>
+                    <small>Reg. nuevo prospecto</small>
+                </button>
+                <button class="earth-button" style="background: var(--gradient-stone);" onclick="app.syncData()">
+                    <i class="fas fa-sync-alt bg-icon"></i>
+                    <span>Sincronizar</span>
+                    <small>Nube en tiempo real</small>
+                </button>
+                <button class="earth-button" style="background: var(--gradient-sand);" onclick="app.showView('viewLocation')">
+                    <i class="fas fa-map-marked-alt bg-icon"></i>
+                    <span>Mi Mapa</span>
+                    <small>GPS y rutas</small>
+                </button>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0 uppercase small text-muted">Operaciones Recientes</h6>
+                <a href="#" onclick="app.showView('viewHistory')" class="small text-decoration-none fw-bold" style="color: var(--terracota);">HISTORIAL</a>
+            </div>
+            <div id="recentSalesList" class="fancy-list">
+                <div class="text-center py-4 text-muted small bg-white rounded-4 shadow-sm">No se registran movimientos hoy</div>
+            </div>
+        </div>
+
+        <!-- View: Venta -->
+        <div id="viewProducts" class="view">
+            <div class="search-premium">
+                <i class="fas fa-search"></i>
+                <input type="text" id="productSearch" placeholder="Buscar por nombre o código..." onkeyup="app.filterProducts()">
+            </div>
+
+            <div id="categoriesList" class="category-scroll">
+                <!-- Categories will be injected here -->
+            </div>
+
+            <div id="productsList" class="product-grid">
+                <!-- Products will be injected here -->
+            </div>
+        </div>
+
+        <!-- View: Carrito -->
+        <div id="viewCart" class="view">
+            <h5 class="fw-bold mb-3"><i class="fas fa-shopping-cart me-2"></i>Mi Carrito</h5>
+            
+            <div id="cartItems">
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-shopping-basket fa-3x mb-3"></i>
+                    <p>El carrito está vacío</p>
+                </div>
+            </div>
+
+            <div id="cartSummary" style="display: none;">
+                <hr>
+                <div class="card p-3 mb-3 border-0 shadow-sm" style="background: #FDFCF0;">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Documento:</span>
+                        <select id="docTypeSelect" class="form-select form-select-sm w-auto">
+                            <option value="boleta">Boleta</option>
+                            <option value="factura">Factura</option>
+                            <option value="cotizacion">Cotización</option>
+                        </select>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Cliente:</span>
+                        <select id="clientSelect" class="form-select form-select-sm w-auto">
+                            <option value="">Cliente Ocasional</option>
+                        </select>
+                    </div>
+                    <div class="d-flex justify-content-between mt-3">
+                        <h4 class="fw-bold">TOTAL:</h4>
+                        <h4 class="fw-bold" id="cartTotal">$0</h4>
+                    </div>
+                </div>
+                <button onclick="app.checkout()" class="btn-terroso btn-lg mb-2">FINALIZAR VENTA <i class="fas fa-check-circle ms-2"></i></button>
+                <button onclick="app.clearCart()" class="btn btn-outline-danger w-100 btn-sm">Vaciar Carrito</button>
+            </div>
+        </div>
+
+        <!-- View: Clientes -->
+        <div id="viewClients" class="view">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0" style="color: var(--secondary);"><i class="fas fa-users me-2"></i>Mis Clientes</h5>
+                <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="app.syncData()">
+                    <i class="fas fa-sync-alt me-1"></i> Actualizar
+                </button>
+            </div>
+            
+            <div class="search-container mb-4">
+                <div class="input-group bg-white rounded-pill shadow-sm overflow-hidden border">
+                    <span class="input-group-text bg-white border-0 ps-3"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="clientSearch" class="form-control border-0 py-2" placeholder="Buscar por nombre o RUT..." onkeyup="app.filterClientsList()">
+                </div>
+            </div>
+
+            <div id="clientsFullList">
+                <div class="text-center py-5 text-muted small">Cargando clientes...</div>
+            </div>
+
+            <!-- Botón flotante para nuevo cliente dentro de la vista -->
+            <button class="fab-premium" style="bottom: 110px; right: 20px; background: var(--success); width: 60px; height: 60px; box-shadow: 0 10px 25px rgba(109, 139, 116, 0.4);" onclick="app.showView('viewNewClient')">
+                <i class="fas fa-user-plus"></i>
+            </button>
+        </div>
+
+        <!-- View: Detalles de Cliente -->
+        <div id="viewClientDetail" class="view">
+            <div class="d-flex align-items-center mb-4">
+                <button class="btn btn-link text-dark p-0 me-3 shadow-none" onclick="app.showView('viewClients')">
+                    <i class="fas fa-arrow-left fa-lg"></i>
+                </button>
+                <h5 class="fw-bold mb-0">Detalles del Cliente</h5>
+            </div>
+            
+            <div id="clientDetailContent">
+                <!-- Data will be injected here -->
+            </div>
+        </div>
+
+        <!-- View: Nuevo Cliente -->
+        <div id="viewNewClient" class="view">
+            <h5 class="fw-bold mb-3"><i class="fas fa-user-plus me-2"></i>Nuevo Cliente</h5>
+            <div class="card p-3 border-0 shadow-sm">
+                <form id="newClientForm" onsubmit="event.preventDefault(); app.saveNewClient();">
+                    <div class="form-group-terroso">
+                        <label>RUT</label>
+                        <input type="text" id="nc_rut" class="form-control" required placeholder="Ej: 12345678-9" oninput="app.handleRutInput(this)">
+                        <div id="rutValidationMsg" class="small mt-1" style="display: none;"></div>
+                    </div>
+                    <div class="form-group-terroso">
+                        <label>Nombre Completo / Razón Social</label>
+                        <input type="text" id="nc_nombre" class="form-control" required placeholder="Ej: Juan Perez">
+                    </div>
+                    <div class="form-group-terroso">
+                        <label>Giro</label>
+                        <input type="text" id="nc_giro" class="form-control" placeholder="Ej: Venta de Repuestos">
+                    </div>
+                    <div class="form-group-terroso">
+                        <label>Dirección</label>
+                        <input type="text" id="nc_direccion" class="form-control" required placeholder="Calle 123">
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="form-group-terroso">
+                                <label>Comuna</label>
+                                <input type="text" id="nc_comuna" class="form-control" required placeholder="Las Condes">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-group-terroso">
+                                <label>Ciudad</label>
+                                <input type="text" id="nc_ciudad" class="form-control" required placeholder="Santiago">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group-terroso">
+                        <label>Teléfono</label>
+                        <input type="tel" id="nc_tel" class="form-control" placeholder="+569...">
+                    </div>
+                    <div class="form-group-terroso">
+                        <label>Email</label>
+                        <input type="email" id="nc_email" class="form-control" placeholder="cliente@correo.com">
+                    </div>
+                    <button type="submit" id="btnSaveClient" class="btn-terroso mt-3">GUARDAR CLIENTE <i class="fas fa-save ms-2"></i></button>
+                    <button type="button" class="btn btn-outline-secondary w-100 mt-2" onclick="app.showView('viewDashboard')">Cancelar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- View: Historial / Sincronización (Pendientes) -->
+        <div id="viewHistory" class="view">
+            <h5 class="fw-bold mb-3"><i class="fas fa-sync me-2"></i>Sincronización Pendiente</h5>
+            <div id="pendingSyncSales">
+                <!-- Pending sales here -->
+            </div>
+            
+            <hr>
+            <h6 class="fw-bold text-muted small uppercase">Clientes Nuevos por Sincronizar</h6>
+            <div id="pendingSyncClients">
+                <!-- Pending clients here -->
+            </div>
+            <hr>
+            <button onclick="app.showView('viewSalesHistory')" class="btn btn-outline-primary btn-sm w-100 mb-3">
+                <i class="fas fa-list me-2"></i>Ver Historial de Ventas
+            </button>
+        </div>
+
+        <!-- View: Historial de Ventas (Periodo) -->
+        <div id="viewSalesHistory" class="view">
+            <h5 class="fw-bold mb-3"><i class="fas fa-calendar-alt me-2"></i>Historial de Ventas</h5>
+            
+            <div class="card p-3 border-0 shadow-sm mb-4" style="border-radius: 15px;">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="small text-muted mb-1">Desde</label>
+                        <input type="date" id="historyDateDesde" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted mb-1">Hasta</label>
+                        <input type="date" id="historyDateHasta" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-12 mt-3">
+                        <button onclick="app.loadSalesHistory()" class="btn-terroso btn-sm py-2">
+                            <i class="fas fa-search me-2"></i>FILTRAR PERIODO
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="salesHistoryList">
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                    <p>Cargando historial...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Mapa / Ubicación -->
+        <div id="viewLocation" class="view">
+            <h5 class="fw-bold mb-3"><i class="fas fa-map-marker-alt me-2"></i>Mapa de Ubicación</h5>
+            <div id="map" style="height: 350px; width: 100%; border-radius: 15px; border: 2px solid var(--primary); margin-bottom: 20px; z-index: 1;"></div>
+            <div id="locationStatus" class="alert alert-info small py-2">
+                <i class="fas fa-spinner fa-spin me-2"></i> Obteniendo su posición actual...
+            </div>
+            <button id="btnConfirmarUbicacion" onclick="app.confirmLocation()" class="btn-terroso w-100" disabled>
+                ENVIAR POSICIÓN AL SISTEMA <i class="fas fa-paper-plane ms-2"></i>
+            </button>
+            <p class="text-muted small mt-3 text-center">
+                * Se enviará su ubicación exacta al dashboard de supervisión. Asegúrese de estar en el lugar del cliente.
+            </p>
+        </div>
+    </div>
+
+    <button class="fab-premium" id="fabBtn" onclick="app.showView('viewProducts', document.querySelectorAll('.nav-item')[1])">
+        <i class="fas fa-plus"></i>
+    </button>
+
+    <nav class="bottom-nav">
+        <a href="#" class="nav-item active" onclick="app.showView('viewDashboard', this)">
+            <i class="fas fa-chart-line"></i>
+            Inicio
+        </a>
+        <a href="#" class="nav-item" onclick="app.showView('viewProducts', this)">
+            <i class="fas fa-box"></i>
+            Productos
+        </a>
+        <a href="#" class="nav-item position-relative" onclick="app.showView('viewCart', this)">
+            <i class="fas fa-shopping-cart"></i>
+            Carrito
+            <span id="cartCountBadge" class="cart-badge" style="display: none;">0</span>
+        </a>
+        <a href="#" class="nav-item" onclick="app.showView('viewLocation', this)">
+            <i class="fas fa-map-marker-alt"></i>
+            Mapa
+        </a>
+    </nav>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        // -- APP CORE --
+        const app = {
+            db: null,
+            data: {
+                products: [],
+                categories: [],
+                clients: [],
+                pendingClients: [],
+                vendedores: [],
+                formas_pago: []
+            },
+            cart: [],
+            deviceId: localStorage.getItem('gc_deviceId'),
+            isAuthorized: localStorage.getItem('gc_isAuthorized') === 'true',
+            
+            // Map properties
+            map: null,
+            marker: null,
+            currentCoords: null,
+
+            init: async function() {
+                console.log("Iniciando App Móvil...");
+                
+                // Eventos de red
+                window.addEventListener('online', () => this.updateNetworkStatus());
+                window.addEventListener('offline', () => this.updateNetworkStatus());
+
+                // Inicializar DB local (IndexedDB)
+                await this.initDB();
+                
+                // Ahora que la DB está lista, podemos verificar estado de red
+                this.updateNetworkStatus();
+                
+                // Cargar datos guardados
+                await this.loadLocalData();
+                
+                // --- INYECTAR VENDEDORES DESDE EL SERVIDOR SI ESTÁ VACÍO ---
+                if (this.data.vendedores.length === 0) {
+                    this.data.vendedores = [
+                        {% for v in vendedores %}
+                        { id: {{ v.id }}, codigo: "{{ v.codigo|escapejs }}", nombre: "{{ v.nombre|escapejs }}" },
+                        {% endfor %}
+                    ];
+                    localStorage.setItem('gc_vendedores', JSON.stringify(this.data.vendedores));
+                }
+                
+                // Verificar login
+                this.checkLogin();
+
+                // Verificar dispositivo
+                await this.checkDevice();
+
+                this.renderCategories();
+                this.renderProducts();
+                this.renderClients();
+                this.updateCartCount();
+                this.updateDebugCounters();
+                console.log("App iniciada correctamente");
+            },
+
+            updateDebugCounters: function() {
+                const prodDisp = document.getElementById('debugProdCount');
+                const cliDisp = document.getElementById('debugCliCount');
+                const catDisp = document.getElementById('debugCatCount');
+                if (prodDisp) prodDisp.innerText = this.data.products.length;
+                if (cliDisp) cliDisp.innerText = this.data.clients.length;
+                if (catDisp) catDisp.innerText = this.data.categories.length;
+            },
+
+            updateNetworkStatus: function() {
+                this.isOffline = !navigator.onLine;
+                const banner = document.getElementById('offlineBanner');
+                if (banner) banner.style.display = this.isOffline ? 'block' : 'none';
+                
+                if (this.isOffline) {
+                    document.body.classList.add('is-offline');
+                } else {
+                    document.body.classList.remove('is-offline');
+                    this.autoSyncPending();
+                }
+            },
+
+            // -- DATABASE --
+            initDB: function() {
+                return new Promise((resolve) => {
+                    const request = indexedDB.open('GestionCloudMobile', 2);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('products')) db.createObjectStore('products', { keyPath: 'id' });
+                        if (!db.objectStoreNames.contains('categories')) db.createObjectStore('categories', { keyPath: 'id' });
+                        if (!db.objectStoreNames.contains('clients')) db.createObjectStore('clients', { keyPath: 'id' });
+                        if (!db.objectStoreNames.contains('sales')) db.createObjectStore('sales', { keyPath: 'localId', autoIncrement: true });
+                        if (!db.objectStoreNames.contains('pendingClients')) db.createObjectStore('pendingClients', { keyPath: 'localId', autoIncrement: true });
+                    };
+                    request.onsuccess = (e) => {
+                        this.db = e.target.result;
+                        resolve();
+                    };
+                });
+            },
+
+            saveDataToDB: async function(storeName, data) {
+                const tx = this.db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                if (Array.isArray(data)) {
+                    data.forEach(item => store.put(item));
+                } else {
+                    store.put(data);
+                }
+                return new Promise(resolve => tx.oncomplete = resolve);
+            },
+
+            loadFromDB: function(storeName) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                });
+            },
+
+            clearObjectStore: function(storeName) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    const request = store.clear();
+                    request.onsuccess = () => resolve();
+                });
+            },
+
+            // -- AUTH --
+            checkLogin: function() {
+                const savedSeller = localStorage.getItem('gc_mobile_seller');
+                if (savedSeller) {
+                    this.seller = JSON.parse(savedSeller);
+                    document.getElementById('loginView').style.display = 'none';
+                    const mainApp = document.getElementById('mainApp');
+                    if (mainApp) mainApp.style.display = 'block';
+                    
+                    const sbName = document.getElementById('sidebarSellerNameDisplay');
+                    if (sbName) sbName.innerText = this.seller.nombre;
+                    const dsName = document.getElementById('dashboardSellerName');
+                    if (dsName) dsName.innerText = this.seller.nombre;
+                    
+                    this.showView('viewDashboard');
+                }
+            },
+
+            login: function() {
+                const code = document.getElementById('sellerCodeInput').value.trim().toUpperCase();
+                const sellerFound = this.data.vendedores.find(v => v.codigo.trim().toUpperCase() === code);
+                
+                if (sellerFound) {
+                    this.seller = sellerFound;
+                    localStorage.setItem('gc_mobile_seller', JSON.stringify(sellerFound));
+                    document.getElementById('loginView').style.display = 'none';
+                    document.getElementById('mainApp').style.display = 'block';
+                    
+                    const sbName = document.getElementById('sidebarSellerNameDisplay');
+                    if (sbName) sbName.innerText = sellerFound.nombre;
+                    const dsName = document.getElementById('dashboardSellerName');
+                    if (dsName) dsName.innerText = sellerFound.nombre;
+                    
+                    this.renderDashboard();
+                    Swal.fire({ title: 'Bienvenido', text: sellerFound.nombre, icon: 'success', timer: 1500, showConfirmButton: false });
+                } else {
+                    const err = document.getElementById('loginError');
+                    err.style.display = 'block';
+                    err.innerText = "Código '" + code + "' no encontrado.";
+                }
+            },
+
+            logout: function() {
+                localStorage.removeItem('gc_mobile_seller');
+                location.reload();
+            },
+
+            // -- SYNC --
+            syncData: async function() {
+                if (this.isOffline) {
+                    Swal.fire('Error', 'No hay conexión a internet', 'error');
+                    return;
+                }
+                
+                const steps = [
+                    { id: 'fetch', label: 'Iniciando conexión...' },
+                    { id: 'categorias', label: 'Procesando Categorías...' },
+                    { id: 'articulos', label: 'Procesando Artículos...' },
+                    { id: 'clientes', label: 'Procesando Clientes...' },
+                    { id: 'config', label: 'Ajustando Configuraciones...' },
+                    { id: 'render', label: 'Finalizando Interfaz...' }
+                ];
+
+                let currentStep = 0;
+                const updateProgress = (stepIndex) => {
+                    const percent = Math.round((stepIndex / steps.length) * 100);
+                    const label = steps[stepIndex] ? steps[stepIndex].label : 'Listo';
+                    
+                    if (Swal.isVisible()) {
+                        const content = Swal.getHtmlContainer();
+                        if (content) {
+                            const bar = content.querySelector('#sync-progress-bar');
+                            const text = content.querySelector('#sync-progress-text');
+                            const pct = content.querySelector('#sync-progress-percent');
+                            if (bar) bar.style.width = percent + '%';
+                            if (text) text.innerText = label;
+                            if (pct) pct.innerText = percent + '%';
+                        }
+                    }
+                };
+
+                Swal.fire({
+                    title: 'Sincronizando Datos',
+                    html: `
+                        <div class="p-2">
+                            <div id="sync-progress-text" class="small mb-2 text-muted">Conectando con el servidor...</div>
+                            <div class="progress" style="height: 12px; border-radius: 6px; background: #eee;">
+                                <div id="sync-progress-bar" class="progress-bar progress-bar-animated progress-bar-striped" 
+                                     role="progressbar" style="width: 0%; background: linear-gradient(90deg, #8B7355, #A0826D);"></div>
+                            </div>
+                            <div id="sync-progress-percent" class="mt-2 fw-bold" style="color: #8B7355;">0%</div>
+                        </div>
+                    `,
+                    allowOutsideClick: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        updateProgress(0);
+                    }
+                });
+
+                try {
+                    // Step 0: Fetch
+                    const response = await fetch('/ventas/movil/api/sincronizar/?vendedor_id=' + (this.seller ? this.seller.id : ''));
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Step 1: Categorias
+                        currentStep++;
+                        updateProgress(currentStep);
+                        this.data.categories = result.categorias;
+                        await this.clearObjectStore('categories'); // Limpiar antes de guardar
+                        await this.saveDataToDB('categories', result.categorias);
+                        
+                        // Step 2: Articulos
+                        currentStep++;
+                        updateProgress(currentStep);
+                        this.data.products = result.articulos;
+                        await this.clearObjectStore('products'); // Limpiar antes de guardar
+                        await this.saveDataToDB('products', result.articulos);
+                        
+                        // Step 3: Clientes
+                        currentStep++;
+                        updateProgress(currentStep);
+                        this.data.clients = result.clientes;
+                        await this.clearObjectStore('clients'); // Limpiar antes de guardar
+                        await this.saveDataToDB('clients', result.clientes);
+                        
+                        // Step 4: Config info
+                        currentStep++;
+                        updateProgress(currentStep);
+                        this.data.vendedores = result.vendedores;
+                        this.data.formas_pago = result.formas_pago;
+                        localStorage.setItem('gc_vendedores', JSON.stringify(result.vendedores));
+                        localStorage.setItem('gc_formas_pago', JSON.stringify(result.formas_pago));
+
+                        // Step 5: Render
+                        currentStep++;
+                        updateProgress(currentStep);
+                        this.renderCategories();
+                        this.renderProducts();
+                        this.renderClients();
+                        this.updateDebugCounters();
+                        
+                        // Final step
+                        updateProgress(steps.length);
+                        setTimeout(() => {
+                            Swal.fire({ 
+                                title: '¡Éxito!', 
+                                text: 'Sincronización completada correctamente', 
+                                icon: 'success', 
+                                timer: 1500, 
+                                showConfirmButton: false 
+                            });
+                        }, 500);
+                    } else {
+                        throw new Error(result.error || 'Error desconocido');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    Swal.fire('Error', 'Sincronización fallida: ' + err.message, 'error');
+                }
+            },
+
+            loadLocalData: async function() {
+                this.data.products = await this.loadFromDB('products');
+                this.data.categories = await this.loadFromDB('categories');
+                this.data.clients = await this.loadFromDB('clients');
+                this.data.pendingClients = await this.loadFromDB('pendingClients');
+                this.data.vendedores = JSON.parse(localStorage.getItem('gc_vendedores') || '[]');
+                this.data.formas_pago = JSON.parse(localStorage.getItem('gc_formas_pago') || '[]');
+            },
+
+            // -- UI RENDERING --
+            toggleSidebar: function() {
+                const sb = document.getElementById('sidebar');
+                const ov = document.getElementById('sidebarOverlay');
+                if (sb) sb.classList.toggle('active');
+                if (ov) ov.classList.toggle('active');
+            },
+
+            checkDevice: async function(manual = false) {
+                if (!this.deviceId) {
+                    // Generar un ID único basado en tiempo y aleatorio si crypto no está
+                    this.deviceId = 'DEV-' + Math.random().toString(36).substring(2, 7).toUpperCase() + '-' + Date.now().toString(36).slice(-4).toUpperCase();
+                    localStorage.setItem('gc_deviceId', this.deviceId);
+                }
+                
+                const dispId = document.getElementById('displayDeviceId');
+                if (dispId) dispId.innerText = this.deviceId;
+
+                if (manual) {
+                    Swal.fire({ title: 'Verificando...', didOpen: () => Swal.showLoading() });
+                }
+
+                // Si no está autorizado localmente o es manual, consultar al servidor
+                if (!this.isAuthorized && !this.isOffline) {
+                    try {
+                        // Intentar obtener marca/modelo detallado (User-Agent Client Hints API)
+                        let detailedModel = navigator.userAgent;
+                        if (navigator.userAgentData) {
+                            try {
+                                const highEntropyData = await navigator.userAgentData.getHighEntropyValues(['model', 'platformVersion']);
+                                detailedModel = `${navigator.userAgentData.platform} ${highEntropyData.model} (v${highEntropyData.platformVersion})`;
+                            } catch(e) {}
+                        } else {
+                            // Fallback para navegadores antiguos parseando el UA string
+                            const match = navigator.userAgent.match(/\(([^)]+)\)/);
+                            if (match) detailedModel = match[1];
+                        }
+
+                        const res = await fetch('/ventas/movil/api/verificar-dispositivo/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                            body: JSON.stringify({ 
+                                deviceId: this.deviceId, 
+                                modelo: detailedModel
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.authorized) {
+                            this.isAuthorized = true;
+                            localStorage.setItem('gc_isAuthorized', 'true');
+                            if (manual) {
+                                Swal.fire('¡Éxito!', 'Dispositivo autorizado correctamente.', 'success')
+                                .then(() => this.showView('viewDashboard'));
+                            }
+                        } else {
+                            if (manual) Swal.fire('Pendiente', 'El administrador aún no autoriza este equipo.', 'warning');
+                        }
+                    } catch (e) {
+                         console.error("Error verificando dispositivo", e);
+                    }
+                }
+
+                if (!this.isAuthorized) {
+                    this.showView('viewNoAuth');
+                }
+            },
+
+            showView: function(viewId, el) {
+                // Ocultar todas las vistas
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                
+                // Mostrar vista seleccionada
+                const targetView = document.getElementById(viewId);
+                if (targetView) {
+                    targetView.classList.add('active');
+                    // Scroll to top
+                    const container = document.querySelector('.app-container');
+                    if (container) container.scrollTop = 0;
+                }
+                
+                // Actualizar navegación inferior
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                
+                // Si viene de la navegación inferior, marcar como activo
+                if (el && el.classList.contains('nav-item')) {
+                    el.classList.add('active');
+                } else {
+                    // Si no viene de el, intentar encontrar el nav-item correspondiente
+                    const navItems = document.querySelectorAll('.nav-item');
+                    if (navItems.length >= 4) {
+                        if (viewId === 'viewDashboard') navItems[0].classList.add('active');
+                        if (viewId === 'viewProducts') navItems[1].classList.add('active');
+                        if (viewId === 'viewCart') navItems[2].classList.add('active');
+                        if (viewId === 'viewLocation') navItems[3].classList.add('active');
+                    }
+                }
+
+                // Render logic por vista
+                if (viewId === 'viewCart') this.renderCart();
+                if (viewId === 'viewHistory') this.renderPendingData();
+                if (viewId === 'viewDashboard') this.renderDashboard();
+                if (viewId === 'viewClients') this.renderClientsFull();
+                if (viewId === 'viewLocation') this.initLocationMap();
+                if (viewId === 'viewSalesHistory') this.initSalesHistoryView();
+
+                // FAB Visibility: Mostrar siempre excepto en vistas de formulario o mapa
+                const fab = document.getElementById('fabBtn');
+                if (fab) {
+                    if (['viewCart', 'viewNewClient', 'viewLocation', 'viewHistory', 'viewClients', 'viewProducts'].includes(viewId)) {
+                        fab.style.display = 'none';
+                    } else {
+                        fab.style.display = 'flex';
+                    }
+                }
+
+                // Show/Hide Back Button in Header
+                const backBtn = document.getElementById('headerBackBtn');
+                if (backBtn) {
+                    backBtn.style.display = (viewId === 'viewDashboard') ? 'none' : 'block';
+                }
+            },
+
+            // -- MAP / LOCATION LOGIC --
+            initLocationMap: function() {
+                if (!this.map) {
+                    this.map = L.map('map').setView([-33.4489, -70.6693], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap'
+                    }).addTo(this.map);
+                } else {
+                    setTimeout(() => this.map.invalidateSize(), 200);
+                }
+                this.getCurrentLocation();
+            },
+
+            getCurrentLocation: function() {
+                const status = document.getElementById('locationStatus');
+                const btn = document.getElementById('btnConfirmarUbicacion');
+                
+                if (!navigator.geolocation) {
+                    status.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> GPS no soportado';
+                    return;
+                }
+
+                status.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Obteniendo su posición actual...';
+                
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        this.currentCoords = { lat, lng };
+                        
+                        this.map.setView([lat, lng], 16);
+                        if (this.marker) {
+                            this.marker.setLatLng([lat, lng]);
+                        } else {
+                            this.marker = L.marker([lat, lng]).addTo(this.map);
+                        }
+                        
+                        status.className = 'alert alert-success small py-2';
+                        status.innerHTML = `<i class="fas fa-check-circle me-2"></i> Ubicación fija: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                        btn.disabled = false;
+                    },
+                    (err) => {
+                        status.className = 'alert alert-danger small py-2';
+                        status.innerHTML = '<i class="fas fa-times-circle me-2"></i> Error al obtener GPS. Active los permisos.';
+                        btn.disabled = true;
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+            },
+
+            confirmLocation: async function() {
+                if (!this.currentCoords || !this.seller) return;
+                
+                try {
+                    Swal.fire({ title: 'Enviando...', didOpen: () => Swal.showLoading() });
+                    const res = await fetch('/ventas/movil/api/registrar-ubicacion/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify({
+                            vendedor_id: this.seller.id,
+                            lat: this.currentCoords.lat,
+                            lng: this.currentCoords.lng
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        Swal.fire('Ubicación Registrada', 'Su posición ha sido guardada.', 'success');
+                        this.showView('viewDashboard');
+                    } else throw new Error(data.error);
+                } catch (e) {
+                    Swal.fire('Error', 'No hay conexión o el servidor no respondió.', 'error');
+                }
+            },
+
+            showSyncView: function(el) {
+                this.showView('viewHistory', null);
+                this.toggleSidebar();
+            },
+
+            initSalesHistoryView: function() {
+                const hoy = new Date().toISOString().split('T')[0];
+                const dInput = document.getElementById('historyDateDesde');
+                const hInput = document.getElementById('historyDateHasta');
+                
+                if (dInput && !dInput.value) dInput.value = hoy;
+                if (hInput && !hInput.value) hInput.value = hoy;
+                
+                this.loadSalesHistory();
+            },
+
+            loadSalesHistory: async function() {
+                const list = document.getElementById('salesHistoryList');
+                if (!list) return;
+                
+                list.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x mb-3"></i><p>Cargando...</p></div>';
+                
+                if (!this.seller) return;
+                
+                const desde = document.getElementById('historyDateDesde').value;
+                const hasta = document.getElementById('historyDateHasta').value;
+                
+                try {
+                    // 1. Cargar locales (Pendientes)
+                    const localSales = await this.loadFromDB('sales');
+                    
+                    // 2. Cargar servidor (Sincronizadas)
+                    let remoteSales = [];
+                    if (!this.isOffline) {
+                        const res = await fetch(`/ventas/movil/api/historial-ventas/?vendedor_id=${this.seller.id}&fecha_inicio=${desde}&fecha_fin=${hasta}`);
+                        const data = await res.json();
+                        if (data.success) {
+                            remoteSales = data.ventas;
+                        }
+                    }
+
+                    // 3. Renderizar listado unificado
+                    if (localSales.length === 0 && remoteSales.length === 0) {
+                        list.innerHTML = '<div class="text-center py-5 text-muted">No se encontraron ventas en este periodo</div>';
+                        return;
+                    }
+
+                    let html = '';
+                    
+                    // Primero las pendientes (si están en el rango de fecha, aunque localmente no solemos filtrar tanto, las mostramos siempre)
+                    if (localSales.length > 0) {
+                        html += '<h6 class="fw-bold text-warning small uppercase mb-2 mt-3">Pendientes de Envío</h6>';
+                        localSales.forEach(s => {
+                            html += this.formatHistoryCard(s, true);
+                        });
+                    }
+
+                    // Luego las del servidor
+                    if (remoteSales.length > 0) {
+                        html += '<h6 class="fw-bold text-success small uppercase mb-2 mt-4">Sincronizadas con Central</h6>';
+                        remoteSales.forEach(s => {
+                            html += this.formatHistoryCard(s, false);
+                        });
+                    }
+                    
+                    list.innerHTML = html;
+                    
+                } catch (e) {
+                    list.innerHTML = '<div class="alert alert-danger small">Error al conectar con el servidor</div>';
+                }
+            },
+
+            formatHistoryCard: function(sale, isPending) {
+                const total = sale.total.toLocaleString('es-CL');
+                const fechaStr = new Date(sale.fecha).toLocaleString([], {
+                    day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'
+                });
+                
+                // Priorizar nombre del cliente: si sale.cliente es "Sin cliente" o nulo, usar cliente_nombre local
+                let displayName = 'Sin cliente';
+                if (sale.cliente && sale.cliente !== 'Sin cliente') {
+                    displayName = sale.cliente;
+                } else if (sale.cliente_nombre) {
+                    displayName = sale.cliente_nombre;
+                }
+                
+                const badgeClass = isPending ? 'bg-warning text-dark' : 'bg-success';
+                const badgeText = isPending ? '<i class="fas fa-clock me-1"></i> Pendiente' : '<i class="fas fa-check-circle me-1"></i> Sincronizado';
+                const icon = isPending ? 'fa-cloud-upload-alt text-warning' : 'fa-cloud text-success';
+
+                return `
+                    <div class="card mb-2 border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+                        <div class="p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <div class="small fw-bold text-muted mb-1">#${sale.numero || (isPending ? 'PENDIENTE' : 'N/A')}</div>
+                                    <div class="fw-bold" style="color: var(--secondary);">${displayName}</div>
+                                    <div class="small text-muted">${fechaStr}</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-dark">$${total}</div>
+                                    <div class="small uppercase font-monospace" style="font-size: 0.65rem; opacity: 0.7;">${sale.tipo_doc || sale.tipo_documento}</div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light">
+                                <span class="badge ${badgeClass}" style="font-size: 0.6rem; padding: 4px 8px; border-radius: 5px;">
+                                    ${badgeText}
+                                </span>
+                                <i class="fas ${icon} opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderDashboard: async function() {
+                const sales = await this.loadFromDB('sales');
+                const today = new Date().toISOString().split('T')[0];
+                const todaySales = sales.filter(s => s.fecha.startsWith(today));
+                const total = todaySales.reduce((sum, s) => sum + (s.total || 0), 0);
+                
+                const cDisp = document.getElementById('statsSalesCount');
+                const tDisp = document.getElementById('statsSalesTotal');
+                if (cDisp) cDisp.innerText = todaySales.length;
+                if (tDisp) tDisp.innerText = `$${total.toLocaleString('es-CL')}`;
+                
+                const list = document.getElementById('recentSalesList');
+                if (list) {
+                    if (todaySales.length > 0) {
+                        let html = '<div class="list-group list-group-flush">';
+                        todaySales.slice(-5).reverse().forEach(s => {
+                            html += `
+                                <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-2 py-1">
+                                    <div class="d-flex flex-column">
+                                        <span class="small text-muted">${new Date(s.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                        <span class="small fw-bold">${s.cliente_nombre || 'Sin cliente'}</span>
+                                    </div>
+                                    <span class="fw-bold">$${s.total.toLocaleString('es-CL')}</span>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        list.innerHTML = html;
+                        list.classList.remove('text-center', 'py-4');
+                    } else {
+                        list.innerHTML = 'No hay ventas registradas hoy';
+                        list.classList.add('text-center', 'py-4');
+                    }
+                }
+            },
+
+            renderCategories: function() {
+                const container = document.getElementById('categoriesList');
+                if (!container) return;
+                let html = `<button class="category-pill active" onclick="app.filterByCategory(null, this)">Todos</button>`;
+                this.data.categories.forEach(cat => {
+                    html += `<button class="category-pill" onclick="app.filterByCategory(${cat.id}, this)">${cat.nombre}</button>`;
+                });
+                container.innerHTML = html;
+            },
+
+            renderProducts: function(productsToRender) {
+                const container = document.getElementById('productsList');
+                if (!container) return;
+                const list = productsToRender || this.data.products;
+                if (!list || list.length === 0) {
+                    container.innerHTML = '<div class="text-center py-5 text-muted col-12">No se encontraron productos.</div>';
+                    return;
+                }
+                let html = '';
+                list.slice(0, 100).forEach(prod => {
+                    html += `
+                        <div class="product-card d-flex align-items-center" onclick="app.addToCart(${prod.id})">
+                            <div class="product-info flex-grow-1">
+                                <div class="product-name fw-bold mb-1" style="color: var(--secondary); font-size: 0.95rem;">${prod.nombre}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-barcode me-1 opacity-50"></i> ${prod.codigo || 'S/R'}</div>
+                                <div class="product-price fw-bold mt-1" style="color: var(--primary); font-size: 1.1rem;">$${(prod.precio || 0).toLocaleString('es-CL')}</div>
+                            </div>
+                            <button class="btn-add">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            },
+
+            renderClients: function() {
+                const select = document.getElementById('clientSelect');
+                if (!select) return;
+                let html = '<option value="">Cliente Ocasional</option>';
+                
+                // Clientes reales
+                this.data.clients.forEach(c => {
+                    html += `<option value="${c.id}">${c.nombre}</option>`;
+                });
+                
+                // Clientes pendientes (locales)
+                this.data.pendingClients.forEach(c => {
+                    html += `<option value="PENDING_${c.localId}" style="color: #0d6efd;">[PENDIENTE] ${c.nombre}</option>`;
+                });
+                
+                select.innerHTML = html;
+            },
+
+            filterProducts: function() {
+                const query = document.getElementById('productSearch').value.toLowerCase();
+                const filtered = this.data.products.filter(p => 
+                    p.nombre.toLowerCase().includes(query) || 
+                    (p.codigo && p.codigo.toLowerCase().includes(query))
+                );
+                this.renderProducts(filtered);
+            },
+
+            filterByCategory: function(catId, btn) {
+                document.querySelectorAll('.category-pill').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                if (catId === null) {
+                    this.renderProducts();
+                } else {
+                    const filtered = this.data.products.filter(p => p.categoria_id === catId);
+                    this.renderProducts(filtered);
+                }
+            },
+
+            filterClientsList: function() {
+                const query = document.getElementById('clientSearch').value.toLowerCase();
+                const filtered = this.data.clients.filter(c => c.nombre.toLowerCase().includes(query) || (c.rut && c.rut.includes(query)));
+                this.renderClientsFull(filtered);
+            },
+
+            renderClientsFull: function(toRender) {
+                const container = document.getElementById('clientsFullList');
+                if (!container) return;
+                
+                const list = toRender || this.data.clients;
+                const pendingList = toRender ? [] : this.data.pendingClients; 
+                
+                if ((!list || list.length === 0) && (!pendingList || pendingList.length === 0)) {
+                    container.innerHTML = '<div class="alert alert-info py-4 text-center rounded-4 border-0 shadow-sm">No hay clientes para mostrar.</div>';
+                    return;
+                }
+
+                let html = '<div class="list-group list-group-flush">';
+                
+                // Pendientes (Solo si no hay filtro masivo activo o si coincide con el RUT/Nombre)
+                pendingList.forEach(c => {
+                    html += `
+                        <div class="list-group-item bg-white border-0 mb-2 rounded-4 shadow-sm p-3 d-flex align-items-center" onclick="Swal.fire('Cliente Pendiente', 'Este cliente aún no se ha sincronizado.', 'info')">
+                            <div class="flex-shrink-0 bg-info bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; color: #0d6efd;">
+                                <i class="fas fa-user-clock"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold" style="color: var(--secondary);">${c.nombre}</div>
+                                <div class="small text-muted"><i class="far fa-id-card me-1"></i> ${c.rut}</div>
+                                <div class="badge bg-info-subtle text-info rounded-pill mt-1" style="font-size: 0.65rem;">PENDIENTE SYNC</div>
+                            </div>
+                            <i class="fas fa-sync fa-spin text-info opacity-50"></i>
+                        </div>
+                    `;
+                });
+
+                // Reales
+                list.forEach(c => {
+                    html += `
+                        <div class="list-group-item bg-white border-0 mb-2 rounded-4 shadow-sm p-3 d-flex align-items-center" onclick="app.showClientDetail(${c.id})">
+                            <div class="flex-shrink-0 bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; color: var(--primary);">
+                                <i class="fas fa-user-tie"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold" style="color: var(--secondary);">${c.nombre}</div>
+                                <div class="small text-muted"><i class="far fa-id-card me-1"></i> ${c.rut || 'Sin RUT'}</div>
+                                <div class="text-primary mt-1" style="font-size: 0.7rem;"><i class="fas fa-briefcase me-1"></i> ${c.giro || 'S/G'}</div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary rounded-circle" style="width: 32px; height: 32px; padding:0;"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            },
+
+            showClientDetail: async function(clientId) {
+                const client = this.data.clients.find(c => c.id === clientId);
+                if (!client) return;
+
+                this.showView('viewClientDetail');
+                const container = document.getElementById('clientDetailContent');
+                
+                let html = `
+                    <div class="card border-0 shadow-sm mb-4" style="border-radius: 20px; overflow: hidden;">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h4 class="fw-bold mb-1" style="color: var(--secondary);">${client.nombre}</h4>
+                                    <div class="badge bg-light text-muted border py-2 px-3 rounded-pill">${client.rut || 'Sin RUT'}</div>
+                                </div>
+                                <div class="bg-primary bg-opacity-10 p-3 rounded-4">
+                                    <i class="fas fa-user-check text-primary fa-lg"></i>
+                                </div>
+                            </div>
+                            
+                            <hr class="my-4 opacity-25">
+                            
+                            <div class="mb-4">
+                                <label class="small fw-bold text-muted uppercase d-block mb-1"><i class="fas fa-briefcase me-2"></i>Giro Comercial</label>
+                                <div class="fw-bold text-dark">${client.giro || 'No especificado'}</div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="small fw-bold text-muted uppercase d-block mb-1"><i class="fas fa-map-marker-alt me-2"></i>Dirección</label>
+                                <div class="fw-bold text-dark">${client.direccion || ''}</div>
+                                <div class="small text-muted mb-2">${client.comuna || ''}, ${client.ciudad || ''}</div>
+                                <button class="btn btn-sm btn-terroso mt-2 rounded-pill px-4" onclick="window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('${client.direccion || ''} ${client.comuna || ''} ${client.ciudad || ''}'), '_blank')">
+                                    <i class="fas fa-location-arrow me-2"></i>MOSTRAR EN MAPA
+                                </button>
+                            </div>
+                            
+                            <div class="row g-3 mb-2">
+                                <div class="col-6">
+                                    <label class="small fw-bold text-muted uppercase d-block mb-1"><i class="fas fa-phone me-2"></i>Teléfono</label>
+                                    <a href="tel:${client.telefono}" class="fw-bold text-primary text-decoration-none">${client.telefono || 'Sin datos'}</a>
+                                </div>
+                                <div class="col-6">
+                                    <label class="small fw-bold text-muted uppercase d-block mb-1"><i class="fas fa-envelope me-2"></i>Email</label>
+                                    <div class="small fw-bold text-dark text-truncate">${client.email || 'Sin datos'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="fw-bold mb-3 uppercase small text-muted px-2"><i class="fas fa-shopping-bag me-2 text-primary"></i>Historial de Compras (Server)</h6>
+                    <div id="clientPurchaseHistory" class="px-1 overflow-auto" style="max-height: 400px;">
+                        <div class="text-center py-5 bg-white rounded-4 shadow-sm border-0">
+                            <i class="fas fa-circle-notch fa-spin fa-2x text-primary mb-3"></i>
+                            <p class="small text-muted mb-0">Consultando historial en tiempo real...</p>
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+                
+                // Cargar historial desde el servidor
+                try {
+                    const res = await fetch('/ventas/movil/api/cliente-historial/?cliente_id=' + clientId);
+                    const data = await res.json();
+                    
+                    const historyDiv = document.getElementById('clientPurchaseHistory');
+                    if (data.success && data.historial.length > 0) {
+                        let hHtml = '<div class="list-group list-group-flush shadow-sm rounded-4 overflow-hidden border-0 mb-5">';
+                        data.historial.forEach(v => {
+                            const total = v.total.toLocaleString('es-CL');
+                            const fecha = new Date(v.fecha).toLocaleDateString('es-CL', {
+                                day: '2-digit', month: 'short', year: 'numeric'
+                            });
+                            const statusColor = v.estado === 'confirmada' ? 'text-success' : 'text-warning';
+                            
+                            hHtml += `
+                                <div class="list-group-item bg-white p-3 border-light">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="small fw-bold text-primary mb-1">#${v.numero}</div>
+                                            <div class="small text-muted uppercase" style="font-size: 0.65rem;">${v.tipo_doc} • ${fecha}</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="fw-bold text-dark">$${total}</div>
+                                            <div class="small fw-bold ${statusColor}" style="font-size: 0.65rem;">${v.estado.toUpperCase()}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        hHtml += '</div>';
+                        historyDiv.innerHTML = hHtml;
+                    } else {
+                        historyDiv.innerHTML = '<div class="alert bg-white shadow-sm rounded-4 py-4 text-center border-0 small text-muted">No se registran compras anteriores en el servidor.</div>';
+                    }
+                } catch (e) {
+                    document.getElementById('clientPurchaseHistory').innerHTML = '<div class="alert alert-danger small rounded-4 mt-2">Error al conectar con el servidor para obtener el historial.</div>';
+                }
+            },
+
+            saveNewClient: async function() {
+                const rut = document.getElementById('nc_rut').value;
+                if (!this.validateRut(rut)) {
+                    Swal.fire('RUT Inválido', 'Por favor ingrese un RUT chileno válido.', 'error');
+                    return;
+                }
+
+                const client = {
+                    nombre: document.getElementById('nc_nombre').value,
+                    rut: rut,
+                    giro: document.getElementById('nc_giro').value,
+                    direccion: document.getElementById('nc_direccion').value,
+                    comuna: document.getElementById('nc_comuna').value,
+                    ciudad: document.getElementById('nc_ciudad').value,
+                    telefono: document.getElementById('nc_tel').value,
+                    email: document.getElementById('nc_email').value,
+                    vendedor_id: this.seller ? this.seller.id : null,
+                    fecha: new Date().toISOString()
+                };
+                await this.saveDataToDB('pendingClients', client);
+                Swal.fire('Cliente Guardado', 'El cliente se sincronizará pronto.', 'success');
+                document.getElementById('newClientForm').reset();
+                document.getElementById('rutValidationMsg').style.display = 'none';
+                this.showView('viewDashboard');
+            },
+
+            // -- RUT VALIDATION & FORMATTING --
+            handleRutInput: function(input) {
+                let valor = input.value.replace(/[^0-9kK]/g, '');
+                if (valor.length > 1) {
+                    const cuerpo = valor.slice(0, -1);
+                    const dv = valor.slice(-1).toUpperCase();
+                    valor = cuerpo + '-' + dv;
+                }
+                input.value = valor;
+                
+                const msg = document.getElementById('rutValidationMsg');
+                const btn = document.getElementById('btnSaveClient');
+                if (valor.length > 7) {
+                    if (this.validateRut(valor)) {
+                        msg.innerText = 'RUT Válido';
+                        msg.style.color = 'green';
+                        msg.style.display = 'block';
+                        btn.disabled = false;
+                    } else {
+                        msg.innerText = 'RUT Inválido';
+                        msg.style.color = 'red';
+                        msg.style.display = 'block';
+                        btn.disabled = true;
+                    }
+                } else {
+                    msg.style.display = 'none';
+                    btn.disabled = false;
+                }
+            },
+
+            validateRut: function(rutCompleto) {
+                if (!/^[0-9]+-[0-9kK]{1}$/.test(rutCompleto)) return false;
+                const tmp = rutCompleto.split('-');
+                let digv = tmp[1];
+                const rut = tmp[0];
+                if (digv == 'K') digv = 'k';
+                return (this.dv(rut) == digv);
+            },
+
+            dv: function(T) {
+                let M = 0, S = 1;
+                for (; T; T = Math.floor(T / 10))
+                    S = (S + T % 10 * (9 - M++ % 6)) % 11;
+                return S ? S - 1 : 'k';
+            },
+
+            showAbout: function() {
+                Swal.fire({ title: 'GestionCloud Móvil', html: 'Versión 1.3<br>KreaSoft spa &copy; 2026', icon: 'info' });
+                this.toggleSidebar();
+            },
+
+            showConfig: function() {
+                Swal.fire({ title: 'Configuración', text: 'Próximamente disponible.', icon: 'info' });
+                this.toggleSidebar();
+            },
+
+            // -- CART LOGIC --
+            addToCart: async function(prodId) {
+                const prod = this.data.products.find(p => p.id === prodId);
+                const { value: qty } = await Swal.fire({
+                    title: prod.nombre,
+                    text: 'Cantidad a vender:',
+                    input: 'number',
+                    inputValue: 1,
+                    showCancelButton: true
+                });
+                if (!qty || qty <= 0) return;
+                const cantidad = parseFloat(qty);
+                const existing = this.cart.find(i => i.id === prodId);
+                if (existing) {
+                    existing.cantidad += cantidad;
+                    existing.total = existing.cantidad * existing.precio;
+                } else {
+                    this.cart.push({ id: prod.id, nombre: prod.nombre, precio: prod.precio, cantidad: cantidad, total: cantidad * prod.precio });
+                }
+                this.updateCartCount();
+                Swal.fire({ 
+                    text: '¡Agregado!', 
+                    toast: true, 
+                    position: 'top', 
+                    timer: 800, 
+                    showConfirmButton: false, 
+                    background: 'var(--success)', 
+                    color: 'white',
+                    customClass: {
+                        container: 'swal2-safe-top'
+                    }
+                });
+            },
+
+            updateCartCount: function() {
+                const count = this.cart.reduce((sum, item) => sum + item.cantidad, 0);
+                const badge = document.getElementById('cartCountBadge');
+                if (badge) {
+                    badge.innerText = count;
+                    badge.style.display = count > 0 ? 'block' : 'none';
+                }
+            },
+
+            renderCart: function() {
+                const container = document.getElementById('cartItems');
+                if (!container) return;
+                if (this.cart.length === 0) {
+                    container.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-shopping-basket fa-3x mb-3"></i><p>Vacío</p></div>';
+                    document.getElementById('cartSummary').style.display = 'none';
+                    return;
+                }
+                let html = '';
+                let total = 0;
+                this.cart.forEach((item, idx) => {
+                    total += item.total;
+                    html += `<div class="card mb-2 p-2 border-0 shadow-sm"><div class="d-flex align-items-center">
+                        <div class="flex-grow-1"><div class="fw-bold small">${item.nombre}</div><div class="text-muted small">$${item.precio.toLocaleString()} x ${item.cantidad}</div></div>
+                        <div class="fw-bold me-3">$${item.total.toLocaleString()}</div>
+                        <button class="btn btn-sm btn-outline-danger" onclick="app.removeFromCart(${idx})"><i class="fas fa-trash"></i></button>
+                    </div></div>`;
+                });
+                container.innerHTML = html;
+                const tDisp = document.getElementById('cartTotal');
+                if (tDisp) tDisp.innerText = `$${total.toLocaleString('es-CL')}`;
+                document.getElementById('cartSummary').style.display = 'block';
+
+                // Inyectar clientes en el select si no están ya
+                this.renderClients();
+            },
+
+            removeFromCart: function(idx) { this.cart.splice(idx, 1); this.renderCart(); this.updateCartCount(); },
+            clearCart: function() { this.cart = []; this.renderCart(); this.updateCartCount(); },
+
+            checkout: async function() {
+                if (this.cart.length === 0) return;
+                const clientSelect = document.getElementById('clientSelect');
+                const clientName = clientSelect.options[clientSelect.selectedIndex]?.text || 'Sin cliente';
+                
+                const sale = {
+                    vendedor_id: (this.seller ? this.seller.id : null),
+                    cliente_id: clientSelect.value,
+                    cliente_nombre: clientName, // Guardamos el nombre para el historial offline
+                    tipo_documento: document.getElementById('docTypeSelect').value,
+                    items: this.cart,
+                    total: this.cart.reduce((s, i) => s + i.total, 0),
+                    fecha: new Date().toISOString(),
+                    deviceId: this.deviceId,
+                    observaciones: `[MOVIL] Cliente: ${clientName}`
+                };
+                if (this.isOffline) {
+                    await this.saveDataToDB('sales', sale);
+                    Swal.fire('Guardado Offline', 'Se sincronizará al recuperar conexión.', 'info');
+                    this.clearCart();
+                    this.showView('viewDashboard');
+                } else {
+                    Swal.fire({ title: '¿Enviar Venta?', text: `Total: $${sale.total.toLocaleString()}`, showCancelButton: true, confirmButtonText: 'Sí, enviar' })
+                    .then(res => { if (res.isConfirmed) this.sendSaleToServer(sale); });
+                }
+            },
+
+            sendSaleToServer: async function(sale) {
+                try {
+                    Swal.fire({ title: 'Enviando...', didOpen: () => Swal.showLoading() });
+                    const res = await fetch('/ventas/movil/api/guardar-venta/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify(sale)
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        Swal.fire('Éxito', 'Venta enviada correctamente.', 'success');
+                        this.clearCart();
+                        this.showView('viewDashboard');
+                    } else throw new Error(data.error);
+                } catch (e) {
+                    await this.saveDataToDB('sales', sale);
+                    Swal.fire('Error', 'Venta guardada localmente.', 'warning');
+                    this.clearCart();
+                    this.showView('viewDashboard');
+                }
+            },
+
+            renderPendingData: async function() {
+                const sales = await this.loadFromDB('sales');
+                const contS = document.getElementById('pendingSyncSales');
+                if (contS) {
+                    contS.innerHTML = sales.length === 0 ? '<div class="alert alert-light text-center small">Sin ventas pendientes</div>' : '';
+                    sales.forEach(s => {
+                        contS.innerHTML += `<div class="card mb-2 border-start border-4 border-warning p-2"><div class="d-flex justify-content-between align-items-center">
+                            <div class="small"><div class="fw-bold">${new Date(s.fecha).toLocaleString()}</div><div>$${(s.total || 0).toLocaleString()}</div></div>
+                            <button class="btn btn-sm btn-terroso shadow-sm" style="min-width: 40px; height: 40px; border-radius: 12px;" onclick="app.syncOneSale(${s.localId})"><i class="fas fa-upload"></i></button>
+                        </div></div>`;
+                    });
+                }
+
+                const clients = await this.loadFromDB('pendingClients');
+                const contC = document.getElementById('pendingSyncClients');
+                if (contC) {
+                    contC.innerHTML = clients.length === 0 ? '<div class="alert alert-light text-center small">Sin clientes pendientes</div>' : '';
+                    clients.forEach(c => {
+                        contC.innerHTML += `<div class="card mb-2 border-start border-4 border-info p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="small fw-bold">${c.nombre}<br><span class="text-muted fw-normal">${c.rut}</span></div>
+                                <button class="btn btn-sm btn-info text-white shadow-sm" style="min-width: 40px; height: 40px; border-radius: 12px;" onclick="app.syncOneClient(${c.localId})"><i class="fas fa-sync"></i></button>
+                            </div>
+                        </div>`;
+                    });
+                }
+            },
+
+            syncOneSale: async function(localId) {
+                if (this.isOffline) return Swal.fire('Sin conexión', '', 'warning');
+                const sales = await this.loadFromDB('sales');
+                const sale = sales.find(s => s.localId === localId);
+                try {
+                    const res = await fetch('/ventas/movil/api/guardar-venta/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify({ ...sale, deviceId: this.deviceId })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const tx = this.db.transaction('sales', 'readwrite');
+                        tx.objectStore('sales').delete(localId);
+                        await new Promise(r => tx.oncomplete = r);
+                        this.renderPendingData();
+                        Swal.fire('Sincronizado', '', 'success');
+                    }
+                } catch (e) { Swal.fire('Error', 'No se pudo subir.', 'error'); }
+            },
+
+            syncOneClient: async function(localId) {
+                if (this.isOffline) return Swal.fire('Sin conexión', '', 'warning');
+                const clients = await this.loadFromDB('pendingClients');
+                const client = clients.find(c => c.localId === localId);
+                try {
+                    Swal.fire({ title: 'Sincronizando cliente...', didOpen: () => Swal.showLoading() });
+                    const res = await fetch('/ventas/movil/api/guardar-cliente/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify(client)
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const tx = this.db.transaction('pendingClients', 'readwrite');
+                        tx.objectStore('pendingClients').delete(localId);
+                        await new Promise(r => tx.oncomplete = r);
+                        
+                        // Recargar datos y refrescar UI
+                        await this.loadLocalData();
+                        this.renderPendingData();
+                        this.renderClients();
+                        this.renderClientsFull();
+                        
+                        Swal.fire('Cliente Sincronizado', data.nombre, 'success');
+                    } else throw new Error(data.error);
+                } catch (e) { Swal.fire('Error', e.message, 'error'); }
+            },
+
+            autoSyncPending: async function() {
+                const sales = await this.loadFromDB('sales');
+                if (sales.length > 0) {
+                    Swal.fire({
+                        title: 'Conexión recuperada',
+                        text: `Tiene ${sales.length} ventas pendientes por sincronizar`,
+                        icon: 'info',
+                        showConfirmButton: true,
+                        confirmButtonText: 'Sincronizar ahora',
+                        confirmButtonColor: '#8D7B68',
+                        showCancelButton: true,
+                        cancelButtonText: 'Más tarde',
+                        cancelButtonColor: '#A8A095'
+                    }).then(res => {
+                        if (res.isConfirmed) this.showView('viewHistory', null);
+                    });
+                }
+            }
+        };
+
+        // Iniciar app
+        app.init();
+    </script>
+</body>
+</html>

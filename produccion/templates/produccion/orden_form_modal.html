@@ -1,0 +1,91 @@
+<div class="modal-header stone-modal-header" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%); padding: 1.5rem 2rem; border-bottom: 1px solid #E8DCC8; border-radius: 16px 16px 0 0;">
+    <div class="d-flex align-items-center gap-3">
+        <div class="header-icon-box" style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15); color: #6F5B44; font-size: 1.25rem;">
+            <i class="fas fa-industry"></i>
+        </div>
+        <div>
+            <h5 class="modal-title fw-bold" style="color: #5D4037; font-size: 1.1rem; letter-spacing: -0.5px; margin: 0;">{% if orden %}Editar{% else %}Nueva{% endif %} Orden de Producción</h5>
+            <p class="mb-0 text-muted" style="font-size: 0.8rem;">{% if orden %}Modificar datos de la orden{% else %}Planificar una nueva orden de fabricación{% endif %}</p>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<div class="modal-body p-4" style="background: white;">
+    
+    <!-- Mensajes de error/info -->
+    <div id="modal-messages">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <form id="ordenFormModal" method="post" action="{% if orden and orden.pk %}{% url 'produccion:orden_update' orden.pk %}{% else %}{% url 'produccion:orden_create' %}{% endif %}">
+        {% csrf_token %}
+        <input type="hidden" name="orden_id" value="{{ orden.pk|default:'' }}">
+        
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted mb-1">Número de Orden <span class="text-danger">*</span></label>
+                <input type="text" name="numero_orden" class="form-control form-control-stone" value="{{ orden.numero_orden|default:'' }}" placeholder="Ej: OP-2025-001" required style="height: 32px; font-size: 0.85rem;">
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted mb-1">Lote Producción</label>
+                <input type="text" name="lote_produccion" class="form-control form-control-stone" value="{{ orden.lote_produccion|default:'' }}" placeholder="Ej: LOTE-2025-001" style="height: 32px; font-size: 0.85rem;">
+            </div>
+
+            <div class="col-md-12">
+                <label class="form-label small fw-bold text-muted mb-1">Receta <span class="text-danger">*</span></label>
+                <select name="receta" class="form-select form-select-stone" required style="height: 32px; font-size: 0.85rem; padding-top: 2px; padding-bottom: 2px;">
+                    <option value="">Seleccione una receta...</option>
+                    {% for receta in recetas %}
+                    <option value="{{ receta.id }}" {% if orden and orden.receta_id == receta.id %}selected{% endif %}>{{ receta.codigo }} - {{ receta.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted mb-1">Cantidad a Producir <span class="text-danger">*</span></label>
+                <input type="number" name="cantidad_planificada" class="form-control form-control-stone" value="{{ orden.cantidad_planificada|default:'1' }}" step="0.01" min="0" required style="height: 32px; font-size: 0.85rem;">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted mb-1">Bodega <span class="text-danger">*</span></label>
+                <select name="bodega" class="form-select form-select-stone" required style="height: 32px; font-size: 0.85rem; padding-top: 2px; padding-bottom: 2px;">
+                    <option value="">Seleccione bodega...</option>
+                    {% for bodega in bodegas %}
+                    <option value="{{ bodega.id }}" {% if orden and orden.bodega_id == bodega.id %}selected{% endif %}>{{ bodega.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted mb-1">Fecha Planificada <span class="text-danger">*</span></label>
+                <input type="date" name="fecha_planificada" class="form-control form-control-stone" value="{{ orden.fecha_planificada|date:'Y-m-d' }}" required style="height: 32px; font-size: 0.85rem;">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted mb-1">Responsable</label>
+                <input type="text" name="responsable" class="form-control form-control-stone" value="{{ orden.responsable|default:'' }}" placeholder="Nombre del responsable" style="height: 32px; font-size: 0.85rem;">
+            </div>
+
+            <div class="col-12">
+                <label class="form-label small fw-bold text-muted mb-1">Observaciones</label>
+                <textarea name="observaciones" class="form-control form-control-stone" rows="2" placeholder="Notas adicionales..." style="font-size: 0.85rem;">{{ orden.observaciones|default:'' }}</textarea>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top border-light">
+            <button type="button" class="btn btn-light border" data-bs-dismiss="modal" style="font-size: 0.85rem; font-weight: 500; color: #5D4037;">Cancelar</button>
+            <button type="submit" class="btn text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); font-size: 0.85rem; font-weight: 500; border: none;">
+                <i class="fas fa-save me-2"></i>Guardar Orden
+            </button>
+        </div>
+    </form>
+</div>

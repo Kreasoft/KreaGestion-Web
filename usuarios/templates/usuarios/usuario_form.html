@@ -1,265 +1,273 @@
 {% extends "base.html" %}
 {% load static %}
+{% load widget_tweaks %}
 
 {% block title %}{{ titulo }} - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+
+
+{% block extra_head %}
+<style>
+    /* VARIABLES LOCALES PARA ASEGURAR ESTILO EXACTO (COPIADO DE ARTICULOS) */
+    :root {
+        --color-piedra-texto: #6F5B44; 
+        --color-piedra-borde: #E8DCC8;
+        --color-piedra-claro: #F5F1E8;
+        --gradient-piedra: linear-gradient(135deg, #Fdfbf7 0%, #F5F1E8 100%);
+    }
+
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+
+    /* Form Elements matching Store Style */
+    .form-control, .form-select {
+        border-color: #D4C4A8;
+        font-size: 0.9rem;
+        background-color: white;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-piedra-borde);
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+        outline: none;
+    }
+
+    .form-label {
+        color: var(--color-piedra-texto);
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .btn-piedra-primary {
+        background: linear-gradient(135deg, #C2B7AE 0%, #AAA098 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    
+    .btn-piedra-primary:hover {
+        background: linear-gradient(135deg, #CFC5BC 0%, #B8AEA6 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(170, 160, 152, 0.25);
+        color: white;
+    }
+
+    .section-title {
+        color: var(--color-piedra-texto);
+        font-weight: 700;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--color-piedra-borde);
+    }
+    
+    /* Alerts */
+    .alert-custom {
+        border-left: 4px solid #8B7355;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <!-- Header con Estilo Piedra Premium (Claro - Idéntico a Artículos) -->
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-user-edit fa-lg text-white me-2"></i>
+                            <i class="fas fa-user-edit me-3" style="font-size: 2.2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
                             <div>
-                                <h5 class="mb-0 text-white" style="font-size: 1.2rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
                                     {{ titulo }}
-                                </h5>
-                                <small class="text-white-50" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">
-                                    {% if usuario %}Modificar datos del usuario{% else %}Crear nuevo usuario en el sistema{% endif %}
-                                </small>
+                                </h2>
+                                <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                                    {% if usuario %}Modificar datos de <span class="fw-bold">{{ usuario.username }}</span>{% else %}Crear nuevo usuario en el sistema{% endif %}
+                                </div>
                             </div>
                         </div>
-                        <a href="{% url 'usuarios:usuario_list' %}" class="btn btn-sm btn-outline-light">
-                            <i class="fas fa-arrow-left me-1"></i> Volver
-                        </a>
+                        <div class="d-flex gap-2">
+                             <a href="{% url 'usuarios:usuario_list' %}" class="btn btn-sm" style="background: rgba(255, 255, 255, 0.4); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600;">
+                                <i class="fas fa-arrow-left me-1"></i> Volver a Lista
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+        <div class="card-body p-4 pt-4">
+            <!-- Mensajes -->
+            {% if messages %}
+            <div class="mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <div class="row g-4">
+                    <!-- Columna Izquierda: Info Básica -->
+                    <div class="col-md-6">
+                        <h6 class="section-title">
+                            <i class="fas fa-user-circle me-2"></i>Información Personal
+                        </h6>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label"><i class="fas fa-id-badge me-1"></i>{{ form.username.label }} <span class="text-danger">*</span></label>
+                            {{ form.username|add_class:"form-control" }}
+                            {% if form.username.errors %}
+                                <div class="text-danger small mt-1">{{ form.username.errors.0 }}</div>
+                            {% endif %}
+                            {% if form.username.help_text %}
+                                <small class="text-muted d-block mt-1">{{ form.username.help_text }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label"><i class="fas fa-user me-1"></i>{{ form.first_name.label }} <span class="text-danger">*</span></label>
+                                {{ form.first_name|add_class:"form-control" }}
+                                {% if form.first_name.errors %}
+                                    <div class="text-danger small mt-1">{{ form.first_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label"><i class="fas fa-user me-1"></i>{{ form.last_name.label }} <span class="text-danger">*</span></label>
+                                {{ form.last_name|add_class:"form-control" }}
+                                {% if form.last_name.errors %}
+                                    <div class="text-danger small mt-1">{{ form.last_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label"><i class="fas fa-envelope me-1"></i>{{ form.email.label }} <span class="text-danger">*</span></label>
+                            {{ form.email|add_class:"form-control" }}
+                            {% if form.email.errors %}
+                                <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                    </div>
+                    
+                    <!-- Columna Derecha: Configuración -->
+                    <div class="col-md-6">
+                        <h6 class="section-title">
+                            <i class="fas fa-cogs me-2"></i>Configuración y Accesos
+                        </h6>
+
+                        {% if not usuario %}
+                        <div class="mb-3">
+                            <label for="{{ form.empresa.id_for_label }}" class="form-label"><i class="fas fa-building me-1"></i>{{ form.empresa.label }} <span class="text-danger">*</span></label>
+                            {{ form.empresa|add_class:"form-select" }}
+                            {% if form.empresa.errors %}
+                                <div class="text-danger small mt-1">{{ form.empresa.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.grupo.id_for_label }}" class="form-label"><i class="fas fa-users-cog me-1"></i>{{ form.grupo.label }}</label>
+                                {{ form.grupo|add_class:"form-select" }}
+                                {% if form.grupo.errors %}
+                                    <div class="text-danger small mt-1">{{ form.grupo.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.sucursal.id_for_label }}" class="form-label"><i class="fas fa-store me-1"></i>{{ form.sucursal.label }}</label>
+                                {{ form.sucursal|add_class:"form-select" }}
+                                {% if form.sucursal.errors %}
+                                    <div class="text-danger small mt-1">{{ form.sucursal.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if usuario %}
+                        <div class="form-group-stone mt-3">
+                            <div class="form-check d-flex align-items-center p-3 rounded-3" style="background: white; border: 1px solid #E8DCC8;">
+                                {{ form.is_active|add_class:"form-check-input mt-0" }}
+                                <label class="form-check-label ms-2 mb-0" for="{{ form.is_active.id_for_label }}">
+                                    {{ form.is_active.label }}
+                                    <small class="d-block text-muted fw-normal">Usuario habilitado para ingresar al sistema</small>
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="form-group-stone">
+                            <div class="form-check d-flex align-items-center p-3 rounded-3" style="background: white; border: 1px solid #E8DCC8;">
+                                {{ form.is_staff|add_class:"form-check-input mt-0" }}
+                                <label class="form-check-label ms-2 mb-0" for="{{ form.is_staff.id_for_label }}">
+                                    {{ form.is_staff.label }}
+                                    <small class="d-block text-muted fw-normal">Acceso al panel de administración (Staff)</small>
+                                </label>
+                            </div>
+                        </div>
+
+                        {% if not usuario %}
+                        <!-- Sección Password -->
+                        <div class="mt-4 pt-2">
+                             <h6 class="section-title">
+                                <i class="fas fa-lock me-2"></i>Seguridad
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.password1.id_for_label }}" class="form-label">{{ form.password1.label }} <span class="text-danger">*</span></label>
+                                    {{ form.password1|add_class:"form-control" }}
+                                    {% if form.password1.errors %}
+                                        <div class="text-danger small mt-1">{{ form.password1.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.password2.id_for_label }}" class="form-label">{{ form.password2.label }} <span class="text-danger">*</span></label>
+                                    {{ form.password2|add_class:"form-control" }}
+                                    {% if form.password2.errors %}
+                                        <div class="text-danger small mt-1">{{ form.password2.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
                     </div>
                 </div>
                 
-                <!-- Formulario -->
-                <div class="card-body" style="padding: 30px;">
-                    <!-- Mensajes de error/éxito -->
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {% if message.tags == 'success' %}
-                                    <i class="fas fa-check-circle me-2"></i>
-                                {% elif message.tags == 'error' %}
-                                    <i class="fas fa-exclamation-circle me-2"></i>
-                                {% elif message.tags == 'warning' %}
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                {% else %}
-                                    <i class="fas fa-info-circle me-2"></i>
-                                {% endif %}
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                    
-                    <form method="post" novalidate>
-                        {% csrf_token %}
-                        
-                        <div class="row">
-                            <!-- Información Básica -->
-                            <div class="col-md-6">
-                                <h6 class="mb-3" style="color: #8B7355; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                                    <i class="fas fa-user-circle me-2"></i>Información del Usuario
-                                </h6>
-                                
-                                <div class="mb-3">
-                                    <label for="{{ form.username.id_for_label }}" class="form-label">
-                                        {{ form.username.label }} <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.username }}
-                                    {% if form.username.errors %}
-                                        <div class="text-danger small">{{ form.username.errors.0 }}</div>
-                                    {% endif %}
-                                    {% if form.username.help_text %}
-                                        <small class="form-text text-muted">{{ form.username.help_text }}</small>
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="{{ form.first_name.id_for_label }}" class="form-label">
-                                        {{ form.first_name.label }} <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.first_name }}
-                                    {% if form.first_name.errors %}
-                                        <div class="text-danger small">{{ form.first_name.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="{{ form.last_name.id_for_label }}" class="form-label">
-                                        {{ form.last_name.label }} <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.last_name }}
-                                    {% if form.last_name.errors %}
-                                        <div class="text-danger small">{{ form.last_name.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="{{ form.email.id_for_label }}" class="form-label">
-                                        {{ form.email.label }} <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.email }}
-                                    {% if form.email.errors %}
-                                        <div class="text-danger small">{{ form.email.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <!-- Permisos y Configuración -->
-                            <div class="col-md-6">
-                                <h6 class="mb-3" style="color: #8B7355; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                                    <i class="fas fa-cogs me-2"></i>Permisos y Configuración
-                                </h6>
-                                
-                                {% if not usuario %}
-                                <!-- Solo mostrar en creación -->
-                                <div class="mb-3">
-                                    <label for="{{ form.empresa.id_for_label }}" class="form-label">
-                                        {{ form.empresa.label }} <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.empresa }}
-                                    {% if form.empresa.errors %}
-                                        <div class="text-danger small">{{ form.empresa.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                                
-                                <div class="mb-3">
-                                    <label for="{{ form.grupo.id_for_label }}" class="form-label">
-                                        {{ form.grupo.label }}
-                                    </label>
-                                    {{ form.grupo }}
-                                    {% if form.grupo.errors %}
-                                        <div class="text-danger small">{{ form.grupo.errors.0 }}</div>
-                                    {% endif %}
-                                    <small class="form-text text-muted">Asigna un rol al usuario para controlar sus permisos</small>
-                                </div>
-                                
-                                {% if not usuario %}
-                                <!-- Solo mostrar en creación -->
-                                <div class="mb-3">
-                                    <label for="{{ form.sucursal.id_for_label }}" class="form-label">
-                                        {{ form.sucursal.label }}
-                                    </label>
-                                    {{ form.sucursal }}
-                                    {% if form.sucursal.errors %}
-                                        <div class="text-danger small">{{ form.sucursal.errors.0 }}</div>
-                                    {% endif %}
-                                    {% if form.sucursal.help_text %}
-                                        <small class="form-text text-muted">{{ form.sucursal.help_text }}</small>
-                                    {% endif %}
-                                </div>
-                                {% else %}
-                                <!-- Mostrar en edición -->
-                                <div class="mb-3">
-                                    <label for="{{ form.sucursal.id_for_label }}" class="form-label">
-                                        {{ form.sucursal.label }}
-                                    </label>
-                                    {{ form.sucursal }}
-                                    {% if form.sucursal.errors %}
-                                        <div class="text-danger small">{{ form.sucursal.errors.0 }}</div>
-                                    {% endif %}
-                                    {% if form.sucursal.help_text %}
-                                        <small class="form-text text-muted">{{ form.sucursal.help_text }}</small>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                                
-                                {% if usuario %}
-                                <div class="mb-3 form-check">
-                                    {{ form.is_active }}
-                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                                        {{ form.is_active.label }}
-                                    </label>
-                                    {% if form.is_active.errors %}
-                                        <div class="text-danger small">{{ form.is_active.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                                
-                                <div class="mb-3 form-check">
-                                    {{ form.is_staff }}
-                                    <label class="form-check-label" for="{{ form.is_staff.id_for_label }}">
-                                        {{ form.is_staff.label }}
-                                    </label>
-                                    {% if form.is_staff.errors %}
-                                        <div class="text-danger small">{{ form.is_staff.errors.0 }}</div>
-                                    {% endif %}
-                                    <small class="form-text text-muted d-block">Permite acceso al panel de administración de Django</small>
-                                </div>
-                                
-                                {% if not usuario %}
-                                <!-- Contraseñas solo en creación -->
-                                <hr class="my-4">
-                                <h6 class="mb-3" style="color: #8B7355; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                                    <i class="fas fa-lock me-2"></i>Contraseña
-                                </h6>
-                                
-                                <div class="mb-3">
-                                    <label for="{{ form.password1.id_for_label }}" class="form-label">
-                                        {{ form.password1.label }} <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.password1 }}
-                                    {% if form.password1.errors %}
-                                        <div class="text-danger small">{{ form.password1.errors.0 }}</div>
-                                    {% endif %}
-                                    {% if form.password1.help_text %}
-                                        <small class="form-text text-muted">{{ form.password1.help_text }}</small>
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="{{ form.password2.id_for_label }}" class="form-label">
-                                        {{ form.password2.label }} <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.password2 }}
-                                    {% if form.password2.errors %}
-                                        <div class="text-danger small">{{ form.password2.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <!-- Botones de acción -->
-                        <div class="row mt-4">
-                            <div class="col-12">
-                                <hr class="mb-4">
-                                <div class="d-flex justify-content-between">
-                                    <a href="{% url 'usuarios:usuario_list' %}" class="btn btn-secondary">
-                                        <i class="fas fa-times me-1"></i> Cancelar
-                                    </a>
-                                    <button type="submit" class="btn btn-primary" id="btnSubmit" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
-                                        <i class="fas fa-save me-1"></i> 
-                                        <span id="btnText">{% if usuario %}Actualizar Usuario{% else %}Crear Usuario{% endif %}</span>
-                                        <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
+                <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top" style="border-color: #E8DCC8 !important;">
+                    <a href="{% url 'usuarios:usuario_list' %}" class="btn btn-outline-secondary" style="border-color: #D4C4A8; color: #6F5B44;">
+                        <i class="fas fa-times me-1"></i> Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-piedra-primary" id="btnSubmit">
+                        <i class="fas fa-save me-1"></i> 
+                        <span id="btnText">{% if usuario %}Guardar Cambios{% else %}Crear Usuario{% endif %}</span>
+                        <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                    </button>
                 </div>
+            </form>
+            
+        </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    .form-control:focus {
-        border-color: #8B7355;
-        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
-    }
-    
-    .form-check-input:checked {
-        background-color: #8B7355;
-        border-color: #8B7355;
-    }
-    
-    .btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.3);
-    }
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -270,23 +278,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (form && btnSubmit) {
         form.addEventListener('submit', function(e) {
-            // Deshabilitar el botón y mostrar spinner
-            btnSubmit.disabled = true;
-            btnText.textContent = 'Guardando...';
-            btnSpinner.style.display = 'inline-block';
+            // Deshabilitar el botón y mostrar spinner si el formulario es válido (HTML5 validation)
+            if (form.checkValidity()) {
+                btnSubmit.disabled = true;
+                btnText.textContent = 'Guardando...';
+                btnSpinner.style.display = 'inline-block';
+            }
         });
     }
-    
-    // Auto-cerrar alertas después de 5 segundos
-    const alerts = document.querySelectorAll('.alert');
-    alerts.forEach(alert => {
-        setTimeout(() => {
-            const bsAlert = new bootstrap.Alert(alert);
-            bsAlert.close();
-        }, 5000);
-    });
 });
 </script>
-
 {% endblock %}
-

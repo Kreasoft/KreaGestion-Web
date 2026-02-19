@@ -158,22 +158,30 @@ class FolioService:
         return folio_prueba, caf
     
     @staticmethod
-    def verificar_folios_disponibles(empresa, tipo_documento):
+    def verificar_folios_disponibles(empresa, tipo_documento, sucursal=None):
         """
         Verifica cuántos folios quedan disponibles para un tipo de documento
         
         Args:
             empresa: Instancia de Empresa
             tipo_documento: Código del tipo de documento
+            sucursal: Instancia de Sucursal (opcional). Si no se proporciona, busca en todas las sucursales
         
         Returns:
             int: Cantidad de folios disponibles
         """
-        cafs_activos = ArchivoCAF.objects.filter(
-            empresa=empresa,
-            tipo_documento=tipo_documento,
-            estado='activo'
-        )
+        filtros = {
+            'empresa': empresa,
+            'tipo_documento': tipo_documento,
+            'estado': 'activo',
+            'oculto': False  # CRÍTICO: NO contar CAFs ocultos
+        }
+        
+        # Si se especifica sucursal, filtrar por ella
+        if sucursal:
+            filtros['sucursal'] = sucursal
+        
+        cafs_activos = ArchivoCAF.objects.filter(**filtros)
         
         # Filtrar por vigencia en Python para asegurar la lógica correcta
         total_disponibles = sum([caf.folios_disponibles() for caf in cafs_activos if caf.esta_vigente()])
@@ -320,12 +328,13 @@ class DTEService:
             return dte
     
     @staticmethod
-    def verificar_disponibilidad_folios(empresa):
+    def verificar_disponibilidad_folios(empresa, sucursal=None):
         """
         Verifica la disponibilidad de folios para todos los tipos de documento
         
         Args:
             empresa: Instancia de Empresa
+            sucursal: Instancia de Sucursal (opcional). Si no se proporciona, busca en todas las sucursales
         
         Returns:
             dict: Diccionario con la disponibilidad por tipo de documento
@@ -333,7 +342,7 @@ class DTEService:
         disponibilidad = {}
         
         for tipo_venta, tipo_sii in DTEService.TIPO_DOCUMENTO_VENTAS_TO_SII.items():
-            folios_disponibles = FolioService.verificar_folios_disponibles(empresa, tipo_sii)
+            folios_disponibles = FolioService.verificar_folios_disponibles(empresa, tipo_sii, sucursal)
             disponibilidad[tipo_venta] = {
                 'tipo_sii': tipo_sii,
                 'folios_disponibles': folios_disponibles,

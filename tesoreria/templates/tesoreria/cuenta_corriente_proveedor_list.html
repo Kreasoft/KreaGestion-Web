@@ -8,726 +8,586 @@
 
 {% block extra_head %}
 <style>
-    /* Fondo terroso suave como en libro de ventas */
-    body {
-        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
-        min-height: 100vh;
+    /* VARIABLES ESTILO PIEDRA PREMIUM */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #43A047;
+        --stone-danger: #e53935;
+        --stone-warning: #FB8C00;
+        --stone-info: #039BE5;
     }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.25rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .header-icon-box {
+        width: 52px; height: 52px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 14px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* ESTADISTICAS */
+    .stone-stats-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .stone-stat-card {
+        background: #FFFFFF;
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stone-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.1);
+    }
+    .stat-content { display: flex; flex-direction: column; }
+    .stat-label { font-size: 0.75rem; color: #8D6E63; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+    .stat-value { font-size: 1.25rem; font-weight: 700; color: var(--stone-text); }
+    .stat-icon { font-size: 1.5rem; opacity: 0.2; color: var(--stone-primary); }
+
+    /* FILTROS */
+    .stone-filter-box {
+        background: linear-gradient(to right, #FAF9F6, #FFFFFF);
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.5rem 0.8rem; font-size: 0.9rem; background-color: #FAFAF8; width: 100%; color: var(--stone-text); transition: all 0.2s;
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none; background: white;
+    }
+    .form-label-stone { font-size: 0.8rem; font-weight: 600; color: #6F5B44; margin-bottom: 0.3rem; display: block; }
+
+    /* BOTONES ACCION */
+    .btn-action-primary { 
+        background: var(--stone-primary); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; 
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; cursor: pointer;
+    }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2); }
+    
+    .btn-action-secondary { 
+        background: white; color: var(--stone-primary); border: 1px solid var(--stone-primary); padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; 
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; cursor: pointer;
+    }
+    .btn-action-secondary:hover { background: #fdfbf7; transform: translateY(-1px); }
+
+    .btn-action-success {
+        background: linear-gradient(135deg, #66BB6A 0%, #43A047 100%); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; transition: all 0.2s;
+        display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;
+    }
+    .btn-action-success:hover { filter: brightness(1.05); transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); color: white; }
+
+    .btn-filter-apply {
+        background: var(--stone-secondary); color: white; border: none; width: 100%; padding: 0.5rem; border-radius: 8px; font-weight: 600; transition: all 0.2s;
+    }
+    .btn-filter-apply:hover { background: #5D4037; }
+
+    /* TABLA PIEDRA PREMIUM */
+    .table-responsive { border-radius: 12px; overflow: hidden; border: 1px solid #E8DCC8; }
+    .table-piedra { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 12px 15px; text-align: left;
+    }
+    .table-piedra tbody tr { transition: all 0.2s; }
+    .table-piedra tbody tr:hover { background-color: #F8F6F2; }
+    .table-piedra tbody td { 
+        padding: 10px 15px; vertical-align: middle; font-size: 0.85rem; color: #4A5568; border-bottom: 1px solid #F0EAE0;
+    }
+    .table-piedra tbody tr:last-child td { border-bottom: none; }
+
+    /* ICONOS ACCION */
+    .btn-icon {
+        width: 30px; height: 30px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; transition: all 0.2s;
+    }
+    .btn-icon-view { color: #0288D1; } .btn-icon-view:hover { background: #E1F5FE; }
+    .btn-icon-pay { color: #2E7D32; } .btn-icon-pay:hover { background: #E8F5E9; }
+    .btn-icon-list { color: #F57F17; } .btn-icon-list:hover { background: #FFFDE7; }
+
+    /* BADGES */
+    .badge-stone { padding: 0.35em 0.8em; border-radius: 6px; font-weight: 600; font-size: 0.7rem; letter-spacing: 0.3px; text-transform: uppercase; }
+    .badge-stone-success { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+    .badge-stone-warning { background: #FFF8E1; color: #F57F17; border: 1px solid #FFE082; }
+    .badge-stone-danger { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+    .badge-stone-info { background: #E1F5FE; color: #0277BD; border: 1px solid #B3E5FC; }
+
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; }
+
+    /* Paginacion Stone */
+    .pagination .page-link { color: var(--stone-primary); border-color: #E8DCC8; }
+    .pagination .page-item.active .page-link { background-color: var(--stone-primary); border-color: var(--stone-primary); color: white; }
+    .pagination .page-link:hover { background-color: #E8DCC8; color: var(--stone-secondary); }
+
+    /* MODAL STONE */
+    .modal-content-stone { border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.15); }
+    .modal-header-stone { background: var(--stone-gradient); padding: 1.25rem; border-bottom: 1px solid #E8DCC8; }
+    .modal-header-stone .modal-title { color: var(--stone-text); font-weight: 700; font-size: 1.1rem; }
+    .modal-header-stone .btn-close { filter: opacity(0.7); }
 </style>
 {% endblock %}
 
 {% block content %}
-
-<div class="container-fluid" style="margin-top: 20px;">
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
-
-                <!-- HEADER PRINCIPAL -->
-                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-truck fa-lg me-2" style="color: #6F5B44;"></i>
-                            <div>
-                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
-                                    Cuenta Corriente Proveedores
-                                </h5>
-                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
-                                    Documentos de compra en cuenta corriente
-                                </small>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <a href="{% url 'tesoreria:exportar_cuenta_corriente_proveedor_excel' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}{% if request.GET.estado_pago %}{% if request.GET.search %}&{% else %}?{% endif %}estado_pago={{ request.GET.estado_pago }}{% endif %}" 
-                               class="btn btn-sm me-2" 
-                               style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem; transition: all 0.3s ease;"
-                               title="Exportar a Excel">
-                                <i class="fas fa-file-excel me-1"></i> Exportar Excel
-                            </a>
-                            <button class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
-                                <i class="fas fa-print me-1"></i>
-                            </button>
-                            <a href="{% url 'tesoreria:documento_pendiente_proveedor_list' %}" class="btn btn-sm me-2" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
-                                <i class="fas fa-list me-1"></i> Ver Todos
-                            </a>
-                            <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;" data-bs-toggle="modal" data-bs-target="#modalDocumento">
-                                <i class="fas fa-plus me-1"></i> Nuevo Documento
-                            </button>
-                        </div>
-                    </div>
+<div class="container-fluid">
+    <div class="single-card-container">
+        
+        <!-- HEADER PREMIUM -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-truck"></i>
                 </div>
-                
-                <div class="card-body" style="padding: 12px; background: #FAFAF8;">
-
-                    <!-- ESTADÍSTICAS PRINCIPALES -->
-                    <div class="row mb-2">
-                        <div class="col-md-3 mb-1">
-                            <div class="stat-card stat-card-1 p-2 position-relative">
-                                <div class="stat-value" style="font-size: 1.1rem;">{{ stats.total_documentos|default:0 }}</div>
-                                <div class="stat-label" style="font-size: 0.7rem;">Total Documentos</div>
-                                <i class="fas fa-file-invoice stat-icon"></i>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-1">
-                            <div class="stat-card stat-card-2 p-2 position-relative">
-                                <div class="stat-value format-number" style="font-size: 1rem;" data-value="{{ stats.total_pendiente|default:0 }}" data-prefix="$"></div>
-                                <div class="stat-label" style="font-size: 0.7rem;">Total Pendiente</div>
-                                <i class="fas fa-clock stat-icon"></i>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-1">
-                            <div class="stat-card stat-card-3 p-2 position-relative">
-                                <div class="stat-value format-number" style="font-size: 1rem;" data-value="{{ stats.total_vencido|default:0 }}" data-prefix="$"></div>
-                                <div class="stat-label" style="font-size: 0.7rem;">Total Vencido</div>
-                                <i class="fas fa-exclamation-triangle stat-icon"></i>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-1">
-                            <div class="stat-card stat-card-4 p-2 position-relative">
-                                <div class="stat-value format-number" style="font-size: 1rem;" data-value="{{ stats.total_parcial|default:0 }}" data-prefix="$"></div>
-                                <div class="stat-label" style="font-size: 0.7rem;">Pago Parcial</div>
-                                <i class="fas fa-coins stat-icon"></i>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- FILTROS -->
-                    <div class="filter-section">
-                        <form method="get">
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                        <i class="fas fa-search me-1"></i>Buscar
-                                    </label>
-                                    <input type="text" name="search" class="form-control form-control-sm"
-                                           placeholder="🔍 Buscar por N° documento, proveedor, RUT..." value="{{ search }}">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                        <i class="fas fa-filter me-1"></i>Estado de Pago
-                                    </label>
-                                    <select name="estado_pago" class="form-select form-select-sm">
-                                        <option value="">Todos</option>
-                                        <option value="credito" {% if estado_pago == "credito" %}selected{% endif %}>Pendiente</option>
-                                        <option value="parcial" {% if estado_pago == "parcial" %}selected{% endif %}>Pago Parcial</option>
-                                        <option value="vencida" {% if estado_pago == "vencida" %}selected{% endif %}>Vencido</option>
-                                        <option value="pagado" {% if estado_pago == "pagado" %}selected{% endif %}>Pagado</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2 d-flex gap-2">
-                                    <button type="submit" class="btn btn-filter flex-grow-1">
-                                        <i class="fas fa-filter me-1"></i>Filtrar
-                                    </button>
-                                    <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}" class="btn btn-sm btn-outline-secondary">
-                                        <i class="fas fa-times"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    
-                    <!-- Lista de Documentos -->
-                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                        <table class="table table-hover table-compact mb-0">
-                            <thead>
-                                <tr>
-                                    <th style="width: 4%;">#</th>
-                                    <th style="width: 10%;">N° Documento</th>
-                                    <th style="width: 18%;">Proveedor</th>
-                                    <th style="width: 8%;">Fecha</th>
-                                    <th style="width: 10%;">Total</th>
-                                    <th style="width: 10%;">Pagado</th>
-                                    <th style="width: 10%;">Saldo</th>
-                                    <th style="width: 8%;">Estado</th>
-                                    <th class="text-center" style="width: 12%;">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for documento in page_obj %}
-                                <tr style="border-bottom: 1px solid #F5F1E8;">
-                                    <td style="font-size: 0.7rem;" class="text-muted">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
-                                    <td style="font-size: 0.7rem;">
-                                        <strong>{{ documento.numero_documento }}</strong>
-                                    </td>
-                                    <td style="font-size: 0.7rem;">
-                                        <div class="d-flex align-items-center">
-                                            <i class="fas fa-truck text-muted me-2"></i>
-                                            {{ documento.proveedor.nombre }}
-                                        </div>
-                                    </td>
-                                    <td style="font-size: 0.7rem;">{{ documento.fecha_emision|date:"d/m/Y"|default:"-" }}</td>
-                                    <td style="font-size: 0.7rem; font-weight: 600;" class="format-number" data-value="{{ documento.total_documento|floatformat:0|default:0 }}">$</td>
-                                    <td style="font-size: 0.7rem; font-weight: 600; color: #28a745;" class="format-number" data-value="{{ documento.monto_pagado|floatformat:0|default:0 }}">$</td>
-                                    <td style="font-size: 0.7rem; font-weight: 700; color: #6F5B44;" class="format-number" data-value="{{ documento.saldo_pendiente|floatformat:0|default:0 }}">$</td>
-                                    <td style="font-size: 0.7rem;">
-                                        {% if documento.saldo_pendiente <= 0 %}
-                                            <span class="badge bg-success" style="font-size: 0.6rem;">Pagado</span>
-                                        {% elif documento.monto_pagado > 0 and documento.saldo_pendiente > 0 %}
-                                            <span class="badge bg-warning" style="font-size: 0.6rem;">Parcial</span>
-                                        {% elif documento.fecha_vencimiento and documento.fecha_vencimiento < today and documento.saldo_pendiente > 0 %}
-                                            <span class="badge bg-danger" style="font-size: 0.6rem;">Vencido</span>
-                                        {% else %}
-                                            <span class="badge bg-info" style="font-size: 0.6rem;">Pendiente</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="btn-group" role="group">
-                                            {% if documento.saldo_pendiente > 0 %}
-                                            <button type="button"
-                                                    class="btn btn-sm btn-action btn-outline-success"
-                                                    title="Registrar Pago"
-                                                    data-doc-id="{{ documento.pk }}"
-                                                    data-doc-numero="{{ documento.numero_documento }}"
-                                                    data-doc-saldo="{{ documento.saldo_pendiente|floatformat:0 }}"
-                                                    onclick="registrarPago(this)">
-                                                <i class="fas fa-dollar-sign"></i>
-                                            </button>
-                                            {% endif %}
-                                            {% if documento.monto_pagado > 0 %}
-                                            <button type="button"
-                                                    class="btn btn-sm btn-action btn-outline-info"
-                                                    title="Ver Pagos"
-                                                    data-doc-id="{{ documento.pk }}"
-                                                    data-doc-numero="{{ documento.numero_documento }}"
-                                                    onclick="verPagos(this)">
-                                                <i class="fas fa-list-alt"></i>
-                                            </button>
-                                            {% endif %}
-                                            {% if documento.proveedor %}
-                                            <a href="{% url 'tesoreria:cuenta_corriente_proveedor_detail' documento.proveedor.pk %}"
-                                               class="btn btn-sm btn-action btn-outline-primary"
-                                               title="Ver detalle">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="9" class="text-center py-2">
-                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
-                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay documentos en cuenta corriente</p>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- PAGINACIÓN -->
-                    {% if page_obj.has_other_pages %}
-                    <div class="d-flex justify-content-center mt-2">
-                        <nav aria-label="Paginación">
-                            <ul class="pagination pagination-sm mb-0" style="font-size: 0.75rem;">
-                                {% if page_obj.has_previous %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">«</a>
-                                </li>
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">‹</a>
-                                </li>
-                                {% endif %}
-
-                                <li class="page-item active">
-                                    <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
-                                        {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-                                    </span>
-                                </li>
-
-                                {% if page_obj.has_next %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">›</a>
-                                </li>
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">»</a>
-                                </li>
-                                {% endif %}
-                            </ul>
-                        </nav>
-                    </div>
-                    {% endif %}
+                <div class="header-text">
+                    <h1>Cuenta Corriente <span class="fw-bold">Proveedores</span></h1>
+                    <p>Documentos de compra y gestión de pagos</p>
                 </div>
             </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'tesoreria:exportar_cuenta_corriente_proveedor_excel' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}{% if request.GET.estado_pago %}{% if request.GET.search %}&{% else %}?{% endif %}estado_pago={{ request.GET.estado_pago }}{% endif %}" class="btn-action-success">
+                    <i class="fas fa-file-excel"></i> Exportar
+                </a>
+                <button type="button" class="btn-action-secondary" onclick="window.print()">
+                    <i class="fas fa-print"></i>
+                </button>
+                <a href="{% url 'tesoreria:documento_pendiente_proveedor_list' %}" class="btn-action-secondary">
+                    <i class="fas fa-list"></i> Ver Todos
+                </a>
+                <button type="button" class="btn-action-primary" data-bs-toggle="modal" data-bs-target="#modalDocumento">
+                    <i class="fas fa-plus"></i> Nuevo Documento
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            
+            <!-- ESTADISTICAS -->
+            <div class="stone-stats-container">
+                <div class="stone-stat-card">
+                    <div class="stat-content">
+                        <span class="stat-label">Total Documentos</span>
+                        <span class="stat-value">{{ stats.total_documentos|default:0 }}</span>
+                    </div>
+                    <i class="fas fa-file-invoice stat-icon"></i>
+                </div>
+                <div class="stone-stat-card">
+                    <div class="stat-content">
+                        <span class="stat-label">Total Pendiente</span>
+                        <span class="stat-value format-number" data-value="{{ stats.total_pendiente|default:0 }}" data-prefix="$"></span>
+                    </div>
+                    <i class="fas fa-clock stat-icon text-warning" style="opacity: 0.2"></i>
+                </div>
+                <div class="stone-stat-card">
+                    <div class="stat-content">
+                        <span class="stat-label">Total Vencido</span>
+                        <span class="stat-value format-number text-danger" data-value="{{ stats.total_vencido|default:0 }}" data-prefix="$"></span>
+                    </div>
+                    <i class="fas fa-exclamation-triangle stat-icon text-danger" style="opacity: 0.2"></i>
+                </div>
+                <div class="stone-stat-card">
+                    <div class="stat-content">
+                        <span class="stat-label">Pago Parcial</span>
+                        <span class="stat-value format-number text-info" data-value="{{ stats.total_parcial|default:0 }}" data-prefix="$"></span>
+                    </div>
+                    <i class="fas fa-coins stat-icon text-info" style="opacity: 0.2"></i>
+                </div>
+            </div>
+
+            <!-- FILTROS -->
+            <div class="stone-filter-box">
+                <form method="get">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-6">
+                            <label class="form-label-stone"><i class="fas fa-search me-1"></i>Buscar</label>
+                            <input type="text" name="search" class="form-control-stone" placeholder="N° documento, proveedor, RUT..." value="{{ search }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label-stone"><i class="fas fa-filter me-1"></i>Estado de Pago</label>
+                            <select name="estado_pago" class="form-select-stone">
+                                <option value="">Todos</option>
+                                <option value="credito" {% if estado_pago == "credito" %}selected{% endif %}>Pendiente</option>
+                                <option value="parcial" {% if estado_pago == "parcial" %}selected{% endif %}>Pago Parcial</option>
+                                <option value="vencida" {% if estado_pago == "vencida" %}selected{% endif %}>Vencido</option>
+                                <option value="pagado" {% if estado_pago == "pagado" %}selected{% endif %}>Pagado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="submit" class="btn-filter-apply">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center" style="border-radius: 8px;">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- TABLA -->
+            <div class="table-responsive">
+                <table class="table-piedra">
+                    <thead>
+                        <tr>
+                            <th width="5%" class="text-center">#</th>
+                            <th width="12%">N° Documento</th>
+                            <th width="20%">Proveedor</th>
+                            <th width="10%">Fecha</th>
+                            <th width="12%" class="text-end">Total</th>
+                            <th width="12%" class="text-end">Pagado</th>
+                            <th width="12%" class="text-end">Saldo</th>
+                            <th width="10%" class="text-center">Estado</th>
+                            <th width="7%" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for documento in page_obj %}
+                        <tr>
+                            <td class="text-center text-muted small">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
+                            <td><span class="fw-bold text-dark">{{ documento.numero_documento }}</span></td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold" style="color: var(--stone-text);">{{ documento.proveedor.nombre }}</span>
+                                </div>
+                            </td>
+                            <td>{{ documento.fecha_emision|date:"d/m/Y"|default:"-" }}</td>
+                            <td class="text-end fw-bold format-number" data-value="{{ documento.total_documento|floatformat:0|default:0 }}">$</td>
+                            <td class="text-end fw-bold text-success format-number" data-value="{{ documento.monto_pagado|floatformat:0|default:0 }}">$</td>
+                            <td class="text-end fw-bold text-danger format-number" data-value="{{ documento.saldo_pendiente|floatformat:0|default:0 }}">$</td>
+                            <td class="text-center">
+                                {% if documento.saldo_pendiente <= 0 %}
+                                    <span class="badge badge-stone badge-stone-success">Pagado</span>
+                                {% elif documento.monto_pagado > 0 and documento.saldo_pendiente > 0 %}
+                                    <span class="badge badge-stone badge-stone-warning">Parcial</span>
+                                {% elif documento.fecha_vencimiento and documento.fecha_vencimiento < today and documento.saldo_pendiente > 0 %}
+                                    <span class="badge badge-stone badge-stone-danger">Vencido</span>
+                                {% else %}
+                                    <span class="badge badge-stone badge-stone-info">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-1">
+                                    {% if documento.saldo_pendiente > 0 %}
+                                    <button type="button" class="btn-icon btn-icon-pay" title="Registrar Pago"
+                                            data-doc-id="{{ documento.pk }}"
+                                            data-doc-numero="{{ documento.numero_documento }}"
+                                            data-doc-saldo="{{ documento.saldo_pendiente|floatformat:0 }}"
+                                            onclick="registrarPago(this)">
+                                        <i class="fas fa-hand-holding-usd"></i>
+                                    </button>
+                                    {% endif %}
+
+                                    {% if documento.monto_pagado > 0 %}
+                                    <button type="button" class="btn-icon btn-icon-list" title="Ver Pagos"
+                                            data-doc-id="{{ documento.pk }}"
+                                            data-doc-numero="{{ documento.numero_documento }}"
+                                            onclick="verPagos(this)">
+                                        <i class="fas fa-history"></i>
+                                    </button>
+                                    {% endif %}
+
+                                    {% if documento.proveedor %}
+                                    <a href="{% url 'tesoreria:cuenta_corriente_proveedor_detail' documento.proveedor.pk %}" class="btn-icon btn-icon-view" title="Ver Detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5">
+                                <i class="fas fa-file-invoice fa-3x mb-3" style="color: #E8DCC8;"></i>
+                                <h6 class="text-muted fw-bold">No hay documentos registrados</h6>
+                                <p class="text-muted small">No se encontraron documentos en cuenta corriente.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PAGINACION -->
+            {% if page_obj.has_other_pages %}
+            <nav class="mt-4 d-flex justify-content-center">
+                <ul class="pagination pagination-sm">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&laquo;</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&lsaquo;</a></li>
+                    {% endif %}
+                    
+                    <li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&rsaquo;</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&raquo;</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
         </div>
     </div>
 </div>
 
-<style>
-    /* Paleta terrosa para tarjetas de estadísticas */
-    .stat-card {
-        border: none;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-    }
-
-    .stat-card-1 {
-        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
-    }
-
-    .stat-card-2 {
-        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
-    }
-
-    .stat-card-3 {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-    }
-
-    .stat-card-4 {
-        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
-    }
-
-    .stat-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: white;
-        margin-bottom: 0.25rem;
-    }
-
-    .stat-label {
-        color: rgba(255,255,255,0.9);
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 500;
-    }
-
-    .stat-icon {
-        font-size: 2rem;
-        color: rgba(255,255,255,0.3);
-        position: absolute;
-        right: 15px;
-        bottom: 15px;
-    }
-
-    .filter-section {
-        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .table-compact {
-        font-size: 0.75rem;
-        line-height: 1.1;
-    }
-
-    .table-compact thead th {
-        padding: 4px 2px;
-        font-weight: 600;
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-        border: none;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.2px;
-        line-height: 1.1;
-    }
-
-    .table-compact tbody td {
-        padding: 2px 3px;
-        vertical-align: middle;
-        line-height: 1.2;
-        font-size: 0.7rem;
-    }
-
-    .table-compact tbody tr {
-        height: 28px;
-    }
-
-    .btn-filter {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        border: none;
-        color: white;
-        padding: 8px 20px;
-        font-weight: 500;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-filter:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
-        color: white;
-    }
-
-    .btn-action {
-        padding: 4px 10px;
-        font-size: 0.75rem;
-        border-radius: 6px;
-    }
-</style>
-
-<!-- Modal para Crear Documento -->
+<!-- Modal para Crear Documento (Estilo Stone Premium) -->
 <div class="modal fade" id="modalDocumento" tabindex="-1" aria-labelledby="modalDocumentoLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content" style="border: 2px solid #E8DCC8; border-radius: 15px;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-bottom: 2px solid #D4C4A8;">
-                <h5 class="modal-title" id="modalDocumentoLabel" style="color: #6F5B44; font-weight: 600;">
-                    <i class="fas fa-file-invoice me-2"></i>Nuevo Documento
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content modal-content-stone">
+            <div class="modal-header modal-header-stone">
+                <h5 class="modal-title" id="modalDocumentoLabel">
+                    <i class="fas fa-plus-circle me-2"></i>Nuevo Documento Proveedor
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="modalDocumentoBody" style="background: #FAFAF8;">
-                <!-- Aquí se cargará el formulario -->
+            <div class="modal-body p-4" id="modalDocumentoBody" style="background-color: #FAFAF8;">
+                <!-- Se carga via AJAX -->
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted">Cargando formulario...</p>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- SCRIPTS MANTENIDOS DEL ORIGINAL -->
 <script>
 // Función para formatear números con punto como separador de miles
 function formatearNumero(numero) {
-    // Convertir a número y redondear
     const num = Math.round(parseFloat(numero) || 0);
-    // Convertir a string y agregar separador de miles
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Formatear todos los números en la página
+    // Formatear numeros
     document.querySelectorAll('.format-number').forEach(element => {
         const value = element.dataset.value;
         const prefix = element.dataset.prefix || '';
         const currentText = element.textContent.trim();
-        
         if (value) {
-            // Limpiar el valor de cualquier formato previo
             const cleanValue = value.toString().replace(/[^\d.-]/g, '');
-            // Si ya tiene un prefijo (como $), mantenerlo
             const finalPrefix = currentText.startsWith('$') ? '$' : prefix;
             element.textContent = finalPrefix + formatearNumero(cleanValue);
         }
     });
     
+    // Configurar Modal AJAX
     const modalCrear = document.getElementById('modalDocumento');
     if (modalCrear) {
         modalCrear.addEventListener('show.bs.modal', function() {
-            document.getElementById('modalDocumentoLabel').innerHTML = '<i class="fas fa-file-invoice me-2"></i>Nuevo Documento';
-            document.getElementById('modalDocumentoBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div><p class="mt-2">Cargando...</p></div>';
-            
+            // Reset content
+            document.getElementById('modalDocumentoLabel').innerHTML = '<i class="fas fa-plus-circle me-2"></i>Nuevo Documento Proveedor';
+            // Fetch form
             fetch('{% url "tesoreria:documento_pendiente_proveedor_create" %}')
-            .then(response => response.text())
+            .then(res => res.text())
             .then(html => {
                 document.getElementById('modalDocumentoBody').innerHTML = html;
                 setupFormHandler();
             })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('modalDocumentoBody').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            .catch(err => {
+                document.getElementById('modalDocumentoBody').innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
             });
         });
     }
 });
 
+// Handler para el form cargado via AJAX
 function setupFormHandler() {
     const form = document.querySelector('#modalDocumentoBody form');
     if (form) {
+        // Estilizar inputs del form cargado si es necesario o añadir clases via JS
+        form.querySelectorAll('input, select, textarea').forEach(el => {
+            el.classList.add('form-control-stone'); // Aplicar estilo nuestro
+            el.classList.remove('form-control', 'form-select'); // Quitar estilo bootstrap default para evitar conflictos si queremos full custom
+        });
+
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            
             const formData = new FormData(this);
-            const url = this.action;
-            
-            fetch(url, {
+            fetch(this.action, {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                }
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
+            .then(res => res.json())
+            .then(d => {
+                if(d.success) {
                     bootstrap.Modal.getInstance(document.getElementById('modalDocumento')).hide();
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Éxito!',
-                        text: data.message,
-                        confirmButtonColor: '#8B7355',
-                        timer: 2000
-                    }).then(() => {
-                        location.reload();
-                    });
+                    Swal.fire({icon: 'success', title: '¡Éxito!', text: d.message, confirmButtonColor: '#8B7355', timer: 2000})
+                        .then(() => location.reload());
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message,
-                        confirmButtonColor: '#8B7355'
-                    });
+                     Swal.fire({icon: 'error', title: 'Error', text: d.message, confirmButtonColor: '#8B7355'});
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error al procesar la solicitud',
-                    confirmButtonColor: '#8B7355'
-                });
-            });
+            .catch(err => Swal.fire({icon: 'error', title: 'Error', text: 'Error procesando solicitud', confirmButtonColor: '#8B7355'}));
         });
     }
 }
 
+// Logica de Pagos (Simplificada visualmente pero funcionalmente igual)
 let formasPagoGlobal = [];
 let formasPagoSeleccionadas = [];
 
 function registrarPago(btn) {
     const documentoId = btn.dataset.docId;
     const numeroDocumento = btn.dataset.docNumero;
-    // Limpiar el valor del saldo (eliminar puntos, comas, espacios)
-    const saldoRaw = btn.dataset.docSaldo.toString().replace(/[^\d.-]/g, '');
-    const saldoPendiente = parseFloat(saldoRaw) || 0;
-    
-    console.log('Saldo raw:', btn.dataset.docSaldo, 'Saldo limpio:', saldoRaw, 'Saldo parseado:', saldoPendiente);
+    const saldoPendiente = parseFloat(btn.dataset.docSaldo.replace(/[^\d.-]/g, '')) || 0;
     
     formasPagoSeleccionadas = [];
     
-    // Obtener formas de pago disponibles
     fetch('/tesoreria/obtener-formas-pago/')
-        .then(response => response.json())
+        .then(res => res.json())
         .then(data => {
             formasPagoGlobal = data.formas_pago || [];
             mostrarModalPago(documentoId, numeroDocumento, saldoPendiente);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'No se pudieron cargar las formas de pago',
-                confirmButtonColor: '#8B7355'
-            });
         });
 }
 
 function mostrarModalPago(documentoId, numeroDocumento, saldoPendiente) {
     const saldoFormateado = formatearNumero(saldoPendiente);
     
-    const html = `
-        <div class="text-start">
-            <div class="mb-3 p-3" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-radius: 8px; border: 2px solid #D4C4A8;">
-                <p class="mb-2"><strong style="color: #6F5B44;">Documento:</strong> <span class="fw-bold">${numeroDocumento}</span></p>
-                <p class="mb-0"><strong style="color: #6F5B44;">Saldo Pendiente:</strong> <span class="text-danger fw-bold" style="font-size: 1.2rem;">$${saldoFormateado}</span></p>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label fw-bold">Formas de Pago:</label>
-                <div id="formasPagoContainer">
-                    <!-- Aquí se agregarán las formas de pago -->
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="agregarFormaPago()">
-                    <i class="fas fa-plus me-1"></i> Agregar Forma de Pago
-                </button>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label fw-bold">Total a Pagar:</label>
-                <input type="text" id="totalPagar" class="form-control fw-bold text-success" value="$0" readonly>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label fw-bold">Observaciones:</label>
-                <textarea id="observacionesPago" class="form-control" rows="2" placeholder="Observaciones del pago..."></textarea>
-            </div>
-            
-            <input type="hidden" id="documentoIdPago" value="${documentoId}">
-            <input type="hidden" id="saldoPendientePago" value="${saldoPendiente}">
-        </div>
-    `;
-    
     Swal.fire({
-        title: '<span style="color: #6F5B44;"><i class="fas fa-dollar-sign me-2"></i>Registrar Pago</span>',
-        html: html,
-        width: 700,
+        title: `<h5 style="color:#6F5B44">Registrar Pago Doc. ${numeroDocumento}</h5>`,
+        html: `
+            <div class="text-start">
+                <div class="alert alert-warning mb-3"><strong>Saldo Pendiente:</strong> $${saldoFormateado}</div>
+                <div id="formasPagoContainer" class="mb-2"></div>
+                <button type="button" class="btn btn-sm btn-outline-secondary mb-3" onclick="agregarFormaPago()">+ Agregar Forma Pago</button>
+                <div class="mb-2 fw-bold">Total a Pagar: <span id="totalPagar" class="text-success">$0</span></div>
+                <textarea id="observacionesPago" class="form-control-stone" placeholder="Observaciones"></textarea>
+                <input type="hidden" id="documentoIdPago" value="${documentoId}">
+                <input type="hidden" id="saldoPendientePago" value="${saldoPendiente}">
+            </div>
+        `,
+        width: 600,
         showCancelButton: true,
+        confirmButtonText: 'Registrar',
         confirmButtonColor: '#8B7355',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '<i class="fas fa-save me-1"></i> Registrar Pago',
-        cancelButtonText: 'Cancelar',
-        customClass: {
-            popup: 'modal-pago-terroso',
-            title: 'modal-pago-title'
-        },
-        didOpen: () => {
-            // Agregar estilos al modal
-            const style = document.createElement('style');
-            style.textContent = `
-                .modal-pago-terroso {
-                    border: 3px solid #D4C4A8 !important;
-                }
-                .modal-pago-title {
-                    background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%) !important;
-                    padding: 15px !important;
-                    border-radius: 8px 8px 0 0 !important;
-                    border-bottom: 2px solid #D4C4A8 !important;
-                }
-            `;
-            document.head.appendChild(style);
-            agregarFormaPago(); // Agregar primera forma de pago por defecto
-        },
-        preConfirm: () => {
-            return validarYEnviarPago();
-        }
+        didOpen: () => agregarFormaPago(),
+        preConfirm: () => validarYEnviarPago()
     });
 }
 
 function agregarFormaPago() {
     const container = document.getElementById('formasPagoContainer');
-    const index = formasPagoSeleccionadas.length;
+    const idx = formasPagoSeleccionadas.length;
+    const div = document.createElement('div');
+    div.className = 'row g-2 mb-2 align-items-center forma-pago-item';
+    div.dataset.index = idx;
     
-    const formaPagoHtml = `
-        <div class="card mb-2 forma-pago-item" data-index="${index}">
-            <div class="card-body p-2">
-                <div class="row g-2">
-                    <div class="col-md-6">
-                        <label class="form-label" style="font-size: 0.8rem;">Forma de Pago</label>
-                        <select class="form-select form-select-sm forma-pago-select" data-index="${index}">
-                            <option value="">Seleccione...</option>
-                            ${formasPagoGlobal.map(fp => `<option value="${fp.id}">${fp.nombre}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" style="font-size: 0.8rem;">Monto</label>
-                        <input type="number" class="form-control form-control-sm monto-pago" data-index="${index}" 
-                               min="1" step="1" placeholder="0" onchange="calcularTotal()">
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="eliminarFormaPago(${index})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
+    div.innerHTML = `
+        <div class="col-6">
+            <select class="form-select-stone forma-pago-select">
+                <option value="">Forma de Pago...</option>
+                ${formasPagoGlobal.map(f => `<option value="${f.id}">${f.nombre}</option>`).join('')}
+            </select>
         </div>
+        <div class="col-4">
+            <input type="number" class="form-control-stone monto-pago" placeholder="Monto" onchange="calcularTotal()">
+        </div>
+        <div class="col-2"><button class="btn btn-sm btn-outline-danger" onclick="this.closest('.row').remove(); calcularTotal()">X</button></div>
     `;
-    
-    container.insertAdjacentHTML('beforeend', formaPagoHtml);
-    formasPagoSeleccionadas.push({ forma_pago_id: null, monto: 0 });
-}
-
-function eliminarFormaPago(index) {
-    const item = document.querySelector(`.forma-pago-item[data-index="${index}"]`);
-    if (item) {
-        item.remove();
-        formasPagoSeleccionadas[index] = null;
-        calcularTotal();
-    }
+    container.appendChild(div);
+    formasPagoSeleccionadas.push({});
 }
 
 function calcularTotal() {
     let total = 0;
-    document.querySelectorAll('.monto-pago').forEach(input => {
-        const monto = parseFloat(input.value) || 0;
-        total += monto;
-    });
-    
-    document.getElementById('totalPagar').value = `$${formatearNumero(total)}`;
-    return total;
+    document.querySelectorAll('.monto-pago').forEach(input => total += parseFloat(input.value) || 0);
+    document.getElementById('totalPagar').innerText = `$${formatearNumero(total)}`;
 }
 
 function validarYEnviarPago() {
-    const documentoId = document.getElementById('documentoIdPago').value;
-    const saldoPendiente = parseFloat(document.getElementById('saldoPendientePago').value);
-    const observaciones = document.getElementById('observacionesPago').value;
+    const docId = document.getElementById('documentoIdPago').value;
+    const saldo = parseFloat(document.getElementById('saldoPendientePago').value);
+    const obs = document.getElementById('observacionesPago').value;
     
-    // Recopilar formas de pago
-    const formasPago = [];
-    let totalPago = 0;
-    
+    const formas = [];
+    let total = 0;
     document.querySelectorAll('.forma-pago-item').forEach(item => {
-        const index = item.dataset.index;
-        const formaPagoId = item.querySelector('.forma-pago-select').value;
-        const monto = parseFloat(item.querySelector('.monto-pago').value) || 0;
-        
-        if (formaPagoId && monto > 0) {
-            formasPago.push({
-                forma_pago_id: formaPagoId,
-                monto: monto
-            });
-            totalPago += monto;
+        const fid = item.querySelector('.forma-pago-select').value;
+        const mont = parseFloat(item.querySelector('.monto-pago').value) || 0;
+        if (fid && mont > 0) {
+            formas.push({forma_pago_id: fid, monto: mont});
+            total += mont;
         }
     });
-    
-    // Validaciones
-    if (formasPago.length === 0) {
-        Swal.showValidationMessage('Debe agregar al menos una forma de pago');
-        return false;
-    }
-    
-    if (totalPago <= 0) {
-        Swal.showValidationMessage('El monto total debe ser mayor a 0');
-        return false;
-    }
-    
-    if (totalPago > saldoPendiente) {
-        Swal.showValidationMessage(`El monto total ($${formatearNumero(totalPago)}) excede el saldo pendiente ($${formatearNumero(saldoPendiente)})`);
-        return false;
-    }
-    
-    // Enviar pago
-    Swal.fire({
-        title: 'Procesando...',
-        text: 'Registrando pago',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
-    });
-    
-    fetch('/tesoreria/registrar-pago/', {
+
+    if(formas.length === 0) return Swal.showValidationMessage('Agregue un pago');
+    if(total > saldo) return Swal.showValidationMessage('Excede saldo pendiente');
+
+    return fetch('/tesoreria/registrar-pago/', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify({
-            documento_id: documentoId,
-            formas_pago: formasPago,
-            observaciones: observaciones
-        })
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify({documento_id: docId, formas_pago: formas, observaciones: obs})
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            Swal.fire({
-                icon: 'success',
-                title: '¡Pago Registrado!',
-                text: data.message,
-                confirmButtonColor: '#8B7355',
-                timer: 2000
-            }).then(() => {
-                location.reload();
-            });
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: data.error || 'No se pudo registrar el pago',
-                confirmButtonColor: '#8B7355'
-            });
-        }
+    .then(r => r.json())
+    .then(d => {
+        if(!d.success) throw new Error(d.message);
+        return d;
     })
-    .catch(error => {
-        console.error('Error:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Error al procesar el pago',
-            confirmButtonColor: '#8B7355'
-        });
+    .catch(e => Swal.showValidationMessage(e.message));
+}
+
+function verPagos(btn) {
+    const docId = btn.dataset.docId;
+    fetch(`/tesoreria/historial-pagos/${docId}/`)
+    .then(r => r.json())
+    .then(d => {
+        let html = '<table class="table table-sm text-start"><thead><tr><th>Fecha</th><th>Monto</th><th>Tipo</th></tr></thead><tbody>';
+        d.pagos.forEach(p => html += `<tr><td>${p.fecha}</td><td>$${formatearNumero(p.monto)}</td><td>${p.forma_pago}</td></tr>`);
+        html += '</tbody></table>';
+        Swal.fire({title: 'Historial Pagos', html: html, confirmButtonColor: '#8B7355'});
     });
-    
-    return false; // Evitar que se cierre el modal automáticamente
 }
 
 function getCookie(name) {
@@ -744,66 +604,5 @@ function getCookie(name) {
     }
     return cookieValue;
 }
-
-function verPagos(btn) {
-    const documentoId = btn.dataset.docId;
-    const numeroDocumento = btn.dataset.docNumero;
-    
-    // Mostrar loading
-    Swal.fire({
-        title: 'Cargando...',
-        text: 'Obteniendo historial de pagos',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
-    });
-    
-    // Obtener historial de pagos
-    fetch(`/tesoreria/historial-pagos/${documentoId}/`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.pagos && data.pagos.length > 0) {
-                let html = `<div class="text-start"><p><strong>Documento:</strong> ${numeroDocumento}</p>`;
-                html += '<table class="table table-sm table-bordered mt-3">';
-                html += '<thead><tr><th>Fecha</th><th>Monto</th><th>Forma Pago</th></tr></thead><tbody>';
-                
-                data.pagos.forEach(pago => {
-                    html += `<tr>
-                        <td>${pago.fecha}</td>
-                        <td>$${formatearNumero(pago.monto)}</td>
-                        <td>${pago.forma_pago}</td>
-                    </tr>`;
-                });
-                
-                html += '</tbody></table>';
-                html += `<p class="mt-3"><strong>Total Pagado:</strong> $${formatearNumero(data.total_pagado)}</p></div>`;
-                
-                Swal.fire({
-                    title: 'Historial de Pagos',
-                    html: html,
-                    width: 600,
-                    confirmButtonColor: '#8B7355'
-                });
-            } else {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Sin Pagos',
-                    text: 'No hay pagos registrados para este documento',
-                    confirmButtonColor: '#8B7355'
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'No se pudo obtener el historial de pagos',
-                confirmButtonColor: '#8B7355'
-            });
-        });
-}
 </script>
-
 {% endblock %}

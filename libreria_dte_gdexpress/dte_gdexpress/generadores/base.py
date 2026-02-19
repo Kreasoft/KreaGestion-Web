@@ -50,6 +50,11 @@ class GeneradorDTEBase:
         self.direccion_emisor = kwargs.get('direccion_emisor', '')
         self.comuna_emisor = kwargs.get('comuna_emisor', '')
         self.ciudad_emisor = kwargs.get('ciudad_emisor', '')
+        # Campos adicionales del emisor (requeridos por DTEBox)
+        self.telefono_emisor = kwargs.get('telefono_emisor', '')
+        self.correo_emisor = kwargs.get('correo_emisor', '')
+        self.acteco = kwargs.get('acteco', '')  # Código de actividad económica
+        self.codigo_vendedor = kwargs.get('codigo_vendedor', '')
         
         # Validar RUT emisor
         if not validar_rut(self.rut_emisor):
@@ -62,6 +67,9 @@ class GeneradorDTEBase:
         self.direccion_receptor = kwargs.get('direccion_receptor', '')
         self.comuna_receptor = kwargs.get('comuna_receptor', '')
         self.ciudad_receptor = kwargs.get('ciudad_receptor', '')
+        # Campos adicionales del receptor (requeridos por DTEBox)
+        self.contacto_receptor = kwargs.get('contacto_receptor', '')
+        self.correo_receptor = kwargs.get('correo_receptor', '')
         
         # Items
         self.items = kwargs.get('items', [])
@@ -149,12 +157,22 @@ class GeneradorDTEBase:
         etree.SubElement(emisor, 'RznSoc').text = validar_texto(self.razon_social_emisor, 'Razón Social Emisor', max_length=100)
         etree.SubElement(emisor, 'GiroEmis').text = validar_texto(self.giro_emisor, 'Giro Emisor', max_length=80, requerido=False)
         
+        # Campos adicionales del emisor (requeridos por DTEBox)
+        if self.telefono_emisor:
+            etree.SubElement(emisor, 'Telefono').text = str(self.telefono_emisor)[:20]
+        if self.correo_emisor:
+            etree.SubElement(emisor, 'CorreoEmisor').text = self.correo_emisor[:80]
+        if self.acteco:
+            etree.SubElement(emisor, 'Acteco').text = str(self.acteco)[:6]
+        
         if self.direccion_emisor:
             etree.SubElement(emisor, 'DirOrigen').text = self.direccion_emisor[:70]
         if self.comuna_emisor:
             etree.SubElement(emisor, 'CmnaOrigen').text = self.comuna_emisor[:20]
         if self.ciudad_emisor:
             etree.SubElement(emisor, 'CiudadOrigen').text = self.ciudad_emisor[:20]
+        if self.codigo_vendedor:
+            etree.SubElement(emisor, 'CdgVendedor').text = str(self.codigo_vendedor)[:60]
         
         # Receptor (si aplica)
         if self.rut_receptor and validar_rut(self.rut_receptor):
@@ -164,6 +182,11 @@ class GeneradorDTEBase:
             
             if self.giro_receptor:
                 etree.SubElement(receptor, 'GiroRecep').text = self.giro_receptor[:40]
+            # Campos adicionales del receptor (requeridos por DTEBox)
+            if self.contacto_receptor:
+                etree.SubElement(receptor, 'Contacto').text = str(self.contacto_receptor)[:80]
+            if self.correo_receptor:
+                etree.SubElement(receptor, 'CorreoRecep').text = self.correo_receptor[:80]
             if self.direccion_receptor:
                 etree.SubElement(receptor, 'DirRecep').text = self.direccion_receptor[:70]
             if self.comuna_receptor:
@@ -176,9 +199,11 @@ class GeneradorDTEBase:
         
         if self.neto > 0:
             etree.SubElement(totales, 'MntNeto').text = str(int(self.neto))
-        if self.exento > 0:
-            etree.SubElement(totales, 'MntExe').text = str(int(self.exento))
+        # Siempre incluir MntExe (requerido por DTEBox)
+        etree.SubElement(totales, 'MntExe').text = str(int(self.exento))
+        # Incluir TasaIVA cuando hay IVA (requerido por DTEBox)
         if self.iva > 0:
+            etree.SubElement(totales, 'TasaIVA').text = '19'
             etree.SubElement(totales, 'IVA').text = str(int(self.iva))
         
         etree.SubElement(totales, 'MntTotal').text = str(int(self.total))
@@ -199,13 +224,21 @@ class GeneradorDTEBase:
             
             etree.SubElement(detalle, 'NroLinDet').text = str(item.get('numero_linea', i))
             
+            # Código del item (requerido por DTEBox)
+            codigo = item.get('codigo', '')
+            if codigo:
+                cdg_item = etree.SubElement(detalle, 'CdgItem')
+                etree.SubElement(cdg_item, 'TpoCodigo').text = 'INT'  # Código interno
+                etree.SubElement(cdg_item, 'VlrCodigo').text = str(codigo)[:35]
+            
             # Nombre del producto/servicio
             nombre = validar_texto(item['nombre'], f'Nombre item {i}', max_length=80)
             etree.SubElement(detalle, 'NmbItem').text = nombre
             
-            # Descripción (opcional)
-            if 'descripcion' in item and item['descripcion']:
-                etree.SubElement(detalle, 'DscItem').text = item['descripcion'][:1000]
+            # Descripción (opcional pero recomendado por DTEBox)
+            descripcion = item.get('descripcion', nombre)  # Usar nombre si no hay descripción
+            if descripcion:
+                etree.SubElement(detalle, 'DscItem').text = descripcion[:1000]
             
             # Cantidad
             cantidad = item.get('cantidad', 1)
@@ -272,7 +305,8 @@ class GeneradorDTEBase:
         """
         # Crear elemento raíz DTE
         dte = etree.Element('DTE', version='1.0')
-        documento = etree.SubElement(dte, 'Documento', ID=f'DTE-{self.tipo_dte}-{self.folio}')
+        # ID del documento en formato FolioTipo (ej: F57T52 para guía folio 57)
+        documento = etree.SubElement(dte, 'Documento', ID=f'F{self.folio}T{self.tipo_dte}')
         
         # Agregar Encabezado
         documento.append(self._crear_elemento_encabezado())

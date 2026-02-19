@@ -1,180 +1,283 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block title %}Unidades de Medida - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block title %}Unidades de Medida{% endblock %}
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
+
+    /* Ocultar top-bar si existe y ajustar layout */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-top: 2rem !important; }
+
+    /* Estilo Piedra - Variables Locales */
+    :root {
+        --color-piedra-texto: #5D4037;
+        --color-piedra-boton: #8D6E63;
+        --color-piedra-borde: #d7ccc8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --shadow-piedra: 0 4px 15px rgba(93, 64, 55, 0.15);
+    }
+
+    .card-header-piedra {
+        background: var(--gradient-piedra);
+        border-bottom: 2px solid var(--color-piedra-borde);
+        padding: 1.2rem 2rem;
+    }
+
+    .btn-piedra {
+        background: var(--gradient-piedra);
+        border: 1px solid var(--color-piedra-borde);
+        color: var(--color-piedra-texto) !important;
+        font-weight: 600;
+        padding: 0.5rem 1.2rem;
+        border-radius: 10px;
+        box-shadow: var(--shadow-piedra);
+        transition: all 0.3s ease;
+        font-size: 0.85rem;
+    }
+
+    .btn-piedra:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(93, 64, 55, 0.25);
+        filter: brightness(0.95);
+    }
+
+    /* Tabla Estilo Piedra Compacta (32px) */
+    .table-piedra-compact thead th {
+        background: rgba(215, 204, 200, 0.2);
+        color: var(--color-piedra-texto);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid var(--color-piedra-borde);
+        padding: 0.4rem 0.8rem;
+        height: 32px;
+        vertical-align: middle;
+    }
+
+    .table-piedra-compact tbody tr {
+        height: 32px !important;
+        transition: background-color 0.2s;
+    }
+
+    .table-piedra-compact tbody tr:hover {
+        background-color: rgba(141, 110, 99, 0.05) !important;
+    }
+
+    .table-piedra-compact tbody td {
+        padding: 0 0.8rem !important;
+        vertical-align: middle;
+        color: #444;
+        height: 32px !important;
+        font-size: 0.85rem;
+        border-bottom: 1px solid rgba(215, 204, 200, 0.2);
+    }
+
+    .stats-card-piedra {
+        position: relative;
+        border: 1px solid var(--color-piedra-borde);
+        border-radius: 15px;
+        background: white;
+        transition: all 0.3s ease;
+        overflow: hidden;
+        padding: 1rem !important;
+        min-height: 80px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .stats-card-piedra:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-piedra);
+    }
+
+    .stats-card-icon {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 5.5rem;
+        opacity: 0.2;
+        color: var(--color-piedra-texto);
+    }
+
+    /* Colores Soft Pastel */
+    .bg-pastel-blue { background-color: #E3F2FD !important; border-color: #BBDEFB !important; }
+    .bg-pastel-green { background-color: #E8F5E9 !important; border-color: #C8E6C9 !important; }
+    .bg-pastel-yellow { background-color: #FFFDE7 !important; border-color: #FFF9C4 !important; }
+    .bg-pastel-orange { background-color: #FFF3E0 !important; border-color: #FFE0B2 !important; }
+
+    .badge-piedra {
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        text-transform: uppercase;
+    }
+
+    .badge-piedra-success { background: rgba(40, 167, 69, 0.1); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2); }
+    .badge-piedra-info { background: rgba(23, 162, 184, 0.1); color: #17a2b8; border: 1px solid rgba(23, 162, 184, 0.2); }
+
+    .action-btn-piedra {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid var(--color-piedra-borde);
+        background: white;
+        color: var(--color-piedra-texto);
+        transition: all 0.2s;
+    }
+
+    .action-btn-piedra:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        background: var(--gradient-piedra);
+    }
+
+    .form-control-premium {
+        border-radius: 12px;
+        border: 1px solid var(--color-piedra-borde);
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+
+    .form-control-premium:focus {
+        border-color: var(--color-piedra-boton);
+        box-shadow: 0 0 0 3px rgba(141, 110, 99, 0.1);
+    }
+
+    .simbolo-badge {
+        background: rgba(141, 110, 99, 0.05);
+        color: var(--color-piedra-texto);
+        padding: 0.15rem 0.6rem;
+        border-radius: 6px;
+        font-family: monospace;
+        font-weight: bold;
+        border: 1px solid var(--color-piedra-borde);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <!-- Tarjeta Principal -->
-            <div class="card shadow-sm">
-                <!-- Header de la Tarjeta -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-11">
+
+            <div class="card shadow-sm border-0" style="border-radius: 20px; overflow: hidden; border: 1px solid var(--color-piedra-borde) !important;">
+                <!-- Header Premium -->
+                <div class="card-header-piedra">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-ruler fa-2x text-white me-3"></i>
+                            <div class="p-3 bg-white bg-opacity-50 rounded-circle me-3 shadow-sm">
+                                <i class="fas fa-ruler fa-lg" style="color: var(--color-piedra-texto);"></i>
+                            </div>
                             <div>
-                                <h5 class="mb-0 text-white">
+                                <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif;">
                                     Unidades de Medida
-                                </h5>
-                                <small class="text-white-50">Gestiona las unidades de medida de tu inventario</small>
+                                </h4>
+                                <p class="mb-0 small opacity-75" style="color: var(--color-piedra-texto);">
+                                    Definición de magnitudes y métricas para el inventario
+                                </p>
                             </div>
                         </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#unidadModal" onclick="abrirModalCrear()" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3);">
-                                <i class="fas fa-plus me-2"></i> Nueva Unidad
-                            </button>
-                        </div>
+                        <button type="button" class="btn btn-piedra" data-bs-toggle="modal" data-bs-target="#unidadModal" onclick="abrirModalCrear()">
+                            <i class="fas fa-plus-circle me-2"></i> Nueva Unidad
+                        </button>
                     </div>
                 </div>
                 
-                <!-- Estadísticas dentro de la tarjeta -->
-                <div class="card-body" style="padding: 1.5rem;">
-                    <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Total Unidades</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">{{ unidades|length }}</h4>
-                                        </div>
-                                        <i class="fas fa-ruler fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                    </div>
-                                </div>
+                <div class="card-body p-4">
+                    <!-- Estadísticas Internas -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4 col-lg-3">
+                            <div class="stats-card-piedra bg-pastel-blue border shadow-none">
+                                <div class="stats-card-icon"><i class="fas fa-ruler-combined"></i></div>
+                                <h6 class="text-muted extra-small text-uppercase fw-bold mb-1">Total Unidades</h6>
+                                <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto);">{{ unidades|length }}</h4>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); border: none; box-shadow: 0 2px 8px rgba(160, 130, 109, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Activas</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">{{ unidades|length }}</h4>
-                                        </div>
-                                        <i class="fas fa-check-circle fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #C19A6B 0%, #A0826D 100%); border: none; box-shadow: 0 2px 8px rgba(193, 154, 107, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Peso</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">-</h4>
-                                        </div>
-                                        <i class="fas fa-weight fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%); border: none; box-shadow: 0 2px 8px rgba(212, 165, 116, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Volumen</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">-</h4>
-                                        </div>
-                                        <i class="fas fa-flask fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                    </div>
-                                </div>
+                        <div class="col-md-4 col-lg-3">
+                            <div class="stats-card-piedra bg-pastel-green border shadow-none">
+                                <div class="stats-card-icon"><i class="fas fa-check-circle"></i></div>
+                                <h6 class="text-muted extra-small text-uppercase fw-bold mb-1">Unidades Activas</h6>
+                                <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto);">{{ unidades|length }}</h4>
                             </div>
                         </div>
                     </div>
-                </div>
-                <!-- Lista compacta -->
-                <div class="card-body p-0">
+
                     {% if unidades %}
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="border-0 py-1 px-2">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="selectAll">
-                                                <label class="form-check-label" for="selectAll">
-                                                    <strong>Nombre</strong>
-                                                </label>
+                    <div class="table-responsive">
+                        <table class="table table-piedra-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th width="40%">Nombre de la Unidad</th>
+                                    <th width="20%" class="text-center">Símbolo</th>
+                                    <th width="20%" class="text-center">Estado</th>
+                                    <th width="20%" class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for unidad in unidades %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="p-2 bg-light rounded me-3">
+                                                <i class="fas fa-ruler opacity-50" style="font-size: 0.8rem;"></i>
                                             </div>
-                                        </th>
-                                        <th class="border-0 py-1 px-2"><strong>Símbolo</strong></th>
-                                        <th class="border-0 py-1 px-2"><strong>Estado</strong></th>
-                                        <th class="border-0 py-1 px-2"><strong>Fecha</strong></th>
-                                        <th class="border-0 py-1 px-2 text-center"><strong>Acciones</strong></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for unidad in unidades %}
-                                    <tr class="border-bottom">
-                                        <td class="py-1 px-2">
-                                            <div class="d-flex align-items-center">
-                                                <div class="form-check me-2">
-                                                    <input class="form-check-input" type="checkbox" value="{{ unidad.id }}">
-                                                </div>
-                                                <div>
-                                                    <span class="fw-medium text-dark">{{ unidad.nombre }}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="py-1 px-2">
-                                            <span class="badge bg-info text-dark">
-                                                {{ unidad.simbolo }}
-                                            </span>
-                                        </td>
-                                        <td class="py-1 px-2">
-                                            {% if unidad.activa %}
-                                                <span class="badge bg-success">
-                                                    <i class="fas fa-check me-1"></i>Activa
-                                                </span>
-                                            {% else %}
-                                                <span class="badge bg-danger">
-                                                    <i class="fas fa-times me-1"></i>Inactiva
-                                                </span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="py-1 px-2">
-                                            <small class="text-muted">{{ unidad.fecha_creacion|date:"d/m/Y" }}</small>
-                                        </td>
-                                        <td class="py-1 px-2 text-center">
-                                            <div class="btn-group" role="group">
-                                            <button type="button" 
-                                                    class="btn btn-sm" 
+                                            <span class="fw-bold" style="color: var(--color-piedra-texto);">{{ unidad.nombre }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="simbolo-badge">{{ unidad.simbolo }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if unidad.activa %}
+                                            <span class="text-success"><i class="fas fa-check-circle me-1"></i>Activa</span>
+                                        {% else %}
+                                            <span class="text-danger"><i class="fas fa-times-circle me-1"></i>Inactiva</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-2">
+                                            <button class="action-btn-piedra btn-editar-unidad" 
                                                     data-bs-toggle="modal" 
                                                     data-bs-target="#unidadModal"
-                                                    data-bs-toggle="tooltip" 
-                                                    title="Editar"
-                                                    onclick="abrirModalEditar({{ unidad.pk }}, '{{ unidad.nombre }}', '{{ unidad.simbolo }}', {{ unidad.activa|yesno:"true,false" }})"
-                                                    style="border: none; background: none; padding: 4px 8px;">
-                                                <i class="fas fa-edit" style="color: #B8860B; font-size: 16px;"></i>
+                                                    data-id="{{ unidad.pk }}"
+                                                    data-nombre="{{ unidad.nombre }}"
+                                                    data-simbolo="{{ unidad.simbolo }}"
+                                                    data-activa="{{ unidad.activa|yesno:'true,false' }}"
+                                                    title="Editar">
+                                                <i class="fas fa-edit" style="font-size: 0.8rem; color: #8D6E63;"></i>
                                             </button>
-                                                <a href="#" 
-                                                   class="btn btn-sm" 
-                                                   data-bs-toggle="tooltip" 
-                                                   title="Eliminar"
-                                                   onclick="alert('Función de eliminar no disponible aún')"
-                                                   style="border: none; background: none; padding: 4px 8px;">
-                                                    <i class="fas fa-trash" style="color: #DC143C; font-size: 16px;"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                                            <a href="{% url 'articulos:unidad_medida_delete' unidad.pk %}" class="action-btn-piedra" title="Eliminar">
+                                                <i class="fas fa-trash-alt" style="font-size: 0.8rem; color: #7B5E57;"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                     {% else %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-ruler fa-2x text-muted mb-3"></i>
-                            <h6 class="text-muted">No hay unidades de medida</h6>
-                            <p class="text-muted mb-3">Comienza creando tu primera unidad de medida</p>
-                            <a href="{% url 'articulos:unidad_medida_create' %}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-plus me-1"></i>Crear Primera Unidad
-                            </a>
+                        <div class="text-center py-5">
+                            <i class="fas fa-ruler fa-4x opacity-25 mb-3"></i>
+                            <h5 class="fw-bold text-muted">No hay unidades de medida registradas</h5>
+                            <button class="btn btn-piedra mt-3" data-bs-toggle="modal" data-bs-target="#unidadModal" onclick="abrirModalCrear()">
+                                <i class="fas fa-plus"></i> Crear el primero
+                            </button>
                         </div>
                     {% endif %}
                 </div>
@@ -184,64 +287,42 @@
 </div>
 
 <!-- Modal para Unidades -->
-<div class="modal fade" id="unidadModal" tabindex="-1" aria-labelledby="unidadModalLabel" aria-hidden="true">
+<div class="modal fade" id="unidadModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
-                <h5 class="modal-title" id="unidadModalLabel">
-                    <i class="fas fa-ruler me-2" style="color: white;"></i>
-                    <span id="modalTitulo">Nueva Unidad</span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+            <div class="modal-header card-header-piedra border-0">
+                <div class="d-flex align-items-center">
+                    <div class="p-2 bg-white bg-opacity-50 rounded-circle me-3 shadow-sm">
+                        <i class="fas fa-ruler text-brown" style="font-size: 1.1rem;"></i>
+                    </div>
+                    <h5 class="modal-title fw-bold" id="modalTitulo" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif;">Nueva Unidad</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="unidadForm" method="post" onsubmit="enviarFormulario(event)">
                 {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="id_nombre" class="form-label" style="color: #495057; font-weight: bold;">
-                            Nombre
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-tag" style="color: #6c757d;"></i>
-                            </div>
-                            <input type="text" class="form-control" id="id_nombre" name="nombre" required 
-                                   placeholder="Ingrese el nombre de la unidad" style="color: #6c757d; border-left: none;">
-                        </div>
+                <div class="modal-body bg-light bg-opacity-50 p-4">
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase opacity-75">Nombre Completo</label>
+                        <input type="text" class="form-control form-control-premium" id="id_nombre" name="nombre" required placeholder="Ej: Kilogramos, Litros, Metros">
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="id_simbolo" class="form-label" style="color: #495057; font-weight: bold;">
-                            Símbolo
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-font" style="color: #6c757d;"></i>
-                            </div>
-                            <input type="text" class="form-control" id="id_simbolo" name="simbolo" required 
-                                   placeholder="Ingrese el símbolo de la unidad (ej: kg, L, m)" style="color: #6c757d; border-left: none;">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label small fw-bold text-uppercase opacity-75">Símbolo / Sigla</label>
+                            <input type="text" class="form-control form-control-premium" id="id_simbolo" name="simbolo" required placeholder="Ej: kg, L, m, u">
                         </div>
-                        <div class="form-text" style="color: #6c757d;">Símbolo que se mostrará en los artículos (ej: kg, L, m, u)</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="id_activa" name="activa" checked>
-                            <label class="form-check-label" for="id_activa" style="color: #495057; font-weight: bold;">
-                                <i class="fas fa-check-circle me-1" style="color: #6B8E23;"></i>Activa
-                            </label>
-                            <div class="form-text" style="color: #6c757d;">La unidad estará disponible para usar</div>
+                        <div class="col-md-6 mb-4 d-flex align-items-end">
+                            <div class="form-check form-switch p-3 bg-white rounded-3 shadow-sm w-100 border" style="border-color: var(--color-piedra-borde) !important;">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" id="id_activa" name="activa" checked>
+                                <label class="form-check-label fw-bold extra-small text-uppercase" for="id_activa">Activa</label>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i>Cancelar
-                    </button>
-                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white;">
-                        <i class="fas fa-save me-1"></i>
-                        <span id="modalBoton">Crear Unidad</span>
-                    </button>
+                <div class="modal-footer bg-white p-3">
+                    <button type="button" class="btn btn-light border px-4 rounded-pill" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-piedra px-5 rounded-pill shadow-sm" id="modalBoton">Guardar Unidad</button>
                 </div>
             </form>
         </div>
@@ -250,51 +331,34 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Funcionalidad para seleccionar/deseleccionar todos
-    const selectAllCheckbox = document.getElementById('selectAll');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-        });
-    }
-    
-    // Initialize tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-    
-    // Modal cleanup when hidden
     const unidadModal = document.getElementById('unidadModal');
     if (unidadModal) {
         unidadModal.addEventListener('hidden.bs.modal', function() {
-            // Reset form
             document.getElementById('unidadForm').reset();
             document.getElementById('id_activa').checked = true;
-            
-            // Reset modal title and button
             document.getElementById('modalTitulo').textContent = 'Nueva Unidad';
-            document.getElementById('modalBoton').textContent = 'Crear Unidad';
+            document.getElementById('modalBoton').textContent = 'Guardar Unidad';
             document.getElementById('unidadForm').action = '{% url "articulos:unidad_medida_create" %}';
-            
-            // Remove any backdrop issues
-            document.body.classList.remove('modal-open');
-            const backdrops = document.querySelectorAll('.modal-backdrop');
-            backdrops.forEach(backdrop => backdrop.remove());
         });
     }
+
+    // Manejar clics en botones de edición
+    document.querySelectorAll('.btn-editar-unidad').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const nombre = this.dataset.nombre;
+            const simbolo = this.dataset.simbolo;
+            const activa = this.dataset.activa === 'true';
+            
+            abrirModalEditar(id, nombre, simbolo, activa);
+        });
+    });
 });
 
-// Funciones para el modal
 function abrirModalCrear() {
     document.getElementById('modalTitulo').textContent = 'Nueva Unidad';
-    document.getElementById('modalBoton').textContent = 'Crear Unidad';
+    document.getElementById('modalBoton').textContent = 'Guardar Unidad';
     document.getElementById('unidadForm').action = '{% url "articulos:unidad_medida_create" %}';
-    
-    // Limpiar formulario
     document.getElementById('unidadForm').reset();
     document.getElementById('id_activa').checked = true;
 }
@@ -303,59 +367,26 @@ function abrirModalEditar(id, nombre, simbolo, activa) {
     document.getElementById('modalTitulo').textContent = 'Editar Unidad';
     document.getElementById('modalBoton').textContent = 'Actualizar Unidad';
     document.getElementById('unidadForm').action = '{% url "articulos:unidad_medida_update" 0 %}'.replace('0', id);
-    
-    // Llenar formulario
     document.getElementById('id_nombre').value = nombre;
     document.getElementById('id_simbolo').value = simbolo;
     document.getElementById('id_activa').checked = activa;
-    
-    // Asegurar que el modal se abra
-    var modal = new bootstrap.Modal(document.getElementById('unidadModal'));
-    modal.show();
 }
 
 function enviarFormulario(event) {
     event.preventDefault();
-    
     const form = document.getElementById('unidadForm');
     const formData = new FormData(form);
-    const url = form.action;
-    
-    fetch(url, {
+    fetch(form.action, {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        }
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
     })
     .then(response => {
         if (response.ok) {
-            // Cerrar modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('unidadModal'));
-            modal.hide();
-            
-            // Recargar la página para mostrar los cambios
             location.reload();
         } else {
-            // Mostrar errores si los hay
-            return response.text().then(html => {
-                // Crear un elemento temporal para parsear el HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = html;
-                
-                // Buscar errores de formulario
-                const errors = tempDiv.querySelectorAll('.errorlist');
-                if (errors.length > 0) {
-                    alert('Por favor corrija los errores en el formulario.');
-                } else {
-                    alert('Error al procesar el formulario. Intente nuevamente.');
-                }
-            });
+            alert('Error al guardar la unidad. Verifique los datos.');
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error de conexión. Intente nuevamente.');
     });
 }
 </script>

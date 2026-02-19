@@ -10,72 +10,87 @@
 <div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
     <div class="row justify-content-center">
         <div class="col-12 col-xl-10">
-            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; padding: 15px 20px; border-bottom: 3px solid #D4C4A8;">
+            <div class="card" style="border: none; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(139, 115, 85, 0.15);">
+                <!-- Header Estilo Piedra Premium -->
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 20px 25px;">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-1" style="font-size: 1.3rem; font-weight: 600;">COTIZACIÓN #{{ cotizacion.numero_venta }}</h5>
-                            <small style="font-size: 0.75rem; color: #F5F1E8;">{{ cotizacion.fecha|date:"d/m/Y" }}</small>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-invoice me-3" style="font-size: 2.5rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                            <div>
+                                <h3 class="mb-0 fw-normal" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px;">
+                                    COTIZACIÓN <span class="fw-bold">#{{ cotizacion.numero_venta }}</span>
+                                </h3>
+                                <div class="d-flex align-items-center mt-1">
+                                    <span class="badge me-2" style="background: rgba(255,255,255,0.3); color: #5D4037; font-size: 0.75rem;">
+                                        {{ cotizacion.fecha|date:"d F, Y" }}
+                                    </span>
+                                    <span class="badge" style="background: {% if cotizacion.estado_cotizacion == 'pendiente' %}#D4C4A8{% elif cotizacion.estado_cotizacion == 'enviada' %}#A8C6D4{% elif cotizacion.estado_cotizacion == 'aceptada' %}#C4D4A8{% elif cotizacion.estado_cotizacion == 'rechazada' %}#D4A8A8{% elif cotizacion.estado_cotizacion == 'vencida' %}#BDBDBD{% elif cotizacion.estado_cotizacion == 'convertida' %}#A8A8D4{% else %}#D4C4A8{% endif %}; color: #5D4037; font-size: 0.75rem; padding: 5px 12px; border-radius: 6px;">
+                                        {{ cotizacion.get_estado_cotizacion_display|default:'Pendiente'|upper }}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <span class="badge" style="background: {% if cotizacion.estado == 'borrador' %}#ffc107{% elif cotizacion.estado == 'confirmada' %}#28a745{% elif cotizacion.estado == 'anulada' %}#dc3545{% else %}#6c757d{% endif %}; font-size: 0.8rem; padding: 6px 12px;">
-                                {{ cotizacion.get_estado_display }}
-                            </span>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'ventas:cotizacion_html' cotizacion.pk %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600;" target="_blank">
+                                <i class="fas fa-print me-1"></i> Imprimir
+                            </a>
+                            <a href="{% url 'ventas:cotizacion_list' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: white;">
+                                <i class="fas fa-arrow-left me-1"></i> Volver
+                            </a>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Body -->
-                <div class="card-body" style="background: #FAFAF8; padding: 15px;">
-                    <!-- Información general en cards compactos -->
-                    <div class="row g-2 mb-3">
+                <div class="card-body" style="background: white; padding: 25px;">
+                    <!-- Información general en cards compactas premium -->
+                    <div class="row g-4 mb-5">
                         <!-- Empresa -->
                         <div class="col-md-4">
-                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px;">
-                                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); padding: 8px 12px; border-bottom: 1px solid #D4C4A8;">
-                                    <h6 class="mb-0" style="font-size: 0.85rem; color: #6F5B44; font-weight: 600;">
-                                        <i class="fas fa-building me-1"></i>Empresa
+                            <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px; background: #FDFCFB;">
+                                <div class="card-header border-0 pb-0" style="background: transparent; padding: 15px 20px;">
+                                    <h6 class="mb-0" style="font-size: 0.75rem; color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                                        <i class="fas fa-building me-2 opacity-50"></i> Emisor
                                     </h6>
                                 </div>
-                                <div class="card-body" style="padding: 10px 12px; font-size: 0.75rem;">
-                                    <div class="mb-1"><strong>{{ cotizacion.empresa.razon_social }}</strong></div>
-                                    <div class="text-muted">RUT: {{ cotizacion.empresa.rut }}</div>
-                                    <div class="text-muted">{{ cotizacion.empresa.direccion }}</div>
-                                    <div class="text-muted">{{ cotizacion.empresa.comuna }}, {{ cotizacion.empresa.ciudad }}</div>
-                                    <div class="text-muted">Tel: {{ cotizacion.empresa.telefono }}</div>
-                                    <div class="text-muted">{{ cotizacion.empresa.email }}</div>
+                                <div class="card-body" style="padding: 15px 20px; font-size: 0.85rem; color: #4A5568;">
+                                    <div class="mb-2"><strong style="color: #2D3748; font-size: 1rem;">{{ cotizacion.empresa.razon_social }}</strong></div>
+                                    <div class="mb-1"><i class="fas fa-id-card me-2 opacity-50"></i> {{ cotizacion.empresa.rut }}</div>
+                                    <div class="mb-1"><i class="fas fa-map-marker-alt me-2 opacity-50"></i> {{ cotizacion.empresa.direccion }}</div>
+                                    <div class="mb-1"><i class="fas fa-city me-2 opacity-50"></i> {{ cotizacion.empresa.comuna }}, {{ cotizacion.empresa.ciudad }}</div>
+                                    {% if cotizacion.empresa.telefono %}
+                                    <div class="mb-1"><i class="fas fa-phone me-2 opacity-50"></i> {{ cotizacion.empresa.telefono }}</div>
+                                    {% endif %}
+                                    {% if cotizacion.empresa.email %}
+                                    <div class="mb-0"><i class="fas fa-envelope me-2 opacity-50"></i> {{ cotizacion.empresa.email }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
                         
                         <!-- Cotización Info -->
                         <div class="col-md-4">
-                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px;">
-                                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); padding: 8px 12px; border-bottom: 1px solid #D4C4A8;">
-                                    <h6 class="mb-0" style="font-size: 0.85rem; color: #6F5B44; font-weight: 600;">
-                                        <i class="fas fa-file-invoice me-1"></i>Datos Cotización
+                            <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px; background: #FDFCFB;">
+                                <div class="card-header border-0 pb-0" style="background: transparent; padding: 15px 20px;">
+                                    <h6 class="mb-0" style="font-size: 0.75rem; color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                                        <i class="fas fa-info-circle me-2 opacity-50"></i> Detalles
                                     </h6>
                                 </div>
-                                <div class="card-body" style="padding: 10px 12px; font-size: 0.75rem;">
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="text-muted">Número:</span>
-                                        <strong style="color: #8B7355;">#{{ cotizacion.numero_venta }}</strong>
+                                <div class="card-body" style="padding: 15px 20px; font-size: 0.85rem; color: #4A5568;">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="opacity-75">Estado:</span>
+                                        <strong style="color: #8B7355;">{{ cotizacion.get_estado_cotizacion_display|default:'Pendiente'|title }}</strong>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="text-muted">Fecha:</span>
-                                        <strong>{{ cotizacion.fecha|date:"d/m/Y" }}</strong>
-                                    </div>
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="text-muted">Válida hasta:</span>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="opacity-75">Vencimiento:</span>
                                         <strong>{{ cotizacion.fecha|add:30|date:"d/m/Y" }}</strong>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-1">
-                                        <span class="text-muted">Vendedor:</span>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="opacity-75">Vendedor:</span>
                                         <strong>{{ cotizacion.vendedor.nombre|default:"N/A" }}</strong>
                                     </div>
-                                    <div class="d-flex justify-content-between">
-                                        <span class="text-muted">Estación:</span>
+                                    <div class="d-flex justify-content-between mb-0">
+                                        <span class="opacity-75">Estación:</span>
                                         <strong>{{ cotizacion.estacion_trabajo.nombre|default:"N/A" }}</strong>
                                     </div>
                                 </div>
@@ -83,90 +98,102 @@
                         </div>
                         
                         <!-- Cliente -->
-                        {% if cotizacion.cliente %}
                         <div class="col-md-4">
-                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px;">
-                                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); padding: 8px 12px; border-bottom: 1px solid #D4C4A8;">
-                                    <h6 class="mb-0" style="font-size: 0.85rem; color: #6F5B44; font-weight: 600;">
-                                        <i class="fas fa-user me-1"></i>Cliente
+                            <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px; background: #FDFCFB;">
+                                <div class="card-header border-0 pb-0" style="background: transparent; padding: 15px 20px;">
+                                    <h6 class="mb-0" style="font-size: 0.75rem; color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                                        <i class="fas fa-user me-2 opacity-50"></i> Cliente
                                     </h6>
                                 </div>
-                                <div class="card-body" style="padding: 10px 12px; font-size: 0.75rem;">
-                                    <div class="mb-1"><strong>{{ cotizacion.cliente.nombre }}</strong></div>
-                                    <div class="text-muted">RUT: {{ cotizacion.cliente.rut }}</div>
-                                    <div class="text-muted">{{ cotizacion.cliente.direccion }}</div>
-                                    <div class="text-muted">{{ cotizacion.cliente.comuna }}, {{ cotizacion.cliente.ciudad }}</div>
-                                    <div class="text-muted">Tel: {{ cotizacion.cliente.telefono }}</div>
-                                    <div class="text-muted">{{ cotizacion.cliente.email }}</div>
+                                <div class="card-body" style="padding: 15px 20px; font-size: 0.85rem; color: #4A5568;">
+                                    {% if cotizacion.cliente %}
+                                        <div class="mb-2"><strong style="color: #2D3748; font-size: 1rem;">{{ cotizacion.cliente.nombre }}</strong></div>
+                                        <div class="mb-1"><i class="fas fa-id-card me-2 opacity-50"></i> {{ cotizacion.cliente.rut }}</div>
+                                        <div class="mb-1"><i class="fas fa-map-marker-alt me-2 opacity-50"></i> {{ cotizacion.cliente.direccion }}</div>
+                                        <div class="mb-1"><i class="fas fa-city me-2 opacity-50"></i> {{ cotizacion.cliente.comuna }}, {{ cotizacion.cliente.ciudad }}</div>
+                                        {% if cotizacion.cliente.email %}
+                                        <div class="mb-0"><i class="fas fa-envelope me-2 opacity-50"></i> {{ cotizacion.cliente.email }}</div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="text-center py-4 opacity-50">
+                                            <i class="fas fa-user-slash fa-2x mb-2"></i>
+                                            <p class="mb-0">Sin información de cliente</p>
+                                        </div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
-                        {% endif %}
                     </div>
                     
-                    <!-- Productos -->
-                    <div class="card mb-3" style="border: 1px solid #E8DCC8; border-radius: 8px;">
-                        <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); padding: 8px 12px; border-bottom: 1px solid #D4C4A8;">
-                            <h6 class="mb-0" style="font-size: 0.85rem; color: #6F5B44; font-weight: 600;">
-                                <i class="fas fa-boxes me-1"></i>Productos Cotizados
-                            </h6>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-hover mb-0 table-compact">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 12%;">Código</th>
-                                            <th style="width: 45%;">Descripción</th>
-                                            <th style="width: 10%; text-align: center;">Cantidad</th>
-                                            <th style="width: 15%; text-align: right;">Precio Unit.</th>
-                                            <th style="width: 18%; text-align: right;">Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for detalle in detalles %}
-                                        <tr style="border-bottom: 1px solid #F5F1E8;">
-                                            <td style="font-size: 0.75rem; color: #6c757d;">{{ detalle.articulo.codigo|default:detalle.articulo.id }}</td>
-                                            <td style="font-size: 0.75rem;"><strong>{{ detalle.articulo.nombre }}</strong>{% if detalle.articulo.descripcion %}<br><small class="text-muted">{{ detalle.articulo.descripcion }}</small>{% endif %}</td>
-                                            <td style="font-size: 0.75rem; text-align: center; color: #6c757d;">{{ detalle.cantidad }}</td>
-                                            <td style="font-size: 0.75rem; text-align: right; color: #6c757d;">${{ detalle.precio_unitario|format_miles }}</td>
-                                            <td style="font-size: 0.8rem; text-align: right; font-weight: 600; color: #6F5B44;">${{ detalle.precio_total|format_miles }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                    <!-- tabla de Productos -->
+                    <div class="mb-4">
+                        <h6 class="mb-3 px-2" style="font-size: 0.9rem; color: #6F5B44; font-weight: 700;">
+                            <i class="fas fa-boxes me-2"></i> ÍTEMS DE LA COTIZACIÓN
+                        </h6>
+                        <div class="table-responsive">
+                            <table class="table table-piedra mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 15%;">CÓDIGO</th>
+                                        <th style="width: 45%;">DESCRIPCIÓN</th>
+                                        <th style="width: 10%; text-align: center;">CANT.</th>
+                                        <th style="width: 15%; text-align: right;">PRECIO UNIT.</th>
+                                        <th style="width: 15%; text-align: right;">TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for detalle in detalles %}
+                                    <tr>
+                                        <td class="small opacity-75">#{{ detalle.articulo.codigo|default:detalle.articulo.id }}</td>
+                                        <td>
+                                            <div class="fw-bold" style="color: #2D3748;">{{ detalle.articulo.nombre }}</div>
+                                            {% if detalle.articulo.descripcion %}
+                                                <small class="text-muted d-block mt-1">{{ detalle.articulo.descripcion }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">{{ detalle.cantidad }}</td>
+                                        <td class="text-end">${{ detalle.precio_unitario|format_miles }}</td>
+                                        <td class="text-end fw-bold" style="color: #6F5B44;">${{ detalle.precio_total|format_miles }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                     
                     <!-- Totales -->
-                    <div class="row">
+                    <div class="row mt-4">
                         <div class="col-md-6 offset-md-6">
-                            <div class="card" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
-                                <div class="card-body" style="padding: 12px;">
-                                    <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
-                                        <span style="color: #6c757d;">Subtotal:</span>
-                                        <strong style="color: #6F5B44;">${{ cotizacion.subtotal|format_miles }}</strong>
+                            <div class="card border-0 shadow-sm" style="border-radius: 15px; background: #FDFCFB;">
+                                <div class="card-body p-4">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Subtotal</span>
+                                        <span class="fw-bold">${{ cotizacion.subtotal|format_miles }}</span>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
-                                        <span style="color: #6c757d;">Descuento:</span>
-                                        <strong style="color: #dc3545;">${{ cotizacion.descuento|format_miles }}</strong>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Descuento</span>
+                                        <span class="text-danger">-${{ cotizacion.descuento|format_miles }}</span>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
-                                        <span style="color: #6c757d;">Neto:</span>
-                                        <strong style="color: #6F5B44;">${{ cotizacion.neto|format_miles }}</strong>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Neto</span>
+                                        <span class="fw-bold">${{ cotizacion.neto|format_miles }}</span>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
-                                        <span style="color: #6c757d;">IVA (19%):</span>
-                                        <strong style="color: #6F5B44;">${{ cotizacion.iva|format_miles }}</strong>
+                                    {% if cotizacion.iva > 0 %}
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">IVA (19%)</span>
+                                        <span class="fw-bold">${{ cotizacion.iva|format_miles }}</span>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
-                                        <span style="color: #6c757d;">Imp. Específico:</span>
-                                        <strong style="color: #6F5B44;">${{ cotizacion.impuesto_especifico|format_miles }}</strong>
+                                    {% endif %}
+                                    {% if cotizacion.impuesto_especifico > 0 %}
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Imp. Específico</span>
+                                        <span class="fw-bold">${{ cotizacion.impuesto_especifico|format_miles }}</span>
                                     </div>
-                                    <div class="d-flex justify-content-between pt-2 mt-2" style="border-top: 2px solid #8B7355; font-size: 1rem;">
-                                        <strong style="color: #6F5B44;">TOTAL:</strong>
-                                        <strong style="color: #8B7355; font-size: 1.2rem;">${{ cotizacion.total|format_miles }}</strong>
+                                    {% endif %}
+                                    <hr class="my-3 opacity-10">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="h5 mb-0" style="color: #6F5B44; font-weight: 700;">TOTAL</span>
+                                        <span class="h3 mb-0" style="color: #8B7355; font-weight: 800;">${{ cotizacion.total|format_miles }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -175,35 +202,39 @@
                     
                     <!-- Observaciones -->
                     {% if cotizacion.observaciones %}
-                    <div class="card mt-3" style="border: 1px solid #E8DCC8; border-radius: 8px;">
-                        <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); padding: 8px 12px; border-bottom: 1px solid #D4C4A8;">
-                            <h6 class="mb-0" style="font-size: 0.85rem; color: #6F5B44; font-weight: 600;">
-                                <i class="fas fa-sticky-note me-1"></i>Observaciones
-                            </h6>
-                        </div>
-                        <div class="card-body" style="padding: 10px 12px; font-size: 0.8rem;">
+                    <div class="mt-5 px-2">
+                        <h6 style="font-size: 0.8rem; color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                            <i class="fas fa-sticky-note me-2 opacity-50"></i> Observaciones
+                        </h6>
+                        <div class="p-3 mt-2" style="background: #FDFCFB; border-radius: 10px; border-left: 4px solid #D4C4A8; font-size: 0.9rem; color: #4A5568;">
                             {{ cotizacion.observaciones }}
                         </div>
                     </div>
                     {% endif %}
                     
-                    <!-- Acciones -->
-                    <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
-                        <a href="{% url 'ventas:cotizacion_html' cotizacion.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; font-size: 0.8rem;" target="_blank">
-                            <i class="fas fa-print me-1"></i>Imprimir
+                    <!-- Acciones Finales -->
+                    <div class="d-flex gap-3 justify-content-center mt-5 flex-wrap">
+                        <a href="{% url 'ventas:cotizacion_html' cotizacion.pk %}" class="btn btn-piedra-lg px-5 py-2 shadow-sm" target="_blank">
+                            <i class="fas fa-print me-2"></i> IMPRIMIR COTIZACIÓN
                         </a>
+                        
                         {% if cotizacion.estado_cotizacion != 'convertida' %}
-                        <a href="{% url 'ventas:cotizacion_cambiar_estado' cotizacion.pk %}" class="btn btn-sm btn-outline-secondary" style="font-size: 0.8rem; border-color: #D4C4A8; color: #8B7355;">
-                            <i class="fas fa-edit me-1"></i>Cambiar Estado
-                        </a>
-                        {% if cotizacion.estado_cotizacion == 'aceptada' %}
-                        <a href="{% url 'ventas:cotizacion_convertir_venta' cotizacion.pk %}" class="btn btn-sm btn-outline-primary" style="font-size: 0.8rem;">
-                            <i class="fas fa-exchange-alt me-1"></i>Convertir en Venta
-                        </a>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-piedra-lg px-4 py-2 dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-cog me-2"></i> GESTIONAR
+                            </button>
+                            <ul class="dropdown-menu shadow border-0" style="border-radius: 12px; font-size: 0.9rem; padding: 10px;">
+                                <li><a class="dropdown-item py-2" href="{% url 'ventas:cotizacion_cambiar_estado' cotizacion.pk %}"><i class="fas fa-edit me-2 text-muted"></i>Cambiar Estado</a></li>
+                                {% if cotizacion.estado_cotizacion == 'aceptada' %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item py-2 text-primary fw-bold" href="{% url 'ventas:cotizacion_convertir_venta' cotizacion.pk %}"><i class="fas fa-exchange-alt me-2"></i>CONVERTIR A VENTA</a></li>
+                                {% endif %}
+                            </ul>
+                        </div>
                         {% endif %}
-                        {% endif %}
-                        <a href="{% url 'ventas:cotizacion_list' %}" class="btn btn-sm btn-outline-secondary" style="font-size: 0.8rem; border-color: #D4C4A8; color: #6c757d;">
-                            <i class="fas fa-arrow-left me-1"></i>Volver
+                        
+                        <a href="{% url 'ventas:cotizacion_list' %}" class="btn btn-sm btn-link text-decoration-none mt-2" style="color: #8B7355; font-weight: 600;">
+                            <i class="fas fa-arrow-left me-1"></i> Volver al listado
                         </a>
                     </div>
                 </div>
@@ -213,33 +244,70 @@
 </div>
 
 <style>
-.table-compact {
-    font-size: 0.75rem;
-    line-height: 1.1;
+/* Reutilizando estilos de la tabla Piedra */
+.table-piedra {
+    width: 100%;
+    border-collapse: collapse;
 }
 
-.table-compact thead th {
-    padding: 8px 6px;
-    font-weight: 600;
-    background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+.table-piedra thead th {
+    background: #FDFCFB;
+    border-bottom: 2px solid #E8DCC8;
+    color: #8B7355;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    padding: 10px 15px;
+}
+
+.table-piedra tbody tr {
+    background-color: white;
+    border-bottom: 1px solid #F5F1E8;
+    transition: all 0.2s ease;
+}
+
+.table-piedra tbody tr:hover {
+    background-color: #FDFCFB;
+}
+
+.table-piedra tbody td {
+    padding: 5px 15px;
+    vertical-align: middle;
+    font-size: 0.85rem;
+}
+
+.btn-piedra-lg {
+    background: var(--color-piedra-boton);
     color: white;
     border: none;
-    font-size: 0.75rem;
-    text-align: left;
-    white-space: nowrap;
-    line-height: 1.1;
+    font-weight: 700;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.table-compact tbody td {
-    padding: 8px 6px;
-    vertical-align: middle;
-    line-height: 1.2;
-    border: none;
+.btn-piedra-lg:hover {
+    background: #6F5B44;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(111, 91, 68, 0.3);
 }
 
-.table-compact tbody tr:hover {
-    background-color: #F5F1E8;
-    transition: background-color 0.2s ease;
+.btn-outline-piedra-lg {
+    background: transparent;
+    color: #8B7355;
+    border: 2px solid #D4C4A8;
+    font-weight: 700;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-piedra-lg:hover {
+    background: #F5F1E8;
+    color: #6F5B44;
+    border-color: #8B7355;
 }
 </style>
 {% endblock %}

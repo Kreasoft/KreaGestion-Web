@@ -67,6 +67,10 @@ def receta_detail(request, pk):
         'receta': receta,
         'insumos': insumos,
     }
+    # Si es una petición AJAX, devolver solo el modal
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'produccion/receta_detail_modal.html', context)
+        
     return render(request, 'produccion/receta_detail.html', context)
 
 
@@ -128,6 +132,11 @@ def receta_create(request):
             
             # Redirigir sin mensaje (se mostrará en la siguiente página)
             messages.success(request, 'Receta creada exitosamente.')
+            
+            # Si es AJAX, devolver JSON de éxito
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'message': 'Receta creada exitosamente.'})
+                
             return redirect('produccion:receta_detail', pk=receta.pk)
         except Exception as e:
             import traceback
@@ -155,6 +164,10 @@ def receta_create(request):
                 'insumos': insumos,
                 'insumos_json': insumos_json,
             }
+            # Si es AJAX, devolver el modal con los errores
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return render(request, 'produccion/receta_form_modal.html', context)
+                
             return render(request, 'produccion/receta_form.html', context)
     
     # Obtener productos finales (SOLO artículos de producción)
@@ -183,6 +196,11 @@ def receta_create(request):
         'insumos': insumos,
         'insumos_json': insumos_json,
     }
+    
+    # Si es AJAX, devolver solo el modal
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'produccion/receta_form_modal.html', context)
+        
     return render(request, 'produccion/receta_form.html', context)
 
 
@@ -290,6 +308,11 @@ def receta_update(request, pk):
                     )
             
             messages.success(request, 'Receta actualizada exitosamente.')
+            
+            # Si es AJAX, devolver JSON de éxito
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'message': 'Receta actualizada exitosamente.'})
+                
             return redirect('produccion:receta_detail', pk=pk)
         except Exception as e:
             import traceback
@@ -320,6 +343,11 @@ def receta_update(request, pk):
                 'insumos': insumos,
                 'insumos_json': insumos_json,
             }
+            
+            # Si es AJAX, devolver el modal con los errores
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return render(request, 'produccion/receta_form_modal.html', context)
+                
             return render(request, 'produccion/receta_form.html', context)
     
     # Obtener productos finales (SOLO artículos de producción)
@@ -348,6 +376,11 @@ def receta_update(request, pk):
         'insumos': insumos,
         'insumos_json': insumos_json,
     }
+    
+    # Si es AJAX, devolver solo el modal
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'produccion/receta_form_modal.html', context)
+        
     return render(request, 'produccion/receta_form.html', context)
 
 
@@ -425,6 +458,11 @@ def orden_detail(request, pk):
     orden = get_object_or_404(OrdenProduccion, pk=pk, empresa=request.empresa)
     
     context = {'orden': orden}
+    
+    # Si es AJAX, devolver el modal detallado
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'produccion/orden_detail_modal.html', context)
+        
     return render(request, 'produccion/orden_detail.html', context)
 
 
@@ -473,10 +511,15 @@ def orden_create(request):
             # Validar campos requeridos
             if not all([numero_orden, receta_id, cantidad_planificada, bodega_id]):
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'message': 'Todos los campos obligatorios deben estar completos (Número, Receta, Cantidad, Bodega).'
-                    })
+                    recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
+                    # Obtener bodegas
+                    from bodegas.models import Bodega
+                    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
+                    context = {'recetas': recetas, 'bodegas': bodegas, 'orden': request.POST} # Pasar datos previos
+                    # Note: request.POST contains form data to repopulate fields if manually handled, 
+                    # but simple template might need specific context vars.
+                    # For simplicity, returning errors as messages.
+                    return render(request, 'produccion/orden_form_modal.html', context)
                 messages.error(request, 'Todos los campos obligatorios deben estar completos.')
                 recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
                 context = {'recetas': recetas}
@@ -487,12 +530,30 @@ def orden_create(request):
             try:
                 bodega = Bodega.objects.get(id=int(bodega_id), empresa=request.empresa)
                 sucursal = bodega.sucursal
+                
+                if not sucursal:
+                    msg = 'La bodega seleccionada no tiene una sucursal asignada. La orden de producción requiere una sucursal válida.'
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
+                        bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
+                        messages.error(request, msg)
+                        context = {'recetas': recetas, 'bodegas': bodegas, 'orden': request.POST}
+                        return render(request, 'produccion/orden_form_modal.html', context)
+                    
+                    messages.error(request, msg)
+                    recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
+                    context = {'recetas': recetas}
+                    return render(request, 'produccion/orden_form.html', context)
+
             except Bodega.DoesNotExist:
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'message': 'La bodega seleccionada no existe.'
-                    })
+                    # Return error in modal instead of simple JSON to keep UX consistent if form is re-rendered
+                    recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
+                    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
+                    messages.error(request, 'La bodega seleccionada no existe.')
+                    context = {'recetas': recetas, 'bodegas': bodegas, 'orden': request.POST}
+                    return render(request, 'produccion/orden_form_modal.html', context)
+
                 messages.error(request, 'La bodega seleccionada no existe.')
                 recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
                 context = {'recetas': recetas}
@@ -528,12 +589,24 @@ def orden_create(request):
             print(f"Error al crear orden: {error_detail}")
             messages.error(request, f'Error al crear orden: {str(e)}')
             recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
-            context = {'recetas': recetas}
+            from bodegas.models import Bodega
+            bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
+            context = {'recetas': recetas, 'bodegas': bodegas}
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return render(request, 'produccion/orden_form_modal.html', context)
+                
             return render(request, 'produccion/orden_form.html', context)
     
     recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
+    from bodegas.models import Bodega
+    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
     
-    context = {'recetas': recetas}
+    context = {'recetas': recetas, 'bodegas': bodegas}
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'produccion/orden_form_modal.html', context)
+        
     return render(request, 'produccion/orden_form.html', context)
 
 
@@ -567,12 +640,15 @@ def orden_update(request, pk):
             
             # Validar campos requeridos
             if not all([numero_orden, receta_id, cantidad_planificada, bodega_id]):
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'message': 'Todos los campos obligatorios deben estar completos.'
-                    })
+                recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
+                from bodegas.models import Bodega
+                bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
                 messages.error(request, 'Todos los campos obligatorios deben estar completos.')
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                     context = {'orden': orden, 'recetas': recetas, 'bodegas': bodegas}
+                     return render(request, 'produccion/orden_form_modal.html', context)
+
                 return redirect('produccion:orden_update', pk=pk)
             
             # Obtener bodega seleccionada
@@ -580,6 +656,19 @@ def orden_update(request, pk):
             try:
                 bodega = Bodega.objects.get(id=int(bodega_id), empresa=request.empresa)
                 sucursal = bodega.sucursal
+                
+                if not sucursal:
+                    msg = 'La bodega seleccionada no tiene una sucursal asignada. La orden requiere una sucursal válida.'
+                    recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
+                    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
+                    messages.error(request, msg)
+                    
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                         context = {'orden': orden, 'recetas': recetas, 'bodegas': bodegas}
+                         return render(request, 'produccion/orden_form_modal.html', context)
+                    
+                    return redirect('produccion:orden_update', pk=pk)
+
             except Bodega.DoesNotExist:
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
@@ -613,21 +702,31 @@ def orden_update(request, pk):
             import traceback
             error_detail = traceback.format_exc()
             print(f"Error al actualizar orden: {error_detail}")
+            messages.error(request, f'Error al actualizar orden: {str(e)}')
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': False,
-                    'message': f'Error al actualizar orden: {str(e)}'
-                })
-            messages.error(request, f'Error al actualizar orden: {str(e)}')
+                 # Re-render modal with error
+                 recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
+                 from bodegas.models import Bodega
+                 bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
+                 context = {'orden': orden, 'recetas': recetas, 'bodegas': bodegas}
+                 return render(request, 'produccion/orden_form_modal.html', context)
+                 
             return redirect('produccion:orden_update', pk=pk)
     
     recetas = RecetaProduccion.objects.filter(empresa=request.empresa, activo=True)
+    from bodegas.models import Bodega
+    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
     
     context = {
         'orden': orden,
         'recetas': recetas,
+        'bodegas': bodegas,
     }
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'produccion/orden_form_modal.html', context)
+        
     return render(request, 'produccion/orden_form.html', context)
 
 
@@ -640,6 +739,8 @@ def orden_delete(request, pk):
     if request.method == 'POST':
         orden.delete()
         messages.success(request, 'Orden eliminada exitosamente.')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+             return JsonResponse({'success': True, 'message': 'Orden eliminada exitosamente.'})
         return redirect('produccion:orden_list')
     
     context = {'orden': orden}
@@ -648,12 +749,17 @@ def orden_delete(request, pk):
 
 @requiere_empresa
 @login_required
+@requiere_empresa
+@login_required
 def orden_iniciar(request, pk):
     """Iniciar producción de una orden"""
     orden = get_object_or_404(OrdenProduccion, pk=pk, empresa=request.empresa)
     
     if orden.estado != 'pendiente':
-        messages.error(request, 'Solo se pueden iniciar órdenes pendientes.')
+        msg = 'Solo se pueden iniciar órdenes pendientes.'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+             return JsonResponse({'success': False, 'message': msg})
+        messages.error(request, msg)
         return redirect('produccion:orden_detail', pk=pk)
     
     if request.method == 'POST':
@@ -661,10 +767,18 @@ def orden_iniciar(request, pk):
         orden.fecha_inicio = timezone.now()
         orden.save()
         
-        messages.success(request, 'Orden iniciada exitosamente.')
+        msg = 'Orden iniciada exitosamente.'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+             return JsonResponse({'success': True, 'message': msg})
+
+        messages.success(request, msg)
         return redirect('produccion:orden_detail', pk=pk)
     
     context = {'orden': orden}
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'produccion/orden_iniciar_modal.html', context)
+        
     return render(request, 'produccion/orden_iniciar.html', context)
 
 
@@ -677,43 +791,47 @@ def orden_finalizar(request, pk):
     if orden.estado != 'en_proceso':
         messages.error(request, 'Solo se pueden finalizar órdenes en proceso.')
         return redirect('produccion:orden_detail', pk=pk)
-    
+
+    # Importación local para evitar circular imports si es necesario
+    from bodegas.models import Bodega
+    bodegas = Bodega.objects.filter(empresa=request.empresa)
+
     if request.method == 'POST':
         try:
             # Obtener datos del formulario
-            cantidad_producida = Decimal(request.POST.get('cantidad_producida', 0))
-            merma_real = Decimal(request.POST.get('merma_real', 0))
+            cantidad_producida_str = request.POST.get('cantidad_producida', '0')
+            merma_real_str = request.POST.get('merma_real', '0')
+            cantidad_producida = Decimal(cantidad_producida_str.replace(',', '.') if cantidad_producida_str else 0)
+            merma_real = Decimal(merma_real_str.replace(',', '.') if merma_real_str else 0)
+            
             comentarios = request.POST.get('comentarios', '').strip()
             meses_garantia = request.POST.get('meses_garantia', '').strip()
+
             bodega_insumos_id = request.POST.get('bodega_insumos', '').strip()
             bodega_productos_id = request.POST.get('bodega_productos', '').strip()
             
             # Validar que se seleccionaron las bodegas
             if not bodega_insumos_id or not bodega_productos_id:
+                msg = 'Debe seleccionar las bodegas de insumos y productos.'
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'message': 'Debe seleccionar las bodegas de insumos y productos.'
-                    })
-                messages.error(request, 'Debe seleccionar las bodegas de insumos y productos.')
+                    return JsonResponse({'success': False, 'message': msg})
+                messages.error(request, msg)
                 return redirect('produccion:orden_detail', pk=pk)
             
             # Obtener las bodegas
-            from bodegas.models import Bodega
             try:
                 bodega_insumos = Bodega.objects.get(id=int(bodega_insumos_id), empresa=request.empresa)
                 bodega_productos = Bodega.objects.get(id=int(bodega_productos_id), empresa=request.empresa)
             except Bodega.DoesNotExist:
+                msg = 'Una o ambas bodegas seleccionadas no existen.'
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'message': 'Una o ambas bodegas seleccionadas no existen.'
-                    })
-                messages.error(request, 'Una o ambas bodegas seleccionadas no existen.')
+                    return JsonResponse({'success': False, 'message': msg})
+                messages.error(request, msg)
                 return redirect('produccion:orden_detail', pk=pk)
             
             # Calcular factor de producción (cuántas veces se ejecutó la receta)
             factor_produccion = orden.cantidad_planificada / orden.receta.cantidad_producir
+
             
             # VALIDAR STOCK DE INSUMOS ANTES DE FINALIZAR
             insumos_sin_stock = []
@@ -851,7 +969,11 @@ def orden_finalizar(request, pk):
             messages.error(request, f'Error al finalizar orden: {str(e)}')
             return redirect('produccion:orden_detail', pk=pk)
     
-    context = {'orden': orden}
+    context = {'orden': orden, 'bodegas': bodegas}
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'produccion/orden_finalizar_modal.html', context)
+        
     return render(request, 'produccion/orden_finalizar.html', context)
 
 

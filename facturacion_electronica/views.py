@@ -211,13 +211,82 @@ def caf_anular(request, pk):
 @login_required
 @requiere_empresa
 def dte_list(request):
-    """Lista de DTEs emitidos"""
+    """
+    Libro de Ventas Electrónico (Documentos Emitidos / Enviados)
+    Se muestran solo los documentos emitidos por la empresa (Ventas).
+    """
+    from django.db.models import Sum, Count, Q
+    from django.utils import timezone
+    
+    # Establecer fechas por defecto: primer día del año actual hasta hoy
+    hoy = timezone.now().date()
+    primer_dia_ano = hoy.replace(month=1, day=1)
+    
+    # Filtrar solo documentos emitidos por la empresa (Enviados)
+    # y vinculados a la empresa actual
     dtes = DocumentoTributarioElectronico.objects.filter(
         empresa=request.empresa
     ).order_by('-fecha_emision', '-folio')
+
+    # Aplicar filtros de búsqueda
+    fecha_desde = request.GET.get('fecha_desde', primer_dia_ano.strftime('%Y-%m-%d'))
+    fecha_hasta = request.GET.get('fecha_hasta', hoy.strftime('%Y-%m-%d'))
+    tipo_dte = request.GET.get('tipo_dte')
+    cliente_id = request.GET.get('cliente')
+    estado = request.GET.get('estado')
+    search = request.GET.get('search')
+
+    if fecha_desde:
+        dtes = dtes.filter(fecha_emision__gte=fecha_desde)
+    if fecha_hasta:
+        dtes = dtes.filter(fecha_emision__lte=fecha_hasta)
+    if tipo_dte:
+        dtes = dtes.filter(tipo_dte=tipo_dte)
+    if cliente_id:
+        dtes = dtes.filter(rut_receptor=cliente_id) # Ajustar si cliente es ID o RUT
+    if estado:
+        dtes = dtes.filter(estado_sii=estado)
+    if search:
+        dtes = dtes.filter(
+            Q(folio__icontains=search) |
+            Q(rut_receptor__icontains=search) |
+            Q(razon_social_receptor__icontains=search)
+        )
+
+    # Calcular estadísticas (Totales)
+    # Usar 'dtes' filtrado para que los stats reflejen la búsqueda, 
+    # o usar 'dtes_all' si se quieren stats globales. Usualmente globales o del periodo.
+    # Aquí usaremos estadísticas del conjunto filtrado actual.
     
+    stats = dtes.aggregate(
+        total_documentos=Count('id'),
+        total_neto=Sum('monto_neto'),
+        total_iva=Sum('monto_iva'),
+        total_general=Sum('monto_total')
+    )
+
+    # Estadísticas por tipo
+    stats_por_tipo = dtes.values('tipo_dte').annotate(
+        cantidad=Count('id'),
+        total=Sum('monto_total')
+    ).order_by('tipo_dte')
+
+    # Contexto para el template
     context = {
         'dtes': dtes,
+        'stats': stats,
+        'stats_por_tipo': stats_por_tipo,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'tipo_dte': tipo_dte,
+        'estado': estado,
+        'search': search,
+        'tipos_dte': dict(DocumentoTributarioElectronico.TIPO_DTE_CHOICES),
+        'estados_sii': DocumentoTributarioElectronico.ESTADO_CHOICES,
+        # Necesitamos clientes para el filtro. 
+        # Idealmente obtener lista de clientes únicos de los DTEs o cargar Clientes.
+        # Por rendimiento, dejaremos clientes vacío o una lista básica
+        'clientes': [] 
     }
     
     return render(request, 'facturacion_electronica/dte_list.html', context)

@@ -45,4 +45,8 @@ urlpatterns = [
     path('exportar/compras/excel/', views.exportar_compras_periodo_excel, name='exportar_compras_periodo_excel'),
     path('exportar/utilidad-familias/excel/', views.exportar_utilidad_familias_excel, name='exportar_utilidad_familias_excel'),
     path('exportar/categorias/excel/', views.exportar_categorias_excel, name='exportar_categorias_excel'),
+    
+    # Informes de Utilidad por Artículos
+    path('utilidad/articulos/', views.informe_utilidad_articulos, name='utilidad_articulos'),
+    path('exportar/utilidad-articulos/excel/', views.exportar_utilidad_articulos_excel, name='exportar_utilidad_articulos_excel'),
 ]

@@ -1,88 +1,160 @@
 {% extends "base.html" %}
+{% load static widget_tweaks %}
 
-{% block body_class %}hide-top-bar{% endblock %}
-{% load widget_tweaks %}
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
 
-{% block title %}{{ title }}{% endblock %}
+    /* Ocultar top-bar si existe y ajustar layout */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-top: 2rem !important; }
+
+    /* Estilo Piedra - Variables Locales */
+    :root {
+        --color-piedra-texto: #5D4037;
+        --color-piedra-boton: #8D6E63;
+        --color-piedra-borde: #d7ccc8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --shadow-piedra: 0 4px 15px rgba(93, 64, 55, 0.15);
+    }
+
+    .card-header-piedra {
+        background: var(--gradient-piedra);
+        border-bottom: 2px solid var(--color-piedra-borde);
+        padding: 1.5rem 2rem;
+    }
+
+    .btn-piedra {
+        background: var(--gradient-piedra);
+        border: 1px solid var(--color-piedra-borde);
+        color: var(--color-piedra-texto) !important;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        border-radius: 10px;
+        box-shadow: var(--shadow-piedra);
+        transition: all 0.3s ease;
+    }
+
+    .btn-piedra:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(93, 64, 55, 0.25);
+        filter: brightness(0.95);
+    }
+
+    .form-label-premium {
+        font-weight: 700;
+        color: var(--color-piedra-texto);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 1px solid var(--color-piedra-borde);
+        padding: 0.7rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-piedra-boton);
+        box-shadow: 0 0 0 0.2rem rgba(141, 110, 99, 0.1);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-tags"></i> {{ title }}
-                    </h3>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0" style="border-radius: 20px; overflow: hidden; border: 1px solid var(--color-piedra-borde) !important;">
+                <div class="card-header-piedra">
+                    <div class="d-flex align-items-center">
+                        <div class="p-3 bg-white bg-opacity-50 rounded-circle me-3 shadow-sm">
+                            <i class="fas fa-tags fa-lg" style="color: var(--color-piedra-texto);"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto);">
+                                {{ title }}
+                            </h4>
+                            <p class="mb-0 small opacity-75" style="color: var(--color-piedra-texto);">Información detallada de la categoría</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
+                
+                <div class="card-body p-4">
                     <form method="post">
                         {% csrf_token %}
                         
-                        <div class="mb-3">
-                            <label for="{{ form.nombre.id_for_label }}" class="form-label">
+                        <div class="mb-4">
+                            <label for="{{ form.nombre.id_for_label }}" class="form-label-premium">
                                 {{ form.nombre.label }}
                             </label>
                             {{ form.nombre|add_class:"form-control" }}
                             {% if form.nombre.errors %}
-                                <div class="text-danger">{{ form.nombre.errors.0 }}</div>
+                                <div class="text-danger small mt-1"><i class="fas fa-exclamation-circle me-1"></i>{{ form.nombre.errors.0 }}</div>
                             {% endif %}
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="{{ form.descripcion.id_for_label }}" class="form-label">
+                        <div class="mb-4">
+                            <label for="{{ form.descripcion.id_for_label }}" class="form-label-premium">
                                 {{ form.descripcion.label }}
                             </label>
                             {{ form.descripcion|add_class:"form-control" }}
                             {% if form.descripcion.errors %}
-                                <div class="text-danger">{{ form.descripcion.errors.0 }}</div>
+                                <div class="text-danger small mt-1"><i class="fas fa-exclamation-circle me-1"></i>{{ form.descripcion.errors.0 }}</div>
                             {% endif %}
                         </div>
                         
                         <!-- Configuración de Impuestos -->
-        <div class="card mb-3">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-percentage"></i> Configuración de Impuestos</h5>
-            </div>
-            <div class="card-body">
-                <div class="form-check mb-3">
-                    {{ form.exenta_iva|add_class:"form-check-input" }}
-                    <label for="{{ form.exenta_iva.id_for_label }}" class="form-check-label">
-                        {{ form.exenta_iva.label }}
-                    </label>
-                    <small class="form-text text-muted">
-                        Si está marcado, los artículos de esta categoría no tendrán IVA (19%)
-                    </small>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="{{ form.impuesto_especifico.id_for_label }}" class="form-label">
-                        {{ form.impuesto_especifico.label }}
-                    </label>
-                    {{ form.impuesto_especifico|add_class:"form-select" }}
-                    {% if form.impuesto_especifico.errors %}
-                        <div class="text-danger">{{ form.impuesto_especifico.errors.0 }}</div>
-                    {% endif %}
-                    <div class="form-text">Seleccione un impuesto específico si aplica para esta categoría</div>
-                </div>
-            </div>
-        </div>
-                        
-                        <div class="mb-3">
-                            <div class="form-check">
-                                {{ form.activa|add_class:"form-check-input" }}
-                                <label for="{{ form.activa.id_for_label }}" class="form-check-label">
-                                    {{ form.activa.label }}
-                                </label>
+                        <div class="card mb-4 border-0" style="background: rgba(141, 110, 99, 0.03); border-radius: 15px; border: 1px dashed var(--color-piedra-borde) !important;">
+                            <div class="card-body p-4">
+                                <h6 class="form-label-premium mb-4"><i class="fas fa-percentage me-2"></i>Configuración de Impuestos</h6>
+                                
+                                <div class="form-check form-switch mb-4">
+                                    {{ form.exenta_iva|add_class:"form-check-input" }}
+                                    <label for="{{ form.exenta_iva.id_for_label }}" class="form-check-label fw-bold" style="color: var(--color-piedra-texto);">
+                                        {{ form.exenta_iva.label }}
+                                    </label>
+                                    <div class="form-text small opacity-75">
+                                        Si está marcado, los artículos de esta categoría no tendrán IVA (19%)
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-0">
+                                    <label for="{{ form.impuesto_especifico.id_for_label }}" class="form-label-premium" style="font-size: 0.75rem;">
+                                        {{ form.impuesto_especifico.label }}
+                                    </label>
+                                    {{ form.impuesto_especifico|add_class:"form-select" }}
+                                    {% if form.impuesto_especifico.errors %}
+                                        <div class="text-danger small mt-1"><i class="fas fa-exclamation-circle me-1"></i>{{ form.impuesto_especifico.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="form-text small opacity-75">Impuesto específico adicional si corresponde</div>
+                                </div>
                             </div>
                         </div>
                         
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'articulos:categoria_list' %}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left"></i> Cancelar
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: rgba(141, 110, 99, 0.05); border: 1px solid var(--color-piedra-borde);">
+                                <div>
+                                    <span class="fw-bold" style="color: var(--color-piedra-texto); font-size: 0.85rem;">Estado de la Categoría</span>
+                                    <p class="mb-0 text-muted small">Marque para permitir su uso en productos</p>
+                                </div>
+                                <div class="form-check form-switch m-0">
+                                    {{ form.activa|add_class:"form-check-input" }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center mt-5">
+                            <a href="{% url 'articulos:categoria_list' %}" class="btn px-4" style="background: rgba(93, 64, 55, 0.05); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 10px; font-weight: 500;">
+                                <i class="fas fa-arrow-left me-2"></i> Volver al Listado
                             </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> {{ submit_text }}
+                            <button type="submit" class="btn btn-piedra px-5">
+                                <i class="fas fa-save me-2"></i> {{ submit_text|default:"Guardar Cambios" }}
                             </button>
                         </div>
                     </form>

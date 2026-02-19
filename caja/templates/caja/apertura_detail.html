@@ -8,471 +8,416 @@
 
 {% block extra_css %}
 <style>
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+        --stone-card-bg: #FFFFFF;
+    }
+
     body {
-        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
-        min-height: 100vh;
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
     
-    /* Efecto hover para filas de tickets - COMPACTO */
-    .table tbody tr:hover {
-        background-color: #f8f9fa !important;
+    .header-icon-box {
+        width: 48px; height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
     }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    /* BOTONES */
+    .btn-action-primary { 
+        background: var(--stone-primary); color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; 
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+    }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2); }
     
-    /* Efecto hover para botón procesar - COMPACTO */
-    .table tbody tr:hover .btn {
-        background: #8B7355 !important;
+    .btn-action-danger { 
+        background: #e53935; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; 
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+    }
+    .btn-action-danger:hover { background: #c62828; color: white; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(229, 57, 53, 0.2); }
+
+    .btn-back { background: rgba(255,255,255,0.6); border: 1px solid #D4C4A8; color: var(--stone-secondary); transition: all 0.2s; border-radius: 8px; font-weight: 600; padding: 0.4rem 1rem; text-decoration: none;}
+    .btn-back:hover { background: white; color: var(--stone-primary); }
+
+    /* INFO CARDS & STATS */
+    .stone-card-info {
+        background: white; border: 1px solid #E8DCC8; border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden;
+    }
+    .stone-card-header {
+        background: #FDFCFB; border-bottom: 1px solid #E8DCC8; padding: 0.8rem 1.2rem;
+        font-weight: 600; color: var(--stone-text); font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    .stone-card-body { padding: 1.2rem; }
+
+    .stat-grid-item {
+        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 10px; padding: 12px; text-align: center; transition: all 0.2s; height: 100%; display: flex; flex-direction: column; justify-content: center;
+    }
+    .stat-grid-item:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(139, 115, 85, 0.1); background: white; }
+    .stat-grid-icon { font-size: 1.5rem; color: var(--stone-primary); margin-bottom: 6px; }
+    .stat-grid-label { font-size: 0.7rem; color: #8D6E63; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .stat-grid-value { font-size: 1.1rem; color: var(--stone-text); font-weight: 700; margin: 0; }
+
+    .total-highlight {
+        background: var(--stone-primary); color: white; border-radius: 10px; padding: 1rem; text-align: center; margin-top: 1rem;
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.25);
     }
 
-    .card-header-terroso {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-        padding: 25px;
-        border: none;
-        font-family: 'Poppins', sans-serif;
+    /* TABLA PIEDRA DETALLE */
+    .table-responsive { border-radius: 0 0 8px 8px; }
+    .table-piedra { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 10px 12px;
+    }
+    .table-piedra tbody tr { transition: all 0.2s; }
+    .table-piedra tbody tr:hover { background-color: #F8F6F2; }
+    .table-piedra tbody td { 
+        padding: 8px 12px; vertical-align: middle; font-size: 0.85rem; color: #4A5568; 
+        border-bottom: 1px solid #F0EAE0;
     }
 
-    .card-header-terroso-alert {
-        background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%);
-        color: white;
-        padding: 20px;
-        border: none;
-        font-family: 'Poppins', sans-serif;
-    }
+    /* BADGES */
+    .badge-stone { padding: 0.35em 0.8em; border-radius: 6px; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.3px; }
+    .badge-stone-success { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+    .badge-stone-danger { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+    .badge-stone-primary { background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; }
+    .badge-stone-warning { background: #FFF8E1; color: #F57F17; border: 1px solid #FFE082; }
+    .badge-stone-info { background: #E0F7FA; color: #006064; border: 1px solid #B2EBF2; }
 
-    .btn-terroso {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        border: none;
-        color: white;
-        font-family: 'Poppins', sans-serif;
-        transition: all 0.3s ease;
+    /* MODAL */
+    .modal-content-stone { border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.15); }
+    .modal-header-stone { background: var(--stone-gradient); padding: 1.25rem; border-bottom: 1px solid #E8DCC8; }
+    .modal-header-stone .modal-title { color: var(--stone-text); font-weight: 700; font-size: 1.1rem; }
+    
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.6rem 0.8rem; font-size: 0.9rem; background-color: #FAFAF8; width: 100%; color: var(--stone-text);
     }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none; background: white;
+    }
+    .form-label-stone { font-size: 0.85rem; font-weight: 600; color: #6F5B44; margin-bottom: 0.3rem; }
 
-    .btn-terroso:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
-        color: white;
-    }
-
-    .btn-terroso-outline {
-        background: transparent;
-        border: 2px solid #8B7355;
-        color: #8B7355;
-        font-weight: 500;
-    }
-
-    .btn-terroso-outline:hover {
-        background: #8B7355;
-        color: white;
-    }
-
-    .btn-terroso-danger {
-        background: linear-gradient(135deg, #C19A6B 0%, #A0826D 100%);
-        border: none;
-        color: white;
-    }
-
-    .btn-terroso-danger:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(193, 154, 107, 0.3);
-        color: white;
-    }
-
-    .bg-terroso-light {
-        background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
-    }
-
-    .text-terroso {
-        color: #8B7355;
-    }
-
-    .badge-terroso {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-    }
-
-    .badge-terroso-light {
-        background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%);
-        color: white;
-    }
-
-    .stat-box-terroso {
-        background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
-        border: 1px solid #D4C4A8;
-    }
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="padding-top: 20px;">
-    <!-- Header de la página -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h2 class="mb-1" style="color: #6F5B44; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                        <i class="fas fa-cash-register me-3" style="color: #8B7355;"></i>Estado de Caja
-                    </h2>
-                    <p class="text-muted mb-0">
-                        {{ apertura.caja.nombre }} - Caja {{ apertura.caja.numero }}
-                    </p>
+<div class="container-fluid">
+    <!-- Mensajes -->
+    {% if messages %}
+        <div class="messages mb-3 mt-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 12px; border: none; border-left: 5px solid {% if message.tags == 'error' or message.tags == 'danger' %}#dc3545{% elif message.tags == 'warning' %}#ffc107{% elif message.tags == 'success' %}#28a745{% else %}#007bff{% endif %};">
+                    <i class="fas {% if message.tags == 'error' or message.tags == 'danger' %}fa-times-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% elif message.tags == 'success' %}fa-check-circle{% else %}fa-info-circle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-                <div class="d-flex gap-2">
-                    <a href="{% url 'caja:apertura_list' %}" class="btn btn-terroso-outline">
-                        <i class="fas fa-arrow-left me-2"></i>Volver
-                    </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="single-card-container">
+        <!-- HEADER -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-cash-register"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Detalle de <span class="fw-bold">Apertura</span></h1>
+                    <p>{{ apertura.caja.nombre }} - Caja #{{ apertura.caja.numero }}</p>
+                </div>
+                <div class="ms-3">
                     {% if apertura.estado == 'abierta' %}
-                    <a href="{% url 'caja:apertura_cerrar' apertura.pk %}" class="btn btn-terroso-danger">
-                        <i class="fas fa-lock me-2"></i>Cerrar Caja
-                    </a>
+                        <span class="badge badge-stone badge-stone-success"><i class="fas fa-unlock me-1"></i> ABIERTA</span>
                     {% else %}
-                    <a href="{% url 'caja:apertura_imprimir' apertura.pk %}" class="btn btn-terroso" target="_blank">
-                        <i class="fas fa-print me-2"></i>Imprimir Informe
-                    </a>
+                        <span class="badge badge-stone badge-stone-secondary"><i class="fas fa-lock me-1"></i> CERRADA</span>
                     {% endif %}
                 </div>
             </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'caja:apertura_list' %}" class="btn btn-back">
+                    <i class="fas fa-arrow-left me-2"></i> Volver
+                </a>
+                {% if apertura.estado == 'abierta' %}
+                <a href="{% url 'caja:apertura_cerrar' apertura.pk %}" class="btn btn-action-danger">
+                    <i class="fas fa-lock me-2"></i> Cerrar Caja
+                </a>
+                {% else %}
+                <a href="{% url 'caja:apertura_imprimir' apertura.pk %}" class="btn btn-action-primary" target="_blank">
+                    <i class="fas fa-print me-2"></i> Imprimir Informe
+                </a>
+                {% endif %}
+            </div>
         </div>
-    </div>
 
-    <div class="row">
-        <!-- Panel Izquierdo: Información de Caja -->
-        <div class="col-md-4">
-            <div class="card shadow-lg mb-4" style="border: none; border-radius: 20px; overflow: hidden; background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);">
-                <!-- Header -->
-                <div class="card-header-terroso text-white position-relative">
-                    <div class="text-center position-relative">
-                        <div class="position-absolute top-0 end-0">
-                            {% if apertura.estado == 'abierta' %}
-                            <span class="badge badge-terroso-light px-3 py-2 fs-6">
-                                <i class="fas fa-circle me-1"></i>ABIERTA
-                            </span>
-                            {% else %}
-                            <span class="badge bg-secondary px-3 py-2 fs-6">
-                                <i class="fas fa-circle me-1"></i>CERRADA
-                            </span>
-                            {% endif %}
+        <div class="card-body p-4">
+            
+            <div class="row g-4">
+                
+                <!-- COLUMNA IZQUIERDA: INFO Y TOTALES -->
+                <div class="col-lg-4">
+                    
+                    <!-- Información del Turno -->
+                    <div class="stone-card-info">
+                        <div class="stone-card-header">
+                            <span><i class="fas fa-user-clock me-2"></i>Datos del Turno</span>
                         </div>
-                        <i class="fas fa-cash-register" style="font-size: 4rem; margin-bottom: 15px; opacity: 0.9;"></i>
-                        <h3 class="mb-2" style="font-weight: 700;">{{ apertura.caja.nombre }}</h3>
-                        <p class="mb-0 opacity-75">Caja {{ apertura.caja.numero }}</p>
-                    </div>
-                </div>
-
-                <!-- Información General -->
-                <div class="card-body p-4">
-                    <!-- Información de Apertura/Cierre -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="mb-0 text-muted">
-                                    <i class="fas fa-info-circle me-2"></i>Información del Turno
-                                </h6>
-                                <span class="badge {% if apertura.estado == 'abierta' %}badge-terroso{% else %}bg-secondary{% endif %} px-3 py-2">
-                                    {% if apertura.estado == 'abierta' %}
-                                        <i class="fas fa-lock-open me-1"></i>ABIERTA
-                                    {% else %}
-                                        <i class="fas fa-lock me-1"></i>CERRADA
+                        <div class="p-0">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td class="px-3 py-2 text-muted border-bottom small">Fecha Apertura</td>
+                                        <td class="px-3 py-2 text-end fw-bold border-bottom small">{{ apertura.fecha_apertura|date:"d/m/Y H:i" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-3 py-2 text-muted border-bottom small">Usuario</td>
+                                        <td class="px-3 py-2 text-end fw-bold border-bottom small">{{ apertura.usuario_apertura.username }}</td>
+                                    </tr>
+                                    {% if apertura.estado == 'cerrada' %}
+                                    <tr>
+                                        <td class="px-3 py-2 text-muted border-bottom small">Fecha Cierre</td>
+                                        <td class="px-3 py-2 text-end fw-bold border-bottom small">{{ apertura.fecha_cierre|date:"d/m/Y H:i" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-3 py-2 text-muted border-bottom small">Usuario Cierre</td>
+                                        <td class="px-3 py-2 text-end fw-bold border-bottom small">{{ apertura.usuario_cierre.username }}</td>
+                                    </tr>
                                     {% endif %}
-                                </span>
-                            </div>
-
-                            <div class="bg-terroso-light p-3 rounded-3 mb-3">
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <small class="text-muted d-block">Apertura</small>
-                                        <strong class="d-block">{{ apertura.fecha_apertura|date:"d/m/Y" }}</strong>
-                                        <small class="text-muted">{{ apertura.fecha_apertura|date:"H:i" }}</small>
-                                    </div>
-                                    <div class="col-6 text-end">
-                                        <small class="text-muted d-block">Usuario</small>
-                                        <strong class="d-block">{{ apertura.usuario_apertura.get_full_name|default:apertura.usuario_apertura.username }}</strong>
-                                        <small class="text-muted">@{{ apertura.usuario_apertura.username }}</small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {% if apertura.estado == 'cerrada' %}
-                            <div class="bg-terroso-light p-3 rounded-3">
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <small class="text-muted d-block">Cierre</small>
-                                        <strong class="d-block">{{ apertura.fecha_cierre|date:"d/m/Y" }}</strong>
-                                        <small class="text-muted">{{ apertura.fecha_cierre|date:"H:i" }}</small>
-                                    </div>
-                                    <div class="col-6 text-end">
-                                        <small class="text-muted d-block">Usuario</small>
-                                        <strong class="d-block">{{ apertura.usuario_cierre.get_full_name|default:apertura.usuario_cierre.username }}</strong>
-                                        <small class="text-muted">@{{ apertura.usuario_cierre.username }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endif %}
+                                    {% if apertura.observaciones_apertura %}
+                                    <tr>
+                                        <td colspan="2" class="px-3 py-2 bg-light small fst-italic text-muted border-bottom">
+                                            <i class="fas fa-comment me-1"></i> "{{ apertura.observaciones_apertura }}"
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
-                    <hr class="my-4">
-
-                    <!-- Totales Financieros -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <h6 class="mb-3 text-muted">
-                                <i class="fas fa-chart-line me-2"></i>Resumen Financiero
-                            </h6>
-
+                    <!-- Resumen Financiero -->
+                    <div class="stone-card-info">
+                        <div class="stone-card-header">
+                            <span><i class="fas fa-wallet me-2"></i>Balance Financiero</span>
+                        </div>
+                        <div class="stone-card-body pt-3">
                             <div class="row g-2">
                                 <div class="col-6">
-                                    <div class="stat-box-terroso p-2 rounded-3 text-center">
-                                        <i class="fas fa-money-bill-wave text-terroso mb-1" style="font-size: 1.2rem;"></i>
-                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Inicial</small>
-                                        <h6 class="text-terroso mb-0">${{ apertura.monto_inicial|format_price }}</h6>
+                                    <div class="stat-grid-item">
+                                        <div class="stat-grid-icon"><i class="fas fa-money-bill-alt"></i></div>
+                                        <div class="stat-grid-label">Inicial</div>
+                                        <div class="stat-grid-value">${{ apertura.monto_inicial|format_price }}</div>
                                     </div>
                                 </div>
-
                                 <div class="col-6">
-                                    <div class="stat-box-terroso p-2 rounded-3 text-center">
-                                        <i class="fas fa-cash-register text-terroso mb-1" style="font-size: 1.2rem;"></i>
-                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Efectivo</small>
-                                        <h6 class="text-terroso mb-0">${{ apertura.total_ventas_efectivo|format_price }}</h6>
+                                    <div class="stat-grid-item">
+                                        <div class="stat-grid-icon"><i class="fas fa-cash-register"></i></div>
+                                        <div class="stat-grid-label">Efec. Ventas</div>
+                                        <div class="stat-grid-value">${{ apertura.total_ventas_efectivo|format_price }}</div>
                                     </div>
                                 </div>
-
-                                <div class="col-6">
-                                    <div class="stat-box-terroso p-2 rounded-3 text-center">
-                                        <i class="fas fa-credit-card text-terroso mb-1" style="font-size: 1.2rem;"></i>
-                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Tarjeta</small>
-                                        <h6 class="text-terroso mb-0">${{ apertura.total_ventas_tarjeta|format_price }}</h6>
+                                <!-- Otros medios de pago -->
+                                <div class="col-4">
+                                    <div class="stat-grid-item py-2">
+                                        <div class="stat-grid-label" style="font-size: 0.65rem;">Tarjeta</div>
+                                        <div class="fw-bold small">${{ apertura.total_ventas_tarjeta|format_price }}</div>
                                     </div>
                                 </div>
-
-                                <div class="col-6">
-                                    <div class="stat-box-terroso p-2 rounded-3 text-center">
-                                        <i class="fas fa-university text-terroso mb-1" style="font-size: 1.2rem;"></i>
-                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Transf.</small>
-                                        <h6 class="text-terroso mb-0">${{ apertura.total_ventas_transferencia|format_price }}</h6>
+                                <div class="col-4">
+                                    <div class="stat-grid-item py-2">
+                                        <div class="stat-grid-label" style="font-size: 0.65rem;">Transf.</div>
+                                        <div class="fw-bold small">${{ apertura.total_ventas_transferencia|format_price }}</div>
                                     </div>
                                 </div>
-
-                                <div class="col-6">
-                                    <div class="stat-box-terroso p-2 rounded-3 text-center">
-                                        <i class="fas fa-file-invoice-dollar text-terroso mb-1" style="font-size: 1.2rem;"></i>
-                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Cheque</small>
-                                        <h6 class="text-terroso mb-0">${{ apertura.total_ventas_cheque|format_price }}</h6>
-                                    </div>
-                                </div>
-
-                                <div class="col-6">
-                                    <div class="stat-box-terroso p-2 rounded-3 text-center">
-                                        <i class="fas fa-handshake text-terroso mb-1" style="font-size: 1.2rem;"></i>
-                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Crédito</small>
-                                        <h6 class="text-terroso mb-0">${{ apertura.total_ventas_credito|format_price }}</h6>
+                                <div class="col-4">
+                                    <div class="stat-grid-item py-2">
+                                        <div class="stat-grid-label" style="font-size: 0.65rem;">Otros</div>
+                                        <div class="fw-bold small">${{ apertura.total_ventas_cheque|add:apertura.total_ventas_credito|format_price }}</div>
                                     </div>
                                 </div>
                             </div>
-
-                            <hr class="my-3">
-
-                            <div class="p-3 rounded-3 text-center" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
-                                <i class="fas fa-wallet text-white mb-2" style="font-size: 1.5rem;"></i>
-                                <h6 class="text-white mb-1">Efectivo en Caja</h6>
-                                <h3 class="text-white mb-0" style="font-weight: 700;">${{ apertura.monto_final|format_price }}</h3>
+                            
+                            <div class="total-highlight">
+                                <div class="small opacity-75 text-uppercase fw-bold mb-1">Efectivo Final (Teórico)</div>
+                                <div class="h3 mb-0 fw-bold">${{ apertura.monto_final|format_price }}</div>
                             </div>
+
                         </div>
                     </div>
-                </div>
-
-                <!-- Acciones -->
-                <div class="card-footer bg-transparent border-0">
+                    
+                    <!-- BOTÓN ACCIÓN RÁPIDA -->
                     {% if apertura.estado == 'abierta' %}
-                    <div class="d-grid gap-2">
-                        <a href="{% url 'caja:apertura_cerrar' apertura.pk %}" class="btn btn-terroso-danger btn-lg">
-                            <i class="fas fa-lock me-2"></i>Cerrar Caja
-                        </a>
-                        <button type="button" class="btn btn-terroso-outline" data-bs-toggle="modal" data-bs-target="#modalMovimiento">
-                            <i class="fas fa-plus-circle me-2"></i>Registrar Movimiento
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-action-primary justify-content-center py-3" data-bs-toggle="modal" data-bs-target="#modalMovimiento">
+                            <i class="fas fa-plus-circle me-2"></i> Registrar Movimiento Extra
                         </button>
-                    </div>
-                    {% else %}
-                    <div class="d-grid gap-2">
-                        <a href="{% url 'caja:apertura_imprimir' apertura.pk %}" class="btn btn-terroso btn-lg" target="_blank">
-                            <i class="fas fa-print me-2"></i>Imprimir Informe de Cierre
-                        </a>
-                        <a href="{% url 'caja:apertura_list' %}" class="btn btn-terroso-outline">
-                            <i class="fas fa-arrow-left me-2"></i>Volver al Listado
-                        </a>
+                        <div class="form-text text-center mt-2 small">Ingresos de cambio, retiros parciales, etc.</div>
                     </div>
                     {% endif %}
-                </div>
-            </div>
-        </div>
 
-        <!-- Panel Derecho: Tickets Pendientes y Movimientos -->
-        <div class="col-md-8">
-            <!-- Tickets Pendientes - COMPACTO -->
-            {% if apertura.estado == 'abierta' and tickets_pendientes %}
-            <div class="card shadow-sm mb-3" style="border: 1px solid #D4A574; border-radius: 8px; overflow: hidden;">
-                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%); padding: 0.5rem 0.75rem;">
-                    <h6 class="mb-0" style="font-size: 0.85rem; font-weight: 600;">
-                        <i class="fas fa-receipt me-1"></i>Tickets Pendientes
-                    </h6>
-                    <span class="badge" style="background: white; color: #8B7355; font-size: 0.75rem;">
-                        {{ tickets_pendientes.count }}
-                    </span>
                 </div>
-                <div class="card-body p-2">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0" style="font-size: 0.8rem;">
-                            <thead style="background: #f8f9fa;">
-                                <tr>
-                                    <th style="padding: 0.3rem; font-size: 0.75rem; font-weight: 600;">Ticket</th>
-                                    <th style="padding: 0.3rem; font-size: 0.75rem; font-weight: 600;">Tipo Doc.</th>
-                                    <th style="padding: 0.3rem; font-size: 0.75rem; font-weight: 600;">Cliente</th>
-                                    <th style="padding: 0.3rem; font-size: 0.75rem; font-weight: 600;">Hora</th>
-                                    <th class="text-end" style="padding: 0.3rem; font-size: 0.75rem; font-weight: 600;">Total</th>
-                                    <th class="text-center" style="padding: 0.3rem; font-size: 0.75rem; font-weight: 600;">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for ticket in tickets_pendientes %}
-                                <tr style="border-bottom: 1px solid #f0f0f0;">
-                                    <td style="padding: 0.4rem;">
-                                        <strong style="color: #8B7355; font-size: 0.85rem;">#{{ ticket.numero_venta }}</strong>
-                                    </td>
-                                    <td style="padding: 0.4rem;">
-                                        {% if ticket.tipo_documento_planeado %}
-                                        <span class="badge" style="
-                                            {% if ticket.tipo_documento_planeado == 'factura' %}background: #28a745;
-                                            {% elif ticket.tipo_documento_planeado == 'boleta' %}background: #17a2b8;
-                                            {% elif ticket.tipo_documento_planeado == 'guia' %}background: #ffc107; color: #000;
-                                            {% elif ticket.tipo_documento_planeado == 'cotizacion' %}background: #6f42c1;
-                                            {% else %}background: #6c757d;
+
+                <!-- COLUMNA DERECHA: TABLAS -->
+                <div class="col-lg-8">
+                    
+                    <!-- MOVIMIENTOS -->
+                    <div class="stone-card-info">
+                        <div class="stone-card-header">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-exchange-alt me-2 text-muted"></i>
+                                <span>Movimientos de Caja</span>
+                                <span class="badge bg-light text-dark border ms-2">{{ movimientos.count }}</span>
+                            </div>
+                        </div>
+                        
+                        {% if movimientos %}
+                        <div class="table-responsive">
+                            <table class="table-piedra">
+                                <thead>
+                                    <tr>
+                                        <th width="15%">Hora</th>
+                                        <th width="15%">Tipo</th>
+                                        <th width="45%">Descripción</th>
+                                        <th width="10%">Usuario</th>
+                                        <th width="15%" class="text-end">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mov in movimientos %}
+                                    <tr>
+                                        <td>{{ mov.fecha|date:"H:i" }}</td>
+                                        <td>
+                                            {% if mov.tipo == 'venta' %}
+                                                <span class="badge badge-stone badge-stone-success"><i class="fas fa-shopping-cart me-1"></i> Venta</span>
+                                            {% elif mov.tipo == 'retiro' %}
+                                                <span class="badge badge-stone badge-stone-danger"><i class="fas fa-arrow-up me-1"></i> Retiro</span>
+                                            {% elif mov.tipo == 'ingreso' %}
+                                                <span class="badge badge-stone badge-stone-primary"><i class="fas fa-arrow-down me-1"></i> Ingreso</span>
+                                            {% else %}
+                                                <span class="badge badge-stone badge-stone-warning"><i class="fas fa-undo me-1"></i> Devol.</span>
                                             {% endif %}
-                                            font-size: 0.7rem; padding: 0.2rem 0.4rem;">
-                                            {{ ticket.get_tipo_documento_planeado_display|upper }}
-                                        </span>
-                                        {% else %}
-                                        <span class="badge" style="background: #6c757d; font-size: 0.7rem; padding: 0.2rem 0.4rem;">
-                                            VALE
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                    <td style="padding: 0.4rem; min-width: 250px;">
-                                        {% if ticket.cliente %}
-                                            <strong style="font-size: 0.8rem;">{{ ticket.cliente.nombre|truncatechars:60 }}</strong>
-                                        {% else %}
-                                            <span class="text-muted" style="font-size: 0.75rem;">Sin cliente</span>
-                                        {% endif %}
-                                    </td>
-                                    <td style="padding: 0.4rem;">
-                                        <span style="color: #6c757d; font-size: 0.75rem;">
-                                            {{ ticket.fecha_creacion|date:"H:i" }}
-                                        </span>
-                                    </td>
-                                    <td class="text-end" style="padding: 0.4rem;">
-                                        <strong style="color: #8B7355; font-size: 0.85rem;">
-                                            ${{ ticket.total|floatformat:0 }}
-                                        </strong>
-                                    </td>
-                                    <td class="text-center" style="padding: 0.4rem;">
-                                        <a href="{% url 'caja:procesar_venta' ticket.pk %}" class="btn btn-sm" style="background: #A0826D; color: white; border: none; padding: 0.25rem 0.75rem; font-size: 0.75rem; font-weight: 600;">
-                                            <i class="fas fa-play me-1"></i>Procesar
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center py-3">
-                                        <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
-                                        <p class="mb-0 text-muted" style="font-size: 0.8rem;">No hay tickets pendientes</p>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                        </td>
+                                        <td>
+                                            <span class="d-inline-block text-truncate" style="max-width: 250px;" title="{{ mov.descripcion }}">
+                                                {{ mov.descripcion }}
+                                            </span>
+                                        </td>
+                                        <td><small class="text-muted">{{ mov.usuario.username }}</small></td>
+                                        <td class="text-end fw-bold">
+                                            {% if mov.tipo == 'retiro' or mov.tipo == 'devolucion' %}
+                                                <span class="text-danger">-${{ mov.monto|format_price }}</span>
+                                            {% else %}
+                                                <span class="text-success">+${{ mov.monto|format_price }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-exchange-alt fa-2x text-muted opacity-25 mb-2"></i>
+                            <p class="text-muted small fw-bold">Sin movimientos registrados aún</p>
+                        </div>
+                        {% endif %}
                     </div>
-                </div>
-            </div>
-            {% endif %}
 
-            <!-- Movimientos de Caja -->
-            <div class="card shadow-lg" style="border: none; border-radius: 15px; overflow: hidden;">
-                <div class="card-header-terroso text-white position-relative" style="padding: 15px;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">
-                            <i class="fas fa-exchange-alt me-2"></i>Movimientos de Caja
-                        </h6>
-                        <span class="badge badge-terroso-light px-2 py-1">
-                            {{ movimientos.count }}
-                        </span>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    {% if movimientos %}
-                    <div class="table-responsive">
-                        <table class="table table-hover table-sm mb-0">
-                            <thead style="background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);">
-                                <tr>
-                                    <th style="padding: 10px; font-size: 0.85rem;">Hora</th>
-                                    <th style="padding: 10px; font-size: 0.85rem;">Tipo</th>
-                                    <th style="padding: 10px; font-size: 0.85rem;">Descripción</th>
-                                    <th class="text-end" style="padding: 10px; font-size: 0.85rem;">Monto</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for mov in movimientos %}
-                                <tr style="font-size: 0.9rem;">
-                                    <td style="padding: 8px; vertical-align: middle;">
-                                        <small class="text-muted">{{ mov.fecha|date:"H:i" }}</small>
-                                    </td>
-                                    <td style="padding: 8px; vertical-align: middle;">
-                                        {% if mov.tipo == 'venta' %}
-                                        <span class="badge badge-terroso" style="font-size: 0.75rem; padding: 4px 8px;">
-                                            <i class="fas fa-shopping-cart me-1"></i>Venta
-                                        </span>
-                                        {% elif mov.tipo == 'retiro' %}
-                                        <span class="badge" style="background: #C19A6B; font-size: 0.75rem; padding: 4px 8px;">
-                                            <i class="fas fa-minus-circle me-1"></i>Retiro
-                                        </span>
-                                        {% elif mov.tipo == 'ingreso' %}
-                                        <span class="badge badge-terroso-light" style="font-size: 0.75rem; padding: 4px 8px;">
-                                            <i class="fas fa-plus-circle me-1"></i>Ingreso
-                                        </span>
-                                        {% else %}
-                                        <span class="badge" style="background: #A0826D; font-size: 0.75rem; padding: 4px 8px;">
-                                            <i class="fas fa-undo me-1"></i>Devolución
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                    <td style="padding: 8px; vertical-align: middle;">
-                                        <div class="text-truncate" style="max-width: 250px;" title="{{ mov.descripcion }}">
-                                            {{ mov.descripcion|truncatechars:40 }}
-                                        </div>
-                                    </td>
-                                    <td class="text-end" style="padding: 8px; vertical-align: middle;">
-                                        {% if mov.tipo == 'retiro' %}
-                                        <span class="fw-bold" style="color: #C19A6B;">
-                                            -${{ mov.monto|format_price }}
-                                        </span>
-                                        {% elif mov.tipo == 'ingreso' %}
-                                        <span class="fw-bold text-terroso">
-                                            +${{ mov.monto|format_price }}
-                                        </span>
-                                        {% else %}
-                                        <span class="fw-bold text-terroso">
-                                            ${{ mov.monto|format_price }}
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
-                        <p class="text-muted mb-0" style="font-size: 0.9rem;">No hay movimientos registrados</p>
+                    <!-- PENDIENTES (Solo si abierta) -->
+                    {% if apertura.estado == 'abierta' and tickets_pendientes %}
+                    <div class="stone-card-info mb-0">
+                         <div class="stone-card-header bg-warning bg-opacity-10">
+                            <div class="d-flex align-items-center text-dark">
+                                <i class="fas fa-clock me-2"></i>
+                                <span>Cola de Tickets Pendientes</span>
+                                <span class="badge bg-warning text-dark ms-2">{{ tickets_pendientes.count }}</span>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table-piedra">
+                                <thead>
+                                    <tr>
+                                        <th>Ticket</th>
+                                        <th>Tipo</th>
+                                        <th>Cliente</th>
+                                        <th>Hora</th>
+                                        <th class="text-end">Monto</th>
+                                        <th class="text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ticket in tickets_pendientes %}
+                                    <tr>
+                                        <td class="fw-bold">#{{ ticket.numero_venta }}</td>
+                                        <td>
+                                            {% if ticket.tipo_documento_planeado == 'factura' %}
+                                                <span class="badge badge-stone badge-stone-info">Factura</span>
+                                            {% elif ticket.tipo_documento_planeado == 'boleta' %}
+                                                <span class="badge badge-stone badge-stone-primary">Boleta</span>
+                                            {% elif ticket.tipo_documento_planeado == 'vale' %}
+                                                <span class="badge badge-stone badge-stone-secondary">Vale</span>
+                                            {% else %}
+                                                <span class="badge badge-stone badge-stone-warning">Otro</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ticket.cliente.nombre|truncatechars:20 }}</td>
+                                        <td>{{ ticket.fecha_creacion|date:"H:i" }}</td>
+                                        <td class="text-end fw-bold">${{ ticket.total|format_price }}</td>
+                                        <td class="text-center">
+                                            <a href="{% url 'caja:procesar_venta' ticket.pk %}" class="btn btn-sm btn-action-primary py-1 px-2" style="font-size: 0.75rem;">
+                                                Procesar <i class="fas fa-chevron-right ms-1"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                     {% endif %}
+
                 </div>
             </div>
         </div>
@@ -482,55 +427,48 @@
 <!-- Modal para Registrar Movimiento -->
 <div class="modal fade" id="modalMovimiento" tabindex="-1" aria-labelledby="modalMovimientoLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="border: none; border-radius: 15px; overflow: hidden;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none;">
+        <div class="modal-content modal-content-stone">
+            <div class="modal-header modal-header-stone">
                 <h5 class="modal-title" id="modalMovimientoLabel">
                     <i class="fas fa-exchange-alt me-2"></i>Registrar Movimiento
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post" action="{% url 'caja:movimiento_create' apertura.pk %}">
                 {% csrf_token %}
-                <div class="modal-body" style="background: #FAFAF8;">
+                <div class="modal-body p-4 bg-light bg-opacity-10">
+                    
                     <div class="mb-3">
-                        <label class="form-label fw-bold" style="color: #6F5B44;">
-                            <i class="fas fa-tag me-2"></i>Tipo de Movimiento
-                        </label>
-                        <select name="tipo" class="form-select" required>
+                        <label class="form-label-stone">Tipo de Movimiento</label>
+                        <select name="tipo" class="form-select-stone" required>
                             <option value="">Seleccione...</option>
-                            <option value="ingreso">Ingreso</option>
-                            <option value="retiro">Retiro</option>
+                            <option value="ingreso">Ingreso de Dinero (Carga)</option>
+                            <option value="retiro">Retiro de Dinero (Gasto/Depósito)</option>
                         </select>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold" style="color: #6F5B44;">
-                            <i class="fas fa-money-bill-wave me-2"></i>Monto
-                        </label>
-                        <input type="number" name="monto" class="form-control" step="1" min="0" required>
+                        <label class="form-label-stone">Monto</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0" style="border-color: #D4C4A8; color: #8B7355;">$</span>
+                            <input type="number" name="monto" class="form-control-stone border-start-0 ps-0" step="1" min="0" required>
+                        </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold" style="color: #6F5B44;">
-                            <i class="fas fa-comment me-2"></i>Descripción *
-                        </label>
-                        <textarea name="descripcion" class="form-control" rows="3" required minlength="10"></textarea>
-                        <small class="text-muted">Mínimo 10 caracteres. Explica el motivo del movimiento</small>
+                        <label class="form-label-stone">Descripción</label>
+                        <textarea name="descripcion" class="form-control-stone" rows="3" required minlength="5" placeholder="Motivo del movimiento..."></textarea>
                     </div>
+
                 </div>
-                <div class="modal-footer" style="background: #FAFAF8; border-top: 1px solid #D4C4A8;">
-                    <button type="button" class="btn btn-terroso-outline" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-terroso">
-                        <i class="fas fa-check me-2"></i>Registrar
+                <div class="modal-footer border-top-0 p-3 pt-0 bg-light bg-opacity-10">
+                    <button type="button" class="btn btn-back" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-action-primary">
+                        <i class="fas fa-save me-2"></i>Guardar Movimiento
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
 {% endblock %}
-
-

@@ -26,7 +26,8 @@ class BodegaForm(forms.ModelForm):
                 empresa=self.request.empresa,
                 estado='activa'
             ).order_by('nombre')
-            self.fields['sucursal'].empty_label = "Sin sucursal asignada"
+            self.fields['sucursal'].empty_label = "Seleccione una sucursal"
+            self.fields['sucursal'].required = True
         
         self.helper = FormHelper()
         self.helper.form_method = 'post'

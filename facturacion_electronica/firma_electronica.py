@@ -127,7 +127,9 @@ class FirmadorDTE:
             if isinstance(xml_string, str):
                 xml_string = xml_string.encode('ISO-8859-1')
             
-            root = etree.fromstring(xml_string)
+            # Parser robusto para evitar fragmentación o mala lectura
+            parser = etree.XMLParser(remove_blank_text=True, encoding='ISO-8859-1', recover=True)
+            root = etree.fromstring(xml_string, parser=parser)
             
             # Buscar el elemento Documento que debe ser firmado
             documento = root.find('.//{http://www.sii.cl/SiiDte}Documento')
@@ -165,7 +167,7 @@ class FirmadorDTE:
             # Convertir a string
             xml_firmado = etree.tostring(
                 signed_root,
-                pretty_print=True,
+                pretty_print=False,
                 xml_declaration=True,
                 encoding='ISO-8859-1'
             ).decode('ISO-8859-1')

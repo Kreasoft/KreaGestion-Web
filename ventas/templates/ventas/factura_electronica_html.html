@@ -391,7 +391,8 @@
                         N° N/A
                         {% endif %}
                     </div>
-                    <div class="document-sii">SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}</div>
+                    <div class="document-sii">SII - {{
+                        venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}</div>
                 </div>
             </div>
         </div>
@@ -687,127 +688,68 @@
             style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
             🖨️ Imprimir Factura
         </button>
-        <button onclick="window.location.href='{% url 'caja:procesar_venta_buscar' %}'; return false;"
+        <button id="btn-cerrar" onclick="safeCloseWindow()"
             style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
             ← Cerrar
         </button>
     </div>
 
     <script>
-        // Función universal para cerrar/volver desde templates de impresión
+        // Parámetros URL globales
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoPrint = urlParams.get('auto');
+        const autoClose = urlParams.get('autoclose');
+        const autoCloseDelay = parseInt(urlParams.get('autoclose_delay')) || 3000;
+        const returnUrl = urlParams.get('return_url');
+
+        console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl });
+
         function safeCloseWindow() {
-            console.log('safeCloseWindow llamado');
+            console.log('[DTE AUTO] Cerrando ventana...');
 
-            const posUrl = "{% url 'ventas:pos_view' %}";
-
-            // Intentar cerrar la ventana si fue abierta por otra ventana
-            if (window.opener && window.opener !== window && !window.opener.closed) {
-                try {
-                    window.close();
-                    console.log('Ventana cerrada');
-                    return;
-                } catch (e) {
-                    console.log('No se pudo cerrar la ventana:', e);
-                }
-            }
-
-            // Obtener parámetros URL
-            const params = new URLSearchParams(window.location.search);
-            const returnUrl = params.get('return_url');
-            const auto = params.get('auto');
-
-            // CRÍTICO: Detectar si viene desde caja usando parámetro from_caja
-            const fromCajaParam = params.get('from_caja') === '1';
-            const referrer = document.referrer || '';
-            const fromCajaReferrer = referrer.includes('/caja/procesar-venta') || referrer.includes('/caja/');
-            const fromCaja = fromCajaParam || fromCajaReferrer;
-            const fromPos = referrer.includes('/ventas/pos') && !fromCaja;
-
-            console.log('from_caja param:', fromCajaParam);
-            console.log('fromCaja referrer:', fromCajaReferrer);
-            console.log('fromCaja final:', fromCaja);
-            console.log('returnUrl:', returnUrl);
-
-            // URL de caja
-            const cajaUrl = "{% url 'caja:procesar_venta_buscar' %}";
-
-            // PRIORIDAD 1: Si viene desde caja (parámetro o referrer), ir a caja
-            if (fromCaja || (returnUrl && returnUrl.includes('/caja/'))) {
-                console.log('Redirigiendo a CAJA');
-                window.location.href = cajaUrl;
-                return;
-            }
-
-            // PRIORIDAD 2: Si hay return_url válido, usarlo
             if (returnUrl) {
-                console.log('Redirigiendo a return_url:', returnUrl);
+                console.log('[DTE AUTO] Volviendo a:', returnUrl);
                 window.location.href = decodeURIComponent(returnUrl);
                 return;
             }
 
-            // PRIORIDAD 3: Si viene desde POS, ir al POS
-            if (fromPos) {
-                console.log('Redirigiendo al POS');
-                window.location.href = posUrl;
-                return;
+            // Fallback inteligente
+            const referrer = document.referrer;
+            if (referrer && (referrer.includes('/caja/') || referrer.includes('/pos/'))) {
+                window.location.href = referrer;
+            } else {
+                // Default a caja si no hay otra info
+                window.location.href = "{% url 'caja:procesar_venta_buscar' %}";
             }
-
-            // FALLBACK: ir a caja (más seguro)
-            console.log('Redirigiendo a CAJA (fallback)');
-            window.location.href = cajaUrl;
         }
 
-        // Guardar la URL de referencia cuando se carga la página
-        window.addEventListener('load', function () {
-            const params = new URLSearchParams(window.location.search);
-            const returnUrl = params.get('return_url');
-
-            // Guardar la URL de referencia si existe
-            if (returnUrl) {
-                sessionStorage.setItem('print_referer', returnUrl);
-                console.log('Return URL guardado:', returnUrl);
-            } else if (document.referrer && document.referrer !== window.location.href) {
-                sessionStorage.setItem('print_referer', document.referrer);
-                console.log('Referrer guardado:', document.referrer);
-            } else {
-                // Si no hay referrer, guardar el POS como fallback si viene de auto=1
-                if (params.get('auto') === '1') {
-                    sessionStorage.setItem('print_referer', "{% url 'ventas:pos_view' %}");
-                    console.log('Referrer fallback guardado: POS');
-                }
-            }
-        });
-
-        // Configurar botón cerrar - SOLUCIÓN DIRECTA
-        document.addEventListener('DOMContentLoaded', function () {
-            const btnCerrar = document.getElementById('btnCerrar');
-            if (btnCerrar) {
-                btnCerrar.onclick = function (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    safeCloseWindow();
-                    return false;
-                };
-                console.log('Botón cerrar configurado correctamente');
-            } else {
-                console.error('ERROR: No se encontró btnCerrar');
-            }
-        });
-
-        // Auto-print cuando viene con auto=1 - SOLUCIÓN ULTRA SIMPLE
-        // Usar window.onload para asegurar que todo esté cargado
-        window.onload = function () {
-            if (window.location.search.indexOf('auto=1') !== -1) {
-                // Esperar un momento y luego imprimir
+        // Auto-ejecución
+        if (autoPrint === '1') {
+            window.addEventListener('load', function () {
+                console.log('[DTE AUTO] Iniciando impresión automática...');
                 setTimeout(function () {
-                    try {
-                        window.print();
-                    } catch (e) {
-                        console.error('Error al imprimir:', e);
+                    window.print();
+
+                    if (autoClose === '1') {
+                        console.log('[DTE AUTO] Cierre programado en ' + autoCloseDelay + 'ms');
+
+                        // Mostrar cuenta regresiva visualmente si es posible (opcional)
+                        const btnCerrar = document.getElementById('btn-cerrar');
+                        if (btnCerrar) {
+                            let counter = autoCloseDelay / 1000;
+                            const originalText = btnCerrar.innerText;
+                            const interval = setInterval(() => {
+                                btnCerrar.innerText = `Cerrando en ${counter}...`;
+                                counter--;
+                                if (counter < 0) clearInterval(interval);
+                            }, 1000);
+                        }
+
+                        setTimeout(safeCloseWindow, autoCloseDelay);
                     }
-                }, 1000);
-            }
-        };
+                }, 1000); // 1 seg para asegurar carga de estilos/imagenes
+            });
+        }
     </script>
 
 </body>

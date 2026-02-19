@@ -726,6 +726,11 @@ class DTEService:
             giro_receptor=giro_receptor,
             ciudad_receptor=ciudad_receptor,
             
+            # Tipo de traslado (solo para guías tipo 52)
+            # DEBUG
+            # print(f"DEBUG: [DTE SERVICE] Creando DTE Tipo {tipo_dte}. Venta Tipo Despacho: {venta.tipo_despacho}")
+            tipo_traslado=venta.tipo_despacho if tipo_dte == '52' else None,
+            
             # Montos
             monto_neto=venta.subtotal,
             monto_iva=venta.iva,

@@ -1,195 +1,287 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 {% load format_filters %}
 
 {% block title %}Reporte de Costos de Producción{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Ocultar top-bar */
-    .top-bar {
-        display: none !important;
+     /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
     }
-    .main-content {
-        margin-top: 0 !important;
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
     
+    .header-icon-box {
+        width: 48px; height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    /* FILTROS */
+    .stone-filter-box {
+        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;
+    }
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.4rem 0.75rem; font-size: 0.85rem; background-color: white; width: 100%; color: var(--stone-text);
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+
+    /* BOTONES */
+    .btn-action-primary { background: var(--stone-primary); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; }
+
+     /* STATS CARDS */
+    .stat-card {
+        border: none; border-radius: 12px; transition: all 0.3s ease; 
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        height: 100%; position: relative; overflow: hidden;
+        display: flex; align-items: stretch; justify-content: space-between;
+    }
+    .stat-card-gold { background: linear-gradient(135deg, #f7dca5 0%, #fbe8c3 100%); border: 1px solid #e8cd96; }
+    .stat-card-blue { background: linear-gradient(135deg, #a5c0d1 0%, #c6d8e5 100%); border: 1px solid #9ab8cd; }
+    .stat-card-green { background: linear-gradient(135deg, #a8d5ba 0%, #ccead7 100%); border: 1px solid #8fc2a3; }
+    .stat-card-rose { background: linear-gradient(135deg, #f7d9d9 0%, #fef5e7 100%); border: 1px solid #f4d1d1; }
+    
+    .stat-content { padding: 1rem; display: flex; flex-direction: column; justify-content: center; z-index: 2; }
+    .stat-value { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.1rem; line-height: 1; color: #2D3748; }
+    .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; color: #4A5568; }
+    .stat-icon { position: absolute; right: 10px; bottom: 10px; font-size: 3rem; opacity: 0.2; transform: rotate(-10deg); }
+
+    /* TABLA PIEDRA */
+    .table-piedra { width: 100%; border-collapse: collapse; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 12px 15px;
+    }
+    .table-piedra tbody tr { border-bottom: 1px solid #F5F1E8; transition: all 0.2s; }
+    .table-piedra tbody tr:hover { background-color: #F5F1E8; }
+    .table-piedra tbody td { padding: 8px 15px; vertical-align: middle; font-size: 0.85rem; color: #4A5568; }
+    .table-piedra tfoot td {
+        background: #FAFAF8; border-top: 2px solid #E8DCC8; font-weight: 700; color: var(--stone-text); padding: 10px 15px;
+    }
+
+    /* Ocultar top-bar original */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; }
+
     @media print {
-        .no-print {
-            display: none !important;
-        }
-        .card {
-            break-inside: avoid;
-        }
+        .no-print { display: none !important; }
+        .single-card-container { box-shadow: none; border: none; margin: 0; }
+        body { background: white !important; }
+        .stone-header-premium { background: none; border-bottom: 2px solid #000; padding: 0; margin-bottom: 20px; }
+        .header-text h1 { color: black; }
+        .table-piedra thead th { color: black; border-bottom: 1px solid black; }
+        .table-piedra tbody td { color: black; border-bottom: 1px solid #ddd; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header con estilo terroso -->
-    <div class="d-flex justify-content-between align-items-center mb-3 no-print" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div>
-            <h2 class="mb-0" style="color: white; font-size: 1.5rem;">
-                <i class="fas fa-dollar-sign me-2"></i>Reporte de Costos de Producción
-            </h2>
-            <p class="mb-0 mt-1" style="color: rgba(255,255,255,0.85); font-size: 0.85rem;">
-                Análisis detallado de costos por receta y orden de producción
-            </p>
+    <div class="single-card-container">
+        <!-- HEADER -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box no-print">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Reporte de <span class="fw-bold">Costos</span></h1>
+                    <p>Rentabilidad y análisis financiero de producción</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 no-print">
+                 <button onclick="window.print()" class="btn btn-light border btn-sm text-secondary fw-bold">
+                    <i class="fas fa-print me-2"></i> Imprimir
+                </button>
+                <a href="{% url 'produccion:reportes' %}" class="btn btn-light border btn-sm text-secondary fw-bold">
+                    <i class="fas fa-arrow-left me-2"></i> Volver
+                </a>
+            </div>
         </div>
-        <div>
-            <button onclick="window.print()" class="btn me-2" style="background: #C8A882; color: white; border: none; padding: 8px 16px;">
-                <i class="fas fa-print me-2"></i>Imprimir
-            </button>
-            <a href="{% url 'produccion:orden_list' %}" class="btn" style="background: #6F5B44; color: white; border: none; padding: 8px 16px;">
-                <i class="fas fa-arrow-left me-2"></i>Volver
-            </a>
-        </div>
-    </div>
 
-    <!-- Filtros -->
-    <div class="card mb-3 no-print" style="border: 1px solid #D4A574; border-radius: 8px;">
-        <div class="card-body" style="padding: 15px;">
-            <form method="get" class="row g-2">
-                <div class="col-md-3">
-                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Fecha Desde</label>
-                    <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" style="height: 35px; border-color: #ccc;">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Fecha Hasta</label>
-                    <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" style="height: 35px; border-color: #ccc;">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Receta</label>
-                    <select name="receta" class="form-select" style="height: 35px; border-color: #ccc;">
-                        <option value="">Todas</option>
-                        {% for r in recetas %}
-                        <option value="{{ r.id }}" {% if receta_id == r.id|stringformat:'s' %}selected{% endif %}>{{ r.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; height: 35px; border: none;">
-                        <i class="fas fa-filter me-2"></i>Filtrar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+        <div class="card-body p-4">
+            
+            <!-- FILTROS -->
+            <div class="stone-filter-box no-print">
+                 <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Fecha Desde</label>
+                        <input type="date" name="fecha_desde" class="form-control-stone" value="{{ fecha_desde }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Fecha Hasta</label>
+                        <input type="date" name="fecha_hasta" class="form-control-stone" value="{{ fecha_hasta }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Receta</label>
+                        <select name="receta" class="form-select-stone">
+                            <option value="">Todas</option>
+                            {% for r in recetas %}
+                            <option value="{{ r.id }}" {% if receta_id == r.id|stringformat:'s' %}selected{% endif %}>{{ r.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn-action-primary w-100">
+                            <i class="fas fa-filter me-2"></i> Filtrar Reporte
+                        </button>
+                    </div>
+                </form>
+            </div>
 
-    <!-- Resumen en Cards -->
-    <div class="row mb-3">
-        <div class="col-md-3">
-            <div class="card" style="border: 2px solid #8B7355; border-radius: 8px;">
-                <div class="card-body text-center" style="padding: 20px;">
-                    <i class="fas fa-dollar-sign fa-2x mb-2" style="color: #8B7355;"></i>
-                    <h3 class="mb-0" style="color: #6F5B44; font-weight: 700;">${{ costo_total_insumos|format_miles }}</h3>
-                    <p class="mb-0" style="color: #666; font-size: 0.85rem;">Costo Total Insumos</p>
+            <!-- RESUMEN -->
+            <div class="row g-3 mb-4">
+                 <div class="col-md-3">
+                    <div class="stat-card stat-card-gold">
+                        <div class="stat-content">
+                            <div class="stat-value">${{ costo_total_insumos|format_miles }}</div>
+                            <div class="stat-label">Costo Insumos</div>
+                        </div>
+                        <i class="fas fa-cubes stat-icon"></i>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-green">
+                        <div class="stat-content">
+                            <div class="stat-value">${{ costo_total_produccion|format_miles }}</div>
+                            <div class="stat-label">Costo Producción</div>
+                        </div>
+                        <i class="fas fa-dollar-sign stat-icon"></i>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-blue">
+                         <div class="stat-content">
+                            <div class="stat-value">${{ costo_promedio_unitario|format_miles }}</div>
+                            <div class="stat-label">Costo Promedio Unit.</div>
+                        </div>
+                        <i class="fas fa-calculator stat-icon"></i>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-rose">
+                         <div class="stat-content">
+                            <div class="stat-value">{{ total_recetas }}</div>
+                            <div class="stat-label">Recetas Producidas</div>
+                        </div>
+                        <i class="fas fa-flask stat-icon"></i>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card" style="border: 2px solid #28a745; border-radius: 8px;">
-                <div class="card-body text-center" style="padding: 20px;">
-                    <i class="fas fa-box fa-2x mb-2" style="color: #28a745;"></i>
-                    <h3 class="mb-0" style="color: #28a745; font-weight: 700;">${{ costo_total_produccion|format_miles }}</h3>
-                    <p class="mb-0" style="color: #666; font-size: 0.85rem;">Costo Total Producción</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card" style="border: 2px solid #C8A882; border-radius: 8px;">
-                <div class="card-body text-center" style="padding: 20px;">
-                    <i class="fas fa-calculator fa-2x mb-2" style="color: #C8A882;"></i>
-                    <h3 class="mb-0" style="color: #C8A882; font-weight: 700;">${{ costo_promedio_unitario|format_miles }}</h3>
-                    <p class="mb-0" style="color: #666; font-size: 0.85rem;">Costo Promedio Unitario</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card" style="border: 2px solid #17a2b8; border-radius: 8px;">
-                <div class="card-body text-center" style="padding: 20px;">
-                    <i class="fas fa-flask fa-2x mb-2" style="color: #17a2b8;"></i>
-                    <h3 class="mb-0" style="color: #17a2b8; font-weight: 700;">{{ total_recetas }}</h3>
-                    <p class="mb-0" style="color: #666; font-size: 0.85rem;">Recetas Producidas</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Tabla de Costos por Receta -->
-    <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
-        <div class="card-header" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); color: white; padding: 12px 15px;">
-            <h5 class="mb-0"><i class="fas fa-flask me-2"></i>Costos por Receta</h5>
-        </div>
-        <div class="card-body" style="padding: 0;">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead style="background: #F5F5F0;">
+            <!-- TABLA COSTOS POR RECETA -->
+            <h6 class="text-uppercase text-muted fw-bold mb-3 ps-1" style="font-size: 0.8rem; letter-spacing: 0.5px; border-bottom: 2px solid #E8DCC8; padding-bottom: 0.5rem;">
+                <i class="fas fa-flask me-2"></i>Costos por Receta
+            </h6>
+            <div class="table-responsive mb-5">
+                <table class="table-piedra">
+                    <thead>
                         <tr>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Receta</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Producto Final</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Cantidad Produce</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Costo Insumos</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Costo Unitario</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Órdenes</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Total Producido</th>
+                            <th>Receta</th>
+                            <th>Producto Final</th>
+                            <th class="text-center">Cant. Produce</th>
+                            <th class="text-end">Costo Insumos</th>
+                            <th class="text-end">Costo Unitario</th>
+                            <th class="text-center">Órdenes</th>
+                            <th class="text-end">Total Producido</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in costos_por_receta %}
                         <tr>
-                            <td style="padding: 10px;"><strong>{{ item.receta.nombre }}</strong></td>
-                            <td style="padding: 10px;">{{ item.receta.producto_final.nombre }}</td>
-                            <td style="padding: 10px;">{{ item.receta.cantidad_producir }}</td>
-                            <td style="padding: 10px;"><strong style="color: #dc3545;">${{ item.receta.costo_total_insumos|format_miles }}</strong></td>
-                            <td style="padding: 10px;"><strong style="color: #28a745;">${{ item.receta.costo_unitario|format_miles }}</strong></td>
-                            <td style="padding: 10px;">{{ item.total_ordenes }}</td>
-                            <td style="padding: 10px;"><strong style="color: #8B7355;">${{ item.costo_total_producido|format_miles }}</strong></td>
+                            <td><span class="fw-bold text-dark">{{ item.receta.nombre }}</span></td>
+                            <td>{{ item.receta.producto_final.nombre }}</td>
+                            <td class="text-center">{{ item.receta.cantidad_producir }}</td>
+                            <td class="text-end text-danger">${{ item.receta.costo_total_insumos|format_miles }}</td>
+                            <td class="text-end fw-bold text-success">${{ item.receta.costo_unitario|format_miles }}</td>
+                            <td class="text-center">{{ item.total_ordenes }}</td>
+                            <td class="text-end fw-bold text-dark">${{ item.costo_total_producido|format_miles }}</td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-4" style="color: #999;">
-                                <i class="fas fa-inbox fa-2x mb-2"></i>
-                                <p class="mb-0">No hay datos en el período seleccionado</p>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                <i class="fas fa-search me-2"></i> No hay datos en el período seleccionado.
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        </div>
-    </div>
 
-    <!-- Tabla de Órdenes con Costos -->
-    <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
-        <div class="card-header" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); color: white; padding: 12px 15px;">
-            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Detalle de Órdenes y Costos</h5>
-        </div>
-        <div class="card-body" style="padding: 0;">
+            <!-- TABLA DETALLE ORDENES -->
+            <h6 class="text-uppercase text-muted fw-bold mb-3 ps-1" style="font-size: 0.8rem; letter-spacing: 0.5px; border-bottom: 2px solid #E8DCC8; padding-bottom: 0.5rem;">
+                <i class="fas fa-list me-2"></i>Detalle de Órdenes
+            </h6>
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead style="background: #F5F5F0;">
+                <table class="table-piedra">
+                    <thead>
                         <tr>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Orden</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Receta</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Fecha</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Cantidad</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Costo Unitario</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Costo Total</th>
-                            <th style="padding: 12px; font-weight: 600; color: #6F5B44;">Estado</th>
+                            <th>Orden</th>
+                            <th>Receta</th>
+                            <th>Fecha</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-end">Costo Unitario</th>
+                            <th class="text-end">Costo Total</th>
+                            <th class="text-center">Estado</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for orden in ordenes %}
                         <tr>
-                            <td style="padding: 10px;"><strong>OP-{{ orden.numero_orden }}</strong></td>
-                            <td style="padding: 10px;">{{ orden.receta.nombre }}</td>
-                            <td style="padding: 10px;">{{ orden.fecha_planificada|date:"d/m/Y" }}</td>
-                            <td style="padding: 10px;">{{ orden.cantidad_planificada }}</td>
-                            <td style="padding: 10px;"><strong style="color: #28a745;">${{ orden.receta.costo_unitario|format_miles }}</strong></td>
-                            <td style="padding: 10px;"><strong style="color: #8B7355;">${{ orden.costo_total|format_miles }}</strong></td>
-                            <td style="padding: 10px;">
+                            <td><span class="fw-bold text-dark">OP-{{ orden.numero_orden }}</span></td>
+                            <td>{{ orden.receta.nombre }}</td>
+                            <td>{{ orden.fecha_planificada|date:"d/m/Y" }}</td>
+                            <td class="text-center">{{ orden.cantidad_planificada }}</td>
+                            <td class="text-end text-success">${{ orden.receta.costo_unitario|format_miles }}</td>
+                            <td class="text-end fw-bold text-dark">${{ orden.costo_total|format_miles }}</td>
+                            <td class="text-center">
                                 {% if orden.estado == 'terminada' %}
                                     <span class="badge bg-success">Terminada</span>
                                 {% elif orden.estado == 'en_proceso' %}
@@ -203,33 +295,30 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-4" style="color: #999;">
-                                <i class="fas fa-inbox fa-2x mb-2"></i>
-                                <p class="mb-0">No hay órdenes en el período seleccionado</p>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                <i class="fas fa-search me-2"></i> No hay órdenes en el período seleccionado.
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
-                    <tfoot style="background: #F5F5F0; font-weight: 600;">
+                    <tfoot>
                         <tr>
-                            <td colspan="5" style="padding: 12px; color: #6F5B44;">TOTAL</td>
-                            <td style="padding: 12px; color: #8B7355;">${{ costo_total_produccion|format_miles }}</td>
-                            <td style="padding: 12px;"></td>
+                            <td colspan="5" class="text-end">TOTAL</td>
+                            <td class="text-end fw-bold">${{ costo_total_produccion|format_miles }}</td>
+                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
+
         </div>
     </div>
 </div>
 
 <script>
-// Ocultar top menu
 document.addEventListener('DOMContentLoaded', function() {
     const topMenu = document.querySelector('.top-menu');
-    if (topMenu) {
-        topMenu.style.display = 'none';
-    }
+    if (topMenu) topMenu.style.display = 'none';
 });
 </script>
 {% endblock %}

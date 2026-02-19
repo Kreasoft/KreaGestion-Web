@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ titulo }}{% endblock %}
 
@@ -6,154 +7,350 @@
 
 {% block extra_head %}
 <style>
-    /* Fondo terroso suave */
+    /* VARIABLES ESTILO STONE PREMIUM */
+    :root {
+        --stone-primary: #C2B7AE;
+        --stone-secondary: #AAA098;
+        --stone-light: #F2EFE9;
+        --stone-bg: #FCFBF9;
+        --stone-gradient: linear-gradient(135deg, #F8F8F8 0%, #EEEEEE 100%);
+        --stone-text: #6B6560;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #556B2F;
+        --stone-danger: #e53935;
+        --stone-warning: #FB8C00;
+        --stone-info: #039BE5;
+    }
+
     body {
-        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
-        min-height: 100vh;
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+        max-width: 1000px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 42px; height: 42px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 10px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 8px rgba(139, 115, 85, 0.1);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.3rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text h1 span { font-weight: 700; }
+    .header-text p { color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* ACTION BUTTONS */
+    .btn-action-secondary {
+        background: white; border: 1px solid var(--stone-light); color: var(--stone-text);
+        padding: 0.4rem 0.8rem; border-radius: 8px; font-weight: 500; font-size: 0.85rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-action-secondary:hover { background: var(--stone-bg); transform: translateY(-1px); }
+
+    .btn-stone-primary {
+        background: linear-gradient(135deg, #C2B7AE 0%, #AAA098 100%);
+        border: none;
+        color: white;
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+        text-decoration: none;
+        box-shadow: 0 4px 6px rgba(170, 160, 152, 0.2);
+    }
+    .btn-stone-primary:hover {
+        background: linear-gradient(135deg, #CFC5BC 0%, #B8AEA6 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(170, 160, 152, 0.25);
+        color: white;
+    }
+
+    /* COMPACT LIST */
+    .table-stone {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .table-stone th {
+        background: #F8F8F8;
+        color: var(--stone-secondary);
+        font-weight: 600;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--stone-light);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .table-stone td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #F0F0F0;
+        vertical-align: middle;
+        font-size: 0.9rem;
+        color: var(--stone-text);
+    }
+    .table-stone tr:last-child td { border-bottom: none; }
+    .table-stone tr:hover td { background: #FCFBF9; }
+
+    .bg-badge {
+        padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+    }
+    .bg-badge-success { background: #E8F5E9; color: #2E7D32; }
+    .bg-badge-secondary { background: #F5F5F5; color: #616161; }
+    .bg-badge-warning { background: #FFF8E1; color: #F57C00; border: 1px solid #FFE0B2; }
+
+    .actions-cell { text-align: right; white-space: nowrap; }
+    .btn-icon {
+        background: transparent; border: none; color: #BDBDBD;
+        padding: 0.25rem; font-size: 1rem; transition: color 0.2s;
+        cursor: pointer;
+    }
+    .btn-icon:hover { color: var(--stone-primary); }
+    .btn-icon.delete:hover { color: var(--stone-danger); }
+
+    /* MODAL STYLES */
+    .stone-modal-header {
+        background: var(--stone-gradient);
+        border-bottom: 1px solid var(--stone-light);
+        padding: 1rem 1.5rem;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .stone-modal-title { color: var(--stone-text); font-weight: 600; font-size: 1.1rem; margin: 0; }
+    .stone-modal-close { background: none; border: none; font-size: 1.2rem; color: #9E9E9E; transition: color 0.2s; }
+    .stone-modal-close:hover { color: var(--stone-danger); }
+
+    .stone-modal-body { padding: 0; height: 100%; }
+    
+    /* IFRAME STYLE FOR MODAL */
+    #modal-iframe {
+        width: 100%;
+        height: 600px;
+        border: none;
+        display: block;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="margin-top: 20px;">
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
-                
-                <!-- HEADER PRINCIPAL -->
-                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 15px 20px;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-store fa-2x me-3" style="color: #6F5B44;"></i>
-                            <div>
-                                <h5 class="mb-0" style="font-size: 1.3rem; font-weight: 600; color: #6F5B44;">
-                                    Sucursales
-                                </h5>
-                                <small style="font-size: 0.85rem; color: #8B7355;">
-                                    Gestiona las sucursales de {{ empresa.nombre }}
-                                </small>
-                            </div>
-                        </div>
-                        <div>
-                            <a href="{% url 'empresas:sucursal_create' %}" class="btn btn-sm me-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 8px 16px;">
-                                <i class="fas fa-plus me-2"></i>Nueva Sucursal
-                            </a>
-                            <a href="{% url 'empresas:editar_empresa_activa' %}" class="btn btn-sm btn-outline-secondary" style="padding: 8px 16px;">
-                                <i class="fas fa-arrow-left me-2"></i>Volver
-                            </a>
-                        </div>
-                    </div>
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- Header Compacto -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-store"></i>
                 </div>
-                
-                <div class="card-body" style="padding: 20px; background: #FAFAF8;">
-                    
-                    <!-- LISTA DE SUCURSALES -->
-                    <div class="row">
+                <div class="header-text">
+                    <h1>Sucursales</h1>
+                    <p>Lista de sucursales de <span>{{ empresa.nombre }}</span></p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'empresas:editar_empresa_activa' %}" class="btn-action-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+                <button type="button" class="btn-stone-primary" onclick="abrirModal('{% url 'empresas:sucursal_create' %}', 'Nueva Sucursal')">
+                    <i class="fas fa-plus"></i> Nueva
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table-stone">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Código</th>
+                            <th>Ubicación</th>
+                            <th>Contacto</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
                         {% for sucursal in sucursales %}
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100 shadow-sm" style="border: 2px solid {% if sucursal.es_principal %}#8B7355{% else %}#D4C4A8{% endif %}; border-radius: 12px; transition: all 0.3s ease;">
-                                <div class="card-header" style="background: {% if sucursal.es_principal %}linear-gradient(135deg, #8B7355 0%, #6F5B44 100%){% else %}linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%){% endif %}; border: none; padding: 12px 15px;">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <h6 class="mb-0" style="{% if sucursal.es_principal %}color: white;{% else %}color: #6F5B44;{% endif %} font-weight: 600;">
-                                            <i class="fas fa-store me-2"></i>{{ sucursal.nombre }}
-                                        </h6>
-                                        <div>
-                                            {% if sucursal.es_principal %}
-                                                <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">Principal</span>
-                                            {% endif %}
-                                            {% if sucursal.estado == 'activa' %}
-                                                <span class="badge bg-success" style="font-size: 0.7rem;">Activa</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary" style="font-size: 0.7rem;">Inactiva</span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
+                        <tr>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold text-dark">{{ sucursal.nombre }}</span>
+                                    {% if sucursal.es_principal %}
+                                        <span class="text-warning small"><i class="fas fa-star text-warning"></i> Principal</span>
+                                    {% endif %}
                                 </div>
-                                <div class="card-body" style="padding: 15px;">
-                                    <div class="row">
-                                        <div class="col-12 mb-2">
-                                            <small class="text-muted"><i class="fas fa-barcode me-2"></i><strong>Código:</strong></small>
-                                            <p class="mb-0">{{ sucursal.codigo }}</p>
-                                        </div>
-                                        <div class="col-12 mb-2">
-                                            <small class="text-muted"><i class="fas fa-map-marker-alt me-2"></i><strong>Dirección:</strong></small>
-                                            <p class="mb-0">{{ sucursal.direccion }}</p>
-                                        </div>
-                                        <div class="col-6 mb-2">
-                                            <small class="text-muted"><i class="fas fa-city me-2"></i><strong>Comuna:</strong></small>
-                                            <p class="mb-0">{{ sucursal.comuna }}</p>
-                                        </div>
-                                        <div class="col-6 mb-2">
-                                            <small class="text-muted"><i class="fas fa-map me-2"></i><strong>Ciudad:</strong></small>
-                                            <p class="mb-0">{{ sucursal.ciudad }}</p>
-                                        </div>
-                                        {% if sucursal.telefono %}
-                                        <div class="col-6 mb-2">
-                                            <small class="text-muted"><i class="fas fa-phone me-2"></i><strong>Teléfono:</strong></small>
-                                            <p class="mb-0">{{ sucursal.telefono }}</p>
-                                        </div>
-                                        {% endif %}
-                                        {% if sucursal.email %}
-                                        <div class="col-6 mb-2">
-                                            <small class="text-muted"><i class="fas fa-envelope me-2"></i><strong>Email:</strong></small>
-                                            <p class="mb-0">{{ sucursal.email }}</p>
-                                        </div>
-                                        {% endif %}
-                                        {% if sucursal.horario_apertura and sucursal.horario_cierre %}
-                                        <div class="col-12 mb-2">
-                                            <small class="text-muted"><i class="fas fa-clock me-2"></i><strong>Horario:</strong></small>
-                                            <p class="mb-0">{{ sucursal.horario_apertura }} - {{ sucursal.horario_cierre }}</p>
-                                        </div>
-                                        {% endif %}
-                                        {% if sucursal.gerente %}
-                                        <div class="col-12 mb-2">
-                                            <small class="text-muted"><i class="fas fa-user-tie me-2"></i><strong>Gerente:</strong></small>
-                                            <p class="mb-0">{{ sucursal.gerente }}</p>
-                                        </div>
-                                        {% endif %}
-                                    </div>
+                            </td>
+                            <td><span class="text-muted font-monospace">{{ sucursal.codigo }}</span></td>
+                            <td>
+                                <div class="d-flex flex-column small">
+                                    <span>{{ sucursal.direccion }}</span>
+                                    <span class="text-muted">{{ sucursal.comuna }}, {{ sucursal.ciudad }}</span>
                                 </div>
-                                <div class="card-footer" style="background: #FAFAF8; border-top: 1px solid #E8DCC8; padding: 10px 15px;">
-                                    <div class="d-flex justify-content-end gap-2">
-                                        <a href="{% url 'empresas:sucursal_update' sucursal.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); border: none; color: white;">
-                                            <i class="fas fa-edit me-1"></i>Editar
-                                        </a>
-                                        {% if not sucursal.es_principal %}
-                                        <a href="{% url 'empresas:sucursal_delete' sucursal.pk %}" class="btn btn-sm btn-outline-danger">
-                                            <i class="fas fa-trash me-1"></i>Eliminar
-                                        </a>
-                                        {% endif %}
-                                    </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column small">
+                                    {% if sucursal.telefono %}<span><i class="fas fa-phone me-1 text-muted"></i>{{ sucursal.telefono }}</span>{% endif %}
+                                    {% if sucursal.email %}<span><i class="fas fa-envelope me-1 text-muted"></i>{{ sucursal.email }}</span>{% endif %}
                                 </div>
-                            </div>
-                        </div>
+                            </td>
+                            <td>
+                                {% if sucursal.estado == 'activa' %}
+                                    <span class="bg-badge bg-badge-success">Activa</span>
+                                {% else %}
+                                    <span class="bg-badge bg-badge-secondary">Inactiva</span>
+                                {% endif %}
+                            </td>
+                            <td class="actions-cell">
+                                <button onclick="abrirModal('{% url 'empresas:sucursal_update' sucursal.pk %}', 'Editar Sucursal')" class="btn-icon" title="Editar">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </button>
+                                {% if not sucursal.es_principal %}
+                                <a href="{% url 'empresas:sucursal_delete' sucursal.pk %}" class="btn-icon delete" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
                         {% empty %}
-                        <div class="col-12">
-                            <div class="alert" style="background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%); border-left: 4px solid #FFA726; border-radius: 8px;">
-                                <div class="text-center py-4">
-                                    <i class="fas fa-store fa-3x mb-3" style="color: #D4A574;"></i>
-                                    <h5 style="color: #6F5B44;">No hay sucursales registradas</h5>
-                                    <p class="text-muted mb-3">Agrega tu primera sucursal para comenzar</p>
-                                    <a href="{% url 'empresas:sucursal_create' %}" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white;">
-                                        <i class="fas fa-plus me-2"></i>Agregar Primera Sucursal
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="text-muted mb-3"><i class="fas fa-store-slash fa-2x"></i></div>
+                                <p class="text-muted mb-0">No hay sucursales registradas</p>
+                            </td>
+                        </tr>
                         {% endfor %}
-                    </div>
-                    
-                </div>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 20px rgba(139, 115, 85, 0.2) !important;
-    }
-</style>
+<!-- Modal Container -->
+<div class="modal fade" id="sucursalModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header border-bottom-0 py-3 px-4 bg-light d-flex justify-content-between align-items-center">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="modalTitle">
+                    <i class="fas fa-edit me-2 text-primary"></i> <span id="modalTitleText">Gestión de Sucursal</span>
+                </h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" onclick="cerrarModal()"></button>
+            </div>
+            <div class="modal-body p-0 position-relative bg-white" style="min-height: 500px;">
+                <!-- Loader -->
+                <div id="modalLoader" class="position-absolute top-50 start-50 translate-middle text-center">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+                
+                <!-- Iframe -->
+                <iframe id="modal-iframe" src="" frameborder="0" style="width: 100%; height: 600px; display: none;" onload="iframeCargado()"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
 
+<script>
+    var sucursalModal;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        sucursalModal = new bootstrap.Modal(document.getElementById('sucursalModal'));
+        
+        // Limpiar iframe al cerrar
+        document.getElementById('sucursalModal').addEventListener('hidden.bs.modal', function () {
+            document.getElementById('modal-iframe').src = '';
+            document.getElementById('modalLoader').style.display = 'block';
+            document.getElementById('modal-iframe').style.display = 'none';
+        });
+    });
+
+    function abrirModal(url, titulo) {
+        document.getElementById('modalTitleText').textContent = titulo;
+        let iframe = document.getElementById('modal-iframe');
+        
+        // Mostrar loader, ocultar iframe
+        document.getElementById('modalLoader').style.display = 'block';
+        iframe.style.display = 'none';
+        
+        // Cargar URL
+        iframe.src = url;
+        
+        sucursalModal.show();
+    }
+    
+    function cerrarModal() {
+        sucursalModal.hide();
+    }
+
+    function iframeCargado() {
+        let iframe = document.getElementById('modal-iframe');
+        
+        try {
+            // Acceder al documento del iframe
+            var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            var currentPath = iframe.contentWindow.location.pathname;
+            
+            // Si el iframe redirige a la lista (éxito al guardar), recargar página padre
+            // La URL de lista depende de tu configuración, ajusta si es necesario
+            if (currentPath.includes('lista') || currentPath === "{% url 'empresas:sucursal_list' %}") {
+                sucursalModal.hide();
+                window.location.reload();
+                return;
+            }
+            
+            // Inyectar estilos para ocultar elementos innecesarios dentro del iframe (header, sidebar)
+            var style = iframeDoc.createElement('style');
+            style.textContent = `
+                header, nav, .stone-header-premium, .sidebar, .top-bar { display: none !important; }
+                body { background: white !important; padding: 0 !important; overflow-y: auto; }
+                .single-card-container { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 1rem !important; }
+                .card-body { padding: 0 !important; }
+                .btn-action-secondary { display: none !important; }
+                /* Ajustar padding del formulario */
+                form { padding: 0 1rem; }
+            `;
+            iframeDoc.head.appendChild(style);
+            
+            // Mostrar iframe y ocultar loader
+            document.getElementById('modalLoader').style.display = 'none';
+            iframe.style.display = 'block';
+            
+        } catch(e) {
+            console.log("Cross-origin restriction or redirect handling:", e);
+            // Even if we can't access contents, show the iframe
+            document.getElementById('modalLoader').style.display = 'none';
+            iframe.style.display = 'block';
+        }
+    }
+</script>
 {% endblock %}

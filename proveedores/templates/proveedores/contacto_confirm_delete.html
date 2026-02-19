@@ -6,85 +6,37 @@
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block content %}
-<div class="modal-dialog modal-md">
-    <div class="modal-content">
-        <!-- Header -->
-        <div class="modal-header" style="background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%); color: white;">
-            <h5 class="modal-title" style="font-family: 'Poppins', sans-serif;">
-                <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
-            </h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border: none; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+        
+        <!-- Header Alerta -->
+        <div class="modal-header border-0 pb-0 d-flex flex-column align-items-center pt-4">
+            <div style="width: 64px; height: 64px; background: #fff3e0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 32px; color: #ef6c00;"></i>
+            </div>
+            <h5 class="modal-title fw-bold" style="color: #d84315;">Confirmar Eliminación</h5>
         </div>
 
-        <!-- Contenido -->
-        <div class="modal-body" style="padding: 20px; font-family: 'Poppins', sans-serif;">
-            <div class="text-center mb-4">
-                <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px;">
-                    <i class="fas fa-user-times fa-2x text-white"></i>
-                </div>
-                <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 5px;">{{ contacto.nombre }}</h6>
-                <p class="text-muted mb-0" style="font-size: 0.9rem;">{{ contacto.get_tipo_contacto_display }}</p>
-            </div>
-            
-            <div class="alert alert-warning" style="border: none; border-radius: 8px; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107;">
-                <div class="d-flex align-items-start">
-                    <i class="fas fa-exclamation-triangle text-warning me-2 mt-1"></i>
-                    <div>
-                        <h6 class="alert-heading" style="color: #856404; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem;">
-                            ¿Estás seguro de que quieres eliminar este contacto?
-                        </h6>
-                        <p class="mb-0" style="color: #856404; font-size: 0.85rem;">
-                            Esta acción no se puede deshacer.
-                        </p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card" style="border: 2px solid #e9ecef; border-radius: 8px; background: #f8f9fa;">
-                <div class="card-body" style="padding: 15px;">
-                    <h6 style="color: #495057; font-weight: 600; margin-bottom: 10px; font-size: 0.9rem;">
-                        <i class="fas fa-info-circle me-2" style="color: #8B4513;"></i>Información del Contacto
-                    </h6>
-                    {% if contacto.cargo %}
-                    <div class="mb-2" style="font-size: 0.85rem;">
-                        <strong>Cargo:</strong> {{ contacto.cargo }}
-                    </div>
-                    {% endif %}
-                    {% if contacto.telefono %}
-                    <div class="mb-2" style="font-size: 0.85rem;">
-                        <strong>Teléfono:</strong> {{ contacto.telefono }}
-                    </div>
-                    {% endif %}
-                    {% if contacto.celular %}
-                    <div class="mb-2" style="font-size: 0.85rem;">
-                        <strong>Celular:</strong> {{ contacto.celular }}
-                    </div>
-                    {% endif %}
-                    {% if contacto.email %}
-                    <div class="mb-2" style="font-size: 0.85rem;">
-                        <strong>Email:</strong> {{ contacto.email }}
-                    </div>
-                    {% endif %}
-                    {% if contacto.es_contacto_principal %}
-                    <div class="mt-2">
-                        <span class="badge" style="background: linear-gradient(135deg, #ffc107 0%, #ffb347 100%); color: #212529; font-size: 0.75rem;">
-                            <i class="fas fa-star me-1"></i>Contacto Principal
-                        </span>
-                    </div>
-                    {% endif %}
-                </div>
+        <!-- Body -->
+        <div class="modal-body text-center px-4">
+            <p class="text-muted mb-3">
+                ¿Estás seguro de que deseas eliminar al contacto <strong class="text-dark">{{ contacto.nombre }}</strong>?
+            </p>
+            <div class="alert alert-light border border-warning d-flex align-items-center p-2 mb-0" role="alert" style="font-size: 0.85rem; text-align: left;">
+                <i class="fas fa-info-circle text-warning me-2 fs-5"></i>
+                <div class="text-muted">Esta acción es irreversible.</div>
             </div>
         </div>
 
-        <!-- Footer con botones -->
-        <div class="modal-footer" style="background: #f8f9fa; border: none; padding: 15px 20px;">
-            <form method="post" class="d-flex justify-content-between w-100">
+        <!-- Footer -->
+        <div class="modal-footer border-0 justify-content-center pb-4">
+            <form method="post" action="{% url 'proveedores:contacto_delete' proveedor_pk=contacto.proveedor.pk pk=contacto.pk %}" class="d-flex w-100 px-3 gap-2">
                 {% csrf_token %}
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 6px; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 8px 16px;">
-                    <i class="fas fa-times me-2"></i>Cancelar
+                <button type="button" class="btn w-50" data-bs-dismiss="modal" style="background: #f5f5f5; color: #616161; border: 1px solid #e0e0e0; font-weight: 600;">
+                    Cancelar
                 </button>
-                <button type="submit" class="btn" style="background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%); border: none; color: white; border-radius: 6px; font-family: 'Poppins', sans-serif; font-size: 0.9rem; padding: 8px 16px;">
-                    <i class="fas fa-trash me-2"></i>Eliminar Contacto
+                <button type="submit" class="btn w-50" style="background: #d32f2f; color: white; border: none; font-weight: 600; box-shadow: 0 4px 6px rgba(211, 47, 47, 0.2);">
+                    <i class="fas fa-trash-alt me-2"></i> Eliminar
                 </button>
             </form>
         </div>
@@ -92,35 +44,35 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Manejar envío del formulario
-    document.querySelector('form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        
-        fetch(this.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                // Cerrar modal y recargar página
-                const modal = bootstrap.Modal.getInstance(document.getElementById('contactoModal'));
-                modal.hide();
-                window.location.reload();
-            } else {
-                alert('Error al eliminar el contacto');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al procesar la solicitud');
-        });
+    // Script simple para manejar el form dentro del modal si es necesario
+    // En este caso, como es un modal cargado via AJAX o extendido, el submit normal funcionará.
+    // Si se requiere AJAX submit, se mantiene la lógica anterior.
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        if(form) {
+            form.addEventListener('submit', function(e) {
+                // Si preferimos recarga completa para asegurar estado, dejamos submit normal.
+                // Si el usuario quiere AJAX:
+                e.preventDefault();
+                const formData = new FormData(this);
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value}
+                }).then(res => {
+                    if(res.ok) { 
+                        // Asumiendo bootstrap 5
+                        const modalEl = document.getElementById('contactoModal');
+                        if(modalEl) {
+                            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                            if(modalInstance) modalInstance.hide();
+                        }
+                        window.location.reload(); 
+                    }
+                    else alert('Error al eliminar');
+                });
+            });
+        }
     });
-});
 </script>
 {% endblock %}

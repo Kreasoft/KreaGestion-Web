@@ -4,11 +4,7 @@
 {% load l10n %}
 
 {% block title %}
-    {% if pedido %}
-        Editar Orden de Pedido - GestionCloud
-    {% else %}
-        Crear Orden de Pedido - GestionCloud
-    {% endif %}
+    {% if pedido %}Editar Orden de Pedido{% else %}Crear Orden de Pedido{% endif %}
 {% endblock %}
 
 {% block body_class %}hide-top-bar{% if pedido %} edit-mode{% endif %}{% endblock %}
@@ -16,588 +12,440 @@
 {% block extra_css %}
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<style>
-    /* Estilos originales para Select2 y layout */
-    .btn-terroso { background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; transition: all 0.3s ease; }
-    .btn-terroso:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3); color: white; }
-    .form-control, .form-select { height: 32px !important; padding: 0.25rem 0.5rem !important; font-size: 0.8rem !important; }
-    textarea { height: auto !important; min-height: 60px !important; }
-    .select2-container--default .select2-selection--single { border: 1px solid #e3e6f0 !important; border-radius: 4px !important; height: 32px !important; }
-    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 30px !important; font-size: 0.8rem !important; }
-    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 30px !important; }
-    .select2-dropdown { border: 1px solid #e3e6f0 !important; border-radius: 6px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
-    .select2-search--dropdown .select2-search__field { font-size: 0.75rem !important; height: 28px !important; }
-    .select2-results__option { font-size: 0.75rem !important; padding: 4px 8px !important; }
-    .select2-results__option--highlighted { background-color: #8B7355 !important; color: white !important; }
-    .select2-container { width: 100% !important; }
 
-    /* --- OVERRIDE DEFINITIVO PARA BORDES --- */
-    .border-danger, [class*="border-"] {
-        border: none !important;
-        box-shadow: none !important;
+<style>
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;       /* Marrón Piedra Principal */
+        --stone-secondary: #6F5B44;     /* Marrón Oscuro */
+        --stone-light: #E8DCC8;         /* Beige Piedra Claro (Bordes) */
+        --stone-bg: #FAFAF8;            /* Fondo Crema Muy Claro */
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;          /* Texto Marrón Oscuro */
+    }
+
+    /* Fondo general */
+    body {
+        background-color: var(--stone-bg);
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* Contenedor Principal Estilo Piedra */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(139, 115, 85, 0.08); /* Sombra cálida suave */
+        padding: 1.5rem;
+        max-width: 1400px;
+        margin: 1rem auto;
+    }
+
+    /* Header de la Tarjeta */
+    .stone-header {
+        border-bottom: 2px solid var(--stone-light);
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .stone-title {
+        color: var(--stone-text);
+        font-weight: 700;
+        font-size: 1.25rem;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Inputs y Labels */
+    .form-label {
+        font-weight: 600;
+        color: var(--stone-secondary);
+        font-size: 0.8rem;
+        margin-bottom: 0.3rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-control, .form-select {
+        border: 1px solid var(--stone-light);
+        border-radius: 6px;
+        font-size: 0.9rem;
+        color: #495057;
+        padding: 0.4rem 0.6rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--stone-primary);
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.15);
+    }
+    
+    .input-group-text {
+        background-color: #f8f9fa;
+        border: 1px solid var(--stone-light);
+        color: var(--stone-secondary);
+    }
+
+    /* Tabla / Lista de Items */
+    .items-list-compact {
+        border: 1px solid var(--stone-light);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-top: 1rem;
+    }
+
+    .items-list-header {
+        background: var(--stone-gradient); /* Gradiente Piedra para header de tabla */
+        padding: 0.6rem 0.8rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--stone-text);
+        border-bottom: 1px solid var(--stone-light);
+    }
+
+    .item-line {
+        background: white;
+        padding: 0.5rem 0.8rem;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.2s;
+    }
+
+    .item-line:hover {
+        background-color: #fafafa;
+    }
+
+    .item-line:last-child {
+        border-bottom: none;
+    }
+    
+    /* Botones Estilo Piedra */
+    .btn-stone-primary {
+        background-color: var(--stone-primary);
+        border: 1px solid var(--stone-primary);
+        color: white;
+        font-weight: 600;
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .btn-stone-primary:hover {
+        background-color: var(--stone-secondary);
+        border-color: var(--stone-secondary);
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    .btn-stone-secondary {
+        background-color: white;
+        border: 1px solid var(--stone-light);
+        color: var(--stone-secondary);
+        font-weight: 600;
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .btn-stone-secondary:hover {
+        background-color: #fafafa;
+        color: var(--stone-primary);
+        border-color: var(--stone-primary);
+    }
+    
+    .btn-stone-danger {
+        color: #d32f2f;
+        background: white;
+        border: 1px solid #ffcdd2;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+    }
+    .btn-stone-danger:hover {
+        background: #ffebee;
+    }
+
+    /* Subtotales y Totales */
+    .totals-panel {
+        background-color: #fafafa; /* Fondo muy suave */
+        border: 1px solid var(--stone-light);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        color: var(--stone-secondary);
+        margin-bottom: 0.3rem;
+    }
+
+    .total-row.final {
+        border-top: 2px solid var(--stone-light);
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: var(--stone-text);
+    }
+
+    /* Select2 Personalizado Piedra */
+    .select2-container--default .select2-selection--single {
+        border-color: var(--stone-light) !important;
+        height: 36px !important;
+        padding-top: 3px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 34px !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 12px 16px;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-clipboard-list text-white me-2" style="font-size: 1.2rem;"></i>
-                            <div>
-                                <h5 class="mb-0 text-white" style="font-size: 1.1rem; font-weight: 600;">
-                                    {% if pedido %}
-                                        Editar Orden de Pedido
-                                    {% else %}
-                                        Crear Orden de Pedido
-                                    {% endif %}
-                                </h5>
-                                {% if pedido %}
-                                <small class="text-white-50" style="font-size: 0.8rem;">{{ pedido.numero_pedido }}</small>
-                                {% else %}
-                                <small class="text-white-50" style="font-size: 0.8rem;">
-                                    <i class="fas fa-info-circle me-1"></i>Registra pedidos de clientes con múltiples artículos. Busca clientes por RUT/nombre y productos por código/nombre.
-                                </small>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <a href="{% url 'pedidos:orden_pedido_list' %}" class="btn btn-sm btn-light">
-                            <i class="fas fa-arrow-left me-1"></i> Volver
-                        </a>
+<div class="container-fluid py-3">
+    
+    <!-- Contenedor Único -->
+    <div class="single-card-container">
+        
+        <!-- Header -->
+        <div class="stone-header">
+            <h1 class="stone-title">
+                <i class="fas fa-file-invoice" style="color: var(--stone-primary);"></i>
+                {% if pedido %}Editar Pedido #{{ pedido.numero_pedido }}{% else %}Nueva Orden de Pedido{% endif %}
+            </h1>
+            <div>
+                 <a href="{% url 'pedidos:orden_pedido_list' %}" class="btn-stone-secondary">
+                    <i class="fas fa-arrow-left me-2"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <form method="post" id="pedidoForm">
+            {% csrf_token %}
+            {% if form.errors or formset.errors %}
+                <div class="alert alert-danger px-3 py-2 fs-6 mb-3 rounded-3 border-danger bg-white text-danger">
+                     <i class="fas fa-exclamation-triangle me-2"></i> Hay errores en el formulario.
+                </div>
+            {% endif %}
+
+            <!-- Datos Generales - Grid -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-5">
+                    <label class="form-label">Cliente *</label>
+                    <div class="input-group">
+                        {{ form.cliente }}
+                        <button class="btn btn-outline-secondary" type="button"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
+                <div class="col-md-2">
+                    <label class="form-label">Fecha *</label>
+                    {{ form.fecha_pedido }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Bodega *</label>
+                    {{ form.bodega }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Estado</label>
+                    {{ form.estado }}
+                </div>
+                 <div class="col-md-3">
+                    <label class="form-label">Entrega Estimada</label>
+                    {{ form.fecha_entrega_estimada }}
+                </div>
+                  <div class="col-md-9">
+                    <label class="form-label">Observaciones</label>
+                    {{ form.observaciones }}
+                </div>
+            </div>
 
-                <!-- Formulario -->
-                <div class="card-body" style="padding: 1rem;">
-                    <!-- Mensajes de error -->
-                    {% if form.errors or formset.errors %}
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <strong><i class="fas fa-exclamation-triangle me-2"></i>Error al guardar:</strong>
-                        <ul class="mb-0 mt-2">
-                            {% for field, errors in form.errors.items %}
-                                {% for error in errors %}
-                                    <li>{{ field }}: {{ error }}</li>
-                                {% endfor %}
-                            {% endfor %}
-                            {% for form_errors in formset.errors %}
-                                {% for field, errors in form_errors.items %}
-                                    {% for error in errors %}
-                                        <li>Item: {{ field }} - {{ error }}</li>
+            <!-- Sección Items -->
+            <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+                <h5 class="m-0 text-muted text-uppercase fs-6 fw-bold" style="color: var(--stone-primary) !important;">
+                    <i class="fas fa-boxes me-2"></i> Detalle Items
+                </h5>
+                <button type="button" class="btn-stone-primary btn-sm" id="addItemBtn">
+                    <i class="fas fa-plus me-1"></i> Agregar Item
+                </button>
+            </div>
+
+            {{ formset.management_form }}
+            
+            <div class="items-list-compact">
+                <!-- Header Tabla -->
+                <div class="items-list-header row g-0">
+                    <div class="col-4 ps-2">Producto / Servicio</div>
+                    <div class="col-2 text-center">Cant</div>
+                    <div class="col-2 text-end pe-2">Precio</div>
+                    <div class="col-2 text-center">Desc %</div>
+                    <div class="col-2 text-end pe-3">Total</div>
+                </div>
+                
+                <!-- Body Tabla -->
+                <div id="items-container-body">
+                    {% for item_form in formset %}
+                        <div class="item-line row g-0 align-items-center" data-form-index="{{ forloop.counter0 }}">
+                            <div class="col-4 ps-2 pe-2">
+                                {{ item_form.id }}
+                                {% if item_form.DELETE %}<div style="display:none;">{{ item_form.DELETE }}</div>{% endif %}
+                                {{ item_form.impuesto_porcentaje.as_hidden }}
+                                
+                                <select name="{{ item_form.articulo.html_name }}" class="form-select articulo-select form-control-sm" data-index="{{ forloop.counter0 }}">
+                                    <option value="">Buscar...</option>
+                                    {% for articulo in articulos_empresa %}
+                                        <option value="{{ articulo.id|unlocalize }}"
+                                                data-precio="{{ articulo.precio_venta|unlocalize }}"
+                                                {% if item_form.articulo.value|stringformat:'s' == articulo.id|stringformat:'s' %}selected{% endif %}>
+                                            {{ articulo.codigo }} - {{ articulo.nombre|truncatechars:35 }}
+                                        </option>
                                     {% endfor %}
-                                {% endfor %}
-                            {% endfor %}
-                        </ul>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                    {% endif %}
-                    
-                    <form method="post" id="pedidoForm">
-                        {% csrf_token %}
-                        
-                        <!-- Información del Pedido - COMPACTA -->
-                        <div class="card" style="background: #F5F1E8; border: none; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem;">
-                            <div class="row g-2">
-                                <!-- Fila 1: Cliente con búsqueda RUT + Botón Cotización -->
-                                <div class="col-md-5">
-                                    <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.2rem; color: #6F5B44;">
-                                        <i class="fas fa-user me-1"></i>Cliente * <span class="text-muted" style="font-size: 0.65rem; font-weight: 400;">(Buscar por RUT o Nombre)</span>
-                                    </label>
-                                    {{ form.cliente }}
-                                </div>
-                                
-                                <!-- Botón Cargar Cotización (aparece si hay cotizaciones) -->
-                                <div class="col-md-2" id="cotizacion-container" style="display: none;">
-                                    <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.2rem; color: #6F5B44;">
-                                        <i class="fas fa-file-invoice me-1"></i>Cotización
-                                    </label>
-                                    <button type="button" class="btn btn-sm w-100" id="btnCargarCotizacion" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; height: 32px; font-size: 0.75rem; font-weight: 600;">
-                                        <i class="fas fa-download me-1"></i>Cargar Cotización
-                                    </button>
-                                </div>
-                                
-                                <div class="col-md-2">
-                                    <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.2rem; color: #6F5B44;">
-                                        <i class="fas fa-warehouse me-1"></i>Bodega *
-                                    </label>
-                                    {{ form.bodega }}
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.2rem; color: #6F5B44;">
-                                        <i class="fas fa-calendar me-1"></i>Fecha Pedido *
-                                    </label>
-                                    {{ form.fecha_pedido }}
-                                </div>
-                                <div class="col-md-1">
-                                    <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.2rem; color: #6F5B44;">
-                                        <i class="fas fa-flag me-1"></i>Estado
-                                    </label>
-                                    {{ form.estado }}
-                                </div>
+                                </select>
                             </div>
-                            
-                            <!-- Fila 2: Datos adicionales compactos -->
-                            <div class="row g-2 mt-1">
-                                <div class="col-md-2">
-                                    <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.2rem; color: #6F5B44;">
-                                        Fecha Entrega
-                                    </label>
-                                    {{ form.fecha_entrega_estimada }}
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.2rem; color: #6F5B44;">
-                                        N° OC Cliente
-                                    </label>
-                                    {{ form.numero_oc_cliente }}
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.2rem; color: #6F5B44;">
-                                        Fecha OC
-                                    </label>
-                                    {{ form.fecha_oc_cliente }}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.2rem; color: #6F5B44;">
-                                        <i class="fas fa-credit-card me-1"></i>Condiciones de Pago
-                                    </label>
-                                    {{ form.condiciones_pago }}
-                                </div>
+                            <div class="col-2 px-1">
+                                <input type="number" name="{{ item_form.cantidad.html_name }}" class="form-control form-control-sm text-center" 
+                                       value="{{ item_form.cantidad.value|default:1 }}" step="any">
                             </div>
-                        </div>
-
-                        <!-- Items del Pedido -->
-                        <h5 style="font-weight: 700; color: #495057; font-size: 0.9rem; margin-bottom: 0.5rem;">
-                            <i class="fas fa-list me-1"></i>Items del Pedido 
-                            <small class="text-muted" style="font-size: 0.7rem; font-weight: 400;">
-                                (Busca productos por código o nombre en el selector)
-                            </small>
-                            <button type="button" class="btn btn-sm float-end" id="addItemBtn" style="padding: 0.3rem 0.8rem; font-size: 0.75rem; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none;">
-                                <i class="fas fa-plus me-1"></i>Agregar Item
-                            </button>
-                        </h5>
-                        <div class="items-container">
-                            {{ formset.management_form }}
-                            
-                            <!-- Headers -->
-                            <div class="row mb-1 align-items-center" style="font-weight: 600; color: #6F5B44; font-size: 0.7rem; background: #F5F1E8; padding: 0.2rem 0.5rem; border-radius: 4px; border-bottom: 1px solid #E0D5C7;">
-                                <div class="col-md-5">
-                                    <i class="fas fa-box me-1"></i>Artículo (Escribe para buscar)
-                                </div>
-                                <div class="col-md-1">Cant.</div>
-                                <div class="col-md-2">Precio Unit.</div>
-                                <div class="col-md-1">Desc. %</div>
-                                <div class="col-md-2">Total</div>
-                                <div class="col-md-1 text-center">Acciones</div>
+                            <div class="col-2 px-1">
+                                <input type="number" name="{{ item_form.precio_unitario.html_name }}" class="form-control form-control-sm text-end"
+                                       value="{{ item_form.precio_unitario.value|default:0 }}">
                             </div>
-                            
-                            <!-- Items -->
-                            {% for item_form in formset %}
-                                <div class="item-form-compact" data-form-index="{{ forloop.counter0 }}" style="margin-bottom: 0; padding: 0.05rem 0.5rem; border-bottom: 1px solid #e9ecef; {% cycle 'background: #ffffff;' 'background: #f8f9fc;' %}">
-                                    <div class="row align-items-center" style="padding: 0.2rem 0;">
-                                        {{ item_form.id }}
-                                        <input type="hidden" name="{{ item_form.DELETE.html_name }}" id="{{ item_form.DELETE.id_for_label }}">
-                                        
-                                        <div class="col-md-5">
-                                            <select name="{{ item_form.articulo.html_name }}" class="form-select form-select-sm articulo-select" data-index="{{ forloop.counter0 }}">
-                                                <option value="">Buscar por código o nombre...</option>
-                                                {% for articulo in articulos_empresa %}
-                                                    <option value="{{ articulo.id|unlocalize }}"
-                                                            data-precio="{{ articulo.precio_venta|unlocalize }}"
-                                                            {% if item_form.articulo.value|stringformat:'s' == articulo.id|stringformat:'s' %}selected{% endif %}>
-                                                        {{ articulo.codigo }} - {{ articulo.nombre|truncatechars:50 }}
-                                                    </option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="col-md-1">
-                                            {{ item_form.cantidad }}
-                                        </div>
-                                        <div class="col-md-2">
-                                            {{ item_form.precio_unitario }}
-                                        </div>
-                                        <div class="col-md-1">
-                                            {{ item_form.descuento_porcentaje }}
-                                        </div>
-                                        {{ item_form.impuesto_porcentaje }}
-                                        <div class="col-md-2">
-                                            <input type="text" class="form-control form-control-sm item-total" readonly placeholder="0" style="font-weight: 600; background-color: #f8f9fc; font-size: 0.75rem; padding: 0.25rem 0.5rem; height: 32px;">
-                                        </div>
-                                        <div class="col-md-1 text-center">
-                                            <button type="button" class="btn btn-sm btn-outline-danger delete-item-btn"
-                                                    data-form-index="{{ forloop.counter0 }}"
-                                                    title="Eliminar item"
-                                                    style="padding: 0.25rem 0.5rem; font-size: 0.75rem; height: 32px;"
-                                                    onclick="eliminarItem(this)">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-
-                        <!-- Observaciones y Totales -->
-                        <div class="row mt-2">
-                            <!-- Observaciones -->
-                            <div class="col-md-8">
-                                <div class="card" style="background: #F5F1E8; border: none; border-radius: 8px; padding: 0.75rem; height: 100%;">
-                                    <label class="form-label" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.3rem; color: #6F5B44;">
-                                        <i class="fas fa-comment-alt me-1"></i>Observaciones
-                                    </label>
-                                    {{ form.observaciones }}
-                                </div>
+                             <div class="col-2 px-1">
+                                <input type="number" name="{{ item_form.descuento_porcentaje.html_name }}" class="form-control form-control-sm text-center"
+                                       value="{{ item_form.descuento_porcentaje.value|default:0 }}" step="0.01">
                             </div>
-                            
-                            <!-- Totales -->
-                            <div class="col-md-4">
-                                <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 10px; height: 100%;">
-                                    <div style="background: #6c757d; color: white; padding: 6px; margin: -10px -10px 8px -10px; border-radius: 6px 6px 0 0; font-weight: bold; text-align: center; font-size: 0.8rem;">
-                                        <i class="fas fa-calculator"></i> RESUMEN
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #dee2e6; font-size: 0.75rem;">
-                                        <span style="font-weight: 600;">Subtotal:</span>
-                                        <span id="subtotal-total" style="font-weight: 700;">$0</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #dee2e6; font-size: 0.75rem;">
-                                        <span style="font-weight: 600;">Descuentos:</span>
-                                        <span id="descuentos-total" style="font-weight: 700; color: #dc3545;">$0</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #dee2e6; font-size: 0.75rem;">
-                                        <span style="font-weight: 600;">IVA (19%):</span>
-                                        <span id="iva-total" style="font-weight: 700;">$0</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 0.85rem;">
-                                        <span style="font-weight: 700; color: #2c3e50;">TOTAL:</span>
-                                        <span id="total-total" style="font-weight: 700; font-size: 1rem; color: #28a745;">$0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Botones -->
-                        <div class="row mt-3">
-                            <div class="col-12 text-end">
-                                <a href="{% url 'pedidos:orden_pedido_list' %}" class="btn btn-secondary">
-                                    <i class="fas fa-times me-1"></i> Cancelar
-                                </a>
-                                <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; padding: 0.5rem 1.5rem;">
-                                    <i class="fas fa-save me-1"></i> Guardar Pedido
+                            <div class="col-2 ps-1 pe-2 d-flex align-items-center">
+                                <input type="text" class="form-control form-control-sm text-end item-total bg-transparent border-0 fw-bold" readonly placeholder="$0">
+                                <button type="button" class="btn-stone-danger ms-2" onclick="eliminarItem(this)">
+                                    <i class="fas fa-times"></i>
                                 </button>
                             </div>
                         </div>
-                    </form>
+                    {% endfor %}
                 </div>
             </div>
+
+            <!-- Footer con Totales -->
+            <div class="row justify-content-end">
+                <div class="col-md-4">
+                    <div class="totals-panel">
+                        <div class="total-row"><span>Subtotal Neto:</span> <span id="subtotal-total" class="fw-bold">0</span></div>
+                        <div class="total-row"><span>Descuentos:</span> <span id="descuentos-total" class="text-danger">0</span></div>
+                        <div class="total-row"><span>IVA (19%):</span> <span id="iva-total">0</span></div>
+                        <div class="total-row final"><span>TOTAL:</span> <span id="total-total" style="color: #2e7d32;">0</span></div>
+                    </div>
+
+                    
+                    <!-- Opcionales (Colapsados o Visibles) -->
+                    <div class="mt-3 p-2 border rounded bg-white small">
+                        <div class="fw-bold text-muted mb-2 text-uppercase" style="font-size: 0.7rem;">Opcionales</div>
+                        <div class="row g-2">
+                             <div class="col-6">
+                                <label class="form-label" style="font-size: 0.7rem;">N° OC Cliente</label>
+                                {{ form.numero_oc_cliente }}
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label" style="font-size: 0.7rem;">Fecha OC</label>
+                                {{ form.fecha_oc_cliente }}
+                            </div>
+                             <div class="col-12">
+                                <label class="form-label" style="font-size: 0.7rem;">Condiciones Pago</label>
+                                {{ form.condiciones_pago }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn-stone-primary w-100 mt-3 py-2 fs-6">
+                        <i class="fas fa-save me-2"></i> Guardar Pedido
+                    </button>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- Template Oculto JS -->
+<div id="empty-form-template" style="display:none;">
+    <div class="item-line row g-0 align-items-center" data-form-index="__prefix__">
+        <div class="col-4 ps-2 pe-2">
+             <select name="items-__prefix__-articulo" class="form-select articulo-select form-control-sm">
+                <option value="">Buscar...</option>
+                {% for articulo in articulos_empresa %}
+                    <option value="{{ articulo.id|unlocalize }}" data-precio="{{ articulo.precio_venta|unlocalize }}">{{ articulo.codigo }} - {{ articulo.nombre|truncatechars:35 }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-2 px-1"><input type="number" name="items-__prefix__-cantidad" class="form-control form-control-sm text-center" value="1" step="any"></div>
+        <div class="col-2 px-1"><input type="number" name="items-__prefix__-precio_unitario" class="form-control form-control-sm text-end" value="0"></div>
+        <div class="col-2 px-1"><input type="number" name="items-__prefix__-descuento_porcentaje" class="form-control form-control-sm text-center" value="0" step="0.01"></div>
+        <div class="col-2 ps-1 pe-2 d-flex align-items-center">
+            <input type="text" class="form-control form-control-sm text-end item-total bg-transparent border-0 fw-bold" readonly placeholder="$0">
+            <button type="button" class="btn-stone-danger ms-2" onclick="eliminarItem(this)"><i class="fas fa-times"></i></button>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
 $(document).ready(function() {
-    console.log('🔧 Inicializando Select2 para Pedidos...');
-    console.log('✅ jQuery cargado correctamente');
-    console.log('Formulario encontrado:', $('#pedidoForm').length);
-    console.log('Botón submit encontrado:', $('#pedidoForm button[type="submit"]').length);
+    $.fn.select2.defaults.set("theme", "default");
     
-    
-    // Test: Verificar que el botón submit dispara el evento
-    $('#pedidoForm button[type="submit"]').on('click', function(e) {
-        console.log('🔴 CLICK EN BOTÓN SUBMIT DETECTADO');
-        console.log('Botón:', this);
-        console.log('Tipo de botón:', $(this).attr('type'));
-    });
-    
-    // Test adicional: Capturar CUALQUIER click en el formulario
-    $('#pedidoForm').on('click', function(e) {
-        console.log('⚪ Click detectado en formulario:', e.target.tagName);
-    });
-    
-    // Función auxiliar para convertir precio de formato chileno a número
     function precioChilenoANumero(precio) {
         if (!precio) return 0;
-        
-        // Convertir a string y limpiar espacios
         let precioStr = String(precio).trim();
-        
-        // Si ya es un número puro sin formato, retornarlo
-        if (/^\d+$/.test(precioStr)) {
-            return parseInt(precioStr);
-        }
-        
-        // Contar puntos y comas para determinar el formato
+        if (typeof precio === 'number') return Math.round(precio);
+        if (/^\d+$/.test(precioStr)) return parseInt(precioStr);
         const puntos = (precioStr.match(/\./g) || []).length;
         const comas = (precioStr.match(/,/g) || []).length;
-        
-        // Si tiene coma, es formato chileno: 15.000,00 o 15000,00
-        if (comas > 0) {
-            // Remover puntos (miles) y convertir coma a punto (decimal)
-            precioStr = precioStr.replace(/\./g, '').replace(',', '.');
-        }
-        // Si tiene múltiples puntos, es formato con miles: 1.000.000
-        else if (puntos > 1) {
-            // Remover todos los puntos
-            precioStr = precioStr.replace(/\./g, '');
-        }
-        // Si tiene un solo punto, verificar si es decimal o miles
-        else if (puntos === 1) {
-            const partes = precioStr.split('.');
-            const parteDecimal = partes[1] || '';
-            
-            // Si la parte decimal tiene 2 dígitos exactos y la parte entera > 999, es formato decimal
-            // Ejemplo: 15000.00 o 1234.50
-            if (parteDecimal.length <= 2 && partes[0].length > 3) {
-                // Es formato decimal, dejar como está
-            }
-            // Si la parte después del punto tiene 3 dígitos, es separador de miles
-            // Ejemplo: 15.000
-            else if (parteDecimal.length === 3) {
-                // Es separador de miles, remover el punto
-                precioStr = precioStr.replace(/\./g, '');
-            }
-            // Casos ambiguos: si tiene 1-2 decimales, asumir que es decimal
-            else {
-                // Dejar como está (formato decimal)
-            }
-        }
-        
-        const resultado = Math.round(parseFloat(precioStr) || 0);
-        console.log(`Conversión precio: "${precio}" -> "${precioStr}" -> ${resultado}`);
-        return resultado;
+        if (comas > 0) precioStr = precioStr.replace(/\./g, '').replace(',', '.');
+        else if (puntos > 1) precioStr = precioStr.replace(/\./g, '');
+        else if (puntos === 1) { const partes = precioStr.split('.'); if (partes[1] && partes[1].length === 3) precioStr = precioStr.replace(/\./g, ''); }
+        return Math.round(parseFloat(precioStr) || 0);
     }
     
-    // Hacer la función global dentro del scope del documento
-    window.precioChilenoANumero = precioChilenoANumero;
+    function initSelect2(element) { $(element).select2({ placeholder: 'Buscar...', allowClear: true, width: '100%' }); }
     
-    // Inicializar Select2 para el selector de cliente
-    $('#{{ form.cliente.id_for_label }}').select2({
-        placeholder: 'Buscar cliente por RUT, razón social o nombre...',
-        allowClear: true,
-        language: {
-            noResults: function() {
-                return "No se encontraron clientes";
-            },
-            searching: function() {
-                return "Buscando...";
-            }
-        },
-        width: '100%',
-        dropdownAutoWidth: true,
-        minimumResultsForSearch: 0
-    });
-    
-    // Inicializar Select2 para bodega y estado
-    if ($('.bodega-select').data('select2')) {
-        $('.bodega-select').select2('destroy');
-    }
-    $('.bodega-select').select2({
-        placeholder: 'Seleccionar bodega...',
-        allowClear: true,
-        width: '100%',
-        minimumResultsForSearch: -1
-    });
-    
-    $('#{{ form.estado.id_for_label }}').select2({
-        placeholder: 'Seleccionar estado...',
-        allowClear: true,
-        width: '100%',
-        minimumResultsForSearch: -1
-    });
-    
-    // Inicializar Select2 para todos los selectores de artículos
-    $('.articulo-select').select2({
-        placeholder: 'Buscar artículo por código o nombre...',
-        allowClear: true,
-        language: {
-            noResults: function() {
-                return "No se encontraron artículos";
-            },
-            searching: function() {
-                return "Buscando...";
-            }
-        },
-        width: '100%',
-        dropdownAutoWidth: true,
-        minimumResultsForSearch: 0
-    });
-    
-    console.log('✅ Select2 inicializado correctamente');
-    
-    // Detectar cambio de cliente para verificar cotizaciones
-    $('#{{ form.cliente.id_for_label }}').on('change', function() {
-        const clienteId = $(this).val();
-        if (clienteId) {
-            verificarCotizaciones(clienteId);
-        } else {
-            $('#cotizacion-container').hide();
-        }
-    });
-    
-    // Verificar cotizaciones del cliente
-    function verificarCotizaciones(clienteId) {
-        if (!clienteId) {
-            $('#cotizacion-container').hide();
-            return;
-        }
+    initSelect2($('#{{ form.cliente.id_for_label }}'));
+    $('.articulo-select').each(function() { initSelect2(this); });
+
+    function calculateTotal() {
+        let subtotal = 0, descuentos = 0, iva = 0;
         
-        // TODO: Implementar cuando exista el módulo de cotizaciones
-        // Por ahora, simular que no hay cotizaciones
-        $('#cotizacion-container').hide();
-        
-        /* CÓDIGO PARA CUANDO SE IMPLEMENTE COTIZACIONES:
-        $.ajax({
-            url: '/ventas/cotizaciones/pendientes/' + clienteId + '/',
-            method: 'GET',
-            success: function(data) {
-                if (data.cotizaciones && data.cotizaciones.length > 0) {
-                    $('#cotizacion-container').show();
-                    $('#btnCargarCotizacion').data('cotizaciones', data.cotizaciones);
-                } else {
-                    $('#cotizacion-container').hide();
-                }
-            },
-            error: function() {
-                $('#cotizacion-container').hide();
-            }
-        });
-        */
-    }
-    
-    // Cargar cotización
-    $('#btnCargarCotizacion').click(function() {
-        const cotizaciones = $(this).data('cotizaciones');
-        
-        if (!cotizaciones || cotizaciones.length === 0) {
-            Swal.fire({
-                icon: 'info',
-                title: 'Sin cotizaciones',
-                text: 'No hay cotizaciones pendientes para este cliente',
-                confirmButtonColor: '#8B7355'
-            });
-            return;
-        }
-        
-        // Mostrar lista de cotizaciones para seleccionar
-        const options = {};
-        cotizaciones.forEach(function(cot) {
-            options[cot.id] = cot.numero + ' - ' + cot.fecha + ' - $' + cot.total;
-        });
-        
-        Swal.fire({
-            title: 'Seleccionar Cotización',
-            input: 'select',
-            inputOptions: options,
-            inputPlaceholder: 'Seleccione una cotización',
-            showCancelButton: true,
-            confirmButtonText: 'Cargar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#8B7355',
-            inputValidator: (value) => {
-                if (!value) {
-                    return 'Debe seleccionar una cotización';
-                }
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                cargarDatosCotizacion(result.value);
-            }
-        });
-    });
-    
-    // Cargar datos de la cotización seleccionada
-    function cargarDatosCotizacion(cotizacionId) {
-        // TODO: Implementar cuando exista el módulo de cotizaciones
-        Swal.fire({
-            icon: 'info',
-            title: 'Función pendiente',
-            text: 'La carga de cotizaciones se implementará cuando esté disponible el módulo de cotizaciones',
-            confirmButtonColor: '#8B7355'
-        });
-        
-        /* CÓDIGO PARA CUANDO SE IMPLEMENTE COTIZACIONES:
-        $.ajax({
-            url: '/ventas/cotizaciones/' + cotizacionId + '/detalle/',
-            method: 'GET',
-            success: function(data) {
-                // Limpiar items actuales
-                $('.item-form-compact').not(':first').remove();
-                
-                // Cargar items de la cotización
-                data.items.forEach(function(item, index) {
-                    if (index > 0) {
-                        $('#addItemBtn').click();
-                    }
-                    
-                    const $row = $('.item-form-compact').eq(index);
-                    $row.find('.articulo-select').val(item.articulo_id).trigger('change');
-                    $row.find('input[name*="cantidad"]').val(item.cantidad);
-                    $row.find('input[name*="precio_unitario"]').val(precioChilenoANumero(item.precio_unitario));
-                    $row.find('input[name*="descuento_porcentaje"]').val(item.descuento_porcentaje);
-                });
-                
-                // Cargar observaciones si existen
-                if (data.observaciones) {
-                    $('textarea[name="observaciones"]').val(data.observaciones);
-                }
-                
-                calculateTotals();
-                
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Cotización cargada',
-                    text: 'Los datos de la cotización se han cargado correctamente',
-                    confirmButtonColor: '#8B7355',
-                    timer: 2000
-                });
-            },
-            error: function() {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'No se pudo cargar la cotización',
-                    confirmButtonColor: '#8B7355'
-                });
-            }
-        });
-        */
-    }
-    
-    // Calcular totales - EXACTAMENTE como compras
-    function calculateTotals() {
-        let subtotal = 0;
-        let descuentos = 0;
-        let iva = 0;
-        
-        $('.item-form-compact:visible').each(function() {
-            const cantidad = parseInt($(this).find('input[name*="cantidad"]').val()) || 0;
-            const precio = parseInt($(this).find('input[name*="precio_unitario"]').val()) || 0;
-            const descuento = parseInt($(this).find('input[name*="descuento_porcentaje"]').val()) || 0;
+        // Iterar sobre las filas visibles (excluyendo template __prefix__)
+        $('#items-container-body .item-line:visible').each(function() {
+            const row = $(this);
+            if(row.attr('data-form-index') === '__prefix__') return;
+
+            const cantidad = parseFloat(row.find('input[name$="-cantidad"]').val()) || 0;
+            const precio = parseFloat(row.find('input[name$="-precio_unitario"]').val()) || 0;
+            const descPorc = parseFloat(row.find('input[name$="-descuento_porcentaje"]').val()) || 0;
             
-            const itemSubtotal = cantidad * precio;
-            const itemDescuento = itemSubtotal * (descuento / 100);
-            const itemBase = itemSubtotal - itemDescuento;
-            const itemIva = itemBase * 0.19;
-            const itemTotal = itemBase + itemIva;
+            const totalBruto = cantidad * precio;
+            const montoDesc = totalBruto * (descPorc / 100);
+            const totalNeto = totalBruto - montoDesc;
+            const montoIva = totalNeto * 0.19; 
+            const totalFinal = totalNeto + montoIva;
             
-            $(this).find('.item-total').val(Math.round(itemTotal).toLocaleString('es-CL'));
+            row.find('.item-total').val('$' + Math.round(totalFinal).toLocaleString('es-CL'));
             
-            subtotal += itemSubtotal;
-            descuentos += itemDescuento;
-            iva += itemIva;
+            subtotal += totalNeto;
+            descuentos += montoDesc;
+            iva += montoIva;
         });
         
-        const total = subtotal - descuentos + iva;
+        const total = subtotal + iva;
         
         $('#subtotal-total').text('$' + Math.round(subtotal).toLocaleString('es-CL'));
         $('#descuentos-total').text('$' + Math.round(descuentos).toLocaleString('es-CL'));
@@ -605,241 +453,49 @@ $(document).ready(function() {
         $('#total-total').text('$' + Math.round(total).toLocaleString('es-CL'));
     }
     
-    // Actualizar precio cuando se selecciona artículo
+    
+    // Listeners
+    $(document).on('input change', 'input', calculateTotal);
+
+    // Auto-precio
     $(document).on('change', '.articulo-select', function() {
-        const selected = $(this).find(':selected');
-        const precioRaw = selected.data('precio');
-        const precio = precioChilenoANumero(precioRaw);
-        const row = $(this).closest('.item-form-compact');
-        row.find('input[name*="precio_unitario"]').val(precio);
-        calculateTotals();
+        const option = $(this).find(':selected');
+        const precio = option.data('precio');
+        if (precio) {
+            const row = $(this).closest('.item-line');
+            row.find('input[name$="-precio_unitario"]').val(precioChilenoANumero(precio));
+            calculateTotal();
+        }
     });
-    
-    // Recalcular al cambiar valores
-    $(document).on('input', 'input[name*="cantidad"], input[name*="precio_unitario"], input[name*="descuento_porcentaje"]', function() {
-        calculateTotals();
-    });
-    
-    // Prevenir decimales en precio unitario
-    $(document).on('blur', 'input[name*="precio_unitario"]', function() {
-        const valor = parseFloat($(this).val()) || 0;
-        $(this).val(Math.round(valor));
-        calculateTotals();
-    });
-    
-    // Agregar item
-    let formIdx = parseInt($('#id_items-TOTAL_FORMS').val()) || 0;
-    
+
+    // Agregar Item
     $('#addItemBtn').click(function() {
-        console.log('📝 Agregando item. formIdx actual:', formIdx);
+        const totalForms = $('#id_items-TOTAL_FORMS');
+        const count = parseInt(totalForms.val());
+        const tmpl = $('#empty-form-template').html();
+        const compiledTmpl = tmpl.replace(/__prefix__/g, count);
         
-        const newForm = $('.item-form-compact:first').clone(true, true);
-
-        // Destruir la instancia de Select2 del nuevo formulario clonado para evitar conflictos
-        newForm.find('.articulo-select').each(function() {
-            if ($(this).data('select2')) {
-                $(this).select2('destroy');
-            }
-        });
-
-        // Actualizar todos los atributos name e id
-        newForm.find('input, select, textarea').each(function() {
-            const name = $(this).attr('name');
-            const id = $(this).attr('id');
-            
-            if (name) {
-                // Reemplazar el índice en el nombre
-                const newName = name.replace(/items-\d+-/, 'items-' + formIdx + '-');
-                $(this).attr('name', newName);
-                console.log('Name actualizado:', name, '->', newName);
-            }
-            
-            if (id) {
-                // Reemplazar el índice en el id
-                const newId = id.replace(/items-\d+-/, 'items-' + formIdx + '-');
-                $(this).attr('id', newId);
-            }
-            
-            // Resetear valores
-            if ($(this).is('select')) {
-                $(this).val('');
-            } else if ($(this).attr('type') === 'hidden') {
-                // Mantener valores por defecto de campos ocultos
-                if (name && name.includes('impuesto_porcentaje')) {
-                    $(this).val('19');
-                } else if (name && name.includes('DELETE')) {
-                    $(this).val('');
-                }
-            } else {
-                // Resetear valores de inputs visibles
-                if (name && name.includes('cantidad')) {
-                    $(this).val('1.00');
-                } else if (name && name.includes('descuento_porcentaje')) {
-                    $(this).val('0.00');
-                } else if (name && name.includes('precio_unitario')) {
-                    $(this).val('0');
-                } else {
-                    $(this).val('');
-                }
-            }
-        });
+        $('#items-container-body').append(compiledTmpl);
+        totalForms.val(count + 1);
         
-        newForm.attr('data-form-index', formIdx);
-        $('.items-container').append(newForm);
-        
-        // Reinicializar Select2 en el nuevo formulario
-        newForm.find('.articulo-select').select2({
-            placeholder: 'Buscar artículo por código o nombre...',
-            allowClear: true,
-            language: {
-                noResults: function() {
-                    return "No se encontraron artículos";
-                },
-                searching: function() {
-                    return "Buscando...";
-                }
-            },
-            width: '100%',
-            dropdownAutoWidth: true,
-            minimumResultsForSearch: 0
-        });
-        
-        // Incrementar formIdx primero
-        formIdx++;
-        
-        // Actualizar TOTAL_FORMS
-        $('#id_items-TOTAL_FORMS').val(formIdx);
-        console.log('✅ Item agregado. Nuevo TOTAL_FORMS:', formIdx);
-        
-        calculateTotals();
+        initSelect2($('#items-container-body .item-line:last-child .articulo-select'));
     });
     
-    // Calcular totales iniciales
-    calculateTotals();
+    // Eliminar Item
+    window.eliminarItem = function(btn) {
+        const row = $(btn).closest('.item-line');
+        const delInput = row.find('input[name$="-DELETE"]');
+        if (delInput.length) {
+            delInput.prop('checked', true); 
+            delInput.val('on'); 
+            row.hide();
+        } else {
+            row.remove(); 
+        }
+        calculateTotal();
+    };
     
-    // Validar formulario antes de enviar
-    $('#pedidoForm').on('submit', function(e) {
-        console.log('🔵 SUBMIT EVENTO DISPARADO');
-        let errores = [];
-        
-        // Validar cliente
-        const clienteVal = $('#{{ form.cliente.id_for_label }}').val();
-        console.log('Cliente seleccionado:', clienteVal);
-        if (!clienteVal) {
-            errores.push('Debe seleccionar un cliente');
-        }
-        
-        // Validar bodega
-        const bodegaVal = $('#{{ form.bodega.id_for_label }}').val();
-        console.log('Bodega seleccionada:', bodegaVal);
-        if (!bodegaVal) {
-            errores.push('Debe seleccionar una bodega');
-        }
-        
-        // Validar fecha
-        const fechaVal = $('input[name="fecha_pedido"]').val();
-        console.log('Fecha:', fechaVal);
-        if (!fechaVal) {
-            errores.push('Debe ingresar la fecha del pedido');
-        }
-        
-        // Validar que haya al menos un item
-        let itemsValidos = 0;
-        $('.item-form-compact:visible').each(function() {
-            const articulo = $(this).find('.articulo-select').val();
-            const cantidad = $(this).find('input[name*="cantidad"]').val();
-            const precio = $(this).find('input[name*="precio_unitario"]').val();
-            
-            console.log('Item:', {articulo, cantidad, precio});
-            
-            if (articulo && cantidad && precio) {
-                itemsValidos++;
-            }
-        });
-        
-        console.log('Items válidos:', itemsValidos);
-        
-        if (itemsValidos === 0) {
-            errores.push('Debe agregar al menos un artículo con cantidad y precio');
-        }
-        
-        console.log('Total errores:', errores.length, errores);
-        
-        // Debug: Mostrar info del formset
-        console.log('📊 TOTAL_FORMS:', $('#id_items-TOTAL_FORMS').val());
-        console.log('📊 INITIAL_FORMS:', $('#id_items-INITIAL_FORMS').val());
-        console.log('📊 Items visibles:', $('.item-form-compact:visible').length);
-        
-        // Listar todos los inputs de items
-        $('input[name^="items-"], select[name^="items-"]').each(function() {
-            if ($(this).attr('name')) {
-                console.log('Campo:', $(this).attr('name'), '=', $(this).val());
-            }
-        });
-        
-        // Antes de validar errores, asegurar que todos los precios sean enteros sin decimales
-        $('.item-form-compact:visible').each(function() {
-            const $precioInput = $(this).find('input[name*="precio_unitario"]');
-            const precioActual = parseFloat($precioInput.val()) || 0;
-            $precioInput.val(Math.round(precioActual));
-        });
-        
-        // Mostrar errores si hay
-        if (errores.length > 0) {
-            e.preventDefault();
-            let mensajeError = '<strong>Por favor corrija los siguientes errores:</strong><ul class="mt-2 mb-0">';
-            errores.forEach(function(error) {
-                mensajeError += '<li>' + error + '</li>';
-            });
-            mensajeError += '</ul>';
-            
-            Swal.fire({
-                icon: 'error',
-                title: 'Errores en el formulario',
-                html: mensajeError,
-                confirmButtonColor: '#8B7355'
-            });
-            
-            return false;
-        }
-        
-        // Si no hay errores, permitir el envío y mostrar loading
-        console.log('✅ NO HAY ERRORES - ENVIANDO FORMULARIO');
-        
-        // Mostrar loading (pero permitir que el form se envíe)
-        setTimeout(function() {
-            Swal.fire({
-                title: 'Guardando pedido...',
-                html: 'Por favor espere',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-        }, 100);
-        
-        // Permitir que el formulario se envíe
-        console.log('🚀 RETURN TRUE - FORMULARIO DEBE ENVIARSE');
-        return true;
-    });
+    calculateTotal();
 });
-
-// Eliminar item
-function eliminarItem(button) {
-    const row = $(button).closest('.item-form-compact');
-    const deleteInput = row.find('input[name*="DELETE"]');
-    
-    if (deleteInput.length) {
-        deleteInput.val('on');
-        row.hide();
-    } else {
-        row.remove();
-    }
-    
-    $(document).ready(function() {
-        calculateTotals();
-    });
-}
 </script>
 {% endblock %}

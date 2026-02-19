@@ -1,48 +1,123 @@
 {% extends "base.html" %}
 
+{% block title %}Eliminar Impuesto Específico - GestionCloud{% endblock %}
+
 {% block body_class %}hide-top-bar{% endblock %}
-{% block title %}Eliminar Impuesto Específico{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
+
+    /* Ocultar top-bar si existe y ajustar layout */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-top: 5rem !important; }
+
+    /* Estilo Piedra - Variables Locales */
+    :root {
+        --color-piedra-texto: #5D4037;
+        --color-piedra-boton: #8D6E63;
+        --color-piedra-borde: #d7ccc8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --shadow-piedra: 0 4px 15px rgba(93, 64, 55, 0.15);
+    }
+
+    .card-confirm-piedra {
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(220, 53, 69, 0.2) !important;
+        background: white;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+
+    .header-danger-piedra {
+        background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+        padding: 1.5rem 2rem;
+        color: white;
+        border-bottom: 2px solid rgba(0,0,0,0.05);
+    }
+
+    .btn-piedra-cancel {
+        background: white;
+        border: 1px solid var(--color-piedra-borde);
+        color: var(--color-piedra-texto) !important;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-piedra-danger {
+        background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+        border: none;
+        color: white !important;
+        font-weight: 600;
+        padding: 0.6rem 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(211, 47, 47, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .btn-piedra-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(211, 47, 47, 0.4);
+        filter: brightness(1.1);
+    }
+
+    .info-box-delete {
+        background: rgba(141, 110, 99, 0.05);
+        border: 1px dashed var(--color-piedra-borde);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Confirmar Eliminación
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-warning">
-                        <i class="fas fa-warning me-2"></i>
-                        <strong>¡Atención!</strong> Esta acción no se puede deshacer.
+        <div class="col-md-7 col-lg-6">
+            <div class="card card-confirm-piedra">
+                <div class="header-danger-piedra text-center">
+                    <div class="mb-2">
+                        <i class="fas fa-trash-alt fa-3x opacity-50"></i>
                     </div>
-                    
-                    <p>¿Está seguro de que desea eliminar el siguiente impuesto específico?</p>
-                    
-                    <div class="card bg-light">
-                        <div class="card-body">
-                            <h6 class="card-title">{{ impuesto.nombre }}</h6>
-                            <p class="card-text">
-                                <strong>Porcentaje:</strong> {{ impuesto.porcentaje }}%<br>
-                                {% if impuesto.descripcion %}
-                                    <strong>Descripción:</strong> {{ impuesto.descripcion }}
-                                {% endif %}
-                            </p>
+                    <h4 class="mb-0 fw-bold">¿Eliminar Impuesto?</h4>
+                    <p class="mb-0 small opacity-75">Esta acción es permanente y no se puede revertir</p>
+                </div>
+                
+                <div class="card-body p-4 p-lg-5">
+                    <div class="alert alert-danger border-0 rounded-3 shadow-sm d-flex align-items-center mb-4" style="background: rgba(220, 53, 69, 0.08); color: #b71c1c;">
+                        <i class="fas fa-exclamation-circle fa-2x me-3 opacity-50"></i>
+                        <div>
+                            <div class="fw-bold">Confirmación Requerida</div>
+                            <div class="small">El registro desaparecerá de todos los reportes y cálculos futuros.</div>
                         </div>
                     </div>
                     
-                    <div class="mt-4">
+                    <p class="text-center text-muted mb-4">Está a punto de eliminar el siguiente impuesto del sistema:</p>
+                    
+                    <div class="info-box-delete text-center">
+                        <h4 class="fw-bold mb-1" style="color: var(--color-piedra-texto);">{{ impuesto.nombre }}</h4>
+                        <div class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-2 rounded-pill mt-2">
+                            <i class="fas fa-percentage me-1"></i> Tasa del {{ impuesto.porcentaje }}%
+                        </div>
+                        {% if impuesto.descripcion %}
+                            <p class="text-muted small mt-3 mb-0">{{ impuesto.descripcion }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mt-5">
                         <form method="post">
                             {% csrf_token %}
-                            <div class="d-flex justify-content-between">
-                                <a href="{% url 'articulos:impuesto_especifico_list' %}" class="btn btn-secondary">
-                                    <i class="fas fa-arrow-left"></i> Cancelar
+                            <div class="d-flex flex-column flex-sm-row gap-3">
+                                <a href="{% url 'articulos:impuesto_especifico_list' %}" class="btn btn-piedra-cancel flex-grow-1 order-2 order-sm-1">
+                                    <i class="fas fa-times me-2"></i>No, Cancelar
                                 </a>
-                                <button type="submit" class="btn btn-danger">
-                                    <i class="fas fa-trash"></i> Eliminar Definitivamente
+                                <button type="submit" class="btn btn-piedra-danger flex-grow-1 order-1 order-sm-2">
+                                    <i class="fas fa-trash-alt me-2"></i>Sí, Eliminar Registro
                                 </button>
                             </div>
                         </form>

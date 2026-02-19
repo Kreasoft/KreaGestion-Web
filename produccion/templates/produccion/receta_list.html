@@ -1,75 +1,291 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block title %}Recetas de Producción{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Ocultar top-bar */
-    .top-bar {
-        display: none !important;
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
     }
-    .main-content {
-        margin-top: 0 !important;
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
     }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 48px; height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    /* BOTONES */
+    .header-btn {
+        padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.2s; border: 1px solid transparent; cursor: pointer;
+    }
+    .btn-action-primary { background: var(--stone-primary); color: white; border: none; }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; }
+
+    /* STATS CARDS - SOFT UI PASTEL */
+    .stat-card {
+        border: none; border-radius: 12px; transition: all 0.3s ease; 
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        height: 100%; position: relative; overflow: hidden;
+        display: flex; align-items: stretch; justify-content: space-between;
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1); }
+    
+    /* Azul Pastel (Total y Confirmadas) */
+    .stat-card-1, .stat-card-3 { 
+        background: linear-gradient(135deg, #a5c0d1 0%, #c6d8e5 100%);
+        border: 2px solid #9ab8cd;
+    }
+    /* Terracota Pastel (Pendientes/Otros) */
+    .stat-card-2 { 
+        background: linear-gradient(135deg, #eba98a 0%, #f7e8d0 100%);
+        border: 2px solid #e39d7e;
+    }
+    /* Rosa Pastel (Canceladas/Inactivas) */
+    .stat-card-4 { 
+        background: linear-gradient(135deg, #f7d9d9 0%, #fef5e7 100%);
+        border: 2px solid #f4d1d1;
+    }
+    
+    .stat-content {
+        padding: 1.25rem;
+        display: flex; flex-direction: column; justify-content: center;
+        z-index: 2;
+    }
+    .stat-value { 
+        font-size: 1.5rem; 
+        font-weight: 700; 
+        margin-bottom: 0.25rem; 
+        line-height: 1; 
+        color: #2D3748; 
+    }
+    .stat-label { 
+        font-size: 0.75rem; 
+        text-transform: uppercase; 
+        letter-spacing: 0.5px; 
+        font-weight: 600;
+        color: #4A5568; 
+    }
+    
+    /* Full height icon on right - Translucent Watermark Effect */
+    .stat-icon-full {
+        width: auto;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 4.5rem; 
+        color: rgba(255, 255, 255, 0.4); 
+        position: absolute; 
+        right: -10px;
+        bottom: -10px; 
+        height: 100%;
+        overflow: hidden;
+        z-index: 1;
+        transform: rotate(-10deg);
+    }
+
+    /* FILTROS */
+    .stone-filter-box {
+        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;
+    }
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.4rem 0.75rem; font-size: 0.85rem; background-color: white; width: 100%; color: var(--stone-text);
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+
+    /* TABLA PIEDRA COMPACTA */
+    .table-piedra { width: 100%; border-collapse: collapse; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 10px 15px;
+    }
+    .table-piedra tbody tr { 
+        height: 32px !important; 
+        transition: all 0.2s ease; border-bottom: 1px solid #F5F1E8; 
+    }
+    .table-piedra tbody tr:hover { background-color: #F5F1E8; }
+    .table-piedra tbody td { 
+        padding: 2px 15px; 
+        vertical-align: middle; font-size: 0.85rem; color: #4A5568; 
+    }
+
+    /* BADGES */
+    .badge-stone { padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; display: inline-block; }
+    .bg-activa { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+    .bg-inactiva { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+    .bg-industria { background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; }
+
+    /* ACCIONES */
+    .btn-icon-stone {
+        width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E8DCC8; background: white; color: var(--stone-secondary); transition: all 0.2s; text-decoration: none;
+    }
+    .btn-icon-stone:hover { background: var(--stone-primary); color: white; border-color: var(--stone-primary); }
+    
+    /* Ocultar top-bar original si es necesario */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header con estilo terroso -->
-    <div class="d-flex justify-content-between align-items-center mb-3" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div>
-            <h2 class="mb-0" style="color: white; font-size: 1.5rem;">
-                <i class="fas fa-flask me-2"></i>Recetas de Producción
-            </h2>
-            <p class="mb-0 mt-1" style="color: rgba(255,255,255,0.85); font-size: 0.85rem;">
-                Gestiona las fórmulas de fabricación con sus insumos y cantidades necesarias
-            </p>
+    <div class="single-card-container">
+        <!-- HEADER -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-flask"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Recetas de <span class="fw-bold">Producción</span></h1>
+                    <p>Gestiona las fórmulas de fabricación e insumos</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="header-btn" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i> Imprimir
+                </button>
+                <button type="button" class="header-btn btn-action-primary" onclick="openRecetaModal('{% url 'produccion:receta_create' %}')">
+                    <i class="fas fa-plus me-2"></i> Nueva Receta
+                </button>
+            </div>
         </div>
-        <a href="{% url 'produccion:receta_create' %}" class="btn" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; border: none; padding: 8px 20px; font-weight: 500;">
-            <i class="fas fa-plus me-2"></i>Nueva Receta
-        </a>
-    </div>
-
-    <!-- Filtros compactos -->
-    <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
-        <div class="card-body" style="padding: 12px 15px;">
-            <form method="get" class="row g-2">
-                <div class="col-md-4">
-                    <input type="text" name="search" class="form-control" placeholder="Buscar..." value="{{ search }}">
+        
+        <div class="card-body p-4">
+            
+            <!-- STATS CARDS (Placeholder based on iteration count since vars not in context) -->
+            <!-- Nota: Solo se mostrarán si existen variables de contexto específicas, si no, se verán valores por defecto -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-1">
+                        <div class="stat-content">
+                            <div class="stat-value">{{ recetas.count|default:"-" }}</div>
+                            <div class="stat-label">Total Recetas</div>
+                        </div>
+                        <div class="stat-icon-full">
+                            <i class="fas fa-flask"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- Solo ejemplos visuales si no hay data real -->
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-3">
+                        <div class="stat-content">
+                            <div class="stat-value">-</div>
+                            <div class="stat-label">Recetas Activas</div>
+                        </div>
+                        <div class="stat-icon-full">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-3">
-                    <select name="tipo_produccion" class="form-select">
-                        <option value="">Todas las industrias</option>
-                        <option value="textil" {% if tipo_produccion == 'textil' %}selected{% endif %}>Textil</option>
-                        <option value="carnico" {% if tipo_produccion == 'carnico' %}selected{% endif %}>Cárnico</option>
-                        <option value="panaderia" {% if tipo_produccion == 'panaderia' %}selected{% endif %}>Panadería</option>
-                        <option value="quimico" {% if tipo_produccion == 'quimico' %}selected{% endif %}>Químico</option>
-                        <option value="otro" {% if tipo_produccion == 'otro' %}selected{% endif %}>Otro</option>
-                    </select>
+                    <div class="stat-card stat-card-4">
+                        <div class="stat-content">
+                            <div class="stat-value">-</div>
+                            <div class="stat-label">Recetas Inactivas</div>
+                        </div>
+                        <div class="stat-icon-full">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-3">
-                    <select name="activo" class="form-select">
-                        <option value="">Todas</option>
-                        <option value="true" {% if activo == 'true' %}selected{% endif %}>Activas</option>
-                        <option value="false" {% if activo == 'false' %}selected{% endif %}>Inactivas</option>
-                    </select>
+                    <div class="stat-card stat-card-2">
+                        <div class="stat-content">
+                            <div class="stat-value">-</div>
+                            <div class="stat-label">En Producción</div>
+                        </div>
+                        <div class="stat-icon-full">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; padding: 6px 12px;">
-                        <i class="fas fa-search me-2"></i>Filtrar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+            </div>
 
-    <!-- Tabla de recetas compacta -->
-    <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
-        <div class="card-body" style="padding: 15px;">
+            <!-- FILTROS -->
+                <div class="stone-filter-box">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold text-muted mb-1">Buscar</label>
+                        <input type="text" name="search" class="form-control-stone" 
+                                placeholder="🔍 Buscar por código o nombre..." value="{{ search|default:'' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Industria</label>
+                        <select name="tipo_produccion" class="form-select-stone">
+                            <option value="">Todas</option>
+                            <option value="textil" {% if tipo_produccion == 'textil' %}selected{% endif %}>Textil</option>
+                            <option value="carnico" {% if tipo_produccion == 'carnico' %}selected{% endif %}>Cárnico</option>
+                            <option value="panaderia" {% if tipo_produccion == 'panaderia' %}selected{% endif %}>Panadería</option>
+                            <option value="quimico" {% if tipo_produccion == 'quimico' %}selected{% endif %}>Químico</option>
+                            <option value="otro" {% if tipo_produccion == 'otro' %}selected{% endif %}>Otro</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Estado</label>
+                        <select name="activo" class="form-select-stone">
+                            <option value="">Todos</option>
+                            <option value="true" {% if activo == 'true' %}selected{% endif %}>Activas</option>
+                            <option value="false" {% if activo == 'false' %}selected{% endif %}>Inactivas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="header-btn btn-action-primary w-100 justify-content-center">
+                            <i class="fas fa-filter me-2"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- TABLA -->
             <div class="table-responsive">
-                <table class="table table-hover table-sm mb-0">
+                <table class="table-piedra">
                     <thead>
                         <tr>
                             <th>Código</th>
@@ -77,50 +293,58 @@
                             <th>Producto Final</th>
                             <th>Cantidad</th>
                             <th>Industria</th>
-                            <th>Costo Unitario</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
+                            <th class="text-end">Costo Unit.</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for receta in recetas %}
                         <tr>
-                            <td>{{ receta.codigo }}</td>
-                            <td>{{ receta.nombre }}</td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ receta.codigo }}</span>
+                            </td>
+                            <td>
+                                <span class="fw-bold" style="color: #5D4037;">{{ receta.nombre }}</span>
+                            </td>
                             <td>{{ receta.producto_final.nombre }}</td>
                             <td>{{ receta.cantidad_producir }} {{ receta.unidad_medida }}</td>
                             <td>
                                 {% if receta.tipo_industria %}
-                                    <span class="badge bg-info">{{ receta.producto_final.get_tipo_produccion_display }}</span>
+                                    <span class="badge-stone bg-industria">{{ receta.producto_final.get_tipo_produccion_display }}</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">N/A</span>
+                                    <span class="badge bg-light text-muted border">N/A</span>
                                 {% endif %}
                             </td>
-                            <td>${{ receta.costo_unitario|floatformat:0 }}</td>
-                            <td>
+                            <td class="text-end fw-bold text-muted">${{ receta.costo_unitario|floatformat:0|intcomma }}</td>
+                            <td class="text-center">
                                 {% if receta.activo %}
-                                    <span class="badge bg-success">Activa</span>
+                                    <i class="fas fa-check-circle text-success" title="Activa"></i>
                                 {% else %}
-                                    <span class="badge bg-danger">Inactiva</span>
+                                    <i class="fas fa-times-circle text-danger" title="Inactiva"></i>
                                 {% endif %}
                             </td>
-                            <td>
-                                <a href="{% url 'produccion:receta_detail' receta.pk %}" class="btn btn-sm" style="background: #8B7355; color: white; padding: 4px 8px;" title="Ver">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{% url 'produccion:receta_update' receta.pk %}" class="btn btn-sm" style="background: #C8A882; color: white; padding: 4px 8px;" title="Editar">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{% url 'produccion:receta_delete' receta.pk %}" class="btn btn-sm btn-danger" style="padding: 4px 8px;" title="Eliminar">
-                                    <i class="fas fa-trash"></i>
-                                </a>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-1">
+                                    <button type="button" class="btn btn-sm text-secondary p-0 border-0" style="width: 24px; height: 24px;" title="Ver" onclick="openRecetaModal('{% url 'produccion:receta_detail' receta.pk %}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm text-secondary p-0 border-0" style="width: 24px; height: 24px;" title="Editar" onclick="openRecetaModal('{% url 'produccion:receta_update' receta.pk %}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm text-danger p-0 border-0" style="width: 24px; height: 24px;" title="Eliminar" onclick="confirmarEliminar('{% url 'produccion:receta_delete' receta.pk %}', '{{ receta.nombre|escapejs }}')">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center py-4">
-                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">No hay recetas registradas</p>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="d-flex flex-column align-items-center opacity-25">
+                                    <i class="fas fa-flask fa-3x mb-3 text-muted"></i>
+                                    <h6 class="fw-bold text-muted">No hay recetas registradas</h6>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -131,6 +355,21 @@
     </div>
 </div>
 
+
+<!-- Modal Container -->
+<div class="modal fade" id="recetaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" id="recetaModalContent" style="border-radius: 16px; overflow: hidden; border: none; box-shadow: 0 15px 40px rgba(0,0,0,0.2);">
+            <!-- Content loaded via AJAX -->
+        </div>
+    </div>
+</div>
+
+<!-- Formulario oculto para eliminar con CSRF Token -->
+<form id="deleteForm" method="post" style="display:none;">
+    {% csrf_token %}
+</form>
+
 <script>
 // Ocultar top menu
 document.addEventListener('DOMContentLoaded', function() {
@@ -139,5 +378,134 @@ document.addEventListener('DOMContentLoaded', function() {
         topMenu.style.display = 'none';
     }
 });
+
+// Modal Logic
+function openRecetaModal(url) {
+    const modalContent = document.getElementById('recetaModalContent');
+    const modalEl = document.getElementById('recetaModal');
+    const modal = new bootstrap.Modal(modalEl);
+    
+    modalContent.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-secondary" role="status"></div></div>';
+    modal.show();
+
+    fetch(url, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.text())
+    .then(html => {
+        modalContent.innerHTML = html;
+        executeScripts(modalContent);
+        bindModalForm();
+    })
+    .catch(err => {
+        console.error(err);
+        modalContent.innerHTML = '<div class="p-4 text-center text-danger">Error al cargar datos. <br>Intente nuevamente.</div>';
+    });
+}
+
+function bindModalForm() {
+    const form = document.getElementById('recetaFormModal');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const url = form.action;
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
+        
+        if(submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
+        }
+
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json().then(data => {
+                    if (data.success) {
+                        const modalEl = document.getElementById('recetaModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        modal.hide();
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Éxito!',
+                            text: data.message,
+                            confirmButtonColor: '#8B7355'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Ocurrió un error inesperado',
+                            confirmButtonColor: '#8B7355'
+                        });
+                        if(submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalBtnText;
+                        }
+                    }
+                });
+            } else {
+                return response.text().then(html => {
+                    const modalContent = document.getElementById('recetaModalContent');
+                    modalContent.innerHTML = html;
+                    executeScripts(modalContent);
+                    bindModalForm();
+                });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error de conexión',
+                confirmButtonColor: '#8B7355'
+            });
+            if(submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
+        });
+    });
+}
+
+function confirmarEliminar(url, nombre) {
+    Swal.fire({
+        title: '¿Eliminar Receta?',
+        text: `¿Estás seguro de eliminar "${nombre}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.getElementById('deleteForm');
+            form.action = url;
+            form.submit();
+        }
+    });
+}
+
+function executeScripts(element) {
+    const scripts = element.querySelectorAll('script');
+    scripts.forEach(script => {
+        const newScript = document.createElement('script');
+        Array.from(script.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        newScript.appendChild(document.createTextNode(script.innerHTML));
+        script.parentNode.replaceChild(newScript, script);
+    });
+}
 </script>
 {% endblock %}

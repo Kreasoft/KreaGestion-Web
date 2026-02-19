@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% load static %}
+{% load articulo_filters %}
+
+{% block title %}Lista de Vales Internos - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 48px; height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    /* FILTROS */
+    .stone-filter-box {
+        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;
+    }
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.4rem 0.75rem; font-size: 0.85rem; background-color: white; width: 100%; color: var(--stone-text);
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+
+    /* BOTONES */
+    .btn-action-primary { background: var(--stone-primary); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; }
+    
+    .btn-back { background: rgba(255,255,255,0.6); border: 1px solid #D4C4A8; color: var(--stone-secondary); transition: all 0.2s; }
+    .btn-back:hover { background: white; color: var(--stone-primary); }
+
+     /* STATS CARDS */
+    .stat-card {
+        border: none; border-radius: 12px; transition: all 0.3s ease; 
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        height: 100%; position: relative; overflow: hidden;
+        display: flex; align-items: stretch; justify-content: space-between;
+    }
+    .stat-card-gold { background: linear-gradient(135deg, #f7dca5 0%, #fbe8c3 100%); border: 1px solid #e8cd96; }
+    .stat-card-blue { background: linear-gradient(135deg, #a5c0d1 0%, #c6d8e5 100%); border: 1px solid #9ab8cd; }
+    .stat-card-green { background: linear-gradient(135deg, #a8d5ba 0%, #ccead7 100%); border: 1px solid #8fc2a3; }
+    .stat-card-rose { background: linear-gradient(135deg, #f7d9d9 0%, #fef5e7 100%); border: 1px solid #f4d1d1; }
+    
+    .stat-content { padding: 1rem; display: flex; flex-direction: column; justify-content: center; z-index: 2; }
+    .stat-value { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.1rem; line-height: 1; color: #2D3748; }
+    .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; color: #4A5568; }
+    .stat-icon { position: absolute; right: 10px; bottom: 10px; font-size: 3rem; opacity: 0.2; transform: rotate(-10deg); }
+
+    /* TABLA PIEDRA */
+    .table-piedra { width: 100%; border-collapse: collapse; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 12px 15px;
+    }
+    .table-piedra tbody tr { border-bottom: 1px solid #F5F1E8; transition: all 0.2s; height: 32px; /* ESTÁNDAR 32PX */ }
+    .table-piedra tbody tr:hover { background-color: #F5F1E8; }
+    .table-piedra tbody td { padding: 0 15px; vertical-align: middle; font-size: 0.85rem; color: #4A5568; height: 32px; }
+    
+    .btn-action-icon {
+        width: 28px; height: 28px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;
+        transition: all 0.2s; border: none; background: transparent; color: var(--stone-secondary); font-size: 0.9rem;
+    }
+    .btn-action-icon:hover { background: #f0e6d2; color: var(--stone-primary); transform: translateY(-1px); }
+
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- HEADER -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Listado de <span class="fw-bold">Vales Internos</span></h1>
+                    <p>Documentos oficiales no tributarios de la empresa</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                 <a href="{% url 'ventas:pos_seleccion' %}" class="btn btn-back btn-sm fw-bold px-3 py-2">
+                    <i class="fas fa-arrow-left me-2"></i> Volver al POS
+                </a>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            
+            <!-- FILTROS -->
+            <div class="stone-filter-box">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1"><i class="fas fa-calendar me-1"></i>Fecha Desde</label>
+                        <input type="date" name="fecha_desde" class="form-control-stone" value="{{ fecha_desde|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1"><i class="fas fa-calendar me-1"></i>Fecha Hasta</label>
+                        <input type="date" name="fecha_hasta" class="form-control-stone" value="{{ fecha_hasta|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn-action-primary w-100">
+                            <i class="fas fa-search me-2"></i> Filtrar Listado
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ESTADÍSTICAS -->
+            <div class="row g-3 mb-4 justify-content-center">
+                 <div class="col-md-3">
+                    <div class="stat-card stat-card-rose">
+                        <div class="stat-content">
+                            <div class="stat-value">{{ total_vales }}</div>
+                            <div class="stat-label">Total Vales</div>
+                        </div>
+                        <i class="fas fa-file-invoice stat-icon"></i>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-blue">
+                         <div class="stat-content">
+                            <div class="stat-value">${{ total_monto|format_price }}</div>
+                            <div class="stat-label">Venta Interna Total</div>
+                        </div>
+                        <i class="fas fa-dollar-sign stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLA -->
+            {% if vales %}
+            <div class="table-responsive">
+                <table class="table-piedra">
+                    <thead>
+                        <tr>
+                            <th width="12%">N° Vale</th>
+                            <th width="15%">Fecha / Hora</th>
+                            <th width="30%">Cliente (Personal/Familiar)</th>
+                            <th width="20%">Vendedor</th>
+                            <th width="15%" class="text-end">Total</th>
+                            <th width="8%" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vale in vales %}
+                        <tr>
+                            <td><span class="fw-bold text-dark">#{{ vale.numero_venta }}</span></td>
+                            <td>{{ vale.fecha|date:"d/m/Y" }} <span class="text-muted small">{{ vale.fecha_creacion|time:"H:i" }}</span></td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-user-circle me-2 opacity-50"></i>
+                                    <span class="fw-bold text-dark">{{ vale.cliente.nombre|default:"Consumidor Final" }}</span>
+                                </div>
+                            </td>
+                            <td>{{ vale.vendedor.nombre|default:"N/A" }}</td>
+                            <td class="text-end fw-bold text-dark">${{ vale.total|format_price }}</td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-2">
+                                    <a href="{% url 'ventas:ticket_detail' vale.pk %}" class="btn-action-icon" title="Ver Detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'ventas:vale_termica' vale.pk %}" class="btn-action-icon" title="Imprimir" target="_blank">
+                                        <i class="fas fa-print"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x mb-3 text-muted opacity-50"></i>
+                <h6 class="text-muted fw-bold">No hay vales internos registrados</h6>
+                <p class="text-muted small">Los vales aparecen aquí una vez registrados como venta oficial interna</p>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

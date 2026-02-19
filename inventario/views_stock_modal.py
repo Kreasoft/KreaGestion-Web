@@ -161,67 +161,8 @@ def stock_update_modal(request, pk):
             logger.warning(f"No se pudo calcular cantidad por movimientos: {e}")
             cantidad_mov = stock.cantidad
         
-        html = f'''
-<form method="post" id="formEditarStock">
-    <input type="hidden" name="csrfmiddlewaretoken" value="{csrf_token}">
-    
-    <div class="mb-3">
-        <label class="form-label fw-bold">Artículo</label>
-        <input type="text" class="form-control" value="{stock.articulo.nombre}" readonly>
-        <small class="text-muted">Código: {stock.articulo.codigo}</small>
-    </div>
-    
-    <div class="mb-3">
-        <label class="form-label fw-bold">Bodega</label>
-        <input type="text" class="form-control" value="{stock.bodega.nombre}" readonly>
-    </div>
-    
-    <div class="row">
-        <div class="col-md-4">
-            <div class="mb-3">
-                <label for="id_cantidad" class="form-label fw-bold">
-                    <i class="fas fa-boxes me-1"></i>Cantidad Actual
-                </label>
-                <input type="number" name="cantidad" id="id_cantidad" class="form-control" 
-                       step="0.01" value="{cantidad_mov}" required>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="mb-3">
-                <label for="id_stock_minimo" class="form-label fw-bold">
-                    <i class="fas fa-exclamation-triangle me-1"></i>Stock Mínimo
-                </label>
-                <input type="number" name="stock_minimo" id="id_stock_minimo" class="form-control" 
-                       step="0.01" min="0" value="{stock.stock_minimo}" required>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="mb-3">
-                <label for="id_stock_maximo" class="form-label fw-bold">
-                    <i class="fas fa-check-circle me-1"></i>Stock Máximo
-                </label>
-                <input type="number" name="stock_maximo" id="id_stock_maximo" class="form-control" 
-                       step="0.01" min="0" value="{stock.stock_maximo}" required>
-            </div>
-        </div>
-    </div>
-    
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>
-        <strong>Nota:</strong> Este formulario solo permite ajustar los valores de stock.
-    </div>
-    
-    <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-1"></i>Cancelar
-        </button>
-        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
-            <i class="fas fa-save me-1"></i>Guardar Cambios
-        </button>
-    </div>
-</form>
-'''
-        
-        return HttpResponse(html)
+        context = {
+            'stock': stock,
+            'cantidad_mov': cantidad_mov,
+        }
+        return render(request, 'inventario/includes/stock_form_modal.html', context)

@@ -1,257 +1,350 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load widget_tweaks %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block page_title %}{{ titulo }} - GestionCloud{% endblock %}
 
-{% block extra_head %}
-<style>
-    body {
-        background: #FAFAF8 !important;
-        min-height: 100vh;
-    }
-</style>
-{% endblock %}
-
 {% block extra_css %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
+    /* VARIABLES ESTILO PIEDRA PREMIUM */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CONTENEDOR PRINCIPAL */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .header-icon-box {
+        width: 56px; height: 56px;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(4px);
+        border-radius: 16px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 700;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    /* SECCIONES INTERNAS */
+    .section-card {
+        background: #FAFAF8;
+        border: 1px solid #E8DCC8;
+        border-radius: 12px;
+        overflow: hidden;
+        /* height: 100%; Removed to allow content flow */
+    }
+    .section-header {
+        background: linear-gradient(135deg, #F3ECE2 0%, #E8DCC8 100%);
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #E8DCC8;
+        font-weight: 600;
+        color: var(--stone-secondary);
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+
+    /* FORM CONTROLS */
+    .form-label-stone {
+        font-size: 0.8rem; font-weight: 600; color: #8B7355; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.5rem 0.75rem; font-size: 0.9rem; background-color: white; width: 100%; color: var(--stone-text); transition: all 0.2s;
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+
+    /* ITEM ARTICULO COMPACTO */
     .articulo-item {
-        border: 1px solid #D4A574;
-        border-radius: 0.25rem;
-        padding: 0.5rem;
-        margin-bottom: 0.25rem;
-        background: linear-gradient(135deg, #F5F1E8 0%, #FFFFFF 100%);
-        font-size: 0.85rem;
+        background: white;
+        border: 1px solid #E8DCC8;
+        border-radius: 6px;
+        padding: 0.4rem 0.75rem; /* Reduced padding */
+        margin-bottom: 0.25rem; /* Reduced margin */
+        transition: all 0.2s;
+        display: flex; justify-content: space-between; align-items: center;
+        min-height: 32px;
     }
     .articulo-item:hover {
-        background: linear-gradient(135deg, #E8DCC8 0%, #F5F1E8 100%);
-        border-color: #8B7355;
+        border-color: var(--stone-primary);
+        box-shadow: 0 1px 4px rgba(139, 115, 85, 0.1);
+        transform: translateX(2px);
     }
-    .stock-info {
-        font-size: 0.75rem;
-        color: #6c757d;
+    .stock-info { font-size: 0.75rem; color: #6c757d; margin-top: 2px; }
+    
+    /* TOTALES BOX */
+    .total-box {
+        background: white;
+        border: 1px solid #D4A574;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.05);
     }
-    .stock-disponible {
-        font-weight: 600;
-        color: #6B8E23;
+
+    /* BOTONES */
+    .btn-stone-primary {
+        background: var(--stone-primary); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; transition: all 0.2s;
     }
-    .stock-insuficiente {
-        font-weight: 600;
-        color: #C19461;
+    .btn-stone-primary:hover { background: var(--stone-secondary); transform: translateY(-1px); color: white; }
+    
+    .btn-stone-secondary {
+        background: white; border: 1px solid #D4C4A8; color: var(--stone-secondary); padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; transition: all 0.2s;
     }
-    .form-label {
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #8B7355;
-        margin-bottom: 0.25rem;
+    .btn-stone-secondary:hover { background: #f8f9fa; border-color: #8B7355; color: #8B7355; }
+
+    .btn-add-item {
+        background: #6B8E23; color: white; border: none; border-radius: 8px; width: 100%; height: 100%; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-weight: 600;
     }
-    .form-control-sm, .form-select-sm {
-        font-size: 0.85rem;
-    }
+    .btn-add-item:hover:not(:disabled) { background: #556B2F; transform: translateY(-1px); color: white;}
+    .btn-add-item:disabled { opacity: 0.6; cursor: not-allowed; background: #9CAF88; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
-    <div class="row">
-        <div class="col-12">
-            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-bottom: 3px solid #D4C4A8; padding: 15px 20px;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-exchange-alt me-3" style="font-size: 1.8rem; color: #F5F1E8;"></i>
-                            <div>
-                                <h5 class="mb-1" style="font-size: 1.3rem; font-weight: 600; color: white;">
-                                    {{ titulo }}
-                                </h5>
-                                <small style="font-size: 0.75rem; color: #F5F1E8;">
-                                    Complete los datos de la transferencia
-                                </small>
-                            </div>
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+            
+            <div class="single-card-container">
+                <!-- HEADER -->
+                <div class="stone-header-premium">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="header-icon-box">
+                            <i class="fas fa-dolly"></i>
                         </div>
-                        <div class="d-flex gap-2">
-                            <a href="{% url 'inventario:transferencia_list' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: white; font-size: 0.75rem;">
-                                <i class="fas fa-arrow-left me-1"></i> Volver
-                            </a>
+                        <div class="header-text">
+                            <h1>{{ titulo }}</h1>
+                            <p>Complete los datos para registrar el movimiento entre bodegas</p>
                         </div>
+                    </div>
+                    <div>
+                        <a href="{% url 'inventario:transferencia_list' %}" class="btn-stone-secondary">
+                            <i class="fas fa-arrow-left me-2"></i> Volver al Listado
+                        </a>
                     </div>
                 </div>
 
-                <div class="card-body" style="background: #FAFAF8; padding: 15px;">
-
+                <!-- BODY -->
+                <div class="card-body p-4">
                     <form method="post" id="transferenciaForm">
                         {% csrf_token %}
                         {% if transferencia_edit %}
                         <input type="hidden" name="edit" value="{{ transferencia_edit.pk }}">
                         {% endif %}
+
+                        <div class="row g-4">
+                            <!-- COLUMNA IZQUIERDA: DATOS CABECERA -->
+                            <div class="col-lg-4">
+                                <div class="section-card">
+                                    <div class="section-header">
+                                        <i class="fas fa-info-circle"></i> Datos de la Transferencia
+                                    </div>
+                                    <div class="p-3">
+                                        <!-- Fecha -->
+                                        <div class="mb-3">
+                                            <label class="form-label-stone">Fecha de Transferencia</label>
+                                            {% render_field form.fecha_transferencia class="form-control-stone" %}
+                                            {% if form.fecha_transferencia.errors %}
+                                                <div class="text-danger small mt-1">{{ form.fecha_transferencia.errors }}</div>
+                                            {% endif %}
+                                        </div>
+
+                                        <!-- Bodega Origen -->
+                                        <div class="mb-3">
+                                            <label class="form-label-stone">Bodega Origen <span class="text-danger">*</span></label>
+                                            {% render_field form.bodega_origen class="form-select-stone" %}
+                                            {% if form.bodega_origen.errors %}
+                                                <div class="text-danger small mt-1">{{ form.bodega_origen.errors }}</div>
+                                            {% endif %}
+                                        </div>
+
+                                        <!-- Bodega Destino -->
+                                        <div class="mb-3">
+                                            <label class="form-label-stone">Bodega Destino <span class="text-danger">*</span></label>
+                                            {% render_field form.bodega_destino class="form-select-stone" %}
+                                            {% if form.bodega_destino.errors %}
+                                                <div class="text-danger small mt-1">{{ form.bodega_destino.errors }}</div>
+                                            {% endif %}
+                                        </div>
+
+                                        <!-- Observaciones -->
+                                        <div class="mb-3">
+                                            <label class="form-label-stone">Observaciones</label>
+                                            {% render_field form.observaciones class="form-control-stone" rows="3" %}
+                                            {% if form.observaciones.errors %}
+                                                <div class="text-danger small mt-1">{{ form.observaciones.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="alert alert-light border-0 small text-muted d-flex gap-2 align-items-center mt-4">
+                                            <i class="fas fa-info-circle text-primary"></i>
+                                            <div>El número de folio se generará automáticamente al guardar.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- COLUMNA DERECHA: ARTÍCULOS -->
+                            <div class="col-lg-8">
+                                <div class="section-card mb-3">
+                                    <div class="section-header" style="background: linear-gradient(135deg, #F3ECE2 0%, #E8DCC8 100%);">
+                                        <i class="fas fa-boxes"></i> Artículos a Transferir
+                                    </div>
+                                    <div class="p-3">
+                                        <!-- Selector de Artículos -->
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-md-7">
+                                                <label class="form-label-stone">Artículo</label>
+                                                <select id="articuloSelect" class="form-select-stone">
+                                                    <option value="">-- Seleccione un artículo --</option>
+                                                    {% for articulo in articulos %}
+                                                    <option value="{{ articulo.id }}" 
+                                                            data-nombre="{{ articulo.nombre }}"
+                                                            data-codigo="{{ articulo.codigo }}"
+                                                            data-precio="{{ articulo.precio_venta|default:0 }}">
+                                                        {{ articulo.codigo }} - {{ articulo.nombre }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label-stone">Cantidad</label>
+                                                <input type="number" id="cantidadInput" class="form-control-stone" step="0.01" min="0.01" placeholder="0.00">
+                                            </div>
+                                            <div class="col-md-2 d-flex align-items-end">
+                                                <button type="button" id="agregarArticuloBtn" class="btn-add-item">
+                                                    <i class="fas fa-plus me-1"></i> Agregar
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div id="stockInfo" class="alert alert-warning d-none py-2 px-3 mb-3 small" style="border-radius: 8px;">
+                                            <i class="fas fa-warehouse me-2"></i><span id="stockInfoText"></span>
+                                        </div>
+
+                                        <!-- Lista de Artículos -->
+                                        <div class="bg-light rounded-3 p-3 border" style="min-height: 250px;">
+                                            <h6 class="text-muted small fw-bold mb-3 border-bottom pb-2">LISTADO DE ITEMS AGREGAOS</h6>
+                                            <div id="articulosContainer" style="max-height: 350px; overflow-y: auto; padding-right: 5px;">
+                                                <div class="text-center text-muted py-5 opacity-50">
+                                                    <i class="fas fa-dolly fa-3x mb-3"></i>
+                                                    <p class="mb-0">Agregue artículos a la lista</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Resumen Totales -->
+                                <div class="total-box">
+                                    <div class="row g-3">
+                                        <div class="col-md-3 text-center border-end">
+                                            <small class="text-muted fw-bold d-block mb-1">Items</small>
+                                            <h4 class="mb-0 text-dark fw-bold" id="totalArticulos">0</h4>
+                                        </div>
+                                        <div class="col-md-3 text-center border-end">
+                                            <small class="text-muted fw-bold d-block mb-1">Unidades</small>
+                                            <h4 class="mb-0 text-dark fw-bold" id="totalUnidades">0</h4>
+                                        </div>
+                                        <div class="col-md-6 text-end">
+                                            <div class="d-flex justify-content-between align-items-center mb-1 text-muted small">
+                                                <span>Subtotal:</span>
+                                                <span id="subtotalValor">$0</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center mb-2 text-muted small">
+                                                <span>IVA (19%):</span>
+                                                <span id="ivaValor">$0</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                                <span class="fs-5 fw-bold text-secondary">TOTAL</span>
+                                                <span class="fs-4 fw-bold text-stone-primary" id="totalValor" style="color: var(--stone-primary);">$0</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Botones Acción -->
+                                <div class="d-flex justify-content-end gap-3 mt-4">
+                                    <a href="{% url 'inventario:transferencia_list' %}" class="btn-stone-secondary">
+                                        Cancelar
+                                    </a>
+                                    <button type="submit" class="btn-stone-primary px-5" id="guardarBtn">
+                                        <i class="fas fa-save me-2"></i> Guardar Transferencia
+                                    </button>
+                                </div>
+
+                            </div>
+                        </div>
                         
-                        <div class="row g-2">
-                            <!-- Columna Izquierda: Datos de la Transferencia -->
-                            <div class="col-md-4">
-                                <div class="card" style="border: 1px solid #E8DCC8; border-radius: 8px; background: #FFFFFF;">
-                                    <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
-                                        <h6 class="mb-0" style="font-size: 0.9rem;"><i class="fas fa-info-circle me-2"></i>Datos de la Transferencia</h6>
-                                    </div>
-                                    <div class="card-body p-2">
-                        <!-- Fecha de Transferencia -->
-                        <div class="mb-2">
-                            <label class="form-label">Fecha de Transferencia</label>
-                            {{ form.fecha_transferencia }}
-                            {% if form.fecha_transferencia.errors %}
-                            <div class="text-danger small mt-1">{{ form.fecha_transferencia.errors }}</div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Bodega Origen -->
-                        <div class="mb-2">
-                            <label class="form-label">Bodega Origen <span class="text-danger">*</span></label>
-                            {{ form.bodega_origen }}
-                            {% if form.bodega_origen.errors %}
-                            <div class="text-danger small mt-1">{{ form.bodega_origen.errors }}</div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Bodega Destino -->
-                        <div class="mb-2">
-                            <label class="form-label">Bodega Destino <span class="text-danger">*</span></label>
-                            {{ form.bodega_destino }}
-                            {% if form.bodega_destino.errors %}
-                            <div class="text-danger small mt-1">{{ form.bodega_destino.errors }}</div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Observaciones -->
-                        <div class="mb-2">
-                            <label class="form-label">Observaciones</label>
-                            {{ form.observaciones }}
-                            {% if form.observaciones.errors %}
-                            <div class="text-danger small mt-1">{{ form.observaciones.errors }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="alert alert-info py-2 px-2 mb-2" style="background: rgba(139, 115, 85, 0.1); border-color: #8B7355;">
-                            <i class="fas fa-info-circle me-1" style="color: #8B7355;"></i>
-                            <small style="font-size: 0.75rem;">El número de folio se generará automáticamente.</small>
-                        </div>
-                        
-                        <div class="alert alert-warning py-2 px-2 mb-0" style="background: rgba(255, 193, 7, 0.1); border-color: #ffc107;">
-                            <i class="fas fa-exclamation-triangle me-1" style="color: #ffc107;"></i>
-                            <small style="font-size: 0.75rem;"><strong>Complete estos datos antes de agregar artículos.</strong></small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Columna Derecha: Artículos -->
-            <div class="col-md-8">
-                <div class="card border-0 shadow-sm mb-3" style="background: linear-gradient(135deg, #FFFFFF 0%, #F5F1E8 100%);">
-                    <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #6B8E23 0%, #8B9F4A 100%);">
-                        <h6 class="mb-0"><i class="fas fa-boxes me-2"></i>Artículos a Transferir</h6>
-                    </div>
-                    <div class="card-body p-3">
-                        <!-- Selector de Artículos -->
-                        <div class="row mb-2 g-2">
-                            <div class="col-md-7">
-                                <label class="form-label">Seleccionar Artículo</label>
-                                <select id="articuloSelect" class="form-select form-select-sm">
-                                    <option value="">-- Seleccione un artículo --</option>
-                                    {% for articulo in articulos %}
-                                    <option value="{{ articulo.id }}" 
-                                            data-nombre="{{ articulo.nombre }}"
-                                            data-codigo="{{ articulo.codigo }}"
-                                            data-precio="{{ articulo.precio_venta|default:0 }}">
-                                        {{ articulo.codigo }} - {{ articulo.nombre }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Cantidad</label>
-                                <input type="number" id="cantidadInput" class="form-control form-control-sm" step="0.01" min="0.01" placeholder="0.00">
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="button" id="agregarArticuloBtn" class="btn btn-sm w-100" style="background: #6B8E23; color: white; border: none;">
-                                    <i class="fas fa-plus"></i> Agregar
-                                </button>
-                            </div>
-                        </div>
-
-                        <div id="stockInfo" class="alert alert-warning d-none mb-2 py-2 px-2" style="font-size: 0.8rem;">
-                            <i class="fas fa-warehouse me-1"></i>
-                            <span id="stockInfoText"></span>
-                        </div>
-
-                        <!-- Lista de Artículos Agregados -->
-                        <div id="articulosLista" class="mb-2">
-                            <h6 class="fw-bold mb-2" style="color: #8B7355; font-size: 0.9rem;">Artículos Agregados:</h6>
-                            <div id="articulosContainer" style="max-height: 300px; overflow-y: auto;">
-                                <div class="text-center text-muted py-3">
-                                    <i class="fas fa-inbox fa-2x mb-2" style="color: #A0826D;"></i>
-                                    <p class="mb-0 small">No hay artículos agregados</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Resumen -->
-                        <div class="card" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: 1px solid #D4A574;">
-                            <div class="card-body py-2 px-2">
-                                <div class="row text-center mb-2">
-                                    <div class="col-md-6">
-                                        <p class="text-muted mb-0" style="font-size: 0.7rem;">Total Artículos</p>
-                                        <h6 class="mb-0 fw-bold" style="color: #8B7355;" id="totalArticulos">0</h6>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <p class="text-muted mb-0" style="font-size: 0.7rem;">Total Unidades</p>
-                                        <h6 class="mb-0 fw-bold" style="color: #8B7355;" id="totalUnidades">0</h6>
-                                    </div>
-                                </div>
-                                <hr class="my-1" style="border-color: #D4C4A8;">
-                                <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
-                                    <span style="color: #6F5B44;">Subtotal:</span>
-                                    <span class="fw-bold" style="color: #6F5B44;" id="subtotalValor">$0</span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
-                                    <span style="color: #6F5B44;">IVA (19%):</span>
-                                    <span class="fw-bold" style="color: #6F5B44;" id="ivaValor">$0</span>
-                                </div>
-                                <hr class="my-1" style="border-color: #D4C4A8;">
-                                <div class="text-center">
-                                    <p class="text-muted mb-0" style="font-size: 0.7rem;">TOTAL</p>
-                                    <h5 class="mb-0 fw-bold" style="color: #8B7355;" id="totalValor">$0</h5>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Botones de Acción -->
-                <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #FFFFFF 0%, #F5F1E8 100%);">
-                    <div class="card-body p-2">
-                        <div class="d-flex justify-content-end gap-2">
-                            <a href="{% url 'inventario:transferencia_list' %}" class="btn btn-sm" style="background: #A0826D; color: white; border: none;">
-                                <i class="fas fa-times me-2"></i>Cancelar
-                            </a>
-                            <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #A0826D 100%); color: white; border: none;" id="guardarBtn">
-                                <i class="fas fa-save me-2"></i>Guardar Transferencia
-                            </button>
-                        </div>
-                    </div>
+                        <!-- Campo oculto para enviar los artículos -->
+                        <input type="hidden" name="articulos_json" id="articulosJson">
+                    </form>
                 </div>
             </div>
         </div>
-
-        <!-- Campo oculto para enviar los artículos -->
-        <input type="hidden" name="articulos_json" id="articulosJson">
-    </form>
+    </div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let articulos = {{ articulos_edit|safe }};
+    // Inicializar Select2
+    $('#articuloSelect').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Seleccione un artículo --',
+        width: '100%',
+        language: {
+            noResults: function() { return "No se encontraron resultados"; },
+            searching: function() { return "Buscando..."; }
+        }
+    });
+
+    let articulos = {{ articulos_edit|safe|default:"[]" }};
     
+    // Obtener referencias DOM limpias
     const articuloSelect = document.getElementById('articuloSelect');
+    const articuloSelectJquery = $('#articuloSelect'); // Referencia jQuery para eventos Select2
     const cantidadInput = document.getElementById('cantidadInput');
     const agregarBtn = document.getElementById('agregarArticuloBtn');
     const articulosContainer = document.getElementById('articulosContainer');
@@ -260,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const stockInfo = document.getElementById('stockInfo');
     const stockInfoText = document.getElementById('stockInfoText');
     
-    // VALIDACIÓN CRÍTICA: Bodegas deben ser diferentes
+    // VALIDACIÓN: Bodegas diferentes
     function validarBodegasDiferentes() {
         const origenId = bodegaOrigenSelect.value;
         const destinoId = bodegaDestinoSelect.value;
@@ -268,11 +361,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (origenId && destinoId && origenId === destinoId) {
             Swal.fire({
                 icon: 'error',
-                title: 'Error Crítico',
-                html: '<strong>La bodega de origen y destino no pueden ser la misma.</strong><br><br>Una transferencia debe realizarse entre bodegas <strong>diferentes</strong>.',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Entendido',
-                allowOutsideClick: false
+                title: 'Error de Validación',
+                html: 'La bodega de origen y destino no pueden ser la misma.',
+                confirmButtonColor: '#8B7355'
             });
             bodegaDestinoSelect.value = '';
             return false;
@@ -280,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
     
-    // Función para validar datos básicos y habilitar/deshabilitar botón de agregar
+    // Validar estado para habilitar botón agregar
     function validarDatosBasicosParaAgregar() {
         const origenId = bodegaOrigenSelect.value;
         const destinoId = bodegaDestinoSelect.value;
@@ -291,48 +382,25 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (datosCompletos) {
             agregarBtn.disabled = false;
-            agregarBtn.style.opacity = '1';
-            agregarBtn.style.cursor = 'pointer';
-            agregarBtn.title = 'Agregar artículo a la transferencia';
         } else {
             agregarBtn.disabled = true;
-            agregarBtn.style.opacity = '0.5';
-            agregarBtn.style.cursor = 'not-allowed';
-            let motivo = [];
-            if (!origenId) motivo.push('bodega origen');
-            if (!destinoId) motivo.push('bodega destino');
-            if (!fechaValue) motivo.push('fecha');
-            if (origenId && destinoId && origenId === destinoId) motivo.push('bodegas deben ser diferentes');
-            agregarBtn.title = 'Complete primero: ' + motivo.join(', ');
         }
     }
     
-    // Validar cuando cambia bodega origen
-    bodegaOrigenSelect.addEventListener('change', function() {
-        validarBodegasDiferentes();
-        validarDatosBasicosParaAgregar();
+    // Listeners
+    bodegaOrigenSelect.addEventListener('change', function() { validarBodegasDiferentes(); validarDatosBasicosParaAgregar(); });
+    bodegaDestinoSelect.addEventListener('change', function() { validarBodegasDiferentes(); validarDatosBasicosParaAgregar(); });
+    const fInput = document.getElementById('{{ form.fecha_transferencia.id_for_label }}');
+    if(fInput) fInput.addEventListener('change', validarDatosBasicosParaAgregar);
+    
+    // Select2 Change Event
+    articuloSelectJquery.on('change', function() {
+        // Disparar evento nativo si es necesario o manejar lógica aquí
+        verificarStock();
     });
-    
-    // Validar cuando cambia bodega destino
-    bodegaDestinoSelect.addEventListener('change', function() {
-        validarBodegasDiferentes();
-        validarDatosBasicosParaAgregar();
-    });
-    
-    // Validar cuando cambia fecha
-    const fechaTransferenciaInput = document.getElementById('{{ form.fecha_transferencia.id_for_label }}');
-    if (fechaTransferenciaInput) {
-        fechaTransferenciaInput.addEventListener('change', function() {
-            validarDatosBasicosParaAgregar();
-        });
-    }
-    
-    // Validar al cargar la página
-    validarDatosBasicosParaAgregar();
-    
-    // Verificar stock disponible cuando se selecciona un artículo
-    articuloSelect.addEventListener('change', function() {
-        const articuloId = this.value;
+
+    function verificarStock() {
+        const articuloId = articuloSelectJquery.val();
         const bodegaId = bodegaOrigenSelect.value;
         
         if (articuloId && bodegaId) {
@@ -345,11 +413,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (stockDisponible > 0) {
                         stockInfo.classList.remove('alert-danger');
                         stockInfo.classList.add('alert-warning');
-                        stockInfoText.innerHTML = `Stock disponible: <strong class="stock-disponible">${stockDisponible}</strong> unidades`;
+                        stockInfoText.innerHTML = `Stock disponible en origen: <strong>${stockDisponible}</strong> unidades`;
                     } else {
                         stockInfo.classList.remove('alert-warning');
                         stockInfo.classList.add('alert-danger');
-                        stockInfoText.innerHTML = `<strong class="stock-insuficiente">Sin stock disponible</strong> en la bodega origen`;
+                        stockInfoText.innerHTML = `<strong>Sin stock disponible</strong> en la bodega origen`;
                     }
                 })
                 .catch(error => {
@@ -359,117 +427,44 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             stockInfo.classList.add('d-none');
         }
-    });
-    
-    // Agregar artículo
+    }
+
+    validarDatosBasicosParaAgregar(); // Init
+
+    // Agregar Artículo
     agregarBtn.addEventListener('click', function() {
-        // VALIDACIONES PREVIAS OBLIGATORIAS
         const origenId = bodegaOrigenSelect.value;
         const destinoId = bodegaDestinoSelect.value;
-        const fechaInput = document.getElementById('{{ form.fecha_transferencia.id_for_label }}');
-        const fechaValue = fechaInput ? fechaInput.value : null;
-        
-        // 1. Validar bodega origen
-        if (!origenId) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Datos Incompletos',
-                text: 'Debe seleccionar la BODEGA ORIGEN antes de agregar artículos',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Entendido',
-                allowOutsideClick: false
-            });
-            bodegaOrigenSelect.focus();
-            return;
+        if (!origenId || !destinoId) {
+             Swal.fire({ icon: 'warning', text: 'Seleccione bodegas primero', confirmButtonColor: '#8B7355' });
+             return;
         }
-        
-        // 2. Validar bodega destino
-        if (!destinoId) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Datos Incompletos',
-                text: 'Debe seleccionar la BODEGA DESTINO antes de agregar artículos',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Entendido',
-                allowOutsideClick: false
-            });
-            bodegaDestinoSelect.focus();
-            return;
-        }
-        
-        // 3. Validar que las bodegas sean diferentes
-        if (origenId === destinoId) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error Crítico',
-                html: '<strong>La bodega de origen y destino no pueden ser la misma.</strong><br><br>Seleccione bodegas diferentes.',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Entendido',
-                allowOutsideClick: false
-            });
-            bodegaDestinoSelect.value = '';
-            bodegaDestinoSelect.focus();
-            return;
-        }
-        
-        // 4. Validar fecha
-        if (!fechaValue) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Datos Incompletos',
-                text: 'Debe especificar la FECHA DE TRANSFERENCIA antes de agregar artículos',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Entendido',
-                allowOutsideClick: false
-            });
-            fechaInput.focus();
-            return;
-        }
-        
-        // 5. Validar artículo seleccionado
-        const articuloId = articuloSelect.value;
+
+        const articuloId = articuloSelectJquery.val(); // Usar jquery para obtener valor select2
         const cantidad = parseFloat(cantidadInput.value);
         
         if (!articuloId) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Atención',
-                text: 'Debe seleccionar un artículo',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Aceptar'
-            });
-            articuloSelect.focus();
+            Swal.fire({ icon: 'warning', text: 'Seleccione un artículo', confirmButtonColor: '#8B7355' });
             return;
         }
-        
-        // 6. Validar cantidad
         if (!cantidad || cantidad <= 0) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Atención',
-                text: 'Debe ingresar una cantidad válida mayor a 0',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Aceptar'
-            });
-            cantidadInput.focus();
+            Swal.fire({ icon: 'warning', text: 'Ingrese una cantidad válida', confirmButtonColor: '#8B7355' });
             return;
         }
         
+        // Obtener datos del option seleccionado
         const option = articuloSelect.options[articuloSelect.selectedIndex];
-        const nombre = option.dataset.nombre;
-        const codigo = option.dataset.codigo;
-        const precio = parseFloat(option.dataset.precio || 0);
+        // Nota: Con Select2, el selectedIndex del DOM original a veces no se actualiza correctamente si no se sincroniza
+        // Mejor buscar el option por value
+        const selOption = Array.from(articuloSelect.options).find(opt => opt.value === articuloId);
         
-        // Verificar si el artículo ya está agregado
-        const existe = articulos.find(a => a.articulo_id === articuloId);
-        if (existe) {
-            Swal.fire({
-                icon: 'info',
-                title: 'Artículo Duplicado',
-                text: 'Este artículo ya está agregado a la transferencia',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Aceptar'
-            });
+        const nombre = selOption ? selOption.dataset.nombre : '';
+        const codigo = selOption ? selOption.dataset.codigo : '';
+        const precio = parseFloat(selOption ? selOption.dataset.precio : 0);
+        
+        // Check duplicados
+        if (articulos.find(a => a.articulo_id === articuloId)) {
+            Swal.fire({ icon: 'info', text: 'El artículo ya está en la lista', confirmButtonColor: '#8B7355' });
             return;
         }
         
@@ -483,22 +478,35 @@ document.addEventListener('DOMContentLoaded', function() {
         
         renderArticulos();
         
-        // Limpiar campos
-        articuloSelect.value = '';
+        // Reset inputs
+        articuloSelectJquery.val('').trigger('change');
         cantidadInput.value = '';
         stockInfo.classList.add('d-none');
     });
-    
+
     function renderArticulos() {
         if (articulos.length === 0) {
             articulosContainer.innerHTML = `
-                <div class="text-center text-muted py-3">
-                    <i class="fas fa-inbox fa-2x mb-2" style="color: #A0826D;"></i>
-                    <p class="mb-0 small">No hay artículos agregados</p>
-                </div>
-            `;
+                <div class="text-center text-muted py-5 opacity-50">
+                    <i class="fas fa-dolly fa-3x mb-3"></i>
+                    <p class="mb-0">Agregue artículos a la lista</p>
+                </div>`;
         } else {
-            let html = '';
+            let html = `
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0" style="font-size: 0.9rem;">
+                    <thead style="background-color: #FAFAF8; border-bottom: 2px solid #E8DCC8;">
+                        <tr>
+                            <th style="padding: 8px 12px; color: #8B7355; font-weight: 600;">Código</th>
+                            <th style="padding: 8px 12px; color: #8B7355; font-weight: 600;">Artículo</th>
+                            <th class="text-center" style="padding: 8px 12px; color: #8B7355; font-weight: 600;">Cantidad</th>
+                            <th class="text-end" style="padding: 8px 12px; color: #8B7355; font-weight: 600;">Precio</th>
+                            <th class="text-end" style="padding: 8px 12px; color: #8B7355; font-weight: 600;">Total</th>
+                            <th class="text-center" style="padding: 8px 12px; color: #8B7355; font-weight: 600;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            
             let totalUnidades = 0;
             let subtotal = 0;
             
@@ -507,113 +515,57 @@ document.addEventListener('DOMContentLoaded', function() {
                 const totalLinea = art.cantidad * art.precio_venta;
                 subtotal += totalLinea;
                 
-                // Formatear sin decimales
-                const precioFormateado = Math.round(art.precio_venta).toLocaleString('es-CL');
-                const totalLineaFormateado = Math.round(totalLinea).toLocaleString('es-CL');
-                
                 html += `
-                    <div class="articulo-item">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="flex-grow-1">
-                                <strong style="color: #8B7355;">${art.codigo}</strong> - ${art.nombre}
-                                <div class="stock-info">
-                                    Cantidad: <strong style="color: #6B8E23;">${art.cantidad}</strong> | 
-                                    Precio: <strong style="color: #8B7355;">$${precioFormateado}</strong> | 
-                                    Total: <strong style="color: #6B8E23;">$${totalLineaFormateado}</strong>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-sm" style="background: #C19461; color: white; border: none; padding: 0.25rem 0.5rem;" onclick="eliminarArticulo(${index})">
-                                <i class="fas fa-trash" style="font-size: 0.75rem;"></i>
+                    <tr style="height: 32px;">
+                        <td style="vertical-align: middle; padding: 4px 12px;"><strong>${art.codigo}</strong></td>
+                        <td style="vertical-align: middle; padding: 4px 12px;">${art.nombre}</td>
+                        <td class="text-center" style="vertical-align: middle; padding: 4px 12px;">${art.cantidad}</td>
+                        <td class="text-end" style="vertical-align: middle; padding: 4px 12px;">$${Math.round(art.precio_venta).toLocaleString('es-CL')}</td>
+                        <td class="text-end fw-bold text-success" style="vertical-align: middle; padding: 4px 12px;">$${Math.round(totalLinea).toLocaleString('es-CL')}</td>
+                        <td class="text-center" style="vertical-align: middle; padding: 4px 12px;">
+                            <button type="button" class="btn btn-sm text-danger p-0 border-0" onclick="eliminarArticulo(${index})" title="Eliminar">
+                                <i class="fas fa-trash-alt"></i>
                             </button>
-                        </div>
-                    </div>
+                        </td>
+                    </tr>
                 `;
             });
             
+            html += `</tbody></table></div>`;
             articulosContainer.innerHTML = html;
             
-            // Calcular IVA y total (sin decimales)
             const iva = Math.round(subtotal * 0.19);
-            const totalConIva = Math.round(subtotal + iva);
+            const total = Math.round(subtotal + iva);
             
             document.getElementById('totalArticulos').textContent = articulos.length;
-            document.getElementById('totalUnidades').textContent = Math.round(totalUnidades);
+            document.getElementById('totalUnidades').textContent = totalUnidades;
             document.getElementById('subtotalValor').textContent = '$' + Math.round(subtotal).toLocaleString('es-CL');
             document.getElementById('ivaValor').textContent = '$' + iva.toLocaleString('es-CL');
-            document.getElementById('totalValor').textContent = '$' + totalConIva.toLocaleString('es-CL');
+            document.getElementById('totalValor').textContent = '$' + total.toLocaleString('es-CL');
         }
-        
-        // Actualizar campo oculto
         document.getElementById('articulosJson').value = JSON.stringify(articulos);
     }
-    
+
     window.eliminarArticulo = function(index) {
         articulos.splice(index, 1);
         renderArticulos();
     };
-    
-    // Validar antes de enviar
+
+    // Submit form
     document.getElementById('transferenciaForm').addEventListener('submit', function(e) {
-        // Validar artículos
         if (articulos.length === 0) {
             e.preventDefault();
-            Swal.fire({
-                icon: 'warning',
-                title: 'Atención',
-                text: 'Debe agregar al menos un artículo a la transferencia',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Aceptar'
-            });
+            Swal.fire({ icon: 'warning', text: 'Debe agregar al menos un artículo', confirmButtonColor: '#8B7355' });
             return false;
         }
-        
-        // Validar bodegas diferentes
-        const origenId = bodegaOrigenSelect.value;
-        const destinoId = bodegaDestinoSelect.value;
-        
-        if (!origenId || !destinoId) {
+        if (!bodegaOrigenSelect.value || !bodegaDestinoSelect.value) {
             e.preventDefault();
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Debe seleccionar bodega de origen y destino',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Aceptar'
-            });
-            return false;
-        }
-        
-        if (origenId === destinoId) {
-            e.preventDefault();
-            Swal.fire({
-                icon: 'error',
-                title: 'Error Crítico',
-                html: '<strong>La bodega de origen y destino no pueden ser la misma.</strong><br><br>Una transferencia debe realizarse entre bodegas diferentes.',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Aceptar'
-            });
-            return false;
-        }
-        
-        // Validar fecha
-        const fechaInput = document.getElementById('{{ form.fecha_transferencia.id_for_label }}');
-        if (fechaInput && !fechaInput.value) {
-            e.preventDefault();
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Debe especificar una fecha de transferencia',
-                confirmButtonColor: '#8B7355',
-                confirmButtonText: 'Aceptar'
-            });
+            Swal.fire({ icon: 'error', text: 'Seleccione bodegas de origen y destino', confirmButtonColor: '#8B7355' });
             return false;
         }
     });
-    
-    // Renderizar artículos si es edición
-    if (articulos.length > 0) {
-        renderArticulos();
-    }
+
+    if (articulos.length > 0) renderArticulos();
 });
 </script>
 
@@ -622,10 +574,9 @@ document.addEventListener('DOMContentLoaded', function() {
     {% for message in messages %}
         Swal.fire({
             icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% else %}info{% endif %}',
-            title: '{% if message.tags == "success" %}¡Éxito!{% elif message.tags == "error" %}Error{% elif message.tags == "warning" %}Advertencia{% else %}Información{% endif %}',
+            title: 'Información',
             text: '{{ message|escapejs }}',
-            confirmButtonColor: '#8B7355',
-            confirmButtonText: 'Aceptar'
+            confirmButtonColor: '#8B7355'
         });
     {% endfor %}
 </script>

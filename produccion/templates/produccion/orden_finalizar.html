@@ -5,101 +5,225 @@
 
 {% block extra_css %}
 <style>
-    /* Ocultar top-bar */
-    .top-bar {
-        display: none !important;
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
     }
-    .main-content {
-        margin-top: 0 !important;
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+        max-width: 1100px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 48px; height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    .header-btn {
+        padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.2s; border: 1px solid transparent; cursor: pointer;
+    }
+
+    /* FORMULARIOS ESTILO PIEDRA */
+    .form-label-stone {
+        font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #8B7355; letter-spacing: 0.5px; margin-bottom: 0.4rem;
+    }
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.6rem 0.85rem; font-size: 0.9rem; background-color: white; width: 100%; color: var(--stone-text); transition: all 0.2s;
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 4px rgba(139, 115, 85, 0.1); outline: none;
+    }
+    .input-group-text-stone {
+        background-color: #FDFCFB !important; border-color: #D4C4A8 !important; color: #6F5B44 !important; font-weight: 600; font-size: 0.85rem;
+    }
+
+    /* Ocultar top-bar original */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; }
+
+    /* Buttons */
+    .btn-stone-primary {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
+        color: white; border: none; font-weight: 500;
+        transition: all 0.3s;
+    }
+    .btn-stone-primary:hover {
+        background: #6F5B44; color: white; transform: translateY(-1px);
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header terroso -->
-    <div class="d-flex justify-content-between align-items-center mb-3" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <h2 class="mb-0" style="color: white; font-size: 1.5rem;">
-            <i class="fas fa-check-circle me-2"></i>Finalizar Orden OP-{{ orden.numero_orden }}
-        </h2>
-        <a href="{% url 'produccion:orden_detail' orden.pk %}" class="btn" style="background: #6F5B44; color: white; padding: 8px 16px; border: none;">
-            <i class="fas fa-arrow-left me-2"></i>Volver
-        </a>
-    </div>
-
-    <!-- Resumen de la orden -->
-    <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
-        <div class="card-header text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 10px 15px;">
-            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Resumen de la Orden</h5>
-        </div>
-        <div class="card-body" style="padding: 15px;">
-            <div class="row">
-                <div class="col-md-6">
-                    <p><strong>Receta:</strong> {{ orden.receta.nombre }}</p>
-                    <p><strong>Producto:</strong> {{ orden.receta.producto_final.nombre }}</p>
+    <div class="single-card-container">
+        <!-- HEADER -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-check-circle"></i>
                 </div>
-                <div class="col-md-6">
-                    <p><strong>Cantidad Planificada:</strong> {{ orden.cantidad_planificada }}</p>
-                    <p><strong>Fecha Inicio:</strong> {{ orden.fecha_inicio|date:"d/m/Y H:i" }}</p>
+                <div class="header-text">
+                    <h1>Finalizar Orden {{ orden.numero_orden }}</h1>
+                    <p>Registro de producción terminada</p>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Formulario de finalización -->
-    <form method="post">
-        {% csrf_token %}
-        
-        <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
-            <div class="card-header text-white" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 10px 15px;">
-                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Datos de Producción Real</h5>
-            </div>
-            <div class="card-body" style="padding: 15px;">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Cantidad Producida *</label>
-                        <input type="number" name="cantidad_producida" class="form-control" step="0.01" min="0" value="{{ orden.cantidad_planificada }}" required>
-                        <small class="text-muted">Cantidad real producida</small>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Merma Real</label>
-                        <input type="number" name="merma_real" class="form-control" step="0.01" min="0" value="0">
-                        <small class="text-muted">Merma o desperdicio real</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Advertencia -->
-        <div class="alert" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; border: none; border-radius: 8px;">
-            <h5><i class="fas fa-exclamation-triangle me-2"></i>Importante</h5>
-            <p class="mb-0">Al finalizar la orden se realizarán las siguientes acciones:</p>
-            <ul class="mb-0 mt-2">
-                <li>Se consumirá el stock de los insumos necesarios</li>
-                <li>Se agregará el stock del producto final</li>
-                <li>La orden cambiará a estado "Terminada"</li>
-                <li>Esta acción no se puede deshacer</li>
-            </ul>
-        </div>
-
-        <div class="text-end">
-            <a href="{% url 'produccion:orden_detail' orden.pk %}" class="btn" style="background: #6F5B44; color: white; padding: 10px 20px; border: none;">
-                <i class="fas fa-times me-2"></i>Cancelar
+            <a href="{% url 'produccion:orden_detail' orden.pk %}" class="header-btn btn-light border" style="color: var(--stone-text);">
+                <i class="fas fa-arrow-left me-2"></i> Volver
             </a>
-            <button type="submit" class="btn btn-success" style="padding: 10px 20px; font-weight: 500;">
-                <i class="fas fa-check me-2"></i>Finalizar Orden
-            </button>
         </div>
-    </form>
+
+        <form method="post" class="card-body p-4">
+            {% csrf_token %}
+            <div class="row g-5">
+                <!-- COLUMNA IZQUIERDA: RESUMEN -->
+                <div class="col-md-5">
+                    <h6 class="text-uppercase text-muted fw-bold mb-4" style="font-size: 0.8rem; letter-spacing: 0.5px; border-bottom: 2px solid #E8DCC8; padding-bottom: 0.5rem;">Resumen de la Orden</h6>
+                    
+                    <div class="p-3 bg-light rounded-3 border mb-4">
+                        <table class="table table-borderless table-sm mb-0">
+                            <tbody>
+                                <tr>
+                                    <td class="text-muted small py-1">Receta:</td>
+                                    <td class="fw-bold text-dark py-1 text-end">{{ orden.receta.nombre }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted small py-1">Producto Final:</td>
+                                    <td class="fw-bold text-dark py-1 text-end">{{ orden.receta.producto_final.nombre }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted small py-1">Planificado:</td>
+                                    <td class="fw-bold text-dark py-1 text-end">{{ orden.cantidad_planificada|floatformat:0 }} {{ orden.receta.producto_final.unidad_medida.simbolo }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted small py-1">Fecha Inicio:</td>
+                                    <td class="fw-bold text-dark py-1 text-end">{{ orden.fecha_inicio|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3 p-3 rounded-3" style="background-color: #fff8e1; border: 1px solid #ffeeba;">
+                        <div class="d-flex gap-3">
+                            <div class="text-warning"><i class="fas fa-exclamation-circle fa-lg mt-1"></i></div>
+                            <div>
+                                <h6 class="fw-bold text-warning mb-1" style="font-size: 0.9rem;">Acción Irreversible</h6>
+                                <p class="mb-0 small text-muted">Al finalizar, se descontarán los insumos del inventario y se añadirá el stock al producto final. Esta acción no se puede deshacer.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COLUMNA DERECHA: FORMULARIO -->
+                <div class="col-md-7">
+                    <h6 class="text-uppercase text-muted fw-bold mb-4" style="font-size: 0.8rem; letter-spacing: 0.5px; border-bottom: 2px solid #E8DCC8; padding-bottom: 0.5rem;">Datos de Producción</h6>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label-stone">Cantidad Producida <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" name="cantidad_producida" class="form-control form-control-stone" value="{{ orden.cantidad_planificada }}" step="0.01" min="0" required>
+                                <span class="input-group-text input-group-text-stone">{{ orden.receta.producto_final.unidad_medida.simbolo }}</span>
+                            </div>
+                            <div class="form-text small">Cantidad real obtenida</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label-stone">Merma Real</label>
+                            <div class="input-group">
+                                <input type="number" name="merma_real" class="form-control form-control-stone" value="0" step="0.01" min="0">
+                                <span class="input-group-text input-group-text-stone">{{ orden.receta.producto_final.unidad_medida.simbolo }}</span>
+                            </div>
+                            <div class="form-text small">Material desperdiciado</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label-stone">Bodega Insumos (Origen) <span class="text-danger">*</span></label>
+                            <select name="bodega_insumos" class="form-select form-select-stone" required>
+                                <option value="">Seleccione...</option>
+                                {% for bodega in bodegas %}
+                                <option value="{{ bodega.id }}" {% if orden.bodega_id == bodega.id %}selected{% endif %}>{{ bodega.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label-stone">Bodega Producto (Destino) <span class="text-danger">*</span></label>
+                            <select name="bodega_productos" class="form-select form-select-stone" required>
+                                <option value="">Seleccione...</option>
+                                {% for bodega in bodegas %}
+                                <option value="{{ bodega.id }}" {% if orden.bodega_id == bodega.id %}selected{% endif %}>{{ bodega.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 mt-3">
+                            <label class="form-label-stone">Observaciones</label>
+                            <textarea name="comentarios" class="form-control form-control-stone" rows="2" placeholder="Comentarios adicionales sobre el proceso..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-5 pt-3 border-top border-light">
+                        <a href="{% url 'produccion:orden_detail' orden.pk %}" class="btn btn-light border px-4" style="font-weight: 500; color: var(--stone-text);">
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-stone-primary px-4">
+                            <i class="fas fa-check me-2"></i> Finalizar Orden
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
 </div>
 
 <script>
-// Ocultar top menu
 document.addEventListener('DOMContentLoaded', function() {
     const topMenu = document.querySelector('.top-menu');
-    if (topMenu) {
-        topMenu.style.display = 'none';
-    }
+    if (topMenu) topMenu.style.display = 'none';
 });
 </script>
 {% endblock %}

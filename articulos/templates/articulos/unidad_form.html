@@ -1,59 +1,141 @@
 {% extends "base.html" %}
-
-{% block body_class %}hide-top-bar{% endblock %}
 {% load widget_tweaks %}
 
-{% block title %}{{ title }}{% endblock %}
+{% block title %}{{ title }} - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
+
+    /* Ocultar top-bar si existe y ajustar layout */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-top: 2rem !important; }
+
+    /* Estilo Piedra - Variables Locales */
+    :root {
+        --color-piedra-texto: #5D4037;
+        --color-piedra-boton: #8D6E63;
+        --color-piedra-borde: #d7ccc8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --shadow-piedra: 0 4px 15px rgba(93, 64, 55, 0.15);
+    }
+
+    .card-premium {
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid var(--color-piedra-borde) !important;
+        background: white;
+        box-shadow: var(--shadow-piedra);
+    }
+
+    .card-header-piedra {
+        background: var(--gradient-piedra);
+        border-bottom: 2px solid var(--color-piedra-borde);
+        padding: 1.5rem 2rem;
+    }
+
+    .form-label-premium {
+        font-weight: 700;
+        color: var(--color-piedra-texto);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control-premium {
+        border-radius: 12px;
+        border: 1px solid var(--color-piedra-borde);
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        background-color: #fdfcfb;
+    }
+
+    .form-control-premium:focus {
+        border-color: var(--color-piedra-boton);
+        box-shadow: 0 0 0 4px rgba(141, 110, 99, 0.1);
+        background-color: white;
+        outline: none;
+    }
+
+    .btn-piedra {
+        background: var(--gradient-piedra);
+        border: 1px solid var(--color-piedra-borde);
+        color: var(--color-piedra-texto) !important;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: var(--shadow-piedra);
+        transition: all 0.3s ease;
+    }
+
+    .btn-piedra:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(93, 64, 55, 0.25);
+    }
+
+    .btn-piedra-primary {
+        background: linear-gradient(135deg, #8D6E63 0%, #5D4037 100%);
+        color: white !important;
+        border: none;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-ruler"></i> {{ title }}
-                    </h3>
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card card-premium">
+                <!-- Header Premium -->
+                <div class="card-header-piedra">
+                    <div class="d-flex align-items-center">
+                        <div class="p-3 bg-white bg-opacity-50 rounded-circle me-3 shadow-sm">
+                            <i class="fas fa-ruler fa-lg" style="color: var(--color-piedra-texto);"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif;">
+                                {{ title }}
+                            </h4>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
+
+                <div class="card-body p-4 p-md-5">
                     <form method="post">
                         {% csrf_token %}
                         
-                        <div class="mb-3">
-                            <label for="{{ form.nombre.id_for_label }}" class="form-label">
-                                {{ form.nombre.label }}
-                            </label>
-                            {{ form.nombre|add_class:"form-control" }}
-                            {% if form.nombre.errors %}
-                                <div class="text-danger">{{ form.nombre.errors.0 }}</div>
-                            {% endif %}
+                        <div class="mb-4">
+                            <label class="form-label-premium"><i class="fas fa-tag me-2"></i>Nombre de la Unidad *</label>
+                            {% render_field form.nombre class="form-control form-control-premium" placeholder="Ej: Kilogramos" %}
+                            {% if form.nombre.errors %}<div class="text-danger extra-small mt-1">{{ form.nombre.errors.0 }}</div>{% endif %}
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="{{ form.simbolo.id_for_label }}" class="form-label">
-                                {{ form.simbolo.label }}
-                            </label>
-                            {{ form.simbolo|add_class:"form-control" }}
-                            {% if form.simbolo.errors %}
-                                <div class="text-danger">{{ form.simbolo.errors.0 }}</div>
-                            {% endif %}
+                        <div class="mb-4">
+                            <label class="form-label-premium"><i class="fas fa-signature me-2"></i>Símbolo / Abreviatura *</label>
+                            {% render_field form.simbolo class="form-control form-control-premium" placeholder="Ej: kg" %}
+                            {% if form.simbolo.errors %}<div class="text-danger extra-small mt-1">{{ form.simbolo.errors.0 }}</div>{% endif %}
                         </div>
                         
-                        <div class="mb-3">
-                            <div class="form-check">
-                                {{ form.activa|add_class:"form-check-input" }}
-                                <label for="{{ form.activa.id_for_label }}" class="form-check-label">
-                                    {{ form.activa.label }}
-                                </label>
+                        <div class="mb-4">
+                            <div class="form-check form-switch p-3 bg-light rounded-3 border">
+                                {{ form.activa|add_class:"form-check-input ms-0 me-3" }}
+                                <label class="form-check-label fw-bold extra-small text-uppercase" for="{{ form.activa.id_for_label }}">Unidad Activa</label>
                             </div>
                         </div>
                         
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'articulos:unidad_medida_list' %}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left"></i> Cancelar
+                        <div class="d-flex justify-content-between mt-5 pt-4 border-top">
+                            <a href="{% url 'articulos:unidad_medida_list' %}" class="btn btn-piedra">
+                                <i class="fas fa-arrow-left me-2"></i>Volver
                             </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> {{ submit_text }}
+                            <button type="submit" class="btn btn-piedra btn-piedra-primary">
+                                <i class="fas fa-save me-2"></i>{{ submit_text|default:"Guardar" }}
                             </button>
                         </div>
                     </form>

@@ -8,141 +8,217 @@
 
 {% block extra_css %}
 <style>
-    .btn-terroso {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-        border: none;
-        transition: all 0.3s ease;
+    :root {
+        --gradient-piedra: linear-gradient(135deg, #D7CCC8 0%, #BCAAA4 100%);
+        --color-piedra-texto: #5D4037;
+        --color-piedra-borde: #A1887F;
     }
-    
-    .btn-terroso:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
-        color: white;
+
+    .articulo-card {
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid var(--color-piedra-borde) !important;
+        box-shadow: 0 10px 30px rgba(93, 64, 55, 0.1);
+        background: white;
+    }
+
+    .articulo-header {
+        background: var(--gradient-piedra);
+        border-bottom: 3px solid var(--color-piedra-borde);
+        padding: 20px 30px;
+    }
+
+    .form-label-premium {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #5D4037;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+    }
+
+    .input-group-premium {
+        border: 1px solid #E8DCC8;
+        border-radius: 8px;
+        background: white;
+        transition: all 0.2s ease;
+        overflow: hidden;
+        display: flex;
+        width: 100%;
+    }
+
+    .input-group-premium:focus-within {
+        border-color: #8B7355;
+        box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1);
+    }
+
+    .input-group-text-premium {
+        background: #FDFCFB;
+        border: none;
+        border-right: 1px solid #F5F1E8;
+        color: #8B7355;
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .form-control-premium, .form-select-premium {
+        border: none !important;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+        background: transparent !important;
+        flex: 1;
+        outline: none;
+        color: #5D4037;
+    }
+
+    .invalid-feedback-premium {
+        font-size: 0.7rem;
+        color: #E53E3E;
+        margin-top: 4px;
+        font-weight: 500;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px;">
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-8">
+            <div class="card articulo-card">
                 <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 12px 16px;">
-                    <h5 class="mb-0 text-white" style="font-size: 1.1rem; font-weight: 600;">
-                        <i class="fas fa-code-branch me-2"></i>{{ action }} Homologación
-                    </h5>
-                    <small class="text-white-50" style="font-size: 0.8rem;">
-                        {{ articulo.codigo }} - {{ articulo.nombre }}
-                    </small>
+                <div class="articulo-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-9">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-code-branch me-3" style="font-size: 2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                                <div>
+                                    <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.5rem;">
+                                        {{ action }} <span class="fw-bold">Homologación</span>
+                                    </h2>
+                                    <div style="font-size: 0.8rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8;">
+                                        {{ articulo.codigo }} - {{ articulo.nombre }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="{% url 'articulos:homologacion_list' articulo.id %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.4); border: 1px solid rgba(93, 64, 55, 0.2); color: var(--color-piedra-texto); padding: 5px 15px; font-size: 0.75rem; font-weight: 600;">
+                                <i class="fas fa-times me-1"></i> Cancelar
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Body -->
-                <div class="card-body" style="padding: 1.5rem;">
+                <div class="card-body p-4" style="background: #FAFAF8;">
                     <form method="post">
                         {% csrf_token %}
                         
                         <div class="row">
                             <!-- Proveedor -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-truck me-1"></i>Proveedor *
-                                </label>
-                                {{ form.proveedor }}
+                                <label class="form-label-premium">PROVEEDOR EMPAREJADO *</label>
+                                <div class="input-group-premium d-flex align-items-center">
+                                    <div class="input-group-text-premium">
+                                        <i class="fas fa-truck"></i>
+                                    </div>
+                                    {{ form.proveedor|add_class:"form-select-premium" }}
+                                </div>
                                 {% if form.proveedor.errors %}
-                                    <div class="text-danger small mt-1">{{ form.proveedor.errors.0 }}</div>
+                                    <div class="invalid-feedback-premium d-block">{{ form.proveedor.errors.0 }}</div>
                                 {% endif %}
                             </div>
 
                             <!-- Código Proveedor -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-barcode me-1"></i>Código del Proveedor *
-                                </label>
-                                {{ form.codigo_proveedor }}
+                                <label class="form-label-premium">CÓDIGO INTERNO DEL PROVEEDOR *</label>
+                                <div class="input-group-premium d-flex align-items-center">
+                                    <div class="input-group-text-premium">
+                                        <i class="fas fa-barcode"></i>
+                                    </div>
+                                    {{ form.codigo_proveedor|add_class:"form-control-premium text-uppercase"|attr:"placeholder:Ej: PROV-12345" }}
+                                </div>
                                 {% if form.codigo_proveedor.errors %}
-                                    <div class="text-danger small mt-1">{{ form.codigo_proveedor.errors.0 }}</div>
+                                    <div class="invalid-feedback-premium d-block">{{ form.codigo_proveedor.errors.0 }}</div>
                                 {% endif %}
                             </div>
 
                             <!-- Descripción Proveedor -->
                             <div class="col-md-12 mb-3">
-                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-file-alt me-1"></i>Descripción del Proveedor
-                                </label>
-                                {{ form.descripcion_proveedor }}
-                                {% if form.descripcion_proveedor.errors %}
-                                    <div class="text-danger small mt-1">{{ form.descripcion_proveedor.errors.0 }}</div>
-                                {% endif %}
+                                <label class="form-label-premium">DESCRIPCIÓN SEGÚN PROVEEDOR</label>
+                                <div class="input-group-premium d-flex align-items-start" style="height: auto;">
+                                    <div class="input-group-text-premium" style="padding-top: 15px;">
+                                        <i class="fas fa-file-alt"></i>
+                                    </div>
+                                    {{ form.descripcion_proveedor|add_class:"form-control-premium"|attr:"rows:2"|attr:"placeholder:Cómo describe el proveedor este artículo..." }}
+                                </div>
                             </div>
 
                             <!-- Precio Compra -->
                             <div class="col-md-4 mb-3">
-                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-dollar-sign me-1"></i>Precio de Compra
-                                </label>
-                                {{ form.precio_compra }}
-                                {% if form.precio_compra.errors %}
-                                    <div class="text-danger small mt-1">{{ form.precio_compra.errors.0 }}</div>
-                                {% endif %}
+                                <label class="form-label-premium">ÚLTIMO PRECIO COMPRA</label>
+                                <div class="input-group-premium d-flex align-items-center">
+                                    <div class="input-group-text-premium">
+                                        <i class="fas fa-dollar-sign"></i>
+                                    </div>
+                                    {{ form.precio_compra|add_class:"form-control-premium" }}
+                                </div>
                             </div>
 
-                            <!-- Es Principal -->
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-star me-1"></i>Proveedor Principal
-                                </label>
-                                <div class="form-check">
-                                    {{ form.es_principal }}
-                                    <label class="form-check-label" for="{{ form.es_principal.id_for_label }}">
-                                        Marcar como proveedor principal
-                                    </label>
+                            <!-- Checkboxes Section -->
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label-premium">CONFIGURACIÓN DE PRIORIDAD Y ESTADO</label>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="form-check p-2 rounded-3" style="background: rgba(139, 115, 85, 0.05);">
+                                            {{ form.es_principal|add_class:"form-check-input ms-0" }}
+                                            <label class="form-check-label ms-2 fw-bold" style="color: #5D4037; font-size: 0.8rem;">
+                                                PROVEEDOR PRINCIPAL
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check p-2 rounded-3" style="background: rgba(139, 115, 85, 0.05);">
+                                            {{ form.activo|add_class:"form-check-input ms-0" }}
+                                            <label class="form-check-label ms-2 fw-bold" style="color: #5D4037; font-size: 0.8rem;">
+                                                REGISTRO ACTIVO
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
-                                {% if form.es_principal.errors %}
-                                    <div class="text-danger small mt-1">{{ form.es_principal.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-
-                            <!-- Activo -->
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-toggle-on me-1"></i>Estado
-                                </label>
-                                <div class="form-check">
-                                    {{ form.activo }}
-                                    <label class="form-check-label" for="{{ form.activo.id_for_label }}">
-                                        Activo
-                                    </label>
-                                </div>
-                                {% if form.activo.errors %}
-                                    <div class="text-danger small mt-1">{{ form.activo.errors.0 }}</div>
-                                {% endif %}
                             </div>
 
                             <!-- Observaciones -->
                             <div class="col-md-12 mb-3">
-                                <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #6F5B44;">
-                                    <i class="fas fa-comment me-1"></i>Observaciones
-                                </label>
-                                {{ form.observaciones }}
-                                {% if form.observaciones.errors %}
-                                    <div class="text-danger small mt-1">{{ form.observaciones.errors.0 }}</div>
-                                {% endif %}
+                                <label class="form-label-premium">OBSERVACIONES INTERNAS</label>
+                                <div class="input-group-premium d-flex align-items-start" style="height: auto;">
+                                    <div class="input-group-text-premium" style="padding-top: 15px;">
+                                        <i class="fas fa-comment"></i>
+                                    </div>
+                                    {{ form.observaciones|add_class:"form-control-premium"|attr:"rows:2" }}
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Botones -->
-                        <div class="d-flex justify-content-end gap-2 mt-4">
-                            <a href="{% url 'articulos:homologacion_list' articulo.id %}" class="btn btn-secondary">
-                                <i class="fas fa-times me-1"></i> Cancelar
-                            </a>
-                            <button type="submit" class="btn btn-terroso">
-                                <i class="fas fa-save me-1"></i> Guardar
-                            </button>
+                        <!-- Botones de Acción Premium -->
+                        <div class="text-center mt-4">
+                            <div class="d-flex justify-content-center gap-3">
+                                <a href="{% url 'articulos:homologacion_list' articulo.id %}" class="btn" style="background: white; border: 1px solid #D4C4A8; color: #8B7355; font-weight: 600; padding: 10px 30px; border-radius: 12px;">
+                                    <i class="fas fa-times me-2"></i> DESCARTAR
+                                </a>
+                                <button type="submit" class="btn" style="background: var(--gradient-piedra); border: 1px solid var(--color-piedra-borde); color: var(--color-piedra-texto); font-weight: 700; padding: 10px 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(93, 64, 55, 0.2);">
+                                    <i class="fas fa-save me-2"></i> GUARDAR HOMOLOGACIÓN
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
             </div>
         </div>
     </div>

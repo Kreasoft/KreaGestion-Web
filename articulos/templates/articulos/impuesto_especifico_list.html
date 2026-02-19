@@ -1,193 +1,287 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block title %}Impuestos Específicos - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
-{% block title %}Impuestos Específicos{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    }
+
+    /* Ocultar top-bar si existe y ajustar layout */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-top: 2rem !important; }
+
+    /* Estilo Piedra - Variables Locales */
+    :root {
+        --color-piedra-texto: #5D4037;
+        --color-piedra-boton: #8D6E63;
+        --color-piedra-borde: #d7ccc8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --shadow-piedra: 0 4px 15px rgba(93, 64, 55, 0.15);
+    }
+
+    .card-header-piedra {
+        background: var(--gradient-piedra);
+        border-bottom: 2px solid var(--color-piedra-borde);
+        padding: 1.2rem 2rem;
+    }
+
+    .btn-piedra {
+        background: var(--gradient-piedra);
+        border: 1px solid var(--color-piedra-borde);
+        color: var(--color-piedra-texto) !important;
+        font-weight: 600;
+        padding: 0.5rem 1.2rem;
+        border-radius: 10px;
+        box-shadow: var(--shadow-piedra);
+        transition: all 0.3s ease;
+        font-size: 0.85rem;
+    }
+
+    .btn-piedra:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(93, 64, 55, 0.25);
+        filter: brightness(0.95);
+    }
+
+    /* Tabla Estilo Piedra Compacta (32px) */
+    .table-piedra-compact thead th {
+        background: rgba(215, 204, 200, 0.2);
+        color: var(--color-piedra-texto);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid var(--color-piedra-borde);
+        padding: 0.4rem 0.8rem;
+        height: 32px;
+        vertical-align: middle;
+    }
+
+    .table-piedra-compact tbody tr {
+        height: 32px !important;
+        transition: background-color 0.2s;
+    }
+
+    .table-piedra-compact tbody tr:hover {
+        background-color: rgba(141, 110, 99, 0.05) !important;
+    }
+
+    .table-piedra-compact tbody td {
+        padding: 0 0.8rem !important;
+        vertical-align: middle;
+        color: #444;
+        height: 32px !important;
+        font-size: 0.85rem;
+        border-bottom: 1px solid rgba(215, 204, 200, 0.2);
+    }
+
+    .stats-card-piedra {
+        position: relative;
+        border: 1px solid var(--color-piedra-borde);
+        border-radius: 15px;
+        background: white;
+        transition: all 0.3s ease;
+        overflow: hidden;
+        padding: 1rem !important;
+        min-height: 80px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .stats-card-piedra:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-piedra);
+    }
+
+    .stats-card-icon {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 5.5rem;
+        opacity: 0.2;
+        color: var(--color-piedra-texto);
+    }
+
+    /* Colores Soft Pastel */
+    .bg-pastel-blue { background-color: #E3F2FD !important; border-color: #BBDEFB !important; }
+    .bg-pastel-green { background-color: #E8F5E9 !important; border-color: #C8E6C9 !important; }
+    .bg-pastel-yellow { background-color: #FFFDE7 !important; border-color: #FFF9C4 !important; }
+    .bg-pastel-orange { background-color: #FFF3E0 !important; border-color: #FFE0B2 !important; }
+    .bg-pastel-purple { background-color: #F3E5F5 !important; border-color: #E1BEE7 !important; }
+
+    .badge-piedra {
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.25rem 0.6rem;
+        border-radius: 6px;
+        text-transform: uppercase;
+    }
+
+    .badge-piedra-success { background: rgba(40, 167, 69, 0.1); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2); }
+    .badge-piedra-warning { background: rgba(255, 193, 7, 0.1); color: #856404; border: 1px solid rgba(255, 193, 7, 0.2); }
+    .badge-piedra-danger { background: rgba(220, 53, 69, 0.1); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); }
+    .badge-piedra-info { background: rgba(23, 162, 184, 0.1); color: #17a2b8; border: 1px solid rgba(23, 162, 184, 0.2); }
+    .badge-piedra-primary { background: rgba(141, 110, 99, 0.1); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); }
+
+    .action-btn-piedra {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid var(--color-piedra-borde);
+        background: white;
+        color: var(--color-piedra-texto);
+        transition: all 0.2s;
+    }
+
+    .action-btn-piedra:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        background: var(--gradient-piedra);
+    }
+
+    .form-control-premium {
+        border-radius: 12px;
+        border: 1px solid var(--color-piedra-borde);
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+
+    .form-control-premium:focus {
+        border-color: var(--color-piedra-boton);
+        box-shadow: 0 0 0 3px rgba(141, 110, 99, 0.1);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <!-- Tarjeta Principal -->
-            <div class="card shadow-sm">
-                <!-- Header de la Tarjeta -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-11">
+
+            <div class="card shadow-sm border-0" style="border-radius: 20px; overflow: hidden; border: 1px solid var(--color-piedra-borde) !important;">
+                <!-- Header Premium -->
+                <div class="card-header-piedra">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-percentage fa-2x text-white me-3"></i>
+                            <div class="p-3 bg-white bg-opacity-50 rounded-circle me-3 shadow-sm">
+                                <i class="fas fa-percentage fa-lg" style="color: var(--color-piedra-texto);"></i>
+                            </div>
                             <div>
-                                <h5 class="mb-0 text-white">
+                                <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif;">
                                     Impuestos Específicos
-                                </h5>
-                                <small class="text-white-50">Gestiona los impuestos específicos aplicables a las categorías</small>
+                                </h4>
                             </div>
                         </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#impuestoModal" onclick="abrirModalCrear()" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3);">
-                                <i class="fas fa-plus me-2"></i> Nuevo Impuesto
-                            </button>
-                        </div>
+                        <button type="button" class="btn btn-piedra" data-bs-toggle="modal" data-bs-target="#impuestoModal" onclick="abrirModalCrear()">
+                            <i class="fas fa-plus-circle me-2"></i> Nuevo Impuesto
+                        </button>
                     </div>
                 </div>
                 
-                <!-- Estadísticas dentro de la tarjeta -->
-                <div class="card-body" style="padding: 1.5rem;">
-                    <div class="row mb-4">
+                <div class="card-body p-4">
+                    <!-- Estadísticas Internas -->
+                    <div class="row g-3 mb-4">
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Total Impuestos</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">{{ impuestos|length }}</h4>
-                                        </div>
-                                        <i class="fas fa-percentage fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                    </div>
-                                </div>
+                            <div class="stats-card-piedra bg-pastel-blue border shadow-none">
+                                <div class="stats-card-icon"><i class="fas fa-percentage"></i></div>
+                                <h6 class="text-muted extra-small text-uppercase fw-bold mb-1">Total Impuestos</h6>
+                                <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto);">{{ impuestos|length }}</h4>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); border: none; box-shadow: 0 2px 8px rgba(160, 130, 109, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Bebidas Alcohólicas</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">2</h4>
-                                        </div>
-                                        <i class="fas fa-wine-glass fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                    </div>
-                                </div>
+                            <div class="stats-card-piedra bg-pastel-orange border shadow-none">
+                                <div class="stats-card-icon"><i class="fas fa-wine-glass"></i></div>
+                                <h6 class="text-muted extra-small text-uppercase fw-bold mb-1">Alcohólicos</h6>
+                                <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto);">{{ alcholicos_count|default:"0" }}</h4>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #C19A6B 0%, #A0826D 100%); border: none; box-shadow: 0 2px 8px rgba(193, 154, 107, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Bebidas Analcohólicas</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">2</h4>
-                                        </div>
-                                        <i class="fas fa-glass-water fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                    </div>
-                                </div>
+                            <div class="stats-card-piedra bg-pastel-yellow border shadow-none">
+                                <div class="stats-card-icon"><i class="fas fa-glass-water"></i></div>
+                                <h6 class="text-muted extra-small text-uppercase fw-bold mb-1">Analcohólicos</h6>
+                                <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto);">{{ analcoholicos_count|default:"0" }}</h4>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%); border: none; box-shadow: 0 2px 8px rgba(212, 165, 116, 0.2);">
-                                <div class="card-body py-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Otros Impuestos</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.5rem;">2</h4>
-                                        </div>
-                                        <i class="fas fa-tag fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                    </div>
-                                </div>
+                            <div class="stats-card-piedra bg-pastel-green border shadow-none">
+                                <div class="stats-card-icon"><i class="fas fa-check-double"></i></div>
+                                <h6 class="text-muted extra-small text-uppercase fw-bold mb-1">Vigentes</h6>
+                                <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto);">{{ activos_count|default:"0" }}</h4>
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Lista de impuestos -->
-                <div class="card-body p-0">
+
                     {% if impuestos %}
                     <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="border-0 py-1 px-2">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="selectAll">
-                                                <label class="form-check-label" for="selectAll">
-                                                    <strong>Nombre</strong>
-                                                </label>
-                                            </div>
-                                        </th>
-                                        <th class="border-0 py-1 px-2"><strong>Descripción</strong></th>
-                                        <th class="border-0 py-1 px-2"><strong>Porcentaje</strong></th>
-                                        <th class="border-0 py-1 px-2"><strong>Tipo</strong></th>
-                                        <th class="border-0 py-1 px-2"><strong>Estado</strong></th>
-                                        <th class="border-0 py-1 px-2"><strong>Fecha Creación</strong></th>
-                                        <th class="border-0 py-1 px-2 text-center"><strong>Acciones</strong></th>
+                        <table class="table table-piedra-compact mb-0">
+                            <thead>
+                                <tr>
+                                    <th width="30%">Impuesto / Glosa</th>
+                                    <th width="15%" class="text-center">Porcentaje (%)</th>
+                                    <th width="20%" class="text-center">Clasificación</th>
+                                    <th width="15%" class="text-center">Estado</th>
+                                    <th width="20%" class="text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for impuesto in impuestos %}
-                                    <tr class="border-bottom">
-                                        <td class="py-1 px-2">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value="{{ impuesto.id }}">
-                                                <label class="form-check-label fw-bold">
-                                                    {{ impuesto.nombre }}
-                                                </label>
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="p-2 bg-light rounded me-3">
+                                                <i class="fas fa-receipt opacity-50" style="font-size: 0.8rem;"></i>
                                             </div>
-                                        </td>
-                                        <td class="py-1 px-2">
-                                            {% if impuesto.descripcion %}
-                                                <span class="text-gray-600">{{ impuesto.descripcion|truncatechars:50 }}</span>
-                                            {% else %}
-                                                <span class="text-muted">Sin descripción</span>
-                                            {% endif %}
+                                            <div>
+                                                <div class="fw-bold" style="color: var(--color-piedra-texto);">{{ impuesto.nombre }}</div>
+                                                <div class="extra-small text-muted">{{ impuesto.descripcion|truncatechars:40|default:"Sin descripción" }}</div>
+                                            </div>
+                                        </div>
                                     </td>
-                                        <td class="py-1 px-2">
-                                            <span class="badge bg-primary fs-6">
-                                                <i class="fas fa-percentage me-1"></i>{{ impuesto.porcentaje }}%
-                                            </span>
+                                    <td class="text-center">
+                                        <span class="fw-bold fs-6 text-brown">{{ impuesto.porcentaje }}%</span>
                                     </td>
-                                        <td class="py-1 px-2">
-                                            {% if 'Vino' in impuesto.nombre or 'Cerveza' in impuesto.nombre or 'Licores' in impuesto.nombre %}
-                                                <span class="badge bg-warning text-dark">
-                                                    <i class="fas fa-wine-glass me-1"></i>Alcohólico
-                                                </span>
-                                            {% elif 'Bebidas' in impuesto.nombre or 'Alto' in impuesto.nombre or 'Bajo' in impuesto.nombre %}
-                                                <span class="badge bg-info text-dark">
-                                                    <i class="fas fa-glass-water me-1"></i>Analcohólico
-                                                </span>
-                                            {% elif 'Verde' in impuesto.nombre %}
-                                                <span class="badge bg-success">
-                                                    <i class="fas fa-leaf me-1"></i>Ambiental
-                                                </span>
-                                            {% elif 'Tabaco' in impuesto.nombre %}
-                                                <span class="badge bg-danger">
-                                                    <i class="fas fa-smoking me-1"></i>Tabaco
-                                                </span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">
-                                                    <i class="fas fa-tag me-1"></i>Otro
-                                                </span>
-                                        {% endif %}
-                                    </td>
-                                        <td class="py-1 px-2">
-                                            {% if impuesto.activa %}
-                                                <span class="badge bg-success">
-                                                    <i class="fas fa-check me-1"></i>Activo
-                                                </span>
+                                    <td class="text-center">
+                                        {% if 'Vino' in impuesto.nombre or 'Cerveza' in impuesto.nombre or 'Licores' in impuesto.nombre %}
+                                            <span class="badge-piedra badge-piedra-warning"><i class="fas fa-wine-glass me-1"></i>Alcohólico</span>
+                                        {% elif 'Bebidas' in impuesto.nombre or 'Alto' in impuesto.nombre or 'Sucre' in impuesto.nombre %}
+                                            <span class="badge-piedra badge-piedra-info"><i class="fas fa-glass-water me-1"></i>Analcohólico</span>
                                         {% else %}
-                                                <span class="badge bg-danger">
-                                                    <i class="fas fa-times me-1"></i>Inactivo
-                                                </span>
+                                            <span class="badge-piedra badge-piedra-primary"><i class="fas fa-tag me-1"></i>General</span>
                                         {% endif %}
                                     </td>
-                                        <td class="py-1 px-2">
-                                            <span class="text-muted">{{ impuesto.fecha_creacion|date:"d/m/Y" }}</span>
+                                    <td class="text-center">
+                                        {% if impuesto.activa %}
+                                            <span class="text-success"><i class="fas fa-check-circle me-1"></i>Habilitado</span>
+                                        {% else %}
+                                            <span class="text-danger"><i class="fas fa-times-circle me-1"></i>Inactivo</span>
+                                        {% endif %}
                                     </td>
-                                        <td class="py-1 px-2 text-center">
-                                            <div class="btn-group" role="group">
-                                            <button type="button" 
-                                                    class="btn btn-sm" 
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-2">
+                                            <button class="action-btn-piedra btn-editar-impuesto" 
                                                     data-bs-toggle="modal" 
                                                     data-bs-target="#impuestoModal"
-                                                    data-bs-toggle="tooltip" 
-                                                    title="Editar"
-                                                    onclick="abrirModalEditar({{ impuesto.pk }}, '{{ impuesto.nombre }}', '{{ impuesto.descripcion }}', '{{ impuesto.porcentaje }}', {{ impuesto.activa|yesno:"true,false" }})"
-                                                    style="border: none; background: none; padding: 4px 8px;">
-                                                <i class="fas fa-edit" style="color: #B8860B; font-size: 16px;"></i>
+                                                    data-id="{{ impuesto.pk }}"
+                                                    data-nombre="{{ impuesto.nombre }}"
+                                                    data-descripcion="{{ impuesto.descripcion|default:'' }}"
+                                                    data-porcentaje="{{ impuesto.porcentaje }}"
+                                                    data-activa="{{ impuesto.activa|yesno:'true,false' }}"
+                                                    title="Editar">
+                                                <i class="fas fa-edit" style="font-size: 0.8rem; color: #8D6E63;"></i>
                                             </button>
-                                            <a href="{% url 'articulos:impuesto_especifico_delete' impuesto.pk %}" 
-                                                   class="btn btn-sm" 
-                                                   data-bs-toggle="tooltip" 
-                                                   title="Eliminar"
-                                                   style="border: none; background: none; padding: 4px 8px;">
-                                                    <i class="fas fa-trash" style="color: #DC143C; font-size: 16px;"></i>
+                                            <a href="{% url 'articulos:impuesto_especifico_delete' impuesto.pk %}" class="action-btn-piedra" title="Eliminar">
+                                                <i class="fas fa-trash-alt" style="font-size: 0.8rem; color: #7B5E57;"></i>
                                             </a>
                                         </div>
                                     </td>
@@ -198,12 +292,11 @@
                     </div>
                     {% else %}
                         <div class="text-center py-5">
-                            <i class="fas fa-percentage fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">No hay impuestos específicos</h5>
-                            <p class="text-muted">Comienza creando tu primer impuesto específico</p>
-                            <a href="{% url 'articulos:impuesto_especifico_create' %}" class="btn btn-primary">
-                                <i class="fas fa-plus"></i> Crear Impuesto
-                            </a>
+                            <i class="fas fa-percentage fa-4x opacity-25 mb-3"></i>
+                            <h5 class="fw-bold text-muted">No hay registros de impuestos</h5>
+                            <button class="btn btn-piedra mt-3" data-bs-toggle="modal" data-bs-target="#impuestoModal" onclick="abrirModalCrear()">
+                                <i class="fas fa-plus"></i> Crear el primero
+                            </button>
                         </div>
                     {% endif %}
                 </div>
@@ -212,78 +305,51 @@
     </div>
 </div>
 
-<!-- Modal para Impuestos Específicos -->
-<div class="modal fade" id="impuestoModal" tabindex="-1" aria-labelledby="impuestoModalLabel" aria-hidden="true">
+<!-- Modal para Impuestos -->
+<div class="modal fade" id="impuestoModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
-                <h5 class="modal-title" id="impuestoModalLabel">
-                    <i class="fas fa-percentage me-2" style="color: white;"></i>
-                    <span id="modalTitulo">Nuevo Impuesto</span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+            <div class="modal-header card-header-piedra border-0">
+                <div class="d-flex align-items-center">
+                    <div class="p-2 bg-white bg-opacity-50 rounded-circle me-3 shadow-sm">
+                        <i class="fas fa-percentage text-brown" style="font-size: 1.1rem;"></i>
+                    </div>
+                    <h5 class="modal-title fw-bold" id="modalTitulo" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif;">Nuevo Impuesto</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="impuestoForm" method="post" onsubmit="enviarFormulario(event)">
                 {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="id_nombre" class="form-label" style="color: #495057; font-weight: bold;">
-                            Nombre
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-tag" style="color: #6c757d;"></i>
-                            </div>
-                            <input type="text" class="form-control" id="id_nombre" name="nombre" required 
-                                   placeholder="Ingrese el nombre del impuesto" style="color: #6c757d; border-left: none;">
-                        </div>
+                <div class="modal-body bg-light bg-opacity-50 p-4">
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase opacity-75">Nombre del Gravamen</label>
+                        <input type="text" class="form-control form-control-premium" id="id_nombre" name="nombre" required placeholder="Ej: ILA Alcoholes">
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="id_descripcion" class="form-label" style="color: #495057; font-weight: bold;">
-                            Descripción
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da; align-items: flex-start; padding-top: 12px;">
-                                <i class="fas fa-align-left" style="color: #6c757d;"></i>
-                            </div>
-                            <textarea class="form-control" id="id_descripcion" name="descripcion" rows="3" 
-                                      placeholder="Ingrese una descripción del impuesto" style="color: #6c757d; border-left: none;"></textarea>
-                        </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase opacity-75">Descripción Glosa</label>
+                        <textarea class="form-control form-control-premium" id="id_descripcion" name="descripcion" rows="3" placeholder="Detalle informativo..."></textarea>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="id_porcentaje" class="form-label" style="color: #495057; font-weight: bold;">
-                            Porcentaje (%)
-                        </label>
-                        <div class="input-group">
-                            <div class="input-group-text" style="background-color: #f8f9fa; border-right: 2px solid #dee2e6; border-color: #ced4da;">
-                                <i class="fas fa-percentage" style="color: #6c757d;"></i>
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label small fw-bold text-uppercase opacity-75">Tasa (%)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" class="form-control form-control-premium border-end-0" id="id_porcentaje" name="porcentaje" required placeholder="0.00">
+                                <span class="input-group-text bg-white border-start-0" style="border-radius: 0 12px 12px 0; border: 1px solid var(--color-piedra-borde);">%</span>
                             </div>
-                            <input type="text" class="form-control" id="id_porcentaje" name="porcentaje" required 
-                                   placeholder="0.00" style="color: #6c757d; border-left: none;">
                         </div>
-                        <div class="form-text" style="color: #6c757d;">Ingrese el porcentaje del impuesto (ej: 20.50 para 20.50%)</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="id_activa" name="activa" checked>
-                            <label class="form-check-label" for="id_activa" style="color: #495057; font-weight: bold;">
-                                <i class="fas fa-check-circle me-1" style="color: #6B8E23;"></i>Activa
-                            </label>
-                            <div class="form-text" style="color: #6c757d;">El impuesto estará disponible para usar</div>
+                        <div class="col-md-6 mb-4 d-flex align-items-end">
+                            <div class="form-check form-switch p-3 bg-white rounded-3 shadow-sm w-100 border" style="border-color: var(--color-piedra-borde) !important;">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" id="id_activa" name="activa" checked>
+                                <label class="form-check-label fw-bold extra-small text-uppercase" for="id_activa">Vigente</label>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i>Cancelar
-                    </button>
-                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white;">
-                        <i class="fas fa-save me-1"></i>
-                        <span id="modalBoton">Crear Impuesto</span>
-                    </button>
+                <div class="modal-footer bg-white p-3">
+                    <button type="button" class="btn btn-light border px-4 rounded-pill" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-piedra px-5 rounded-pill shadow-sm" id="modalBoton">Crear Impuesto</button>
                 </div>
             </form>
         </div>
@@ -292,112 +358,64 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Select all functionality
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const itemCheckboxes = document.querySelectorAll('tbody input[type="checkbox"]');
-    
-    selectAllCheckbox.addEventListener('change', function() {
-        itemCheckboxes.forEach(checkbox => {
-            checkbox.checked = this.checked;
-        });
-    });
-    
-    // Initialize tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-    
-    // Modal cleanup when hidden
     const impuestoModal = document.getElementById('impuestoModal');
     if (impuestoModal) {
         impuestoModal.addEventListener('hidden.bs.modal', function() {
-            // Reset form
             document.getElementById('impuestoForm').reset();
             document.getElementById('id_activa').checked = true;
-            
-            // Reset modal title and button
             document.getElementById('modalTitulo').textContent = 'Nuevo Impuesto';
             document.getElementById('modalBoton').textContent = 'Crear Impuesto';
             document.getElementById('impuestoForm').action = '{% url "articulos:impuesto_especifico_create" %}';
-            
-            // Remove any backdrop issues
-            document.body.classList.remove('modal-open');
-            const backdrops = document.querySelectorAll('.modal-backdrop');
-            backdrops.forEach(backdrop => backdrop.remove());
         });
     }
+
+    // Manejar clics en botones de edición
+    document.querySelectorAll('.btn-editar-impuesto').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const nombre = this.dataset.nombre;
+            const descripcion = this.dataset.descripcion;
+            const porcentaje = this.dataset.porcentaje;
+            const activa = this.dataset.activa === 'true';
+            
+            abrirModalEditar(id, nombre, descripcion, porcentaje, activa);
+        });
+    });
 });
 
-// Funciones para el modal
 function abrirModalCrear() {
     document.getElementById('modalTitulo').textContent = 'Nuevo Impuesto';
     document.getElementById('modalBoton').textContent = 'Crear Impuesto';
     document.getElementById('impuestoForm').action = '{% url "articulos:impuesto_especifico_create" %}';
-    
-    // Limpiar formulario
     document.getElementById('impuestoForm').reset();
     document.getElementById('id_activa').checked = true;
 }
 
 function abrirModalEditar(id, nombre, descripcion, porcentaje, activa) {
     document.getElementById('modalTitulo').textContent = 'Editar Impuesto';
-    document.getElementById('modalBoton').textContent = 'Actualizar Impuesto';
+    document.getElementById('modalBoton').textContent = 'Actualizar Tarifa';
     document.getElementById('impuestoForm').action = '{% url "articulos:impuesto_especifico_update" 0 %}'.replace('0', id);
-    
-    // Llenar formulario
     document.getElementById('id_nombre').value = nombre;
     document.getElementById('id_descripcion').value = descripcion;
-    document.getElementById('id_porcentaje').value = porcentaje;
+    document.getElementById('id_porcentaje').value = porcentaje.replace(',', '.');
     document.getElementById('id_activa').checked = activa;
-    
-    // Asegurar que el modal se abra
-    var modal = new bootstrap.Modal(document.getElementById('impuestoModal'));
-    modal.show();
 }
 
 function enviarFormulario(event) {
     event.preventDefault();
-    
     const form = document.getElementById('impuestoForm');
     const formData = new FormData(form);
-    const url = form.action;
-    
-    fetch(url, {
+    fetch(form.action, {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        }
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
     })
     .then(response => {
         if (response.ok) {
-            // Cerrar modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('impuestoModal'));
-            modal.hide();
-            
-            // Recargar la página para mostrar los cambios
             location.reload();
         } else {
-            // Mostrar errores si los hay
-            return response.text().then(html => {
-                // Crear un elemento temporal para parsear el HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = html;
-                
-                // Buscar errores de formulario
-                const errors = tempDiv.querySelectorAll('.errorlist');
-                if (errors.length > 0) {
-                    alert('Por favor corrija los errores en el formulario.');
-                } else {
-                    alert('Error al procesar el formulario. Intente nuevamente.');
-                }
-            });
+            alert('Error al guardar el impuesto. Verifique los datos.');
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error de conexión. Intente nuevamente.');
     });
 }
 </script>

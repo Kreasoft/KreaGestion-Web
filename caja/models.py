@@ -101,14 +101,14 @@ class AperturaCaja(models.Model):
         self.total_ventas_credito = Decimal('0.00')
         
         # Clasificar cada movimiento por forma de pago
-        # Solo incluir: boletas, facturas, notas de crédito y débito
-        # Excluir: vales facturables, guías y cotizaciones
-        documentos_permitidos = ['boleta', 'factura']
-        documentos_excluidos = ['vale', 'guia', 'cotizacion']
+        # Solo incluir: boletas, facturas, vales internos, notas de crédito y débito
+        # Excluir: tickets facturables, guías y cotizaciones
+        documentos_permitidos = ['boleta', 'factura', 'vale']
+        documentos_excluidos = ['ticket', 'guia', 'cotizacion']
         
         # Procesar movimientos de VENTA (suman dinero)
         for movimiento in movimientos_venta:
-            # Excluir vales facturables, guías y cotizaciones
+            # Excluir tickets facturables, guías y cotizaciones
             if movimiento.venta and movimiento.venta.tipo_documento in documentos_excluidos:
                 print(f"[CALCULAR_TOTALES] Movimiento {movimiento.id} excluido: {movimiento.venta.tipo_documento}")
                 continue

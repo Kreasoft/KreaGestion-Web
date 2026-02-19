@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Vendedor, FormaPago, EstacionTrabajo, Venta, VentaDetalle, Devolucion, DevolucionDetalle, 
-    PrecioClienteArticulo, VentaReferencia, NotaCredito, NotaCreditoDetalle
+    PrecioClienteArticulo, VentaReferencia, NotaCredito, NotaCreditoDetalle, DispositivoMovil
 )
 
 
@@ -241,3 +241,20 @@ class NotaCreditoDetalleAdmin(admin.ModelAdmin):
     list_filter = ['nota_credito__empresa']
     search_fields = ['nota_credito__numero', 'articulo__nombre', 'articulo__codigo', 'codigo']
     ordering = ['-fecha_creacion']
+
+
+@admin.register(DispositivoMovil)
+class DispositivoMovilAdmin(admin.ModelAdmin):
+    list_display = ['nombre_dispositivo', 'vendedor', 'unique_id', 'autorizado', 'empresa', 'ultima_sincronizacion']
+    list_filter = ['autorizado', 'empresa']
+    search_fields = ['nombre_dispositivo', 'unique_id', 'vendedor__nombre']
+    actions = ['autorizar_dispositivos', 'desautorizar_dispositivos']
+    ordering = ['-fecha_registro']
+
+    def autorizar_dispositivos(self, request, queryset):
+        queryset.update(autorizado=True)
+    autorizar_dispositivos.short_description = "Autorizar dispositivos seleccionados"
+
+    def desautorizar_dispositivos(self, request, queryset):
+        queryset.update(autorizado=False)
+    desautorizar_dispositivos.short_description = "Desautorizar dispositivos seleccionados"

@@ -1,123 +1,184 @@
 {% extends "base.html" %}
 {% load static %}
+{% load widget_tweaks %}
 
 {% block title %}{{ titulo }} - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+
+
+{% block extra_head %}
+<style>
+    /* VARIABLES LOCALES PARA ASEGURAR ESTILO EXACTO (COPIADO DE ARTICULOS) */
+    :root {
+        --color-piedra-texto: #6F5B44; 
+        --color-piedra-borde: #E8DCC8;
+        --color-piedra-claro: #F5F1E8;
+        --gradient-piedra: linear-gradient(135deg, #Fdfbf7 0%, #F5F1E8 100%);
+    }
+
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+
+    /* Form Elements matching Store Style */
+    .form-control, .form-select {
+        border-color: #D4C4A8;
+        font-size: 0.9rem;
+        background-color: white;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-piedra-borde);
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+        outline: none;
+    }
+
+    .form-label {
+        color: var(--color-piedra-texto);
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .btn-piedra-primary {
+        background: linear-gradient(135deg, #C2B7AE 0%, #AAA098 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    
+    .btn-piedra-primary:hover {
+        background: linear-gradient(135deg, #CFC5BC 0%, #B8AEA6 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(170, 160, 152, 0.25);
+        color: white;
+    }
+
+    .section-title {
+        color: var(--color-piedra-texto);
+        font-weight: 700;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--color-piedra-borde);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <!-- Header con Estilo Piedra Premium (Claro - Idéntico a Artículos) -->
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-tag fa-lg text-white me-2"></i>
+                            <i class="fas fa-users-cog me-3" style="font-size: 2.2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
                             <div>
-                                <h5 class="mb-0 text-white" style="font-size: 1.2rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
                                     {{ titulo }}
-                                </h5>
-                                <small class="text-white-50" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">
-                                    {% if grupo %}Modificar grupo/rol{% else %}Crear nuevo grupo/rol{% endif %}
-                                </small>
+                                </h2>
+                                <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                                    {% if grupo %}Modificar rol <span class="fw-bold">{{ grupo.name }}</span>{% else %}Definir nuevo rol de usuario{% endif %}
+                                </div>
                             </div>
                         </div>
-                        <a href="{% url 'usuarios:grupo_list' %}" class="btn btn-sm btn-outline-light">
-                            <i class="fas fa-arrow-left me-1"></i> Volver
-                        </a>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'usuarios:grupo_list' %}" class="btn btn-sm" style="background: rgba(255, 255, 255, 0.4); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600;">
+                                <i class="fas fa-arrow-left me-1"></i> Volver a Lista
+                            </a>
+                        </div>
                     </div>
                 </div>
+
+        <div class="card-body p-4 pt-4">
+            <form method="post" novalidate>
+                {% csrf_token %}
                 
-                <!-- Formulario -->
-                <div class="card-body" style="padding: 30px;">
-                    <form method="post" novalidate>
-                        {% csrf_token %}
+                <div class="row g-4">
+                    <div class="col-12">
+                        <h6 class="section-title">
+                            <i class="fas fa-tag me-2"></i>Identificación del Rol
+                        </h6>
                         
                         <div class="mb-3">
-                            <label for="{{ form.name.id_for_label }}" class="form-label">
-                                {{ form.name.label }} <span class="text-danger">*</span>
-                            </label>
-                            {{ form.name }}
+                            <label for="{{ form.name.id_for_label }}" class="form-label"><i class="fas fa-tag me-1"></i>{{ form.name.label }} <span class="text-danger">*</span></label>
+                            {{ form.name|add_class:"form-control" }}
                             {% if form.name.errors %}
                                 <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
                             {% endif %}
                             {% if form.name.help_text %}
-                                <small class="form-text text-muted d-block mt-1">{{ form.name.help_text }}</small>
+                                <small class="text-muted d-block mt-1">{{ form.name.help_text }}</small>
                             {% endif %}
                         </div>
-                        
-                        <div class="alert alert-info" style="border-radius: 10px;">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Ejemplos de grupos:</strong><br>
-                            <ul class="mb-0 mt-2">
-                                <li>Administrador</li>
-                                <li>Vendedor</li>
-                                <li>Bodeguero</li>
-                                <li>Contador</li>
-                                <li>Gerente</li>
-                            </ul>
-                        </div>
-                        
-                        <!-- Sección de Permisos -->
-                        {% if permisos_por_app %}
-                        <hr class="my-4">
-                        <h6 class="mb-3" style="color: #8B7355; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                            <i class="fas fa-shield-alt me-2"></i>Permisos del Grupo
-                        </h6>
-                        
-                        <div class="alert alert-warning" style="border-radius: 10px;">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <small>Selecciona los permisos que tendrán los usuarios asignados a este grupo</small>
-                        </div>
-                        
-                        <!-- Botones para seleccionar/deseleccionar todos -->
-                        <div class="mb-3 d-flex justify-content-between align-items-center">
-                            <div>
-                                <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="seleccionarTodos()">
-                                    <i class="fas fa-check-square me-1"></i> Seleccionar Todos
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deseleccionarTodos()">
-                                    <i class="fas fa-square me-1"></i> Deseleccionar Todos
-                                </button>
-                            </div>
-                            <span class="badge bg-info badge-permisos-count" style="font-size: 0.9rem; padding: 8px 12px;">
-                                0 de 0 seleccionados
+                    </div>
+                    
+                    <div class="col-12">
+                         <div class="d-flex align-items-center justify-content-between mb-3 mt-2 pb-2 border-bottom" style="border-color: #E8DCC8 !important;">
+                            <h6 class="section-title mb-0 border-0 pb-0">
+                                <i class="fas fa-shield-alt me-2"></i>Permisos del Sistema
+                            </h6>
+                            <span class="badge" style="background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9;">
+                                <span class="badge-permisos-count">0</span> permisos seleccionados
                             </span>
                         </div>
-                        
-                        <!-- Permisos por aplicación -->
-                        <div class="accordion" id="permisosAccordion">
+
+                        <!-- Botones de selección masiva -->
+                        <div class="mb-3 d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="seleccionarTodos()" style="border-color: #D4C4A8; color: #6F5B44;">
+                                <i class="fas fa-check-double me-1"></i> Todos
+                            </button>
+                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deseleccionarTodos()" style="border-color: #D4C4A8; color: #6F5B44;">
+                                <i class="fas fa-times me-1"></i> Ninguno
+                            </button>
+                        </div>
+
+                        <!-- Acordeón de Permisos Estilo Piedra -->
+                        {% if permisos_por_app %}
+                        <div class="accordion accordion-stone" id="permisosAccordion">
                             {% for nombre_app, datos_app in permisos_por_app.items %}
                             {% with app_slug=datos_app.app_label_slug permisos=datos_app.permisos nombre=datos_app.nombre %}
-                            <div class="accordion-item" style="border-radius: 10px; margin-bottom: 10px; border: 1px solid #e3e6f0;">
+                            <div class="accordion-item">
                                 <h2 class="accordion-header" id="heading{{ app_slug }}">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
                                             data-bs-target="#collapse{{ app_slug }}" aria-expanded="false" 
-                                            aria-controls="collapse{{ app_slug }}"
-                                            style="background: #f8f9fa; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                                        <i class="fas fa-folder-open me-2" style="color: #8B7355;"></i>
-                                        {{ nombre }}
-                                        <span class="badge bg-info ms-2">{{ permisos|length }} permisos</span>
+                                            aria-controls="collapse{{ app_slug }}">
+                                        <div class="d-flex align-items-center w-100 justify-content-between pe-3">
+                                            <span>
+                                                <i class="fas fa-folder me-2 text-muted opacity-50"></i>
+                                                {{ nombre }}
+                                            </span>
+                                            <span class="badge-app-count">{{ permisos|length }}</span>
+                                        </div>
                                     </button>
                                 </h2>
                                 <div id="collapse{{ app_slug }}" class="accordion-collapse collapse" 
                                      aria-labelledby="heading{{ app_slug }}" data-bs-parent="#permisosAccordion">
                                     <div class="accordion-body">
-                                        <div class="row">
+                                        <div class="row g-2">
                                             {% for permiso in permisos %}
-                                            <div class="col-md-6 mb-2">
-                                                <div class="form-check">
+                                            <div class="col-md-6 col-lg-4">
+                                                <div class="form-check permiso-checkbox-container ms-3">
                                                     <input class="form-check-input permiso-checkbox" 
                                                            type="checkbox" 
                                                            name="permissions" 
                                                            value="{{ permiso.id }}" 
                                                            id="perm_{{ permiso.id }}"
                                                            {% if permiso.id in permisos_actuales %}checked{% endif %}>
-                                                    <label class="form-check-label" for="perm_{{ permiso.id }}" style="font-size: 0.85rem;">
-                                                        <strong>{{ permiso.nombre_traducido|default:permiso.name }}</strong>
-                                                        <br><small class="text-muted">{{ permiso.codename }}</small>
+                                                    <label class="form-check-label" for="perm_{{ permiso.id }}">
+                                                        <span class="d-block fw-medium lh-sm">{{ permiso.nombre_traducido|default:permiso.name }}</span>
+                                                        <span class="d-block text-muted small" style="font-size: 0.7rem;">{{ permiso.codename }}</span>
                                                     </label>
                                                 </div>
                                             </div>
@@ -130,97 +191,64 @@
                             {% endfor %}
                         </div>
                         {% endif %}
-                        
-                        <!-- Botones de acción -->
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{% url 'usuarios:grupo_list' %}" class="btn btn-secondary">
-                                <i class="fas fa-times me-1"></i> Cancelar
-                            </a>
-                            <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
-                                <i class="fas fa-save me-1"></i> 
-                                {% if grupo %}Actualizar Grupo{% else %}Crear Grupo{% endif %}
-                            </button>
-                        </div>
-                    </form>
+                    </div>
                 </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top" style="border-color: #E8DCC8 !important;">
+                    <a href="{% url 'usuarios:grupo_list' %}" class="btn btn-outline-secondary" style="border-color: #D4C4A8; color: #6F5B44;">
+                        <i class="fas fa-times me-1"></i> Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-piedra-primary" id="btnSubmit">
+                        <i class="fas fa-save me-1"></i> 
+                        <span id="btnText">{% if grupo %}Guardar Cambios{% else %}Crear Grupo{% endif %}</span>
+                    </button>
+                </div>
+            </form>
+        </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    .form-control:focus {
-        border-color: #8B7355;
-        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
-    }
-    
-    .btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.3);
-    }
-    
-    .form-check-input:checked {
-        background-color: #8B7355;
-        border-color: #8B7355;
-    }
-    
-    .accordion-button:not(.collapsed) {
-        background-color: #8B7355;
-        color: white;
-    }
-    
-    .accordion-button:not(.collapsed)::after {
-        filter: brightness(0) invert(1);
-    }
-    
-    .accordion-button {
-        color: #8B7355;
-    }
-    
-    .accordion-button i {
-        color: #8B7355;
-    }
-    
-    .accordion-button:not(.collapsed) i {
-        color: white;
-    }
-</style>
 
 <script>
 function seleccionarTodos() {
     document.querySelectorAll('.permiso-checkbox').forEach(checkbox => {
         checkbox.checked = true;
     });
+    actualizarContadorGlobal();
 }
 
 function deseleccionarTodos() {
     document.querySelectorAll('.permiso-checkbox').forEach(checkbox => {
         checkbox.checked = false;
     });
+    actualizarContadorGlobal();
 }
 
-// Contador de permisos seleccionados
-document.addEventListener('DOMContentLoaded', function() {
-    const checkboxes = document.querySelectorAll('.permiso-checkbox');
+function actualizarContadorGlobal() {
+    const total = document.querySelectorAll('.permiso-checkbox').length;
+    const seleccionados = document.querySelectorAll('.permiso-checkbox:checked').length;
     
-    function actualizarContador() {
-        const seleccionados = document.querySelectorAll('.permiso-checkbox:checked').length;
-        const total = checkboxes.length;
-        
-        // Actualizar el badge si existe
-        const badge = document.querySelector('.badge-permisos-count');
-        if (badge) {
-            badge.textContent = `${seleccionados} de ${total} seleccionados`;
+    // Actualizar el badge global
+    const badge = document.querySelector('.badge-permisos-count');
+    if (badge) {
+        badge.textContent = `${seleccionados} de ${total} seleccionados`;
+        if (seleccionados > 0) {
+            badge.style.color = 'var(--stone-success)';
+            badge.style.backgroundColor = '#E8F5E9'; // Light green bg
+        } else {
+            badge.style.color = 'var(--stone-secondary)';
+            badge.style.backgroundColor = 'var(--stone-light)';
         }
     }
-    
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.permiso-checkbox');
     checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', actualizarContador);
+        checkbox.addEventListener('change', actualizarContadorGlobal);
     });
-    
-    actualizarContador();
+    actualizarContadorGlobal();
 });
 </script>
-
 {% endblock %}
-

@@ -6,208 +6,346 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block extra_head %}
+{% block extra_css %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
-    /* Fondo terroso suave como en libro de ventas */
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+    }
+
     body {
-        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
-        min-height: 100vh;
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL UNIFICADA */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 48px;
+        height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text);
+        font-size: 1.35rem;
+        margin: 0;
+        letter-spacing: -0.5px;
+        line-height: 1.1;
+    }
+    
+    .header-text p {
+        color: #795548;
+        font-size: 0.85rem;
+        margin: 0;
+        font-weight: 500;
+        opacity: 0.9;
+    }
+
+    /* BOTONES HEADER */
+    .header-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        background: rgba(255,255,255,0.6);
+        color: var(--stone-text);
+        border-color: rgba(255,255,255,0.8);
+        cursor: pointer;
+    }
+    .header-btn:hover { background: white; transform: translateY(-2px); }
+    .btn-action-primary { background: var(--stone-primary); color: white; border: none; }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; }
+
+    /* ESTILOS TABLE PIEDRA */
+    .table-piedra { width: 100%; border-collapse: collapse; font-family: 'Poppins', sans-serif; }
+    .table-piedra thead th {
+        background: #FDFCFB;
+        border-bottom: 2px solid #E8DCC8;
+        color: #8B7355;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        padding: 12px 15px;
+    }
+    .table-piedra tbody tr { height: 33px !important; transition: all 0.2s ease; border-bottom: 1px solid #F5F1E8; }
+    .table-piedra tbody tr:hover { background-color: #F5F1E8; }
+    .table-piedra tbody td {
+        padding: 4px 15px;
+        vertical-align: middle;
+        font-size: 0.85rem;
+        color: #4A5568;
+    }
+
+    /* BADGES */
+    .badge-stone {
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+    .bg-stone-success { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+    .bg-stone-warning { background: #FFF8E1; color: #F57F17; border: 1px solid #FFECB3; }
+    .bg-stone-danger { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+    .bg-stone-info { background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; }
+    .bg-stone-secondary { background: #ECEFF1; color: #546E7A; border: 1px solid #CFD8DC; }
+
+    /* BOTONES ACCION TABLA */
+    .btn-icon-stone {
+        width: 32px; height: 32px;
+        border-radius: 8px;
+        display: inline-flex; align-items: center; justify-content: center;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+        background: white;
+        color: var(--stone-secondary);
+        border-color: #E8DCC8;
+    }
+    .btn-icon-stone:hover {
+        background: var(--stone-primary);
+        color: white;
+        border-color: var(--stone-primary);
+    }
+
+    /* PRESERVED STATS CARDS STYLES (User Request) */
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        height: 100%; /* Ensure full height */
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+    .stat-card-1 { background: linear-gradient(135deg, #D4A574 0%, #C19461 100%); }
+    .stat-card-2 { background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%); }
+    .stat-card-3 { background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); }
+    .stat-card-4 { background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%); }
+    .stat-value { font-size: 1.6rem; font-weight: 700; color: white; margin-bottom: 0.25rem; }
+    .stat-label { color: rgba(255,255,255,0.9); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+    .stat-icon { font-size: 2rem; color: rgba(255,255,255,0.3); position: absolute; right: 15px; bottom: 15px; }
+
+    /* INPUTS FILTROS */
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px;
+        border: 1px solid #D4C4A8;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        background-color: white;
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary);
+        box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1);
+        outline: none;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<div class="container-fluid" style="margin-top: 20px;">
-    <div class="row">
+<div class="container-fluid">
+    <div class="row justify-content-center">
         <div class="col-12">
-            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 14px; overflow: hidden;">
-
-                <!-- HEADER PRINCIPAL CON COLORES VIBRANTES -->
-                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-exchange-alt fa-lg me-2" style="color: #6F5B44;"></i>
-                            <div>
-                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
-                                    Movimientos de Inventario
-                                </h5>
-                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
-                                    Registro completo de entradas y salidas de productos
-                                </small>
-                            </div>
+            
+            <div class="single-card-container">
+                
+                <!-- HEADER STONE PREMIUM -->
+                <div class="stone-header-premium">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="header-icon-box">
+                            <i class="fas fa-exchange-alt"></i>
                         </div>
-                        <div class="d-flex align-items-center">
-                            <button class="btn btn-sm me-2" style="background: rgba(111, 91, 68, 0.15); border: 1px solid rgba(111, 91, 68, 0.25); color: #6F5B44; padding: 4px 8px; font-size: 0.7rem;" onclick="window.print()">
-                                <i class="fas fa-print me-1"></i>
-                            </button>
-                            <a href="{% url 'inventario:stock_list' %}" class="btn btn-sm me-2" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
-                                <i class="fas fa-boxes me-1"></i> Control de Stock
-                            </a>
-                            <button type="button" class="btn btn-sm btn-nuevo-movimiento" data-url="{% url 'inventario:inventario_form_modal_create' %}" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;">
-                                <i class="fas fa-plus me-1"></i> Nuevo Movimiento
-                            </button>
+                        <div class="header-text">
+                            <h1>Movimientos de <span class="fw-bold">Inventario</span></h1>
+                            <p>Registro y control de entradas y salidas.</p>
                         </div>
                     </div>
+                    <div class="d-flex gap-2">
+                        <button class="header-btn" onclick="window.print()">
+                            <i class="fas fa-print me-2"></i> Imprimir
+                        </button>
+                        <a href="{% url 'inventario:stock_list' %}" class="header-btn">
+                            <i class="fas fa-boxes me-2"></i> Control Stock
+                        </a>
+                        <button type="button" class="header-btn btn-action-primary btn-nuevo-movimiento" data-url="{% url 'inventario:inventario_form_modal_create' %}">
+                            <i class="fas fa-plus me-2"></i> Nuevo Movimiento
+                        </button>
+                    </div>
                 </div>
-                
-                <div class="card-body" style="padding: 12px; background: #FAFAF8;">
 
-                    <!-- ESTADÍSTICAS PRINCIPALES -->
-                    <div class="row mb-2">
-                        <div class="col-md-3 mb-1">
-                            <div class="stat-card stat-card-1 p-2 position-relative">
-                                <div class="stat-value" style="font-size: 1.1rem;">{{ total_entradas|default:0|format_miles }}</div>
-                                <div class="stat-label" style="font-size: 0.7rem;">Total Entradas</div>
+                <div class="card-body p-4">
+                    
+                    <!-- STATS CARDS (PRESERVADAS) -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="stat-card stat-card-1 p-3 position-relative">
+                                <div class="stat-value">{{ total_entradas|default:0|format_miles }}</div>
+                                <div class="stat-label">Total Entradas</div>
                                 <i class="fas fa-arrow-up stat-icon"></i>
                             </div>
                         </div>
-                        <div class="col-md-3 mb-1">
-                            <div class="stat-card stat-card-2 p-2 position-relative">
-                                <div class="stat-value" style="font-size: 1rem;">{{ total_salidas|default:0|format_miles }}</div>
-                                <div class="stat-label" style="font-size: 0.7rem;">Total Salidas</div>
+                        <div class="col-md-3">
+                            <div class="stat-card stat-card-2 p-3 position-relative">
+                                <div class="stat-value">{{ total_salidas|default:0|format_miles }}</div>
+                                <div class="stat-label">Total Salidas</div>
                                 <i class="fas fa-arrow-down stat-icon"></i>
                             </div>
                         </div>
-                        <div class="col-md-3 mb-1">
-                            <div class="stat-card stat-card-3 p-2 position-relative">
-                                <div class="stat-value" style="font-size: 1rem;">${{ valor_total|default:0|format_miles }}</div>
-                                <div class="stat-label" style="font-size: 0.7rem;">Valor Total</div>
+                        <div class="col-md-3">
+                            <div class="stat-card stat-card-3 p-3 position-relative">
+                                <div class="stat-value">${{ valor_total|default:0|format_miles }}</div>
+                                <div class="stat-label">Valor Total</div>
                                 <i class="fas fa-dollar-sign stat-icon"></i>
                             </div>
                         </div>
-                        <div class="col-md-3 mb-1">
-                            <div class="stat-card stat-card-4 p-2 position-relative">
-                                <div class="stat-value" style="font-size: 1rem;">{{ page_obj.paginator.count|default:0|format_miles }}</div>
-                                <div class="stat-label" style="font-size: 0.7rem;">Total Movimientos</div>
+                        <div class="col-md-3">
+                            <div class="stat-card stat-card-4 p-3 position-relative">
+                                <div class="stat-value">{{ page_obj.paginator.count|default:0|format_miles }}</div>
+                                <div class="stat-label">Movimientos</div>
                                 <i class="fas fa-exchange-alt stat-icon"></i>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- FILTROS -->
-                    <div class="filter-section">
-                        <form method="get" action="{% url 'inventario:inventario_list' %}">
-                            <div class="row g-2">
-                                <div class="col-md-3">
-                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                        <i class="fas fa-warehouse me-1"></i>Bodega
-                                    </label>
-                                    <select name="bodega_destino" class="form-select form-select-sm">
-                                        <option value="">Todas</option>
-                                        {% for bodega in filter_form.fields.bodega_destino.queryset %}
-                                            <option value="{{ bodega.id }}" {% if filter_form.bodega_destino.value == bodega.id|stringformat:"s" %}selected{% endif %}>
-                                                {{ bodega.nombre }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
+                    <div class="p-3 mb-4" style="background: #FAFAF8; border-radius: 12px; border: 1px solid #E8DCC8;">
+                         <form method="get" action="{% url 'inventario:inventario_list' %}" class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted mb-1">Bodega</label>
+                                <select name="bodega_destino" class="form-select-stone w-100">
+                                    <option value="">Todas</option>
+                                    {% for bodega in filter_form.fields.bodega_destino.queryset %}
+                                        <option value="{{ bodega.id }}" {% if filter_form.bodega_destino.value == bodega.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ bodega.nombre }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted mb-1">Tipo Movimiento</label>
+                                <select name="tipo_movimiento" class="form-select-stone w-100">
+                                    <option value="">Todos</option>
+                                    <option value="entrada" {% if filter_form.tipo_movimiento.value == 'entrada' %}selected{% endif %}>Entrada</option>
+                                    <option value="salida" {% if filter_form.tipo_movimiento.value == 'salida' %}selected{% endif %}>Salida</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-muted mb-1">Buscar</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0" style="border-color: #D4C4A8;"><i class="fas fa-search text-muted"></i></span>
+                                    <input type="text" name="search" class="form-control-stone border-start-0" 
+                                           placeholder="Folio, artículo..." value="{{ filter_form.search.value|default:'' }}" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
                                 </div>
-                                <div class="col-md-2">
-                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                        <i class="fas fa-exchange-alt me-1"></i>Tipo
-                                    </label>
-                                    <select name="tipo_movimiento" class="form-select form-select-sm">
-                                        <option value="">Todos</option>
-                                        <option value="entrada" {% if filter_form.tipo_movimiento.value == 'entrada' %}selected{% endif %}>Entrada</option>
-                                        <option value="salida" {% if filter_form.tipo_movimiento.value == 'salida' %}selected{% endif %}>Salida</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                        <i class="fas fa-search me-1"></i>Buscar
-                                    </label>
-                                    <input type="text" name="search" class="form-control form-control-sm"
-                                           placeholder="🔍 Buscar por folio, artículo..." value="{{ filter_form.search.value|default:'' }}">
-                                </div>
-                                <div class="col-md-3 d-flex gap-2">
-                                    <button type="submit" class="btn btn-filter flex-grow-1">
-                                        <i class="fas fa-filter me-1"></i>Filtrar
-                                    </button>
-                                    <a href="{% url 'inventario:inventario_list' %}" class="btn btn-sm btn-outline-secondary">
-                                        <i class="fas fa-times"></i>
-                                    </a>
-                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex gap-2">
+                                <button type="submit" class="header-btn btn-action-primary w-100 justify-content-center">
+                                    <i class="fas fa-filter me-2"></i> Filtrar
+                                </button>
+                                <a href="{% url 'inventario:inventario_list' %}" class="header-btn px-3" title="Limpiar">
+                                    <i class="fas fa-times"></i>
+                                </a>
                             </div>
                         </form>
                     </div>
-                    
-                    <!-- Lista de Movimientos -->
-                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
-                        <table class="table table-hover table-compact table-sm mb-0">
+
+                    <!-- TABLA -->
+                    <div class="table-responsive">
+                        <table class="table-piedra">
                             <thead>
                                 <tr>
-                                    <th style="width: 8%;">Folio</th>
-                                    <th style="width: 10%;">Tipo</th>
-                                    <th style="width: 12%;">Fecha</th>
-                                    <th style="width: 15%;">Artículo</th>
-                                    <th style="width: 10%;">Cantidad</th>
-                                    <th style="width: 10%;">Precio</th>
-                                    <th style="width: 12%;">Total</th>
-                                    <th style="width: 15%;">Bodega</th>
-                                    <th style="width: 10%;">Estado</th>
-                                    <th class="text-center" style="width: 8%;">Acciones</th>
+                                    <th>Folio</th>
+                                    <th>Tipo</th>
+                                    <th>Fecha</th>
+                                    <th>Artículo</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Precio</th>
+                                    <th class="text-end">Total</th>
+                                    <th>Bodega</th>
+                                    <th>Estado</th>
+                                    <th class="text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for movimiento in page_obj %}
                                 <tr>
-                                    <td style="font-size: 0.7rem;">
-                                        <strong style="color: #6F5B44;">{{ movimiento.folio }}</strong>
-                                    </td>
-                                    <td style="font-size: 0.7rem;">
+                                    <td><strong style="color: var(--stone-primary);">{{ movimiento.folio }}</strong></td>
+                                    <td>
                                         {% if movimiento.tipo_movimiento == 'entrada' %}
-                                            <span class="badge bg-success" style="font-size: 0.6rem;">
-                                                <i class="fas fa-arrow-up me-1"></i>Entrada
-                                            </span>
+                                            <span class="badge-stone bg-stone-success"><i class="fas fa-arrow-up me-1"></i>Entrada</span>
                                         {% else %}
-                                            <span class="badge bg-danger" style="font-size: 0.6rem;">
-                                                <i class="fas fa-arrow-down me-1"></i>Salida
-                                            </span>
+                                            <span class="badge-stone bg-stone-danger"><i class="fas fa-arrow-down me-1"></i>Salida</span>
                                         {% endif %}
                                     </td>
-                                    <td style="font-size: 0.7rem;">{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</td>
-                                    <td style="font-size: 0.7rem;">{{ movimiento.articulo.nombre|truncatechars:20 }}</td>
-                                    <td style="font-size: 0.7rem; text-align: right;">{{ movimiento.cantidad|format_miles }}</td>
-                                    <td style="font-size: 0.7rem; text-align: right;">${{ movimiento.precio_unitario|format_miles }}</td>
-                                    <td style="font-size: 0.7rem; text-align: right; font-weight: 600; color: #6F5B44;">${{ movimiento.total|format_miles }}</td>
-                                    <td style="font-size: 0.7rem;">
+                                    <td class="text-muted">{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ movimiento.articulo.nombre|truncatechars:25 }}</td>
+                                    <td class="text-end">{{ movimiento.cantidad|format_miles }}</td>
+                                    <td class="text-end text-muted">${{ movimiento.precio_unitario|format_miles }}</td>
+                                    <td class="text-end fw-bold" style="color: var(--stone-text);">${{ movimiento.total|format_miles }}</td>
+                                    <td class="small">
                                         {% if movimiento.tipo_movimiento == 'entrada' %}
-                                            {{ movimiento.bodega_destino.nombre|default:'-'|truncatechars:15 }}
+                                            {{ movimiento.bodega_destino.nombre|default:'-'|truncatechars:18 }}
                                         {% elif movimiento.tipo_movimiento == 'salida' %}
-                                            {{ movimiento.bodega_origen.nombre|default:'-'|truncatechars:15 }}
+                                            {{ movimiento.bodega_origen.nombre|default:'-'|truncatechars:18 }}
                                         {% elif movimiento.tipo_movimiento == 'transferencia' %}
-                                            {% if movimiento.bodega_origen and movimiento.bodega_destino %}
-                                                {{ movimiento.bodega_origen.nombre|truncatechars:10 }} → {{ movimiento.bodega_destino.nombre|truncatechars:10 }}
-                                            {% else %}
-                                                {{ movimiento.bodega_origen.nombre|default:'-'|truncatechars:15 }}
-                                            {% endif %}
+                                            {{ movimiento.bodega_origen.nombre|truncatechars:10 }} <i class="fas fa-arrow-right mx-1 text-muted"></i> {{ movimiento.bodega_destino.nombre|truncatechars:10 }}
                                         {% else %}
-                                            {{ movimiento.bodega_destino.nombre|default:'-'|truncatechars:15 }}
+                                            {{ movimiento.bodega_destino.nombre|default:'-'|truncatechars:18 }}
                                         {% endif %}
                                     </td>
-                                    <td style="font-size: 0.7rem;">
+                                    <td>
                                         {% if movimiento.estado == 'pendiente' %}
-                                            <span class="badge bg-warning" style="font-size: 0.6rem;">
-                                                <i class="fas fa-clock me-1"></i>Pendiente
-                                            </span>
+                                            <span class="badge-stone bg-stone-warning">Pendiente</span>
                                         {% else %}
-                                            <span class="badge bg-secondary" style="font-size: 0.6rem;">
-                                                <i class="fas fa-check me-1"></i>Procesado
-                                            </span>
+                                            <span class="badge-stone bg-stone-secondary">Procesado</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        <div class="btn-group" role="group">
-                                            <button type="button"
-                                                    class="btn btn-sm btn-action btn-outline-primary btn-ver-detalle"
-                                                    data-url="{% url 'inventario:inventario_detail_modal' movimiento.pk %}"
-                                                    title="Ver detalle">
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <button type="button" class="btn-icon-stone btn-ver-detalle" data-url="{% url 'inventario:inventario_detail_modal' movimiento.pk %}" title="Ver Detalle">
                                                 <i class="fas fa-eye"></i>
                                             </button>
-                                            <button type="button"
-                                                    class="btn btn-sm btn-action btn-outline-secondary btn-editar-movimiento"
-                                                    data-url="{% url 'inventario:inventario_form_modal_edit' movimiento.pk %}"
-                                                    title="Editar">
+                                            <button type="button" class="btn-icon-stone btn-editar-movimiento" data-url="{% url 'inventario:inventario_form_modal_edit' movimiento.pk %}" title="Editar">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                         </div>
@@ -215,56 +353,37 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="10" class="text-center py-2" style="font-size: 0.7rem;">
-                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
-                                        <p style="color: #8B7355; font-size: 0.7rem;">No hay movimientos registrados</p>
+                                    <td colspan="10" class="text-center py-5">
+                                        <div class="d-flex flex-column align-items-center opacity-50">
+                                            <i class="fas fa-box-open fa-3x mb-3 text-muted"></i>
+                                            <h6 class="fw-bold text-muted">No hay movimientos registrados</h6>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                    
+                
                     <!-- PAGINACIÓN -->
                     {% if page_obj.has_other_pages %}
-                    <div class="d-flex justify-content-center mt-2">
-                        <nav aria-label="Paginación">
-                            <ul class="pagination pagination-sm mb-0" style="font-size: 0.75rem;">
+                    <div class="d-flex justify-content-center mt-4 border-top pt-3">
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0">
                                 {% if page_obj.has_previous %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">
-                                        «
-                                    </a>
-                                </li>
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">
-                                        ‹
-                                    </a>
-                                </li>
+                                <li class="page-item"><a class="page-link text-muted" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">«</a></li>
+                                <li class="page-item"><a class="page-link text-muted" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">‹</a></li>
                                 {% endif %}
-
-                                <li class="page-item active">
-                                    <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
-                                        {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-                                    </span>
-                                </li>
-
+                                <li class="page-item active"><span class="page-link" style="background: var(--stone-primary); border-color: var(--stone-primary);">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
                                 {% if page_obj.has_next %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">
-                                        ›
-                                    </a>
-                                </li>
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" style="padding: 4px 8px; font-size: 0.7rem;">
-                                        »
-                                    </a>
-                                </li>
+                                <li class="page-item"><a class="page-link text-muted" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">›</a></li>
+                                <li class="page-item"><a class="page-link text-muted" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">»</a></li>
                                 {% endif %}
                             </ul>
                         </nav>
                     </div>
                     {% endif %}
+                    
                 </div>
             </div>
         </div>
@@ -274,14 +393,19 @@
 <!-- Modal Formulario Movimiento -->
 <div class="modal fade" id="modalInventarioForm" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border-bottom: none;">
-                <h5 class="modal-title" id="modalInventarioFormTitle" style="font-weight: 600;">Movimiento de Inventario</h5>
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header border-bottom-0 py-3 px-4" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);">
+                <div class="d-flex align-items-center gap-3">
+                     <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.8); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #6F5B44;">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h5 class="modal-title fw-bold text-dark m-0" id="modalInventarioFormTitle">Movimiento de Inventario</h5>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0" id="modalInventarioFormBody">
-                <div class="p-4 text-center" style="color: #6F5B44;">
-                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                <div class="p-5 text-center text-muted">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
                     <p>Cargando formulario...</p>
                 </div>
             </div>
@@ -292,343 +416,198 @@
 <!-- Modal Detalle Movimiento -->
 <div class="modal fade" id="modalInventarioDetalle" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border-bottom: none;">
-                <h5 class="modal-title" style="font-weight: 600;">Detalle del Movimiento</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden; background: transparent;">
             <div class="modal-body p-0" id="modalInventarioDetalleBody">
-                <div class="p-4 text-center" style="color: #6F5B44;">
-                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                <div class="p-5 text-center text-muted" style="background: white; border-radius: 16px;">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
                     <p>Cargando detalle...</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block extra_js %}
 {{ block.super }}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const modalDetalle = new bootstrap.Modal(document.getElementById('modalInventarioDetalle'));
-    const modalDetalleBody = document.getElementById('modalInventarioDetalleBody');
+    // Mantengo la lógica JS original ya que funciona bien con la carga dinámica de modales
+    document.addEventListener('DOMContentLoaded', function() {
+        const modalDetalle = new bootstrap.Modal(document.getElementById('modalInventarioDetalle'));
+        const modalDetalleBody = document.getElementById('modalInventarioDetalleBody');
 
-    const modalForm = new bootstrap.Modal(document.getElementById('modalInventarioForm'));
-    const modalFormBody = document.getElementById('modalInventarioFormBody');
-    const modalFormTitle = document.getElementById('modalInventarioFormTitle');
+        const modalForm = new bootstrap.Modal(document.getElementById('modalInventarioForm'));
+        const modalFormBody = document.getElementById('modalInventarioFormBody');
+        const modalFormTitle = document.getElementById('modalInventarioFormTitle');
 
-    function initSelectTerroso(scope) {
-        if (window.jQuery) {
-            $(scope).find('.select-terroso').select2({
-                theme: 'default',
-                width: '100%',
-                dropdownParent: $('#modalInventarioForm'),
-                placeholder: function() {
-                    return $(this).data('placeholder') || 'Seleccione';
-                }
-            });
-        }
-    }
-
-    function bindFormEvents(container) {
-        const form = container.querySelector('#inventarioFormModal');
-        if (!form) return;
-
-        form.addEventListener('submit', function(event) {
-            event.preventDefault();
-            const submitButton = form.querySelector('button[type="submit"]');
-            if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
+        function initSelectTerroso(scope) {
+            if (window.jQuery) {
+                $(scope).find('.select-terroso').select2({
+                    theme: 'default',
+                    width: '100%',
+                    dropdownParent: $('#modalInventarioForm'),
+                    placeholder: function() {
+                        return $(this).data('placeholder') || 'Seleccione';
+                    }
+                });
             }
+        }
 
-            const formData = new FormData(form);
-            const csrfToken = form.querySelector('[name="csrfmiddlewaretoken"]').value;
+        function bindFormEvents(container) {
+            const form = container.querySelector('#inventarioFormModal');
+            if (!form) return;
 
-            fetch(form.action, {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': csrfToken
-                },
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw data;
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    modalForm.hide();
-                    window.location.reload();
-                }
-            })
-            .catch(error => {
-                const html = error && error.html ? error.html : `
-                    <div class="p-4 text-center" style="color: #dc3545;">
-                        <i class="fas fa-times-circle fa-2x mb-2"></i>
-                        <p>No se pudo guardar el movimiento.</p>
-                    </div>`;
-                modalFormBody.innerHTML = html;
-                initSelectTerroso(modalFormBody);
-                bindFormEvents(modalFormBody);
-            })
-            .finally(() => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const submitButton = form.querySelector('button[type="submit"]');
                 if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = submitButton.dataset.label || submitButton.innerHTML;
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
                 }
+
+                const formData = new FormData(form);
+                const csrfToken = form.querySelector('[name="csrfmiddlewaretoken"]').value;
+
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw data;
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        modalForm.hide();
+                        window.location.reload();
+                    }
+                })
+                .catch(error => {
+                    const html = error && error.html ? error.html : `
+                        <div class="p-4 text-center" style="color: #dc3545;">
+                            <i class="fas fa-times-circle fa-2x mb-2"></i>
+                            <p>No se pudo guardar el movimiento.</p>
+                        </div>`;
+                    modalFormBody.innerHTML = html;
+                    initSelectTerroso(modalFormBody);
+                    bindFormEvents(modalFormBody);
+                })
+                .finally(() => {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = submitButton.dataset.label || submitButton.innerHTML;
+                    }
+                });
             });
-        });
 
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn && !submitBtn.dataset.label) {
-            submitBtn.dataset.label = submitBtn.innerHTML;
-        }
-    }
-
-    function cargarFormulario(url, titulo) {
-        modalFormTitle.textContent = titulo;
-        modalFormBody.innerHTML = `
-            <div class="p-4 text-center" style="color: #6F5B44;">
-                <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
-                <p>Cargando formulario...</p>
-            </div>
-        `;
-
-        fetch(url, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn && !submitBtn.dataset.label) {
+                submitBtn.dataset.label = submitBtn.innerHTML;
             }
-        })
-        .then(resp => {
-            if (!resp.ok) throw new Error('No se pudo cargar el formulario');
-            return resp.json();
-        })
-        .then(data => {
-            modalFormBody.innerHTML = data.html;
-            initSelectTerroso(modalFormBody);
-            bindFormEvents(modalFormBody);
-            modalForm.show();
-        })
-        .catch(err => {
+        }
+
+        function cargarFormulario(url, titulo) {
+            modalFormTitle.textContent = titulo;
+            // Spinner inicial
             modalFormBody.innerHTML = `
-                <div class="p-4 text-center" style="color: #dc3545;">
-                    <i class="fas fa-times-circle fa-2x mb-2"></i>
-                    <p>${err.message}</p>
-                </div>
-            `;
-            modalForm.show();
-        });
-    }
-
-    document.querySelectorAll('.btn-nuevo-movimiento').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const url = btn.dataset.url;
-            if (!url) return;
-            cargarFormulario(url, 'Nuevo Movimiento');
-        });
-    });
-
-    document.querySelectorAll('.btn-editar-movimiento').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const url = btn.dataset.url;
-            if (!url) return;
-            cargarFormulario(url, 'Editar Movimiento');
-        });
-    });
-
-    document.querySelectorAll('.btn-ver-detalle').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const url = this.dataset.url;
-            if (!url) return;
-
-            modalDetalleBody.innerHTML = `
-                <div class="p-4 text-center" style="color: #6F5B44;">
-                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
-                    <p>Cargando detalle...</p>
+                <div class="p-5 text-center text-muted">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                    <p>Cargando formulario...</p>
                 </div>
             `;
 
-            fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(resp => {
-                if (!resp.ok) throw new Error('Error al cargar el detalle');
+                if (!resp.ok) throw new Error('No se pudo cargar el formulario');
                 return resp.json();
             })
             .then(data => {
-                modalDetalleBody.innerHTML = data.html;
-                modalDetalle.show();
+                modalFormBody.innerHTML = data.html;
+                initSelectTerroso(modalFormBody);
+                bindFormEvents(modalFormBody);
+                modalForm.show();
             })
             .catch(err => {
-                modalDetalleBody.innerHTML = `
-                    <div class="p-4 text-center" style="color: #dc3545;">
+                modalFormBody.innerHTML = `
+                    <div class="p-4 text-center text-danger">
                         <i class="fas fa-times-circle fa-2x mb-2"></i>
                         <p>${err.message}</p>
                     </div>
                 `;
-                modalDetalle.show();
+                modalForm.show();
             });
-        });
-    });
+        }
 
-    // FIX: Eliminar backdrop cuando se cierra el modal
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('hidden.bs.modal', function () {
-            document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
-                backdrop.remove();
+        document.querySelectorAll('.btn-nuevo-movimiento').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const url = btn.dataset.url;
+                if (!url) return;
+                cargarFormulario(url, 'Nuevo Movimiento');
             });
-            document.body.classList.remove('modal-open');
-            document.body.style.overflow = 'auto';
-            document.body.style.paddingRight = '0';
+        });
+
+        document.querySelectorAll('.btn-editar-movimiento').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const url = btn.dataset.url;
+                if (!url) return;
+                cargarFormulario(url, 'Editar Movimiento');
+            });
+        });
+
+        document.querySelectorAll('.btn-ver-detalle').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const url = this.dataset.url;
+                if (!url) return;
+
+                modalDetalleBody.innerHTML = `
+                    <div class="p-5 text-center text-muted">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p>Cargando detalle...</p>
+                    </div>
+                `;
+
+                fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(resp => {
+                    if (!resp.ok) throw new Error('Error al cargar el detalle');
+                    return resp.json();
+                })
+                .then(data => {
+                    modalDetalleBody.innerHTML = data.html;
+                    modalDetalle.show();
+                })
+                .catch(err => {
+                    modalDetalleBody.innerHTML = `
+                        <div class="p-4 text-center text-danger">
+                            <i class="fas fa-times-circle fa-2x mb-2"></i>
+                            <p>${err.message}</p>
+                        </div>
+                    `;
+                    modalDetalle.show();
+                });
+            });
+        });
+        
+        // FIX: Eliminar backdrop cuando se cierra el modal
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('hidden.bs.modal', function () {
+                document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+                    backdrop.remove();
+                });
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = 'auto'; // Restaurar scroll
+                document.body.style.paddingRight = '0';
+            });
         });
     });
-});
 </script>
-{% endblock %}
-
-<style>
-    /* Paleta terrosa para tarjetas de estadísticas */
-    .stat-card {
-        border: none;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-    }
-
-    .stat-card-1 {
-        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
-    }
-
-    .stat-card-2 {
-        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
-    }
-
-    .stat-card-3 {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-    }
-
-    .stat-card-4 {
-        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
-    }
-
-    .stat-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: white;
-        margin-bottom: 0.25rem;
-    }
-
-    .stat-label {
-        color: rgba(255,255,255,0.9);
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 500;
-    }
-
-    .stat-icon {
-        font-size: 2rem;
-        color: rgba(255,255,255,0.3);
-        position: absolute;
-        right: 15px;
-        bottom: 15px;
-    }
-
-    .filter-section {
-        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .table-compact {
-        font-size: 0.75rem;
-        line-height: 1.1;
-    }
-
-    .table-compact thead th {
-        padding: 4px 2px;
-        font-weight: 600;
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-        border: none;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.2px;
-        line-height: 1.1;
-    }
-
-    .table-compact tbody td {
-        padding: 2px 3px;
-        vertical-align: middle;
-        line-height: 1.2;
-        font-size: 0.7rem;
-    }
-
-    .table-compact tbody tr {
-        height: 28px;
-    }
-
-    .btn-filter {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        border: none;
-        color: white;
-        padding: 8px 20px;
-        font-weight: 500;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-filter:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
-        color: white;
-    }
-
-    .btn-action {
-        padding: 4px 10px;
-        font-size: 0.75rem;
-        border-radius: 6px;
-    }
-
-    .btn-outline-primary {
-        color: #8B7355;
-        border-color: #8B7355;
-    }
-
-    .btn-outline-primary:hover {
-        background-color: #8B7355;
-        border-color: #8B7355;
-        color: white;
-    }
-
-    .btn-outline-secondary {
-        color: #A67C52;
-        border-color: #A67C52;
-    }
-
-    .btn-outline-secondary:hover {
-        background-color: #A67C52;
-        border-color: #A67C52;
-        color: white;
-    }
-</style>
-
 {% endblock %}

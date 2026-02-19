@@ -1,122 +1,127 @@
-<div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
-    <div class="d-flex align-items-center">
-        <i class="fas fa-edit fa-2x text-white me-3"></i>
-        <div>
-            <h5 class="mb-0 text-white">Editar Ajuste de Stock</h5>
-            <small class="text-white-50">Modifique los datos del ajuste</small>
+<style>
+    /* Estilos locales para asegurar consistencia dentro del modal */
+    .stone-modal-header {
+        background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #E8DCC8;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-radius: 16px 16px 0 0;
+    }
+    .modal-icon-box {
+        width: 48px; height: 48px;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(4px);
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: #6F5B44;
+        font-size: 1.25rem;
+    }
+    .modal-title-text h5 {
+        color: #5D4037; font-size: 1.25rem; margin: 0; font-weight: 700; letter-spacing: -0.5px;
+    }
+    .modal-title-text small {
+        color: #795548; font-size: 0.85rem; font-weight: 500;
+    }
+    
+    .form-label-premium {
+        font-size: 0.75rem; font-weight: 700; color: #8B7355; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;
+    }
+    .form-control-premium {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.5rem 0.75rem; font-size: 0.9rem; color: #5D4037;
+    }
+    .form-control-premium:focus {
+        border-color: #8B7355; box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+    
+    .btn-save-modal {
+        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 10px rgba(139, 115, 85, 0.2); transition: all 0.2s;
+    }
+    .btn-save-modal:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(139, 115, 85, 0.3); color: white; }
+</style>
+
+<div class="stone-modal-header">
+    <div class="d-flex align-items-center gap-3">
+        <div class="modal-icon-box">
+            <i class="fas fa-edit"></i>
+        </div>
+        <div class="modal-title-text">
+            <h5>Editar Ajuste</h5>
+            <small>Modifique los detalles del movimiento</small>
         </div>
     </div>
-    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
-<div class="modal-body">
-    <form method="post" id="ajusteForm">
+<div class="modal-body p-4" style="background: #FAFAF8;">
+    <form method="post" id="ajusteFormEdit">
         {% csrf_token %}
-        <input type="hidden" name="detalles_data" id="detalles_data">
+        <input type="hidden" name="detalles_data" id="detalles_data_edit">
         
         <!-- Datos del Ajuste -->
-        <div class="row">
+        <div class="row g-3 mb-4">
             <div class="col-md-6">
-                <div class="mb-3">
-                    <label class="form-label">Tipo de Ajuste <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <div class="input-group-text" style="background-color: #f8f9fa;">
-                            <i class="fas fa-exchange-alt" style="color: #6c757d;"></i>
-                        </div>
-                        <select name="tipo_ajuste" id="tipo_ajuste" class="form-select" required style="border-left: none;">
-                            <option value="ENTRADA" {% if ajuste.cantidad > 0 %}selected{% endif %}>Entrada</option>
-                            <option value="SALIDA" {% if ajuste.cantidad < 0 %}selected{% endif %}>Salida</option>
-                        </select>
-                    </div>
-                </div>
+                <label class="form-label-premium">Tipo de Ajuste</label>
+                <select name="tipo_ajuste" id="tipo_ajuste_edit" class="form-select form-control-premium text-uppercase fw-bold" required>
+                    <option value="ENTRADA" {% if ajuste.cantidad > 0 %}selected{% endif %}>Entrada (+ Stock)</option>
+                    <option value="SALIDA" {% if ajuste.cantidad < 0 %}selected{% endif %}>Salida (- Stock)</option>
+                </select>
             </div>
             <div class="col-md-6">
-                <div class="mb-3">
-                    <label class="form-label">Fecha del Ajuste <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <div class="input-group-text" style="background-color: #f8f9fa;">
-                            <i class="fas fa-calendar" style="color: #6c757d;"></i>
-                        </div>
-                        <input type="date" name="fecha_ajuste" class="form-control" required value="{{ ajuste.fecha_movimiento|date:'Y-m-d' }}" style="border-left: none;">
-                    </div>
-                </div>
+                <label class="form-label-premium">Fecha</label>
+                <input type="date" name="fecha_ajuste" class="form-control form-control-premium" required value="{{ ajuste.fecha_movimiento|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-premium">Bodega</label>
+                <select name="bodega" id="bodega_edit" class="form-select form-control-premium" required>
+                    {% for bodega in bodegas %}
+                        <option value="{{ bodega.id }}" {% if bodega.id == ajuste.bodega_destino.id %}selected{% endif %}>{{ bodega.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-premium">Descripción</label>
+                <input type="text" name="descripcion" class="form-control form-control-premium" required value="{{ ajuste.descripcion }}">
             </div>
         </div>
         
-        <div class="row">
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <label class="form-label">Bodega <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <div class="input-group-text" style="background-color: #f8f9fa;">
-                            <i class="fas fa-warehouse" style="color: #6c757d;"></i>
-                        </div>
-                        <select name="bodega" id="bodega" class="form-select" required style="border-left: none;">
-                            {% for bodega in bodegas %}
-                                <option value="{{ bodega.id }}" {% if bodega.id == ajuste.bodega_destino.id %}selected{% endif %}>{{ bodega.nombre }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <label class="form-label">Descripción <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <div class="input-group-text" style="background-color: #f8f9fa;">
-                            <i class="fas fa-comment" style="color: #6c757d;"></i>
-                        </div>
-                        <input type="text" name="descripcion" class="form-control" required value="{{ ajuste.descripcion }}" style="border-left: none;">
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- UNA SOLA TARJETA para todos los artículos -->
-        <div class="card mt-3" style="border: 1px solid #E8DCC8;">
-            <div class="card-header" style="background: #F5F1E8; padding: 10px;">
+        <!-- UNA SOLA TARJETA para el artículo (Edición simple suele ser de un item, pero mantenemos estructura) -->
+        <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+            <div class="card-header bg-white border-bottom border-light py-2 px-3">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span style="font-weight: 600; color: #6F5B44; font-size: 0.85rem;">
-                        <i class="fas fa-list me-2"></i>Artículos del Ajuste
-                        <span class="badge ms-2" id="contadorArticulos" style="background: #8B7355; font-size: 0.65rem;">1</span>
+                    <span style="font-weight: 600; color: #8B7355; font-size: 0.85rem;">
+                        <i class="fas fa-box-open me-2"></i>Detalle del Artículo
                     </span>
-                    <button type="button" class="btn btn-sm btn-agregar" style="background: #8B7355; color: white; font-size: 0.7rem; padding: 4px 10px;">
-                        <i class="fas fa-plus me-1"></i>Agregar
-                    </button>
+                    <!-- Botón agregar oculto para edición simple de 1 a 1, o habilitar si se desea -->
                 </div>
             </div>
-            <div class="card-body" style="padding: 10px;">
-                <!-- Header de columnas -->
-                <div class="row mb-1" style="font-size: 0.7rem; font-weight: 600; color: #6F5B44;">
-                    <div class="col-5">Artículo</div>
-                    <div class="col-3">Cantidad</div>
-                    <div class="col-3">Comentario</div>
-                    <div class="col-1"></div>
-                </div>
-                
-                <div id="detallesContainer">
+            <div class="card-body p-3 bg-white">
+                <div id="detallesContainerEdit">
                     <!-- Item existente -->
-                    <div class="row mb-2 align-items-center detalle-item" id="detalle-1">
-                        <div class="col-5">
-                            <select class="form-select form-select-sm articulo-select" name="detalles-1-articulo" required style="font-size: 0.75rem;">
+                    <div class="row g-2 align-items-center detalle-item-edit" id="detalle-edit-1">
+                        <div class="col-12 col-md-5">
+                            <label class="small text-muted mb-1 d-md-none">Artículo</label>
+                            <select class="form-select form-select-sm articulo-select-edit form-control-premium" name="detalles-1-articulo" required>
                                 <option value="{{ ajuste.articulo.id }}" selected>{{ ajuste.articulo.codigo }} - {{ ajuste.articulo.nombre }}</option>
                             </select>
                         </div>
-                        <div class="col-3">
+                        <div class="col-6 col-md-3">
+                            <label class="small text-muted mb-1 d-md-none">Cantidad</label>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text cantidad-sign" style="font-weight: bold; {% if ajuste.cantidad > 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %} font-size: 0.75rem;">{% if ajuste.cantidad > 0 %}+{% else %}-{% endif %}</span>
-                                <input type="number" class="form-control" name="detalles-1-cantidad" id="cantidad-input-1"
+                                <span class="input-group-text cantidad-sign-edit fw-bold text-white" 
+                                      style="background: {% if ajuste.cantidad > 0 %}#66BB6A{% else %}#EF5350{% endif %}; border:none;">
+                                    {% if ajuste.cantidad > 0 %}+{% else %}-{% endif %}
+                                </span>
+                                <input type="number" class="form-control form-control-premium" name="detalles-1-cantidad" id="cantidad-input-edit-1"
                                        value="{% if cantidad_absoluta_str %}{{ cantidad_absoluta_str }}{% elif cantidad_absoluta %}{{ cantidad_absoluta|floatformat:2 }}{% else %}0.00{% endif %}"
-                                       step="0.01" min="0.01" required style="font-size: 0.75rem;">
+                                       step="0.01" min="0.01" required style="font-weight: 600;">
                             </div>
                         </div>
-                        <div class="col-3">
-                            <input type="text" class="form-control form-control-sm" name="detalles-1-comentario" placeholder="Opcional" style="font-size: 0.75rem;">
-                        </div>
-                        <div class="col-1">
-                            <button type="button" class="btn btn-danger btn-sm w-100 btn-eliminar" data-id="1" style="padding: 4px; font-size: 0.7rem;">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                        <div class="col-6 col-md-4">
+                            <label class="small text-muted mb-1 d-md-none">Comentario</label>
+                            <input type="text" class="form-control form-control-sm form-control-premium" name="detalles-1-comentario" placeholder="Nota opcional">
                         </div>
                     </div>
                 </div>
@@ -125,205 +130,151 @@
     </form>
 </div>
 
-<div class="modal-footer">
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-        <i class="fas fa-times me-2"></i>Cancelar
-    </button>
-    <button type="button" class="btn btn-guardar" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
+<div class="modal-footer border-top-0 pt-0 pb-4 px-4" style="background: #FAFAF8; border-radius: 0 0 16px 16px;">
+    <button type="button" class="btn btn-light border text-muted" data-bs-dismiss="modal">Cancelar</button>
+    <button type="button" class="btn-save-modal" id="btnGuardarEdit">
         <i class="fas fa-save me-2"></i>Guardar Cambios
     </button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+// Encapsular script para evitar conflictos globales
 (function() {
-    let detalleCount = 1;
-    let articulos = [];
+    let articulosCache = [];
+    const modalElement = document.getElementById('ajusteFormEdit').closest('.modal');
     
-    // Asegurar que la cantidad se cargue correctamente
-    setTimeout(function() {
-        const cantidadInput = document.getElementById('cantidad-input-1');
-        if (cantidadInput) {
-            console.log('Valor inicial del input cantidad:', cantidadInput.value);
-            console.log('Cantidad absoluta desde template:', '{{ cantidad_absoluta_str|default:cantidad_absoluta|default:"0.00" }}');
-            
-            // Si el input está vacío o es 0, intentar cargar el valor
-            if (!cantidadInput.value || cantidadInput.value === '0' || cantidadInput.value === '0.00') {
-                const cantidadDesdeTemplate = parseFloat('{{ cantidad_absoluta|default:0 }}');
-                if (cantidadDesdeTemplate > 0) {
-                    cantidadInput.value = cantidadDesdeTemplate.toFixed(2);
-                    console.log('Cantidad cargada desde template:', cantidadDesdeTemplate);
-                }
-            }
-        }
+    // Inicialización
+    setTimeout(() => {
+        cargarArticulosDeBodega(document.getElementById('bodega_edit').value);
     }, 100);
-    
-    // Cargar artículos
-    setTimeout(function() {
-        const bodegaId = document.getElementById('bodega').value;
-        if (bodegaId) {
-            fetch('/inventario/api/articulos-ajuste/?bodega_id=' + bodegaId)
-                .then(r => r.json())
-                .then(data => {
-                    articulos = data.articulos || [];
-                    console.log('Artículos cargados:', articulos.length);
-                    actualizarSelects();
-                });
-        }
-    }, 200);
-    
-    function actualizarSelects() {
-        document.querySelectorAll('.articulo-select').forEach(select => {
-            const valorActual = select.value;
-            const primeraOpcion = select.querySelector('option');
-            select.innerHTML = '';
-            if (primeraOpcion) select.appendChild(primeraOpcion);
-            
-            articulos.forEach(art => {
-                const opt = document.createElement('option');
-                opt.value = art.id;
-                opt.textContent = art.codigo + ' - ' + art.nombre;
-                select.appendChild(opt);
-            });
-            
-            if (valorActual) select.value = valorActual;
-        });
-    }
-    
-    // Event delegation
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.btn-agregar')) {
-            detalleCount++;
-            const html = `
-                <div class="row mb-2 align-items-center detalle-item" id="detalle-${detalleCount}">
-                    <div class="col-5">
-                        <select class="form-select form-select-sm articulo-select" name="detalles-${detalleCount}-articulo" required style="font-size: 0.75rem;">
-                            <option value="">Seleccionar...</option>
-                        </select>
-                    </div>
-                    <div class="col-3">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text" style="font-weight: bold; color: #28a745; font-size: 0.75rem;">+</span>
-                            <input type="number" class="form-control" name="detalles-${detalleCount}-cantidad" step="0.01" min="0.01" required style="font-size: 0.75rem;">
-                        </div>
-                    </div>
-                    <div class="col-3">
-                        <input type="text" class="form-control form-control-sm" name="detalles-${detalleCount}-comentario" placeholder="Opcional" style="font-size: 0.75rem;">
-                    </div>
-                    <div class="col-1">
-                        <button type="button" class="btn btn-danger btn-sm w-100 btn-eliminar" data-id="${detalleCount}" style="padding: 4px; font-size: 0.7rem;">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-            document.getElementById('detallesContainer').insertAdjacentHTML('beforeend', html);
-            actualizarSelects();
-            document.getElementById('contadorArticulos').textContent = document.querySelectorAll('.detalle-item').length;
-        }
-        
-        if (e.target.closest('.btn-eliminar')) {
-            const id = e.target.closest('.btn-eliminar').dataset.id;
-            document.getElementById('detalle-' + id).remove();
-            document.getElementById('contadorArticulos').textContent = document.querySelectorAll('.detalle-item').length;
-        }
-        
-        if (e.target.closest('.btn-guardar')) {
-            const tipoAjuste = document.getElementById('tipo_ajuste').value;
-            const detalles = [];
-            document.querySelectorAll('.detalle-item').forEach(item => {
-                const art = item.querySelector('.articulo-select').value;
-                const cantInput = item.querySelector('input[name*="cantidad"]');
-                const cant = cantInput ? parseFloat(cantInput.value) : 0;
-                const com = item.querySelector('input[name*="comentario"]') ? item.querySelector('input[name*="comentario"]').value : '';
-                
-                if (art && cant > 0) {
-                    // Aplicar signo según el tipo de ajuste
-                    const cantidadFinal = tipoAjuste === 'ENTRADA' ? cant : -cant;
-                    detalles.push({ articulo_id: art, cantidad: cantidadFinal, comentario: com });
-                }
-            });
-            
-            if (detalles.length === 0) {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Debe agregar al menos un artículo' });
-                return;
-            }
-            
-            document.getElementById('detalles_data').value = JSON.stringify(detalles);
-            
-            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } });
-            
-            fetch(window.location.href, {
-                method: 'POST',
-                body: new FormData(document.getElementById('ajusteForm'))
-            })
-            .then(r => {
-                if (!r.ok) {
-                    throw new Error('Error en la respuesta del servidor');
-                }
-                return r.json();
-            })
-            .then(data => {
-                Swal.close();
-                if (data.success) {
-                    Swal.fire({ icon: 'success', title: '¡Éxito!', text: data.message }).then(() => {
-                        const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
-                        if (modal) {
-                            modal.hide();
-                        }
-                        window.location.reload();
-                    });
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Error desconocido' });
-                }
-            })
-            .catch(error => {
-                Swal.close();
-                console.error('Error:', error);
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Error al guardar el ajuste: ' + error.message });
-            });
-        }
+
+    // Event Listeners
+    document.getElementById('bodega_edit').addEventListener('change', function() {
+        cargarArticulosDeBodega(this.value);
+    });
+
+    document.getElementById('tipo_ajuste_edit').addEventListener('change', function() {
+        actualizarSignos(this.value);
     });
     
-    document.getElementById('bodega').addEventListener('change', function() {
-        fetch('/inventario/api/articulos-ajuste/?bodega_id=' + this.value)
+    document.getElementById('btnGuardarEdit').addEventListener('click', enviarFormulario);
+
+    // Funciones
+    function cargarArticulosDeBodega(bodegaId) {
+        if (!bodegaId) return;
+        
+        fetch(`/inventario/api/articulos-ajuste/?bodega_id=${bodegaId}`)
             .then(r => r.json())
             .then(data => {
-                articulos = data.articulos || [];
+                articulosCache = data.articulos || [];
                 actualizarSelects();
             });
-    });
-    
-    // Actualizar signos cuando cambia el tipo de ajuste
-    document.getElementById('tipo_ajuste').addEventListener('change', function() {
-        const tipoAjuste = this.value;
-        const signos = document.querySelectorAll('.cantidad-sign');
+    }
+
+    function actualizarSelects() {
+        document.querySelectorAll('.articulo-select-edit').forEach(select => {
+            const currentVal = select.value;
+            // Guardar opción actual si no está en la lista nueva (para no perder el item seleccionado al abrir)
+            const currentText = select.options[select.selectedIndex]?.text;
+            
+            select.innerHTML = '';
+            
+            // Re-agregar item actual si existe y queremos preservarlo visualmente aunque cambie bodega
+            if (currentVal && currentText) {
+                 const opt = document.createElement('option');
+                 opt.value = currentVal;
+                 opt.textContent = currentText;
+                 select.appendChild(opt);
+            }
+
+            articulosCache.forEach(art => {
+                // Evitar duplicados si re-agregamos el actual
+                if (art.id != currentVal) {
+                    const opt = document.createElement('option');
+                    opt.value = art.id;
+                    opt.textContent = `${art.codigo} - ${art.nombre}`;
+                    select.appendChild(opt);
+                }
+            });
+            
+            if (currentVal) select.value = currentVal;
+        });
+    }
+
+    function actualizarSignos(tipo) {
+        const isEntrada = tipo === 'ENTRADA';
+        document.querySelectorAll('.cantidad-sign-edit').forEach(span => {
+            span.textContent = isEntrada ? '+' : '-';
+            span.style.background = isEntrada ? '#66BB6A' : '#EF5350';
+        });
+    }
+
+    function enviarFormulario() {
+        const tipoAjuste = document.getElementById('tipo_ajuste_edit').value;
+        const detalles = [];
         
-        signos.forEach(signo => {
-            if (tipoAjuste === 'ENTRADA') {
-                signo.textContent = '+';
-                signo.style.color = '#28a745';
-            } else {
-                signo.textContent = '-';
-                signo.style.color = '#dc3545';
+        document.querySelectorAll('.detalle-item-edit').forEach(item => {
+            const art = item.querySelector('.articulo-select-edit').value;
+            const cantInput = item.querySelector('input[name*="cantidad"]');
+            const cant = cantInput ? parseFloat(cantInput.value) : 0;
+            const com = item.querySelector('input[name*="comentario"]')?.value || '';
+            
+            if (art && cant > 0) {
+                const cantidadFinal = (tipoAjuste === 'ENTRADA') ? cant : -cant;
+                detalles.push({ articulo_id: art, cantidad: cantidadFinal, comentario: com });
             }
         });
-    });
-    
-    // Asegurar que al guardar se aplique el signo correcto según el tipo de ajuste
-    const originalGuardar = document.querySelector('.btn-guardar');
-    if (originalGuardar) {
-        originalGuardar.addEventListener('click', function() {
-            const tipoAjuste = document.getElementById('tipo_ajuste').value;
-            const cantidadInput = document.querySelector('input[name*="cantidad"]');
-            
-            if (cantidadInput && tipoAjuste === 'SALIDA') {
-                // Asegurar que la cantidad sea positiva antes de guardar
-                const cantidad = parseFloat(cantidadInput.value);
-                if (cantidad < 0) {
-                    cantidadInput.value = Math.abs(cantidad).toFixed(2);
-                }
+
+        if (detalles.length === 0) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Cantidad inválida', confirmButtonColor: '#8B7355' });
+            return;
+        }
+
+        document.getElementById('detalles_data_edit').value = JSON.stringify(detalles);
+        
+        // UI Loading
+        const btn = document.getElementById('btnGuardarEdit');
+        const originalContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
+
+        const form = document.getElementById('ajusteFormEdit');
+        const formData = new FormData(form);
+        
+        // URL actual es la de edición
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
             }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({ 
+                    icon: 'success', 
+                    title: '¡Actualizado!', 
+                    text: data.message, 
+                    timer: 1500,
+                    showConfirmButton: false, 
+                    confirmButtonColor: '#8B7355' 
+                }).then(() => {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('detalleModal')); // ID del modal padre en ajustes_list_simple
+                    if (modal) modal.hide();
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Error', text: data.message, confirmButtonColor: '#8B7355' });
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Error de conexión', confirmButtonColor: '#8B7355' });
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
         });
     }
 })();

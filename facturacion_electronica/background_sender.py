@@ -119,7 +119,18 @@ class BackgroundDTESender:
             
             logger.info(f"[Thread {threading.current_thread().name}] Enviando DTE {dte.folio} (intento {intentos + 1}/{max_intentos})")
             
-            # Enviar a DTEBox
+            # GUÍAS (tipo 52) con TED del CAF no necesitan DTEBox
+            if dte.tipo_dte == '52' and dte.timbre_electronico:
+                logger.info(f"[OK] Guía {dte.folio} ya tiene TED del CAF, marcando como enviada directamente")
+                with transaction.atomic():
+                    dte.fecha_envio_sii = timezone.now()
+                    dte.estado_sii = 'enviado'
+                    dte.error_envio = ''
+                    dte.save(update_fields=['fecha_envio_sii', 'estado_sii', 'error_envio'])
+                self.stats['total_enviados'] += 1
+                return
+            
+            # Enviar a DTEBox (solo para Facturas/Boletas o guías sin TED)
             dtebox = DTEBoxService(empresa)
             resultado = dtebox.timbrar_dte(dte.xml_firmado)
             

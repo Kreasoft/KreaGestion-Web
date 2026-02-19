@@ -315,6 +315,7 @@
             flex: 1;
             margin-bottom: 0;
             -webkit-line-clamp: 1;
+            line-clamp: 1;
             font-size: 0.85rem;
         }
 
@@ -427,6 +428,7 @@
             text-overflow: ellipsis;
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
         }
 
@@ -717,6 +719,7 @@
             from {
                 opacity: 0;
             }
+
             to {
                 opacity: 1;
             }
@@ -727,6 +730,7 @@
                 transform: translateY(50px);
                 opacity: 0;
             }
+
             to {
                 transform: translateY(0);
                 opacity: 1;
@@ -734,9 +738,12 @@
         }
 
         @keyframes bounce {
-            0%, 100% {
+
+            0%,
+            100% {
                 transform: scale(1);
             }
+
             50% {
                 transform: scale(1.05);
             }
@@ -768,7 +775,7 @@
             right: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
             animation: rotate 20s linear infinite;
         }
 
@@ -776,6 +783,7 @@
             from {
                 transform: rotate(0deg);
             }
+
             to {
                 transform: rotate(360deg);
             }
@@ -1044,8 +1052,7 @@
                     </div>
                 </div>
                 <div class="pos-header-actions">
-                    <button class="btn btn-outline-light" onclick="mostrarAyudaPOS()"
-                        title="Ayuda del POS">
+                    <button class="btn btn-outline-light" onclick="mostrarAyudaPOS()" title="Ayuda del POS">
                         <i class="fas fa-question-circle me-1"></i>Ayuda
                     </button>
                     <button class="btn btn-outline-light" onclick="mostrarHistorialTickets()"
@@ -1404,6 +1411,45 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Interceptor de redirect_url -->
+    <script>
+        // Interceptar fetch para manejar redirect_url en respuestas JSON
+        (function () {
+            const originalFetch = window.fetch;
+
+            window.fetch = function (...args) {
+                return originalFetch.apply(this, args)
+                    .then(async response => {
+                        // Solo interceptar si es una respuesta OK
+                        if (!response.ok) return response;
+
+                        // Clonar para no consumir el stream
+                        const clonedResponse = response.clone();
+
+                        // Intentar parsear JSON
+                        try {
+                            const data = await clonedResponse.json();
+
+                            // Si la respuesta tiene redirect_url, redirigir automáticamente
+                            if (data && data.redirect_url) {
+                                console.log('[INTERCEPT] Redirigiendo a:', data.redirect_url);
+                                setTimeout(() => {
+                                    window.location.href = data.redirect_url;
+                                }, 100);
+                            }
+                        } catch (e) {
+                            // No es JSON, devolver la respuesta original
+                        }
+
+                        return response;
+                    });
+            };
+
+            console.log('[POS] Interceptor de redirect_url instalado');
+        })();
+    </script>
+
     <script>
         console.log('=== POS SCRIPT CARGADO - VERSION 2025-10-11-19:37 ===');
         // Version: 2025-10-11-19:37 - Fixed addToCart function
@@ -2475,6 +2521,11 @@
                         cart = [];
                         updateCartDisplay();
                         updateTotals();
+
+                        // Limpiar variables de tipo de documento/ticket
+                        window.tipoDocumentoPlaneadoTicket = null;
+                        window.tipoTicketSeleccionado = null;
+                        window.tipoDespachoTicket = null;
                     }
 
                     // Restaurar modo escaneo si estaba activo
@@ -2552,6 +2603,8 @@
                 window.tipoDocumentoSeleccionado = null;
 
                 let tiposPermitidos = window.currentEstacion.tipos_documentos;
+                // Filtrar "Ticket Facturable" (ticket) para que no aparezca en el POS
+                tiposPermitidos = tiposPermitidos.filter(t => t !== 'ticket');
                 console.log('Tipos permitidos:', tiposPermitidos);
 
                 // Si está en modo "con_cliente", filtrar boletas y vales
@@ -2588,7 +2641,8 @@
                         'boleta': { nombre: 'Boleta', icono: 'fa-receipt', color: '#007bff', disponibles: getFolios('boleta') },
                         'guia': { nombre: 'Guía de Despacho', icono: 'fa-truck', color: '#ffc107', disponibles: getFolios('guia') },
                         'cotizacion': { nombre: 'Cotización', icono: 'fa-file-alt', color: '#6f42c1', disponibles: 999 },
-                        'vale': { nombre: 'Vale Facturable', icono: 'fa-ticket-alt', color: '#6c757d', disponibles: 999 }
+                        'ticket': { nombre: 'Ticket Facturable', icono: 'fa-ticket-alt', color: '#8B7355', disponibles: 999 },
+                        'vale': { nombre: 'Vale Interno', icono: 'fa-file-contract', color: '#6c757d', disponibles: 999 }
                     };
 
                     const info = config[tipo];
@@ -2705,19 +2759,23 @@
             
             <!-- Tipo de Despacho (solo para Guías) -->
             <div class="mb-3" id="tipo-despacho-container" style="display: none;">
-                <label class="form-label" style="font-weight: 700; color: #495057; text-align: left; display: block;">Motivo de Traslado *</label>
-                <select id="tipo-despacho" class="form-control">
-                    <option value="">Seleccionar motivo...</option>
-                    <option value="1">1 - Venta</option>
+                <label class="form-label" style="font-weight: 700; color: #dc3545; text-align: left; display: block;">
+                    <i class="fas fa-exclamation-triangle me-1"></i>Motivo de Traslado * (OBLIGATORIO)
+                </label>
+                <select id="tipo-despacho" class="form-control" required style="border: 2px solid #dc3545; background-color: #fff3cd;">
+                    <option value="">⚠️ DEBE SELECCIONAR UN MOTIVO...</option>
+                    <option value="1">1 - Venta (genera obligación tributaria)</option>
                     <option value="2">2 - Venta por efectuar (anticipada)</option>
                     <option value="3">3 - Consignación</option>
                     <option value="4">4 - Devolución</option>
-                    <option value="5">5 - Traslado interno</option>
+                    <option value="5">5 - Traslado interno (SIN obligación tributaria)</option>
                     <option value="6">6 - Transformación de productos</option>
                     <option value="7">7 - Entrega gratuita</option>
                     <option value="8">8 - Otros</option>
                 </select>
-                <small style="color: #adb5bd; font-size: 0.7rem;">Según SII - Motivo de traslado de la guía de despacho</small>
+                <small style="color: #dc3545; font-size: 0.75rem; font-weight: 600;">
+                    <i class="fas fa-info-circle me-1"></i>Este campo afecta las obligaciones tributarias. Seleccione con cuidado.
+                </small>
             </div>
             
             <!-- Referencias (solo para Facturas y Guías) -->
@@ -2917,23 +2975,28 @@
                                 const disponibles = parseInt(this.getAttribute('data-disponibles') || '0');
                                 const tipo = this.getAttribute('data-tipo');
 
-                                // Si es "vale" y aún no se ha seleccionado el tipo de documento planeado
-                                if (tipo === 'vale' && !window.tipoDocumentoPlaneadoVale) {
+                                // Si es "ticket" y aún no se ha seleccionado el tipo de documento planeado
+                                if (tipo === 'ticket' && !window.tipoDocumentoPlaneadoTicket) {
                                     e.preventDefault();
                                     e.stopPropagation();
 
-                                    // Cerrar el modal actual y mostrar selector de tipo de documento para el vale
+                                    // Cerrar el modal actual y mostrar selector de tipo de documento para el ticket
                                     Swal.close();
                                     setTimeout(() => {
-                                        mostrarSelectorTipoVale();
+                                        mostrarSelectorTipoTicket();
                                     }, 100);
                                     return;
                                 }
 
-                                // Si es "vale" y ya se seleccionó el tipo, continuar normalmente
-                                if (tipo === 'vale' && window.tipoDocumentoPlaneadoVale) {
+                                // Si es "ticket" y ya se seleccionó el tipo, continuar normalmente
+                                if (tipo === 'ticket' && window.tipoDocumentoPlaneadoTicket) {
                                     // El tipo ya está guardado, continuar con el flujo normal
-                                    console.log('[VALE] Continuando con tipo_documento_planeado:', window.tipoDocumentoPlaneadoVale);
+                                    console.log('[TICKET] Continuando con tipo_documento_planeado:', window.tipoDocumentoPlaneadoTicket);
+                                }
+                                
+                                // Si es "vale" (Interno), no requiere selector extra
+                                if (tipo === 'vale') {
+                                    console.log('[VALE INTERNO] Seleccionado');
                                 }
 
                                 // Bloquear si no hay folios (para facturas, boletas, guías)
@@ -3004,6 +3067,20 @@
                                 window.tipoDocumentoSeleccionado = tipo; // Guardar en variable global
                                 console.log('[TIPO DOC] Tipo seleccionado:', tipo);
                                 console.log('[TIPO DOC] Campo hidden value:', tipoDocSelect.value);
+
+                                // Si es boleta, buscar automáticamente cliente genérico
+                                if (tipo === 'boleta') {
+                                    const busquedaInput = document.getElementById('busqueda-cliente');
+                                    if (busquedaInput) {
+                                        busquedaInput.value = '66666666-6';
+                                        // Pequeño delay para asegurar que la UI se actualice
+                                        setTimeout(() => {
+                                            if (typeof buscarCliente === 'function') {
+                                                buscarCliente();
+                                            }
+                                        }, 100);
+                                    }
+                                }
 
                                 // Trigger del evento change para mostrar/ocultar campos
                                 toggleCamposSegunTipoDoc();
@@ -3120,19 +3197,35 @@
                             return false;
                         }
 
-                        // Si es vale, incluir el tipo_documento_planeado seleccionado previamente
+                        // DEBUG CRÍTICO: Verificar valor de tipo_despacho
+                        console.log('[CRITICAL DEBUG] tipo_despacho antes de enviar:', tipoDespacho);
+                        console.log('[CRITICAL DEBUG] tipoDocumento:', tipoDocumento);
+                        console.log('[CRITICAL DEBUG] ¿Es guía?:', tipoDocumento === 'guia');
+
+                        // CRÍTICO: Todo lo que sale del POS hacia preventa (excepto cotización) 
+                        // debe ser tipo 'ticket'. El destino real va en tipo_documento_planeado.
                         const datosRetorno = {
-                            tipo_documento: tipoDocumento,
+                            tipo_documento: (tipoDocumento === 'cotizacion') ? 'cotizacion' : 'ticket',
+                            tipo_documento_original: tipoDocumento, // Mantener por referencia
                             rut_cliente: rutCliente,
                             cliente_id: window.clienteSeleccionado.id,
-                            tipo_despacho: tipoDespacho || null,
+                            tipo_despacho: (tipoDespacho && tipoDespacho !== '') ? tipoDespacho : null,
                             referencias: window.referencias || []
                         };
 
-                        // Si es vale, agregar tipo_documento_planeado
-                        if (tipoDocumento === 'vale' && window.tipoDocumentoPlaneadoVale) {
-                            datosRetorno.tipo_documento_planeado = window.tipoDocumentoPlaneadoVale;
+                        // Determinar el documento planeado (el destino final)
+                        if (tipoDocumento === 'cotizacion') {
+                            datosRetorno.tipo_documento_planeado = 'cotizacion';
+                        } else if (tipoDocumento === 'ticket') {
+                            // Si el usuario eligió "Ticket Facturable" genérico, usamos lo que eligió en el sub-selector
+                            datosRetorno.tipo_documento_planeado = window.tipoDocumentoPlaneadoTicket || 'boleta';
+                        } else {
+                            // Para factura, boleta, guia o vale directo, el planeado es ese mismo tipo
+                            datosRetorno.tipo_documento_planeado = tipoDocumento;
                         }
+
+                        // DEBUG: Mostrar datos que se enviarán
+                        console.log('[CRITICAL DEBUG] datosRetorno completo:', JSON.stringify(datosRetorno, null, 2));
 
                         return datosRetorno;
                     }
@@ -3151,8 +3244,8 @@
                 });
             }
 
-            // Función para mostrar selector de tipo de documento cuando se selecciona "Vale Facturable"
-            function mostrarSelectorTipoVale() {
+            // Función para mostrar selector de tipo de documento cuando se selecciona "Ticket Facturable"
+            function mostrarSelectorTipoTicket() {
                 const tiposFacturables = ['factura', 'boleta', 'guia'];
                 const tiposPermitidos = window.currentEstacion.tipos_documentos.filter(t => tiposFacturables.includes(t));
 
@@ -3160,7 +3253,7 @@
                     Swal.fire({
                         icon: 'warning',
                         title: 'Sin Tipos Disponibles',
-                        text: 'No hay tipos de documentos facturables disponibles para este vale',
+                        text: 'No hay tipos de documentos facturables disponibles para este ticket',
                         timer: 3000
                     }).then(() => {
                         // Volver al selector principal
@@ -3178,7 +3271,7 @@
                 const opcionesTipos = tiposPermitidos.map(tipo => {
                     const info = configTipos[tipo];
                     return `
-                <button type="button" class="btn-tipo-vale btn btn-lg" 
+                <button type="button" class="btn-tipo-ticket btn btn-lg" 
                         data-tipo="${tipo}"
                         style="
                             width: 100%;
@@ -3203,9 +3296,9 @@
                     html: `
                 <div class="mb-3">
                     <p style="color: #6c757d; margin-bottom: 20px;">
-                        El vale facturable se convertirá en el tipo de documento seleccionado cuando se procese en caja.
+                        El ticket facturable se convertirá en el tipo de documento seleccionado cuando se procese en caja.
                     </p>
-                    <div id="botones-tipo-vale">
+                    <div id="botones-tipo-ticket">
                         ${opcionesTipos}
                     </div>
                 </div>
@@ -3215,11 +3308,11 @@
                     confirmButtonText: 'Continuar',
                     confirmButtonColor: '#8B7355',
                     didOpen: () => {
-                        // Manejar clics en botones de tipo para vale
-                        document.querySelectorAll('.btn-tipo-vale').forEach(btn => {
+                        // Manejar clics en botones de tipo para ticket
+                        document.querySelectorAll('.btn-tipo-ticket').forEach(btn => {
                             btn.addEventListener('click', function () {
                                 // Remover selección anterior
-                                document.querySelectorAll('.btn-tipo-vale').forEach(b => {
+                                document.querySelectorAll('.btn-tipo-ticket').forEach(b => {
                                     b.style.background = 'white';
                                     b.style.border = `3px solid ${b.getAttribute('data-tipo') === 'factura' ? '#28a745' : b.getAttribute('data-tipo') === 'boleta' ? '#007bff' : '#ffc107'}`;
                                 });
@@ -3230,33 +3323,234 @@
                                 this.style.border = `3px solid ${this.getAttribute('data-tipo') === 'factura' ? '#28a745' : this.getAttribute('data-tipo') === 'boleta' ? '#007bff' : '#ffc107'}`;
 
                                 // Guardar tipo seleccionado
-                                window.tipoValeSeleccionado = this.getAttribute('data-tipo');
+                                window.tipoTicketSeleccionado = this.getAttribute('data-tipo');
                             });
                         });
                     },
                     preConfirm: () => {
-                        if (!window.tipoValeSeleccionado) {
-                            Swal.showValidationMessage('Debe seleccionar un tipo de documento para el vale');
+                        if (!window.tipoTicketSeleccionado) {
+                            Swal.showValidationMessage('Debe seleccionar un tipo de documento para el ticket');
                             return false;
                         }
-                        return window.tipoValeSeleccionado;
+                        return window.tipoTicketSeleccionado;
                     }
                 }).then((result) => {
                     if (result.isConfirmed && result.value) {
-                        // Guardar el tipo de documento planeado para el vale
-                        window.tipoDocumentoPlaneadoVale = result.value;
-                        window.tipoDocumentoSeleccionado = 'vale';
+                        // Guardar el tipo de documento planeado para el ticket
+                        window.tipoDocumentoPlaneadoTicket = result.value;
+                        window.tipoDocumentoSeleccionado = 'ticket';
 
-                        console.log('[VALE] Tipo de documento planeado seleccionado:', window.tipoDocumentoPlaneadoVale);
+                        console.log('[TICKET] Tipo de documento planeado seleccionado:', window.tipoDocumentoPlaneadoTicket);
 
-                        // Continuar con el flujo normal llamando a showDocumentTypeSelector nuevamente
-                        // pero esta vez con el tipo 'vale' ya seleccionado
-                        showDocumentTypeSelector();
+                        // SI ES GUÍA, PEDIR TIPO DE DESPACHO
+                        if (result.value === 'guia') {
+                            Swal.fire({
+                                title: 'Tipo de Traslado',
+                                html: `
+                                    <p class="mb-3">Seleccione el motivo del traslado:</p>
+                                    <select id="tipo-despacho-modal" class="form-select" style="font-size: 1.1rem;">
+                                        <option value="">-- Seleccione --</option>
+                                        <option value="1">1 - Operación constituye venta</option>
+                                        <option value="2">2 - Ventas por efectuar</option>
+                                        <option value="3">3 - Consignaciones</option>
+                                        <option value="4">4 - Entrega gratuita</option>
+                                        <option value="5">5 - Traslados internos</option>
+                                        <option value="6">6 - Otros traslados (sin venta)</option>
+                                        <option value="7">7 - Guía de devolución</option>
+                                        <option value="8">8 - Traslado para exportación (no DUS)</option>
+                                        <option value="9">9 - Venta para exportación</option>
+                                    </select>
+                                `,
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: 'Continuar',
+                                cancelButtonText: 'Cancelar',
+                                preConfirm: () => {
+                                    const tipoDespacho = document.getElementById('tipo-despacho-modal').value;
+                                    if (!tipoDespacho) {
+                                        Swal.showValidationMessage('Debe seleccionar el tipo de traslado');
+                                        return false;
+                                    }
+                                    return tipoDespacho;
+                                }
+                            }).then((tipoDespachoResult) => {
+                                if (tipoDespachoResult.isConfirmed && tipoDespachoResult.value) {
+                                    // Guardar el tipo de despacho seleccionado
+                                    window.tipoDespachoTicket = tipoDespachoResult.value;
+                                    console.log('[TICKET-GUIA] Tipo de despacho seleccionado:', window.tipoDespachoTicket);
+                                    console.log('[TICKET-GUIA] tipoDocumentoPlaneadoTicket:', window.tipoDocumentoPlaneadoTicket);
+
+                                    // IMPORTANTE: En lugar de volver al selector, ir directamente al formulario de cliente
+                                    // El tipo de documento es 'ticket' y el tipo planeado es 'guia'
+                                    mostrarFormularioClienteTicket();
+                                } else {
+                                    // Si cancela, limpiar y volver
+                                    window.tipoDocumentoPlaneadoTicket = null;
+                                    window.tipoTicketSeleccionado = null;
+                                    window.tipoDespachoTicket = null;
+                                    showDocumentTypeSelector();
+                                }
+                            });
+                        } else {
+                            // Continuar con el flujo normal llamando a showDocumentTypeSelector nuevamente
+                            // pero esta vez con el tipo 'ticket' ya seleccionado
+                            showDocumentTypeSelector();
+                        }
                     } else if (result.dismiss === Swal.DismissReason.cancel) {
                         // Si cancela, volver al selector principal
                         showDocumentTypeSelector();
                     }
                 });
+            }
+
+            // Función para mostrar formulario de cliente cuando ya se seleccionó Ticket con tipo de despacho
+            function mostrarFormularioClienteTicket() {
+                console.log('========================================');
+                console.log('[TICKET-GUIA] *** NUEVO FLUJO ACTIVO ***');
+                console.log('[TICKET-GUIA] Mostrando formulario de cliente directamente');
+                console.log('[TICKET-GUIA] window.tipoDocumentoPlaneadoTicket:', window.tipoDocumentoPlaneadoTicket);
+                console.log('[TICKET-GUIA] window.tipoDespachoTicket:', window.tipoDespachoTicket);
+                console.log('========================================');
+
+                // Alerta visual para confirmar que estamos en el nuevo flujo
+                // alert('NUEVO FLUJO: tipo_despacho = ' + window.tipoDespachoTicket);
+
+                // El cliente ya seleccionado (si hay)
+                const clienteYaSeleccionado = window.clienteSeleccionado || null;
+
+                Swal.fire({
+                    title: '<i class="fas fa-user me-2"></i>Seleccionar Cliente',
+                    html: `
+                        <div style="text-align: left;">
+                            <div class="alert alert-info mb-3">
+                                <strong><i class="fas fa-truck me-2"></i>Ticket - Guía de Despacho</strong><br>
+                                <small>Tipo de traslado: ${window.tipoDespachoTicket}</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label" style="font-weight: 700; color: #495057;">Cliente *</label>
+                                    <div class="input-group">
+                                        <input type="text" id="busqueda-cliente-ticket" class="form-control" placeholder="RUT o Nombre..." autocomplete="off">
+                                        <button class="btn btn-outline-secondary" type="button" id="btn-buscar-cliente-ticket">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                    <div id="resultados-busqueda-ticket" class="list-group shadow-sm mt-1" style="display: none; position: absolute; width: 100%; z-index: 1000; max-height: 200px; overflow-y: auto;"></div>
+                                </div>
+
+                                <div id="cliente-info-ticket" class="mt-3 p-3 bg-light rounded" style="display: none; border-left: 4px solid #8B7355;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1" id="cliente-nombre-ticket" style="color: #6F5B44; font-weight: bold;"></h6>
+                                            <p class="mb-0 small text-muted" id="cliente-direccion-ticket"></p>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('cliente-info-ticket').style.display='none'; document.getElementById('busqueda-cliente-ticket').value='';">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                    width: '450px',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-check me-2"></i>Procesar Ticket',
+                    cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
+                    confirmButtonColor: '#28a745',
+                    didOpen: () => {
+                        const input = document.getElementById('busqueda-cliente-ticket');
+                        const results = document.getElementById('resultados-busqueda-ticket');
+                        const btnBuscar = document.getElementById('btn-buscar-cliente-ticket');
+
+                        let typingTimer;
+                        input.addEventListener('input', () => {
+                            clearTimeout(typingTimer);
+                            typingTimer = setTimeout(() => buscarClientesTicket(input.value), 300);
+                        });
+
+                        btnBuscar.addEventListener('click', () => buscarClientesTicket(input.value));
+                    },
+                    preConfirm: () => {
+                        if (!window.clienteSeleccionado) {
+                            Swal.showValidationMessage('Debe seleccionar un cliente');
+                            return false;
+                        }
+
+                        return {
+                            tipo_documento: 'ticket',
+                            tipo_documento_planeado: window.tipoDocumentoPlaneadoTicket,
+                            tipo_despacho: window.tipoDespachoTicket,
+                            rut_cliente: document.getElementById('busqueda-cliente-ticket').value,
+                            cliente_id: window.clienteSeleccionado.id,
+                            referencias: window.referencias || []
+                        };
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const datosCompletos = {
+                            ...result.value,
+                            vendedor_id: window.currentVendedorId || null,
+                            vehiculo_id: null,
+                            chofer_id: null
+                        };
+                        console.log('[TICKET-GUIA] Procesando con datos:', datosCompletos);
+                        processPreventaWithData(datosCompletos);
+                    } else {
+                        // Si cancela, volver al selector principal
+                        window.tipoDocumentoPlaneadoTicket = null;
+                        window.tipoTicketSeleccionado = null;
+                        window.tipoDespachoTicket = null;
+                        showDocumentTypeSelector();
+                    }
+                });
+            }
+
+            // Función para buscar clientes específicamente para el modal de Ticket
+            function buscarClientesTicket(q) {
+                const lista = document.getElementById('resultados-busqueda-ticket'); // This should be the container for the list items
+                const resultados = document.getElementById('resultados-busqueda-ticket'); // This is the overall results container
+
+                if (!q || q.length < 3) {
+                    resultados.style.display = 'none';
+                    return;
+                }
+
+                lista.innerHTML = '<div class="text-center p-2"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
+                resultados.style.display = 'block';
+
+                fetch(`/ventas/pos/buscar-cliente/?q=${encodeURIComponent(q)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.clientes && data.clientes.length > 0) {
+                            lista.innerHTML = data.clientes.map(cliente => `
+                                <button type="button" class="list-group-item list-group-item-action" 
+                                        onclick="seleccionarClienteTicket('${cliente.id}', '${cliente.nombre.replace(/'/g, "\\'")}', '${(cliente.rut || '').replace(/'/g, "\\'")}', '${(cliente.direccion || '').replace(/'/g, "\\'")}')">
+                                    <div class="d-flex flex-column">
+                                        <strong>${cliente.nombre}</strong>
+                                        <small class="text-muted">${cliente.rut || 'Sin RUT'}</small>
+                                    </div>
+                                </button>
+                            `).join('');
+                            resultados.style.display = 'block';
+                        } else {
+                            lista.innerHTML = '<div class="alert alert-warning">No se encontraron clientes</div>';
+                            resultados.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error buscando clientes:', error);
+                        Swal.showValidationMessage('Error al buscar clientes');
+                    });
+            }
+
+            // Función para seleccionar cliente en modal Ticket-Guía
+            function seleccionarClienteTicket(id, nombre, rut, direccion) {
+                window.clienteSeleccionado = { id, nombre, rut, direccion };
+                document.getElementById('busqueda-cliente-ticket').value = rut;
+                document.getElementById('resultados-busqueda-ticket').style.display = 'none';
+                document.getElementById('cliente-info-ticket').style.display = 'block';
+                document.getElementById('cliente-nombre-ticket').textContent = nombre;
+                document.getElementById('cliente-direccion-ticket').textContent = direccion || 'Sin dirección';
             }
 
             // Validar RUT chileno
@@ -3776,18 +4070,25 @@
 
                 const total = subtotal;
 
-                // CRÍTICO: Si es un vale, usar el tipo_documento_planeado seleccionado previamente
-                const tipoDocPlaneado = (data.tipo_documento === 'vale' && data.tipo_documento_planeado)
-                    ? data.tipo_documento_planeado
-                    : (data.tipo_documento === 'vale' && window.tipoDocumentoPlaneadoVale)
-                        ? window.tipoDocumentoPlaneadoVale
-                        : data.tipo_documento;
+                // CRÍTICO: El tipo planeado indica el destino final (boleta, factura, guia o vale)
+                // Usamos lo que viene de data, o lo que está en variables globales como fallback
+                const tipoDocPlaneado = data.tipo_documento_planeado || 
+                                       (data.tipo_documento === 'ticket' ? window.tipoDocumentoPlaneadoTicket : null) || 
+                                       data.tipo_documento;
+
+    // CRÍTICO: Si es un ticket con tipo planeado guía, usar el tipo_despacho del modal
+    const tipoDespachoFinal = (data.tipo_documento === 'ticket' && tipoDocPlaneado === 'guia' && window.tipoDespachoTicket)
+        ? window.tipoDespachoTicket
+        : data.tipo_despacho || null;
 
                 const preventaData = {
                     estacion_id: window.currentEstacionId,
                     vendedor_id: window.currentVendedorId,
                     tipo_documento: data.tipo_documento,
                     tipo_documento_planeado: tipoDocPlaneado, // ← GUARDAR TIPO PLANEADO (para vales, el seleccionado; para otros, su propio tipo)
+                    tipo_documento_original: data.tipo_documento_original, // ← AGREGAR TIPO ORIGINAL (CRÍTICO PARA FALLBACK DE VALES)
+                    tipo_despacho: tipoDespachoFinal, // ← USAR TIPO DE DESPACHO DEL MODAL O DEL FORM
+                    referencias: data.referencias || [], // ← AGREGAR REFERENCIAS
                     cliente_id: window.clienteSeleccionado.id,
                     items: cart,
                     totales: {
@@ -3801,10 +4102,16 @@
                 };
 
                 console.log('[DEBUG] Preventa Data - tipo_documento:', data.tipo_documento, 'tipo_documento_planeado:', tipoDocPlaneado);
+                console.log('[DEBUG] data.tipo_despacho (del form):', data.tipo_despacho);
+                console.log('[DEBUG] window.tipoDespachoTicket:', window.tipoDespachoTicket);
+                console.log('[DEBUG] tipoDespachoFinal calculado:', tipoDespachoFinal);
+                console.log('[DEBUG] tipo_despacho enviado:', preventaData.tipo_despacho);
+                console.log('[DEBUG] referencias enviadas:', preventaData.referencias);
 
                 console.log('=== DATOS QUE SE ENVÍAN AL SERVIDOR ===');
                 console.log('Items del carrito:', cart);
                 console.log('Totales:', preventaData.totales);
+                console.log('preventaData completo:', JSON.stringify(preventaData, null, 2));
                 console.log('========================================');
 
                 // Mostrar loading
@@ -3858,6 +4165,11 @@
                                     updateTotals();
                                     limpiarClientePOS();
 
+                                    // Limpiar variables de tipo de documento/vale
+                                    window.tipoDocumentoPlaneadoVale = null;
+                                    window.tipoValeSeleccionado = null;
+                                    window.tipoDespachoVale = null;
+
                                     // Actualizar stock después de la venta
                                     updateStockFromServer();
 
@@ -3873,44 +4185,106 @@
                                     }
                                 });
                             } else if (data.tipo_documento === 'vale') {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: '¡Vale Generado!',
-                                    text: `Vale #${data.numero_preventa} generado exitosamente`,
-                                    timer: 2000
-                                }).then(() => {
-                                    // IMPRESION DIRECTA CON QZ TRAY
-                                    if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
-                                        const ticketUrl = `/ventas/vales/${data.preventa_id}/termica/`;
-                                        // No bloquear UI, hacerlo en background
-                                        QZ_Printers.printTicketFromUrl(ticketUrl).catch(err => {
-                                            console.error("Error QZ, fallback to window.open", err);
-                                            window.open(`/ventas/vales/${data.preventa_id}/html/`, '_blank');
-                                        });
-                                    } else {
-                                        window.open(`/ventas/vales/${data.preventa_id}/html/`, '_blank');
-                                    }
+                                // VERIFICAR SI HUBO CIERRE DIRECTO (Vale con DTE generado)
+                                const esCierreDirectoVale = (
+                                    (data.cierre_directo === true || data.cierre_directo === 'true' || data.cierre_directo === 1) &&
+                                    data.doc_url
+                                );
 
-                                    // Limpiar carrito y recargar
-                                    cart = [];
-                                    updateCartDisplay();
-                                    updateTotals();
-                                    limpiarClientePOS();
-
-                                    // Actualizar stock después de la venta
-                                    updateStockFromServer();
-
-                                    // Restaurar modo escaneo si estaba activo
-                                    if (wasScanningMode) {
-                                        setTimeout(() => {
-                                            barcodeMode = true;
-                                            const barcodeInput = document.getElementById('barcode-input');
-                                            if (barcodeInput) {
-                                                barcodeInput.focus();
-                                            }
-                                        }, 2000);
-                                    }
+                                console.log('[VALE] Verificando cierre directo para vale:', {
+                                    cierre_directo: data.cierre_directo,
+                                    doc_url: data.doc_url,
+                                    esCierreDirectoVale: esCierreDirectoVale
                                 });
+
+                                if (esCierreDirectoVale) {
+                                    // CIERRE DIRECTO: Se generó DTE, abrir URL del DTE
+                                    const nombreDoc = data.tipo_documento_planeado === 'factura' ? 'Factura' :
+                                        data.tipo_documento_planeado === 'boleta' ? 'Boleta' :
+                                            data.tipo_documento_planeado === 'guia' ? 'Guía de Despacho' : 'Documento';
+
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: '¡Documento Procesado!',
+                                        html: `<strong>${nombreDoc} #${data.numero_venta || data.numero_preventa}</strong><br>procesada automáticamente con cierre directo`,
+                                        timer: 2000,
+                                        showConfirmButton: false
+                                    }).then(() => {
+                                        // Abrir documento DTE para impresión
+                                        // El doc_url ya viene con todos los parámetros necesarios del backend
+                                        window.open(data.doc_url, '_blank');
+
+                                        // Limpiar carrito inmediatamente
+                                        cart = [];
+                                        updateCartDisplay();
+                                        updateTotals();
+                                        limpiarClientePOS();
+
+                                        // Limpiar variables de tipo de documento/vale
+                                        window.tipoDocumentoPlaneadoVale = null;
+                                        window.tipoValeSeleccionado = null;
+                                        window.tipoDespachoVale = null;
+
+                                        // Actualizar stock
+                                        updateStockFromServer();
+
+                                        // Restaurar modo escaneo si estaba activo
+                                        if (wasScanningMode) {
+                                            setTimeout(() => {
+                                                barcodeMode = true;
+                                                const barcodeInput = document.getElementById('barcode-input');
+                                                if (barcodeInput) {
+                                                    barcodeInput.focus();
+                                                }
+                                            }, 2000);
+                                        }
+                                    });
+                                } else {
+                                    // SIN CIERRE DIRECTO: Solo vale, imprimir el vale normalmente
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: '¡Vale Generado!',
+                                        text: `Vale #${data.numero_preventa} generado exitosamente`,
+                                        timer: 2000
+                                    }).then(() => {
+                                        // IMPRESION DIRECTA CON QZ TRAY
+                                        if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
+                                            const ticketUrl = `/ventas/vales/${data.preventa_id}/termica/`;
+                                            // No bloquear UI, hacerlo en background
+                                            QZ_Printers.printTicketFromUrl(ticketUrl).catch(err => {
+                                                console.error("Error QZ, fallback to window.open", err);
+                                                window.open(`/ventas/vales/${data.preventa_id}/html/`, '_blank');
+                                            });
+                                        } else {
+                                            window.open(`/ventas/vales/${data.preventa_id}/html/`, '_blank');
+                                        }
+
+                                        // Limpiar carrito y recargar
+                                        cart = [];
+                                        updateCartDisplay();
+                                        updateTotals();
+                                        limpiarClientePOS();
+
+                                        // Limpiar variables de tipo de documento/vale
+                                        window.tipoDocumentoPlaneadoVale = null;
+                                        window.tipoValeSeleccionado = null;
+                                        window.tipoDespachoVale = null;
+
+                                        // Actualizar stock después de la venta
+                                        updateStockFromServer();
+
+                                        // Restaurar modo escaneo si estaba activo
+                                        if (wasScanningMode) {
+                                            setTimeout(() => {
+                                                barcodeMode = true;
+                                                const barcodeInput = document.getElementById('barcode-input');
+                                                if (barcodeInput) {
+                                                    barcodeInput.focus();
+                                                }
+                                            }, 2000);
+                                        }
+                                    });
+                                }
                             } else if (data.tipo_documento === 'factura' || data.tipo_documento === 'boleta' || data.tipo_documento === 'guia') {
                                 // Para factura, boleta o guía
                                 const nombreDocumento = data.tipo_documento === 'factura' ? 'Factura' :
@@ -3957,16 +4331,24 @@
                                         timer: 2000,
                                         showConfirmButton: false
                                     }).then(() => {
-                                        // Abrir documento para impresión con return_url (siempre al POS)
+                                        // Abrir documento para impresión con autoclose (cierra automáticamente después de imprimir)
                                         const posUrl = "{% url 'ventas:pos_view' %}";
                                         const separator = data.doc_url.includes('?') ? '&' : '?';
-                                        window.open(data.doc_url + separator + 'auto=1&return_url=' + encodeURIComponent(posUrl), '_blank');
+                                        // auto=1: imprime automáticamente
+                                        // autoclose=1: cierra la ventana después de imprimir
+                                        // autoclose_delay=2000: espera 2 segundos antes de cerrar
+                                        window.open(data.doc_url + separator + 'auto=1&autoclose=1&autoclose_delay=2000&return_url=' + encodeURIComponent(posUrl), '_blank');
 
-                                        // Limpiar carrito
+                                        // Limpiar carrito inmediatamente (el POS queda listo para siguiente venta)
                                         cart = [];
                                         updateCartDisplay();
                                         updateTotals();
                                         limpiarClientePOS();
+
+                                        // Limpiar variables de tipo de documento/vale
+                                        window.tipoDocumentoPlaneadoVale = null;
+                                        window.tipoValeSeleccionado = null;
+                                        window.tipoDespachoVale = null;
 
                                         // Actualizar stock
                                         updateStockFromServer();
@@ -4018,6 +4400,11 @@
                                     updateCartDisplay();
                                     updateTotals();
                                     limpiarClientePOS();
+
+                                    // Limpiar variables de tipo de documento/vale
+                                    window.tipoDocumentoPlaneadoVale = null;
+                                    window.tipoValeSeleccionado = null;
+                                    window.tipoDespachoVale = null;
 
                                     // Actualizar stock después de la venta
                                     updateStockFromServer();
@@ -5231,8 +5618,7 @@
                             </thead>
                             <tbody>
                                 {% for cliente in clientes %}
-                                <tr class="cliente-item" 
-                                    data-cliente-id="{{ cliente.id }}"
+                                <tr class="cliente-item" data-cliente-id="{{ cliente.id }}"
                                     data-cliente-nombre="{{ cliente.nombre }}"
                                     data-cliente-rut="{{ cliente.rut|default:'Sin RUT' }}"
                                     data-cliente-direccion="{{ cliente.direccion|default:'Sin dirección' }}"
@@ -5857,7 +6243,8 @@
     </script>
 
     <!-- QZ Tray Integration -->
-    <script src="{% static 'vendor/qz/qz-tray.js' %}"></script>
+    <!-- QZ Tray desactivado temporalmente -->
+    <!-- <script src="{% static 'vendor/qz/qz-tray.js' %}"></script> -->
     <script src="{% static 'js/qz_interface.js' %}"></script>
 
     <script>
@@ -6034,10 +6421,10 @@
         }
 
         // Cerrar al hacer click fuera del panel
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const overlay = document.getElementById('help-overlay');
             if (overlay) {
-                overlay.addEventListener('click', function(e) {
+                overlay.addEventListener('click', function (e) {
                     if (e.target === overlay) {
                         cerrarAyudaPOS();
                     }
@@ -6075,13 +6462,15 @@
                     <div class="help-section">
                         <h3><i class="fas fa-percent"></i>¿Qué son las Ofertas?</h3>
                         <p>
-                            Las ofertas te permiten aplicar <strong>descuentos especiales automáticamente</strong> cuando agregas un producto al carrito. 
+                            Las ofertas te permiten aplicar <strong>descuentos especiales automáticamente</strong>
+                            cuando agregas un producto al carrito.
                             Son ideales para promociones, liquidaciones o clientes VIP.
                         </p>
-                        
+
                         <div class="help-tip">
                             <i class="fas fa-lightbulb"></i>
-                            <strong>Tip:</strong> Las ofertas se configuran desde el módulo de Artículos en el sistema principal.
+                            <strong>Tip:</strong> Las ofertas se configuran desde el módulo de Artículos en el sistema
+                            principal.
                         </div>
                     </div>
 
@@ -6089,21 +6478,24 @@
                         <h3><i class="fas fa-list-ol"></i>¿Cómo usar las Ofertas?</h3>
                         <ul class="help-steps">
                             <li data-step="1">
-                                Configura la oferta en el módulo de <strong>Artículos</strong> (definir % de descuento, fecha de inicio/fin, etc.)
+                                Configura la oferta en el módulo de <strong>Artículos</strong> (definir % de descuento,
+                                fecha de inicio/fin, etc.)
                             </li>
                             <li data-step="2">
                                 En el POS, <strong>escanea o busca el producto</strong> que tiene oferta activa
                             </li>
                             <li data-step="3">
-                                El sistema aplicará <strong>automáticamente el descuento</strong> y lo mostrará en el carrito
+                                El sistema aplicará <strong>automáticamente el descuento</strong> y lo mostrará en el
+                                carrito
                             </li>
                             <li data-step="4">
-                                Verás el precio original <span style="text-decoration: line-through;">tachado</span> y el precio con descuento resaltado
+                                Verás el precio original <span style="text-decoration: line-through;">tachado</span> y
+                                el precio con descuento resaltado
                             </li>
                         </ul>
 
                         <div class="help-example">
-                            <i class="fas fa-shopping-cart"></i> Ejemplo: 
+                            <i class="fas fa-shopping-cart"></i> Ejemplo:
                             Producto $10.000 con oferta 20% → Precio final: $8.000
                         </div>
                     </div>
@@ -6112,7 +6504,8 @@
                         <h3><i class="fas fa-exclamation-triangle"></i>Consideraciones Importantes</h3>
                         <div class="help-warning">
                             <i class="fas fa-info-circle"></i>
-                            Las ofertas <strong>solo se aplican si están vigentes</strong> (dentro del rango de fechas configurado)
+                            Las ofertas <strong>solo se aplican si están vigentes</strong> (dentro del rango de fechas
+                            configurado)
                         </div>
                         <div class="help-success">
                             <i class="fas fa-check-circle"></i>
@@ -6126,13 +6519,16 @@
                     <div class="help-section">
                         <h3><i class="fas fa-box"></i>¿Qué son los Kits?</h3>
                         <p>
-                            Los kits son <strong>conjuntos de productos agrupados</strong> que se venden como una unidad. 
-                            Al escanear o buscar un kit, el sistema agrega automáticamente <strong>todos los productos incluidos</strong> al carrito.
+                            Los kits son <strong>conjuntos de productos agrupados</strong> que se venden como una
+                            unidad.
+                            Al escanear o buscar un kit, el sistema agrega automáticamente <strong>todos los productos
+                                incluidos</strong> al carrito.
                         </p>
-                        
+
                         <div class="help-tip">
                             <i class="fas fa-lightbulb"></i>
-                            <strong>Tip:</strong> Los kits son perfectos para promociones "pack" o combos de productos relacionados.
+                            <strong>Tip:</strong> Los kits son perfectos para promociones "pack" o combos de productos
+                            relacionados.
                         </div>
                     </div>
 
@@ -6140,7 +6536,8 @@
                         <h3><i class="fas fa-list-ol"></i>¿Cómo usar los Kits?</h3>
                         <ul class="help-steps">
                             <li data-step="1">
-                                Configura el kit en el módulo de <strong>Artículos → Kits</strong> (agregar productos componentes y sus cantidades)
+                                Configura el kit en el módulo de <strong>Artículos → Kits</strong> (agregar productos
+                                componentes y sus cantidades)
                             </li>
                             <li data-step="2">
                                 Asigna un <strong>código único</strong> al kit (como cualquier producto normal)
@@ -6149,27 +6546,32 @@
                                 En el POS, <strong>escanea o busca el código del kit</strong>
                             </li>
                             <li data-step="4">
-                                El sistema agregará <strong>todos los productos del kit automáticamente</strong> al carrito con sus cantidades
+                                El sistema agregará <strong>todos los productos del kit automáticamente</strong> al
+                                carrito con sus cantidades
                             </li>
                             <li data-step="5">
-                                Cada producto se muestra individualmente en el ticket (con precio de kit o individual según configuración)
+                                Cada producto se muestra individualmente en el ticket (con precio de kit o individual
+                                según configuración)
                             </li>
                         </ul>
 
                         <div class="help-example">
-                            <i class="fas fa-box-open"></i> Ejemplo: 
+                            <i class="fas fa-box-open"></i> Ejemplo:
                             Kit "Combo Desayuno" → Agrega: 1 Café + 2 Croissants + 1 Jugo
                         </div>
                     </div>
 
                     <div class="help-section">
                         <h3><i class="fas fa-cogs"></i>Tipos de Kits</h3>
-                        <p><strong>Kit con precio fijo:</strong> Todos los productos se venden por un precio total determinado</p>
-                        <p><strong>Kit suma de precios:</strong> El precio es la suma de los precios individuales de cada componente</p>
-                        
+                        <p><strong>Kit con precio fijo:</strong> Todos los productos se venden por un precio total
+                            determinado</p>
+                        <p><strong>Kit suma de precios:</strong> El precio es la suma de los precios individuales de
+                            cada componente</p>
+
                         <div class="help-success">
                             <i class="fas fa-check-circle"></i>
-                            Los kits pueden tener sus propias <strong>ofertas adicionales</strong> aplicadas sobre el precio total
+                            Los kits pueden tener sus propias <strong>ofertas adicionales</strong> aplicadas sobre el
+                            precio total
                         </div>
                     </div>
                 </div>
@@ -6179,13 +6581,15 @@
                     <div class="help-section">
                         <h3><i class="fas fa-magic"></i>¿Qué es el Código Comodín 001?</h3>
                         <p>
-                            El código <strong>"001"</strong> es un código especial que te permite agregar un <strong>producto genérico al carrito</strong>
+                            El código <strong>"001"</strong> es un código especial que te permite agregar un
+                            <strong>producto genérico al carrito</strong>
                             cuando no tienes el código de barras real o necesitas vender algo que no está en el sistema.
                         </p>
-                        
+
                         <div class="help-warning">
                             <i class="fas fa-exclamation-triangle"></i>
-                            <strong>Importante:</strong> Este código debe estar configurado previamente en el sistema con el nombre 
+                            <strong>Importante:</strong> Este código debe estar configurado previamente en el sistema
+                            con el nombre
                             "Producto Genérico" o similar.
                         </div>
                     </div>
@@ -6203,7 +6607,8 @@
                                 El sistema agregará el producto genérico al carrito
                             </li>
                             <li data-step="4">
-                                <strong>Modifica el nombre y precio</strong> del producto en el carrito según lo que estés vendiendo
+                                <strong>Modifica el nombre y precio</strong> del producto en el carrito según lo que
+                                estés vendiendo
                             </li>
                             <li data-step="5">
                                 Continúa con la venta normalmente
@@ -6238,7 +6643,8 @@
 
                         <div class="help-tip">
                             <i class="fas fa-lightbulb"></i>
-                            <strong>Tip:</strong> Aunque puedes modificar nombre y precio, es mejor tener todos los productos 
+                            <strong>Tip:</strong> Aunque puedes modificar nombre y precio, es mejor tener todos los
+                            productos
                             en el sistema para un mejor control de inventario y reportes.
                         </div>
                     </div>
@@ -6247,7 +6653,8 @@
                         <h3><i class="fas fa-shield-alt"></i>Permisos y Restricciones</h3>
                         <div class="help-warning">
                             <i class="fas fa-lock"></i>
-                            La capacidad de modificar precios puede estar <strong>restringida según tu rol de usuario</strong>. 
+                            La capacidad de modificar precios puede estar <strong>restringida según tu rol de
+                                usuario</strong>.
                             Consulta con el administrador si no puedes cambiar precios.
                         </div>
                     </div>

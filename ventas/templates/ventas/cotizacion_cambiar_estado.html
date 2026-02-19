@@ -10,33 +10,38 @@
 <div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
     <div class="row justify-content-center">
         <div class="col-md-6">
-            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; padding: 15px 20px; border-bottom: 3px solid #D4C4A8;">
-                    <h5 class="mb-0" style="font-size: 1.2rem; font-weight: 600;">
-                        <i class="fas fa-edit me-2"></i>Cambiar Estado de Cotización
+            <div class="card" style="border: none; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(139, 115, 85, 0.15);">
+                <!-- Header Estilo Piedra Premium -->
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 20px 25px;">
+                    <h5 class="mb-0 fw-normal" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px;">
+                        <i class="fas fa-edit me-2 opacity-80"></i> GESTIÓN DE <span class="fw-bold">ESTADO</span>
                     </h5>
                 </div>
-                <div class="card-body" style="background: #FAFAF8; padding: 20px;">
+                
+                <div class="card-body" style="background: white; padding: 30px;">
                     <!-- Información de la cotización -->
-                    <div class="card mb-3" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
-                        <div class="card-body" style="padding: 15px;">
-                            <h6 style="color: #6F5B44; font-weight: 600; margin-bottom: 10px;">
-                                Cotización #{{ cotizacion.numero_venta }}
+                    <div class="card mb-4 border-0" style="border-radius: 12px; background: #FDFCFB; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        <div class="card-body p-4">
+                            <h6 style="color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem; margin-bottom: 20px;">
+                                <i class="fas fa-info-circle me-2 opacity-50"></i> Resumen del Documento
                             </h6>
-                            <div style="font-size: 0.85rem;">
-                                <div class="mb-1">
-                                    <i class="fas fa-user me-2 text-muted"></i>
-                                    <strong>Cliente:</strong> {{ cotizacion.cliente.nombre|default:"Sin cliente" }}
+                            <div class="row g-3">
+                                <div class="col-sm-6">
+                                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Número</small>
+                                    <strong style="color: #2D3748;">#{{ cotizacion.numero_venta }}</strong>
                                 </div>
-                                <div class="mb-1">
-                                    <i class="fas fa-dollar-sign me-2 text-muted"></i>
-                                    <strong>Total:</strong> <span style="color: #8B7355; font-weight: 600;">${{ cotizacion.total|format_miles }}</span>
+                                <div class="col-sm-6">
+                                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Total</small>
+                                    <strong style="color: #8B7355;">${{ cotizacion.total|format_miles }}</strong>
                                 </div>
-                                <div>
-                                    <i class="fas fa-info-circle me-2 text-muted"></i>
-                                    <strong>Estado actual:</strong> 
-                                    <span class="badge" style="background: {% if cotizacion.estado_cotizacion == 'pendiente' %}#ffc107{% elif cotizacion.estado_cotizacion == 'enviada' %}#17a2b8{% elif cotizacion.estado_cotizacion == 'aceptada' %}#28a745{% elif cotizacion.estado_cotizacion == 'rechazada' %}#dc3545{% elif cotizacion.estado_cotizacion == 'vencida' %}#6c757d{% elif cotizacion.estado_cotizacion == 'convertida' %}#6f42c1{% else %}#ffc107{% endif %}; font-size: 0.75rem;">
-                                        {{ cotizacion.get_estado_cotizacion_display|default:"Pendiente" }}
+                                <div class="col-12">
+                                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Cliente</small>
+                                    <strong style="color: #2D3748;">{{ cotizacion.cliente.nombre|default:"Sin cliente" }}</strong>
+                                </div>
+                                <div class="col-12">
+                                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Estado Actual</small>
+                                    <span class="badge" style="background: {% if cotizacion.estado_cotizacion == 'pendiente' %}#D4C4A8{% elif cotizacion.estado_cotizacion == 'enviada' %}#A8C6D4{% elif cotizacion.estado_cotizacion == 'aceptada' %}#C4D4A8{% elif cotizacion.estado_cotizacion == 'rechazada' %}#D4A8A8{% elif cotizacion.estado_cotizacion == 'vencida' %}#BDBDBD{% elif cotizacion.estado_cotizacion == 'convertida' %}#A8A8D4{% else %}#D4C4A8{% endif %}; color: #5D4037; font-size: 0.7rem; padding: 4px 10px; border-radius: 6px;">
+                                        {{ cotizacion.get_estado_cotizacion_display|default:"Pendiente"|upper }}
                                     </span>
                                 </div>
                             </div>
@@ -46,30 +51,38 @@
                     <!-- Formulario -->
                     <form method="post" id="formCambiarEstado">
                         {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="estado" class="form-label fw-bold" style="font-size: 0.85rem; color: #6F5B44;">
-                                <i class="fas fa-exchange-alt me-1"></i>Nuevo Estado
+                        <div class="mb-4">
+                            <label for="estado" class="form-label text-uppercase" style="font-size: 0.7rem; font-weight: 700; color: #8B7355; letter-spacing: 1px;">
+                                <i class="fas fa-exchange-alt me-2"></i>Seleccionar Nuevo Estado
                             </label>
-                            <select name="estado" id="estado" class="form-select" required style="border: 1px solid #D4C4A8;">
+                            <select name="estado" id="estado" class="form-select form-select-lg" required style="border: 2px solid #E8DCC8; border-radius: 10px; font-size: 1rem; color: #2D3748; background-color: #FDFCFB;">
                                 {% for value, label in estados %}
                                     <option value="{{ value }}" {% if cotizacion.estado_cotizacion == value %}selected{% endif %}>
-                                        {{ label }}
+                                        {{ label|upper }}
                                     </option>
                                 {% endfor %}
                             </select>
-                            <small class="text-muted" style="font-size: 0.75rem;">Selecciona el nuevo estado para la cotización</small>
+                            <div class="mt-2 text-muted small" style="font-style: italic;">
+                                <i class="fas fa-lightbulb me-1"></i> El cambio de estado se reflejará inmediatamente en el listado.
+                            </div>
                         </div>
                         
-                        <div class="d-flex gap-2 justify-content-between">
-                            <a href="{% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn btn-outline-secondary" style="border-color: #D4C4A8; color: #6c757d; font-size: 0.85rem;">
-                                <i class="fas fa-arrow-left me-1"></i>Cancelar
+                        <div class="d-flex gap-3 mt-5">
+                            <a href="{% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn btn-outline-piedra flex-grow-1 py-2">
+                                <i class="fas fa-times me-2"></i>CANCELAR
                             </a>
-                            <button type="button" class="btn" onclick="confirmarCambioEstado()" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; font-size: 0.85rem;">
-                                <i class="fas fa-save me-1"></i>Actualizar Estado
+                            <button type="button" class="btn btn-piedra flex-grow-1 py-2" onclick="confirmarCambioEstado()">
+                                <i class="fas fa-check-circle me-2"></i>GUARDAR CAMBIOS
                             </button>
                         </div>
                     </form>
                 </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="{% url 'ventas:cotizacion_list' %}" class="btn btn-sm btn-link text-decoration-none" style="color: #D4C4A8; font-weight: 600;">
+                    <i class="fas fa-arrow-left me-1"></i> Volver al listado general
+                </a>
             </div>
         </div>
     </div>
@@ -83,21 +96,22 @@ function confirmarCambioEstado() {
     const estadoActual = '{{ cotizacion.get_estado_cotizacion_display|default:"Pendiente" }}';
     
     Swal.fire({
-        title: '¿Cambiar estado?',
+        title: '<span style="font-family: Poppins; font-weight: 600;">¿Confirmar Cambio?</span>',
         html: `
-            <div style="text-align: left; padding: 10px;">
-                <p style="margin-bottom: 10px;">¿Está seguro de cambiar el estado de la cotización?</p>
-                <div style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); padding: 15px; border-radius: 8px; border: 1px solid #D4C4A8;">
-                    <div style="margin-bottom: 8px;">
-                        <strong style="color: #6F5B44;">Cotización:</strong> #{{ cotizacion.numero_venta }}
+            <div style="text-align: left; padding: 15px; font-family: Poppins;">
+                <p style="color: #718096; margin-bottom: 15px;">Estás a punto de actualizar el estado de este documento.</p>
+                <div style="background: #FDFCFB; padding: 20px; border-radius: 12px; border: 2px solid #F5F1E8;">
+                    <div style="margin-bottom: 10px; display: flex; justify-content: space-between; border-bottom: 1px solid #F5F1E8; pb-2">
+                        <span style="color: #A0AEC0;">Documento:</span>
+                        <strong style="color: #2D3748;">#{{ cotizacion.numero_venta }}</strong>
                     </div>
-                    <div style="margin-bottom: 8px;">
-                        <strong style="color: #6F5B44;">Estado actual:</strong> 
-                        <span style="color: #dc3545;">${estadoActual}</span>
+                    <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
+                        <span style="color: #A0AEC0;">De:</span>
+                        <strong style="color: #E53E3E;">${estadoActual}</strong>
                     </div>
-                    <div>
-                        <strong style="color: #6F5B44;">Nuevo estado:</strong> 
-                        <span style="color: #28a745; font-weight: 600;">${nuevoEstado}</span>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #A0AEC0;">A:</span>
+                        <strong style="color: #38A169;">${nuevoEstado}</strong>
                     </div>
                 </div>
             </div>
@@ -105,81 +119,102 @@ function confirmarCambioEstado() {
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#8B7355',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '<i class="fas fa-check me-1"></i> Sí, cambiar',
-        cancelButtonText: '<i class="fas fa-times me-1"></i> Cancelar',
+        cancelButtonColor: '#CBD5E0',
+        confirmButtonText: 'SÍ, ACTUALIZAR',
+        cancelButtonText: 'CANCELAR',
+        reverseButtons: true,
         customClass: {
-            popup: 'modal-terroso',
-            title: 'modal-title-terroso'
+            popup: 'premium-swal-popup',
+            confirmButton: 'premium-confirm-btn',
+            cancelButton: 'premium-cancel-btn'
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            // Mostrar loading
             Swal.fire({
-                title: 'Actualizando...',
-                text: 'Cambiando estado de la cotización',
+                title: 'Procesando...',
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
                 }
             });
-            
-            // Enviar formulario
             document.getElementById('formCambiarEstado').submit();
         }
     });
 }
 
-// Estilos personalizados para el modal
+// Estilos premium para Swal
 const style = document.createElement('style');
 style.textContent = `
-    .modal-terroso {
-        border: 3px solid #D4C4A8 !important;
-        border-radius: 15px !important;
+    .premium-swal-popup {
+        border-radius: 20px !important;
+        padding: 2.5rem 0 1.5rem 0 !important;
     }
-    .modal-title-terroso {
-        color: #6F5B44 !important;
-        font-weight: 600 !important;
+    .premium-confirm-btn {
+        padding: 10px 30px !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        letter-spacing: 0.5px !important;
+    }
+    .premium-cancel-btn {
+        padding: 10px 30px !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        letter-spacing: 0.5px !important;
     }
 `;
 document.head.appendChild(style);
 
-// Mostrar mensaje de éxito si existe
 {% if messages %}
     {% for message in messages %}
         Swal.fire({
             icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% else %}info{% endif %}',
-            title: '{% if message.tags == "success" %}¡Éxito!{% elif message.tags == "error" %}Error{% else %}Información{% endif %}',
+            title: '{% if message.tags == "success" %}Operación Exitosa{% else %}Aviso{% endif %}',
             text: '{{ message }}',
             confirmButtonColor: '#8B7355',
-            timer: 2000
-        }).then(() => {
-            {% if message.tags == "success" %}
-                window.location.href = "{% url 'ventas:cotizacion_detail' cotizacion.pk %}";
-            {% endif %}
+            timer: 3000,
+            timerProgressBar: true
         });
     {% endfor %}
 {% endif %}
 </script>
 
 <style>
-/* Estilos adicionales para el select */
-#estado {
-    padding: 8px 12px;
-    font-size: 0.9rem;
+.btn-piedra {
+    background: var(--color-piedra-boton);
+    color: white;
+    border: none;
+    font-weight: 700;
+    border-radius: 10px;
     transition: all 0.3s ease;
 }
 
-#estado:focus {
-    border-color: #8B7355;
-    box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+.btn-piedra:hover {
+    background: #6F5B44;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(111, 91, 68, 0.3);
 }
 
-/* Hover en botones */
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(139, 115, 85, 0.2);
-    transition: all 0.2s ease;
+.btn-outline-piedra {
+    background: transparent;
+    color: #8B7355;
+    border: 2px solid #D4C4A8;
+    font-weight: 700;
+    border-radius: 10px;
+    transition: all 0.3s ease;
 }
+
+.btn-outline-piedra:hover {
+    background: #F5F1E8;
+    color: #6F5B44;
+}
+
+select#estado:focus {
+    border-color: #8B7355 !important;
+    box-shadow: 0 0 0 0.25rem rgba(139, 115, 85, 0.1) !important;
+}
+
+/* Tipografía Poppins para títulos si no está cargada */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
 </style>
 {% endblock %}

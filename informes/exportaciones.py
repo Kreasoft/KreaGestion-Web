@@ -4,6 +4,7 @@ Funciones de exportación para informes
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.db.models import Sum, Count, Avg, F, Q
+from django.db.models.functions import Cast
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -289,8 +290,8 @@ def exportar_utilidad_familias_excel(request):
     ).values(
         'articulo__categoria__nombre'
     ).annotate(
-        total_ventas=Sum(F('cantidad') * F('precio_unitario'), output_field=DField()),
-        total_costo=Sum(F('cantidad') * F('articulo__precio_costo'), output_field=DField()),
+        total_ventas=Sum(F('cantidad') * F('precio_unitario'), output_field=DField(max_digits=20, decimal_places=2)),
+        total_costo=Sum(F('cantidad') * Cast(F('articulo__precio_costo'), DField(max_digits=20, decimal_places=2)), output_field=DField(max_digits=20, decimal_places=2)),
         cantidad_vendida=Sum('cantidad'),
         num_ventas=Count('venta', distinct=True)
     )
@@ -501,5 +502,125 @@ def exportar_categorias_excel(request):
     
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename=categorias_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    wb.save(response)
+    return response
+
+
+@login_required
+@requiere_empresa
+def exportar_utilidad_articulos_excel(request):
+    """Exportar utilidad por artículos a Excel"""
+    from articulos.models import CategoriaArticulo
+    from ventas.models import VentaDetalle
+    from django.db.models import DecimalField as DField
+    from django.db.models.functions import Cast
+    
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    familia_id = request.GET.get('familia')
+    
+    if not fecha_desde or not fecha_hasta:
+        fecha_hasta = datetime.now().date()
+        fecha_desde = fecha_hasta - timedelta(days=30)
+    else:
+        fecha_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+        fecha_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+    
+    # Query de ventas por artículo
+    ventas_query = VentaDetalle.objects.filter(
+        venta__empresa=request.empresa,
+        venta__fecha__range=[fecha_desde, fecha_hasta],
+        venta__estado='confirmada'
+    ).values(
+        'articulo__codigo',
+        'articulo__nombre',
+        'articulo__categoria__nombre'
+    ).annotate(
+        total_ventas=Sum(F('cantidad') * F('precio_unitario'), output_field=DField(max_digits=20, decimal_places=2)),
+        total_costo=Sum(F('cantidad') * Cast(F('articulo__precio_costo'), DField(max_digits=20, decimal_places=2)), output_field=DField(max_digits=20, decimal_places=2)),
+        cantidad_vendida=Sum('cantidad')
+    )
+    
+    if familia_id:
+        ventas_query = ventas_query.filter(articulo__categoria__id=familia_id)
+    
+    ventas_query = ventas_query.order_by('-total_ventas')
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Utilidad por Artículos"
+    
+    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    
+    ws['A1'] = f"Utilidad por Artículos - {request.empresa.nombre}"
+    ws['A1'].font = Font(bold=True, size=14)
+    ws['A2'] = f"Período: {fecha_desde.strftime('%d/%m/%Y')} - {fecha_hasta.strftime('%d/%m/%Y')}"
+    
+    headers = ['Código', 'Artículo', 'Familia', 'Cant. Vendida', 'Total Ventas', 'Total Costos', 'Utilidad', 'Margen %']
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=4, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    row = 5
+    total_ventas = 0
+    total_costos = 0
+    
+    for item in ventas_query:
+        ventas = float(item['total_ventas'] or 0)
+        costo = float(item['total_costo'] or 0)
+        utilidad = ventas - costo
+        margen = (utilidad / ventas * 100) if ventas > 0 else 0
+        
+        ws.cell(row=row, column=1, value=item['articulo__codigo']).border = border
+        ws.cell(row=row, column=2, value=item['articulo__nombre']).border = border
+        ws.cell(row=row, column=3, value=item['articulo__categoria__nombre'] or 'Sin Familia').border = border
+        ws.cell(row=row, column=4, value=float(item['cantidad_vendida'])).border = border
+        ws.cell(row=row, column=5, value=ventas).border = border
+        ws.cell(row=row, column=5).number_format = '$#,##0'
+        ws.cell(row=row, column=6, value=costo).border = border
+        ws.cell(row=row, column=6).number_format = '$#,##0'
+        ws.cell(row=row, column=7, value=utilidad).border = border
+        ws.cell(row=row, column=7).number_format = '$#,##0'
+        ws.cell(row=row, column=8, value=margen).border = border
+        ws.cell(row=row, column=8).number_format = '0.0"%"'
+        
+        total_ventas += ventas
+        total_costos += costo
+        row += 1
+    
+    # Totales
+    if row > 5:
+        ws.cell(row=row, column=1, value='TOTALES').border = border
+        ws.cell(row=row, column=1).font = Font(bold=True)
+        ws.cell(row=row, column=5, value=total_ventas).border = border
+        ws.cell(row=row, column=5).number_format = '$#,##0'
+        ws.cell(row=row, column=5).font = Font(bold=True)
+        ws.cell(row=row, column=6, value=total_costos).border = border
+        ws.cell(row=row, column=6).number_format = '$#,##0'
+        ws.cell(row=row, column=6).font = Font(bold=True)
+        ws.cell(row=row, column=7, value=total_ventas - total_costos).border = border
+        ws.cell(row=row, column=7).number_format = '$#,##0'
+        ws.cell(row=row, column=7).font = Font(bold=True)
+        margen_total = ((total_ventas - total_costos) / total_ventas * 100) if total_ventas > 0 else 0
+        ws.cell(row=row, column=8, value=margen_total).border = border
+        ws.cell(row=row, column=8).number_format = '0.0"%"'
+        ws.cell(row=row, column=8).font = Font(bold=True)
+    
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 40
+    ws.column_dimensions['C'].width = 25
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 18
+    ws.column_dimensions['F'].width = 18
+    ws.column_dimensions['G'].width = 18
+    ws.column_dimensions['H'].width = 12
+    
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=utilidad_articulos_{fecha_desde}_{fecha_hasta}.xlsx'
     wb.save(response)
     return response

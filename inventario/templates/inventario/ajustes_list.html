@@ -4,424 +4,351 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block title %}{{ titulo }}{% endblock %}
+{% block title %}Ajustes de Stock - GestionCloud{% endblock %}
 
 {% block extra_css %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
-    /* Paleta terrosa para ajustes de stock */
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL UNIFICADA */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 48px;
+        height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text);
+        font-size: 1.35rem;
+        margin: 0;
+        letter-spacing: -0.5px;
+        line-height: 1.1;
+    }
+    
+    .header-text p {
+        color: #795548;
+        font-size: 0.85rem;
+        margin: 0;
+        font-weight: 500;
+        opacity: 0.9;
+    }
+
+    /* BOTONES HEADER */
+    .header-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        background: rgba(255,255,255,0.6);
+        color: var(--stone-text);
+        border-color: rgba(255,255,255,0.8);
+        cursor: pointer;
+    }
+    .header-btn:hover { background: white; transform: translateY(-2px); }
+    .btn-action-primary { background: var(--stone-primary); color: white; border: none; }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; }
+
+    /* STATS CARDS (PRESERVED) */
     .stat-card {
         border: none;
         border-radius: 12px;
         transition: all 0.3s ease;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-    }
-
-    .stat-card-1 {
-        background: linear-gradient(135deg, #D4A574 0%, #C19461 100%);
-    }
-
-    .stat-card-2 {
-        background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%);
-    }
-
-    .stat-card-3 {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-    }
-
-    .stat-card-4 {
-        background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%);
-    }
-
-    .stat-value {
-        font-size: 1.8rem;
-        font-weight: 700;
+        height: 100%;
         color: white;
-        margin-bottom: 0.25rem;
+        position: relative;
+        overflow: hidden;
     }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+    .stat-card-1 { background: linear-gradient(135deg, #D4A574 0%, #C19461 100%); }
+    .stat-card-2 { background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%); }
+    .stat-card-3 { background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); }
+    .stat-card-4 { background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%); }
+    .stat-value { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .stat-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9; }
+    .stat-icon { font-size: 2rem; opacity: 0.2; position: absolute; right: 15px; bottom: 15px; }
 
-    .stat-label {
-        color: rgba(255,255,255,0.9);
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 500;
-    }
-
-    .stat-icon {
-        font-size: 2rem;
-        color: rgba(255,255,255,0.3);
-        position: absolute;
-        right: 15px;
-        bottom: 15px;
-    }
-
-    .filter-section {
-        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .table-compact {
-        font-size: 0.75rem;
-        line-height: 1.1;
-    }
-
-    .table-compact thead th {
-        padding: 4px 2px;
-        font-weight: 600;
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-        border: none;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.2px;
-        line-height: 1.1;
-    }
-
-    .table-compact tbody td {
-        padding: 2px 3px;
-        vertical-align: middle;
-        line-height: 1.2;
-        font-size: 0.7rem;
-    }
-
-    .table-compact tbody tr {
-        height: 28px;
-    }
-
-    .btn-filter {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        border: none;
-        color: white;
-        padding: 8px 20px;
-        font-weight: 500;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-filter:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
-        color: white;
-    }
-
-    .btn-action {
-        padding: 4px 10px;
-        font-size: 0.75rem;
-        border-radius: 6px;
-    }
-
-    .badge-entrada {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
-        padding: 0.3rem 0.6rem;
-        border-radius: 15px;
-        font-size: 0.7rem;
-        font-weight: 500;
-    }
-
-    .badge-salida {
-        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
-        color: white;
-        padding: 0.3rem 0.6rem;
-        border-radius: 15px;
-        font-size: 0.7rem;
-        font-weight: 500;
-    }
-
-    .badge-procesado {
-        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-        color: white;
-        padding: 0.25rem 0.5rem;
+    /* FILTROS INTEGRADOS */
+    .stone-filter-box {
+        background: #FAFAF8;
+        border: 1px solid #E8DCC8;
         border-radius: 12px;
-        font-size: 0.65rem;
-        font-weight: 500;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
     }
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.4rem 0.75rem; font-size: 0.85rem; background-color: white; width: 100%; color: var(--stone-text);
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+
+    /* TABLE PIEDRA */
+    .table-piedra { width: 100%; border-collapse: collapse; font-family: 'Poppins', sans-serif; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 12px 15px;
+    }
+    .table-piedra tbody tr { height: 33px !important; transition: all 0.2s ease; border-bottom: 1px solid #F5F1E8; }
+    .table-piedra tbody tr:hover { background-color: #F5F1E8; }
+    .table-piedra tbody td { padding: 4px 15px; vertical-align: middle; font-size: 0.85rem; color: #4A5568; }
+
+    /* BADGES */
+    .badge-stone { padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; display: inline-block; }
+    .bg-entrada { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+    .bg-salida { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+    .bg-procesado { background: #ECEFF1; color: #546E7A; border: 1px solid #CFD8DC; }
+    .bg-pendiente { background: #FFF8E1; color: #F57F17; border: 1px solid #FFECB3; }
+
+    /* ACCIONES */
+    .btn-icon-stone {
+        width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E8DCC8; background: white; color: var(--stone-secondary); transition: all 0.2s;
+    }
+    .btn-icon-stone:hover { background: var(--stone-primary); color: white; border-color: var(--stone-primary); }
 </style>
 {% endblock %}
 
 {% block content %}
-
-<div class="container-fluid mt-4">
+<div class="container-fluid">
     <div class="row">
-        <!-- ESTADÍSTICAS PRINCIPALES -->
-        <div class="col-12 mb-2">
-            <div class="row g-2">
+        <div class="col-12">
+            
+            <!-- STATS CARDS -->
+            <div class="row g-3 mb-3 mt-2">
                 <div class="col-md-3">
-                    <div class="stat-card stat-card-1 p-2 position-relative">
-                        <div class="stat-value" style="font-size: 1.1rem;">{{ total_ajustes|default:0|format_miles }}</div>
-                        <div class="stat-label" style="font-size: 0.7rem;">Total Ajustes</div>
+                    <div class="stat-card stat-card-1 p-3">
+                        <div class="stat-value">{{ total_ajustes|default:0|format_miles }}</div>
+                        <div class="stat-label">Total Ajustes</div>
                         <i class="fas fa-adjust stat-icon"></i>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card stat-card-2 p-2 position-relative">
-                        <div class="stat-value" style="font-size: 1rem;">{{ ajustes_entrada|default:0|format_miles }}</div>
-                        <div class="stat-label" style="font-size: 0.7rem;">Entradas</div>
+                    <div class="stat-card stat-card-2 p-3">
+                        <div class="stat-value">{{ ajustes_entrada|default:0|format_miles }}</div>
+                        <div class="stat-label">Entradas</div>
                         <i class="fas fa-arrow-up stat-icon"></i>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card stat-card-3 p-2 position-relative">
-                        <div class="stat-value" style="font-size: 1rem;">{{ ajustes_salida|default:0|format_miles }}</div>
-                        <div class="stat-label" style="font-size: 0.7rem;">Salidas</div>
+                    <div class="stat-card stat-card-3 p-3">
+                        <div class="stat-value">{{ ajustes_salida|default:0|format_miles }}</div>
+                        <div class="stat-label">Salidas</div>
                         <i class="fas fa-arrow-down stat-icon"></i>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card stat-card-4 p-2 position-relative">
-                        <div class="stat-value" style="font-size: 1rem;">{{ ajustes_pendientes|default:0|format_miles }}</div>
-                        <div class="stat-label" style="font-size: 0.7rem;">Pendientes</div>
+                    <div class="stat-card stat-card-4 p-3">
+                        <div class="stat-value">{{ ajustes_pendientes|default:0|format_miles }}</div>
+                        <div class="stat-label">Pendientes</div>
                         <i class="fas fa-clock stat-icon"></i>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- FILTROS -->
-        <div class="col-12">
-            <div class="filter-section">
-                <form method="get" action="{% url 'inventario:ajustes_list' %}">
-                    <div class="row g-2">
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                <i class="fas fa-search me-1"></i>Buscar
-                            </label>
-                            <input type="text" name="search" class="form-control form-control-sm"
-                                   placeholder="🔍 Folio, descripción, artículo..." value="{{ search }}">
+            <!-- CARD PRINCIPAL -->
+            <div class="single-card-container">
+                
+                <!-- HEADER PREMIUM -->
+                <div class="stone-header-premium">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="header-icon-box">
+                            <i class="fas fa-clipboard-check"></i>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                <i class="fas fa-exchange-alt me-1"></i>Tipo
-                            </label>
-                            <select name="tipo_ajuste" class="form-select form-select-sm">
-                                <option value="">Todos</option>
-                                <option value="ENTRADA" {% if tipo_ajuste == 'ENTRADA' %}selected{% endif %}>Entrada</option>
-                                <option value="SALIDA" {% if tipo_ajuste == 'SALIDA' %}selected{% endif %}>Salida</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                <i class="fas fa-warehouse me-1"></i>Bodega
-                            </label>
-                            <select name="bodega" class="form-select form-select-sm">
-                                <option value="">Todas</option>
-                                {% for bodega in bodegas %}
-                                    <option value="{{ bodega.id }}" {% if bodega_id == bodega.id|stringformat:"s" %}selected{% endif %}>
-                                        {{ bodega.nombre }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                <i class="fas fa-calendar-alt me-1"></i>Desde
-                            </label>
-                            <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                <i class="fas fa-calendar-alt me-1"></i>Hasta
-                            </label>
-                            <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
-                        </div>
-                        <div class="col-md-1 d-flex align-items-end">
-                            <button type="submit" class="btn btn-filter w-100">
-                                <i class="fas fa-filter me-1"></i>Filtrar
-                            </button>
+                        <div class="header-text">
+                            <h1>Ajustes de <span class="fw-bold">Stock</span></h1>
+                            <p>Gestión de movimientos manuales de inventario.</p>
                         </div>
                     </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Tabla de Ajustes -->
-        <div class="col-12">
-            <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
-                    <h6 class="mb-0" style="font-size: 1rem; font-weight: 600; color: #6F5B44;">
-                        <i class="fas fa-adjust me-2"></i>Lista de Ajustes de Stock
-                    </h6>
-                    <a href="{% url 'inventario:ajuste_create' %}" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 6px 16px; font-size: 0.8rem;">
-                        <i class="fas fa-plus me-1"></i>Nuevo Ajuste
-                    </a>
+                    <div>
+                        <a href="{% url 'inventario:ajuste_create' %}" class="header-btn btn-action-primary">
+                            <i class="fas fa-plus me-2"></i> Nuevo Ajuste
+                        </a>
+                    </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover table-compact mb-0">
-                        <thead>
-                            <tr>
-                                <th style="width: 10%;">Folio</th>
-                                <th style="width: 10%;">Tipo</th>
-                                <th style="width: 15%;">Fecha</th>
-                                <th style="width: 15%;">Bodega</th>
-                                <th style="width: 25%;">Descripción</th>
-                                <th style="width: 10%;">Estado</th>
-                                <th style="width: 8%;">Artículos</th>
-                                <th class="text-center" style="width: 12%;">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for ajuste in page_obj %}
-                                <tr style="border-bottom: 1px solid #F5F1E8;">
-                                    <td style="font-size: 0.7rem;">
-                                        <strong style="color: #6F5B44;">{{ ajuste.folio }}</strong>
-                                    </td>
-                                    <td style="font-size: 0.7rem;">
+                <div class="card-body p-4">
+                    
+                    <!-- FILTROS -->
+                    <div class="stone-filter-box">
+                         <form method="get" action="{% url 'inventario:ajustes_list' %}" class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted mb-1">Buscar</label>
+                                <input type="text" name="search" class="form-control-stone" placeholder="Folio, descripción..." value="{{ search }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted mb-1">Tipo</label>
+                                <select name="tipo_ajuste" class="form-select-stone">
+                                    <option value="">Todos</option>
+                                    <option value="ENTRADA" {% if tipo_ajuste == 'ENTRADA' %}selected{% endif %}>Entrada</option>
+                                    <option value="SALIDA" {% if tipo_ajuste == 'SALIDA' %}selected{% endif %}>Salida</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold text-muted mb-1">Bodega</label>
+                                <select name="bodega" class="form-select-stone">
+                                    <option value="">Todas</option>
+                                    {% for bodega in bodegas %}
+                                        <option value="{{ bodega.id }}" {% if bodega_id == bodega.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ bodega.nombre }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-muted mb-1">Desde</label>
+                                        <input type="date" name="fecha_desde" class="form-control-stone" value="{{ fecha_desde }}">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-muted mb-1">Hasta</label>
+                                        <input type="date" name="fecha_hasta" class="form-control-stone" value="{{ fecha_hasta }}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="header-btn w-100 justify-content-center" style="background-color: var(--stone-secondary); color: white;">
+                                    <i class="fas fa-filter me-2"></i> Filtrar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- TABLA -->
+                    <div class="table-responsive">
+                        <table class="table-piedra">
+                            <thead>
+                                <tr>
+                                    <th>Folio</th>
+                                    <th>Tipo</th>
+                                    <th>Fecha</th>
+                                    <th>Bodega</th>
+                                    <th>Descripción</th>
+                                    <th>Estado</th>
+                                    <th>Items</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ajuste in page_obj %}
+                                <tr>
+                                    <td><span class="fw-bold" style="color: var(--stone-primary);">{{ ajuste.folio }}</span></td>
+                                    <td>
                                         {% if ajuste.tipo_ajuste == 'ENTRADA' %}
-                                            <span class="badge-entrada">
-                                                <i class="fas fa-arrow-up me-1"></i>Entrada
-                                            </span>
+                                            <span class="badge-stone bg-entrada"><i class="fas fa-arrow-up me-1"></i>Entrada</span>
                                         {% else %}
-                                            <span class="badge-salida">
-                                                <i class="fas fa-arrow-down me-1"></i>Salida
-                                            </span>
+                                            <span class="badge-stone bg-salida"><i class="fas fa-arrow-down me-1"></i>Salida</span>
                                         {% endif %}
                                     </td>
-                                    <td style="font-size: 0.7rem;">{{ ajuste.fecha_ajuste|date:"d/m/Y H:i" }}</td>
-                                    <td style="font-size: 0.7rem;">{{ ajuste.bodega.nombre|truncatechars:15 }}</td>
-                                    <td style="font-size: 0.7rem;">
-                                        <span class="text-muted" title="{{ ajuste.descripcion }}">
-                                            {{ ajuste.descripcion|truncatechars:30 }}
-                                        </span>
-                                    </td>
-                                    <td style="font-size: 0.7rem;">
+                                    <td>{{ ajuste.fecha_ajuste|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ ajuste.bodega.nombre|truncatechars:18 }}</td>
+                                    <td class="text-muted small">{{ ajuste.descripcion|truncatechars:35 }}</td>
+                                    <td>
                                         {% if ajuste.procesado %}
-                                            <span class="badge-procesado">
-                                                <i class="fas fa-check me-1"></i>Procesado
-                                            </span>
+                                            <span class="badge-stone bg-procesado"><i class="fas fa-check me-1"></i>Procesado</span>
                                         {% else %}
-                                            <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">
-                                                <i class="fas fa-clock me-1"></i>Pendiente
-                                            </span>
+                                            <span class="badge-stone bg-pendiente"><i class="fas fa-clock me-1"></i>Pendiente</span>
                                         {% endif %}
                                     </td>
-                                    <td style="font-size: 0.7rem;">
-                                        <span class="badge bg-info" style="font-size: 0.7rem;">{{ ajuste.detalles.count }}</span>
-                                    </td>
+                                    <td><span class="badge rounded-pill bg-light text-dark border">{{ ajuste.detalles.count }}</span></td>
                                     <td class="text-center">
-                                        <div class="btn-group" role="group">
-                                            <a href="{% url 'inventario:ajuste_detail' ajuste.pk %}"
-                                               class="btn btn-action btn-outline-primary" title="Ver detalle"
-                                               style="padding: 2px 6px; font-size: 0.7rem;">
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <a href="{% url 'inventario:ajuste_detail' ajuste.pk %}" class="btn-icon-stone" title="Ver Detalle">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-
                                             {% if not ajuste.procesado %}
-                                                <a href="{% url 'inventario:ajuste_procesar' ajuste.pk %}"
-                                                   class="btn btn-action btn-outline-success" title="Procesar"
-                                                   onclick="return confirm('¿Procesar este ajuste?')"
-                                                   style="padding: 2px 6px; font-size: 0.7rem;">
-                                                    <i class="fas fa-play"></i>
+                                                <a href="{% url 'inventario:ajuste_procesar' ajuste.pk %}" class="btn-icon-stone" title="Procesar" onclick="return confirm('¿Procesar ajuste?')">
+                                                    <i class="fas fa-play text-success"></i>
                                                 </a>
                                             {% else %}
-                                                <a href="{% url 'inventario:ajuste_deshacer' ajuste.pk %}"
-                                                   class="btn btn-action btn-outline-warning" title="Deshacer"
-                                                   onclick="return confirm('¿Deshacer este ajuste?')"
-                                                   style="padding: 2px 6px; font-size: 0.7rem;">
-                                                    <i class="fas fa-undo"></i>
+                                                <a href="{% url 'inventario:ajuste_export' ajuste.pk %}" class="btn-icon-stone" title="Exportar PDF/Excel">
+                                                    <i class="fas fa-file-export"></i>
                                                 </a>
                                             {% endif %}
-
-                                            <a href="{% url 'inventario:ajuste_export' ajuste.pk %}"
-                                               class="btn btn-action btn-outline-info" title="Exportar"
-                                               style="padding: 2px 6px; font-size: 0.7rem;">
-                                                <i class="fas fa-download"></i>
-                                            </a>
                                         </div>
                                     </td>
                                 </tr>
-                            {% empty %}
+                                {% empty %}
                                 <tr>
-                                    <td colspan="8" class="text-center py-2">
-                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
-                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay ajustes registrados</p>
+                                    <td colspan="8" class="text-center py-5">
+                                        <div class="d-flex flex-column align-items-center opacity-50">
+                                            <i class="fas fa-clipboard-check fa-3x mb-3 text-muted"></i>
+                                            <h6 class="fw-bold text-muted">No hay ajustes registrados</h6>
+                                        </div>
                                     </td>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- PAGINACIÓN -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-center mt-4 border-top pt-3">
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item"><a class="page-link text-muted" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">‹</a></li>
+                                {% endif %}
+                                <li class="page-item active"><span class="page-link" style="background: var(--stone-primary); border-color: var(--stone-primary);">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+                                {% if page_obj.has_next %}
+                                <li class="page-item"><a class="page-link text-muted" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">›</a></li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
-
-        <!-- PAGINACIÓN -->
-        {% if page_obj.has_other_pages %}
-            <div class="col-12 mt-2">
-                <div class="d-flex justify-content-center">
-                    <nav aria-label="Paginación">
-                        <ul class="pagination pagination-sm mb-0" style="font-size: 0.75rem;">
-                            {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
-                                    «
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
-                                    ‹
-                                </a>
-                            </li>
-                            {% endif %}
-
-                            <li class="page-item active">
-                                <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
-                                    {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-                                </span>
-                            </li>
-
-                            {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
-                                    ›
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if tipo_ajuste %}&tipo_ajuste={{ tipo_ajuste }}{% endif %}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">
-                                    »
-                                </a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                </div>
-            </div>
-        {% endif %}
     </div>
 </div>
 {% endblock %}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

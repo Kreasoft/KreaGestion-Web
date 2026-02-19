@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load format_filters %}
+
+{% block title %}Informe de Utilidad por Artículo - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* VARIABLES ESTILO PIEDRA PREMIUM */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #43A047;
+        --stone-danger: #e53935;
+        --stone-warning: #FB8C00;
+        --stone-info: #039BE5;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    @media print { .no-print { display: none !important; } }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.25rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .header-icon-box {
+        width: 52px; height: 52px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 14px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text h1 span { font-weight: 700; }
+    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* FILTROS */
+    .stone-filter-box {
+        background: linear-gradient(to right, #FAF9F6, #FFFFFF);
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* ESTADISTICAS */
+    .stone-stats-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .stone-stat-card {
+        background: #FFFFFF;
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+        min-height: 100px;
+    }
+    .stone-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(139, 115, 85, 0.1); }
+    
+    .stat-label { font-size: 0.75rem; color: #8D6E63; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+    .stat-value { font-size: 1.35rem; font-weight: 700; color: var(--stone-text); margin: 0; }
+    
+    .stat-icon-bg { 
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        font-size: 2.5rem;
+        opacity: 0.1;
+        color: var(--stone-primary);
+    }
+
+    /* ACTION BUTTONS */
+    .btn-action-secondary {
+        background: white; border: 1px solid var(--stone-light); color: var(--stone-text);
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-action-secondary:hover { background: var(--stone-bg); transform: translateY(-1px); }
+
+    .btn-action-primary {
+        background: var(--stone-primary); border: none; color: white;
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2);
+        transition: all 0.2s;
+    }
+    .btn-action-primary:hover { background: var(--stone-secondary); transform: translateY(-1px); color: white; }
+    
+    /* EXCEL BUTTON */
+    .btn-excel {
+        background: linear-gradient(135deg, #1D6F42 0%, #107C41 100%);
+        border: none; color: white;
+        padding: 0.5rem 1.25rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none;
+        box-shadow: 0 4px 12px rgba(29, 111, 66, 0.25);
+        transition: all 0.2s ease;
+    }
+    .btn-excel:hover { 
+        background: linear-gradient(135deg, #107C41 0%, #0c5c30 100%); 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 15px rgba(29, 111, 66, 0.35); 
+        color: white; 
+    }
+
+    /* TABLA */
+    .table-container {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--stone-light);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+    
+    .utilidad-positiva { color: var(--stone-success); font-weight: 700; }
+    .utilidad-negativa { color: var(--stone-danger); font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- Header Premium -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-barcode"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Utilidad por <span>Artículo</span></h1>
+                    <p>Rentabilidad detallada por producto</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 no-print">
+                <a href="{% url 'informes:dashboard' %}" class="btn-action-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+                <button onclick="window.print()" class="btn-action-secondary">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+                <a href="{% url 'informes:exportar_utilidad_articulos_excel' %}?fecha_desde={{ fecha_desde|date:'Y-m-d' }}&fecha_hasta={{ fecha_hasta|date:'Y-m-d' }}{% if familia_id %}&familia={{ familia_id }}{% endif %}" class="btn-excel">
+                    <i class="fas fa-file-excel"></i> Exportar Excel
+                </a>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            
+            <!-- Filtros -->
+            <div class="stone-filter-box no-print">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold" style="color: #6F5B44;">Desde</label>
+                        <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde|date:'Y-m-d' }}" required style="border-radius: 8px; border: 1px solid #D4C4A8; background-color: #FAFAF8;">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold" style="color: #6F5B44;">Hasta</label>
+                        <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta|date:'Y-m-d' }}" required style="border-radius: 8px; border: 1px solid #D4C4A8; background-color: #FAFAF8;">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold" style="color: #6F5B44;">Familia</label>
+                        <select name="familia" class="form-select" style="border-radius: 8px; border: 1px solid #D4C4A8; background-color: #FAFAF8;">
+                            <option value="">Todas las familias</option>
+                            {% for familia in familias %}
+                            <option value="{{ familia.id }}" {% if familia_id == familia.id|stringformat:"s" %}selected{% endif %}>
+                                {{ familia.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn-action-primary w-100 justify-content-center">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Resumen Estadístico -->
+            <div class="stone-stats-container mb-4">
+                <div class="stone-stat-card">
+                    <span class="stat-label">Total Ventas</span>
+                    <span class="stat-value">${{ total_ventas_general|format_miles }}</span>
+                    <i class="fas fa-shopping-cart stat-icon-bg"></i>
+                </div>
+                <div class="stone-stat-card">
+                    <span class="stat-label">Total Costos</span>
+                    <span class="stat-value">${{ total_costo_general|format_miles }}</span>
+                    <i class="fas fa-tags stat-icon-bg"></i>
+                </div>
+                <div class="stone-stat-card">
+                    <span class="stat-label">Utilidad Total</span>
+                    <span class="stat-value {% if utilidad_general >= 0 %}utilidad-positiva{% else %}utilidad-negativa{% endif %}">
+                        ${{ utilidad_general|format_miles }}
+                    </span>
+                    <i class="fas fa-chart-line stat-icon-bg"></i>
+                </div>
+                <div class="stone-stat-card">
+                    <span class="stat-label">Margen Prom.</span>
+                    <span class="stat-value">{{ margen_general|floatformat:1 }}%</span>
+                    <i class="fas fa-percentage stat-icon-bg"></i>
+                </div>
+            </div>
+
+            <!-- Tabla de Resultados -->
+            <div class="table-container">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 tabla-informe" style="width: 100%; border-collapse: collapse; font-family: 'Poppins', sans-serif;">
+                        <thead>
+                            <tr>
+                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Cód</th>
+                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Artículo</th>
+                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Familia</th>
+                                <th class="text-end" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Cant.</th>
+                                <th class="text-end" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Total Ventas</th>
+                                <th class="text-end" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Total Costos</th>
+                                <th class="text-end" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Utilidad</th>
+                                <th class="text-center" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Margen %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in resultados %}
+                            <tr style="border-bottom: 1px solid #F5F1E8; height: 32px;">
+                                <td style="padding: 0.25rem 1.5rem; vertical-align: middle; color: #8D6E63; font-family: monospace;">{{ item.codigo }}</td>
+                                <td style="padding: 0.25rem 1.5rem; vertical-align: middle; font-weight: 500; color: #5D4037;">{{ item.nombre }}</td>
+                                <td style="padding: 0.25rem 1.5rem; vertical-align: middle; color: #795548;">{{ item.familia }}</td>
+                                <td class="text-end" style="padding: 0.25rem 1.5rem; vertical-align: middle;">{{ item.cantidad|floatformat:1 }}</td>
+                                <td class="text-end fw-bold" style="padding: 0.25rem 1.5rem; vertical-align: middle; color: #5D4037;">${{ item.total_ventas|format_miles }}</td>
+                                <td class="text-end" style="padding: 0.25rem 1.5rem; vertical-align: middle;">${{ item.total_costo|format_miles }}</td>
+                                <td class="text-end {% if item.utilidad >= 0 %}utilidad-positiva{% else %}utilidad-negativa{% endif %}" style="padding: 0.25rem 1.5rem; vertical-align: middle;">
+                                    ${{ item.utilidad|format_miles }}
+                                </td>
+                                <td class="text-center" style="padding: 0.25rem 1.5rem; vertical-align: middle;">
+                                    <span class="badge" style="background-color: {% if item.margen >= 30 %}#43A047{% elif item.margen >= 15 %}#FB8C00{% else %}#e53935{% endif %}; color: white; padding: 0.35em 0.65em;">
+                                        {{ item.margen|floatformat:1 }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4">
+                                    <div class="text-muted d-flex flex-column align-items-center">
+                                        <i class="fas fa-barcode fa-2x mb-2" style="opacity: 0.3;"></i>
+                                        No hay ventas en el período seleccionado
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if resultados %}
+                        <tfoot style="background: #FAF9F6; font-weight: bold; border-top: 2px solid #E8DCC8;">
+                            <tr style="height: 32px;">
+                                <td colspan="4" class="text-end" style="padding: 0.5rem 1.5rem; color: #8B7355;">TOTALES GENERALES:</td>
+                                <td class="text-end" style="padding: 0.5rem 1.5rem; color: #5D4037;">${{ total_ventas_general|format_miles }}</td>
+                                <td class="text-end" style="padding: 0.5rem 1.5rem; color: #5D4037;">${{ total_costo_general|format_miles }}</td>
+                                <td class="text-end {% if utilidad_general >= 0 %}utilidad-positiva{% else %}utilidad-negativa{% endif %}" style="padding: 0.5rem 1.5rem;">
+                                    ${{ utilidad_general|format_miles }}
+                                </td>
+                                <td class="text-center" style="padding: 0.5rem 1.5rem; color: #5D4037;">{{ margen_general|floatformat:1 }}%</td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Información adicional -->
+            <div class="row mt-3 no-print">
+                <div class="col-12">
+                    <div class="alert alert-info d-flex align-items-center" style="background: #FAF9F6; border: 1px solid #E8DCC8; color: #6F5B44; border-radius: 12px;">
+                        <i class="fas fa-info-circle me-3 fa-lg" style="color: #8B7355;"></i>
+                        <div>
+                            <strong>Nota:</strong> La utilidad se calcula como: Ventas - Costos. El margen es el porcentaje de utilidad sobre las ventas.
+                            <br>
+                            Los costos se toman del precio de costo registrado en cada artículo al momento de la venta.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

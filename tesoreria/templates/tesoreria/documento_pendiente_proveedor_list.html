@@ -8,277 +8,319 @@
 
 {% block extra_head %}
 <style>
-    body {
-        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
-        min-height: 100vh;
+    /* VARIABLES ESTILO PIEDRA PREMIUM */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #43A047;
+        --stone-danger: #e53935;
+        --stone-warning: #FB8C00;
+        --stone-info: #039BE5;
     }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.25rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .header-icon-box {
+        width: 52px; height: 52px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 14px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* FILTROS */
+    .stone-filter-box {
+        background: linear-gradient(to right, #FAF9F6, #FFFFFF);
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.5rem 0.8rem; font-size: 0.9rem; background-color: #FAFAF8; width: 100%; color: var(--stone-text); transition: all 0.2s;
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none; background: white;
+    }
+    .form-label-stone { font-size: 0.8rem; font-weight: 600; color: #6F5B44; margin-bottom: 0.3rem; display: block; }
+
+    /* BOTONES */
+    .btn-action-primary { 
+        background: var(--stone-primary); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; 
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; cursor: pointer;
+    }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2); }
+    
+    .btn-action-secondary { 
+        background: white; color: var(--stone-primary); border: 1px solid var(--stone-primary); padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; 
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; cursor: pointer;
+    }
+    .btn-action-secondary:hover { background: #fdfbf7; transform: translateY(-1px); }
+
+    .btn-filter-apply {
+        background: var(--stone-secondary); color: white; border: none; width: 100%; padding: 0.5rem; border-radius: 8px; font-weight: 600; transition: all 0.2s;
+    }
+    .btn-filter-apply:hover { background: #5D4037; }
+
+    /* TABLA PIEDRA PREMIUM */
+    .table-responsive { border-radius: 12px; overflow: hidden; border: 1px solid #E8DCC8; }
+    .table-piedra { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 12px 15px; text-align: left;
+    }
+    .table-piedra tbody tr { transition: all 0.2s; }
+    .table-piedra tbody tr:hover { background-color: #F8F6F2; }
+    .table-piedra tbody td { 
+        padding: 10px 15px; vertical-align: middle; font-size: 0.85rem; color: #4A5568; border-bottom: 1px solid #F0EAE0;
+    }
+    .table-piedra tbody tr:last-child td { border-bottom: none; }
+
+    /* ICONOS */
+    .btn-icon {
+        width: 30px; height: 30px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; transition: all 0.2s;
+        color: #795548;
+    }
+    .btn-icon:hover { background: #EFEBE9; color: #5D4037; }
+    .btn-icon-danger { color: #e53935; } 
+    .btn-icon-danger:hover { background: #ffebee; color: #c62828; }
+
+    /* BADGES */
+    .badge-stone { padding: 0.35em 0.8em; border-radius: 6px; font-weight: 600; font-size: 0.7rem; letter-spacing: 0.3px; text-transform: uppercase; }
+    .badge-stone-success { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+    .badge-stone-warning { background: #FFF8E1; color: #F57F17; border: 1px solid #FFE082; }
+    .badge-stone-danger { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+    .badge-stone-info { background: #E1F5FE; color: #0277BD; border: 1px solid #B3E5FC; }
+    .badge-stone-secondary { background: #ECEFF1; color: #546E7A; border: 1px solid #CFD8DC; }
+
+    /* MODAL STONE */
+    .modal-content-stone { border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.15); }
+    .modal-header-stone { background: var(--stone-gradient); padding: 1.25rem; border-bottom: 1px solid #E8DCC8; }
+    .modal-header-stone .modal-title { color: var(--stone-text); font-weight: 700; font-size: 1.1rem; }
+    .modal-header-stone .btn-close { filter: opacity(0.7); }
 </style>
 {% endblock %}
 
 {% block content %}
-
-<div class="container-fluid" style="margin-top: 20px;">
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
-
-                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border: none; border-bottom: 2px solid #D4C4A8; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-file-invoice fa-lg me-2" style="color: #6F5B44;"></i>
-                            <div>
-                                <h5 class="mb-0" style="font-size: 1.1rem; font-family: 'Poppins', sans-serif; font-weight: 600; color: #6F5B44;">
-                                    Documentos Pendientes - Proveedores
-                                </h5>
-                                <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #8B7355;">
-                                    Gestiona facturas y documentos pendientes de pago a proveedores
-                                </small>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}" class="btn btn-sm me-2" style="background: rgba(139, 115, 85, 0.15); border: 1px solid rgba(139, 115, 85, 0.25); color: #8B7355; padding: 4px 8px; font-size: 0.7rem;">
-                                <i class="fas fa-arrow-left me-1"></i> Volver
-                            </a>
-                            <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; padding: 4px 8px; font-size: 0.7rem;" data-bs-toggle="modal" data-bs-target="#modalDocumento">
-                                <i class="fas fa-plus me-1"></i> Nuevo Documento
-                            </button>
-                        </div>
-                    </div>
+<div class="container-fluid">
+    <div class="single-card-container">
+        
+        <!-- HEADER PREMIUM -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-file-invoice"></i>
                 </div>
-                
-                <div class="card-body" style="padding: 12px; background: #FAFAF8;">
-
-                    <!-- FILTROS -->
-                    <div class="filter-section">
-                        <form method="get">
-                            <div class="row g-2">
-                                <div class="col-md-10">
-                                    <label class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">
-                                        <i class="fas fa-search me-1"></i>Buscar
-                                    </label>
-                                    <input type="text" name="search" class="form-control form-control-sm"
-                                           placeholder="🔍 Buscar por N° documento o proveedor..." value="{{ search }}">
-                                </div>
-                                <div class="col-md-2 d-flex gap-2">
-                                    <button type="submit" class="btn btn-filter flex-grow-1">
-                                        <i class="fas fa-filter me-1"></i>Filtrar
-                                    </button>
-                                    <a href="{% url 'tesoreria:documento_pendiente_proveedor_list' %}" class="btn btn-sm btn-outline-secondary">
-                                        <i class="fas fa-times"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    
-                    <!-- Lista de Documentos -->
-                    <div class="table-responsive" style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                        <table class="table table-hover table-compact mb-0">
-                            <thead>
-                                <tr>
-                                    <th style="width: 5%;">#</th>
-                                    <th style="width: 10%;">Tipo</th>
-                                    <th style="width: 12%;">N° Documento</th>
-                                    <th style="width: 20%;">Proveedor</th>
-                                    <th style="width: 10%;">F. Emisión</th>
-                                    <th style="width: 10%;">F. Vencimiento</th>
-                                    <th style="width: 12%;">Total</th>
-                                    <th style="width: 10%;">Estado</th>
-                                    <th class="text-center" style="width: 11%;">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for documento in page_obj %}
-                                <tr style="border-bottom: 1px solid #F5F1E8;">
-                                    <td style="font-size: 0.7rem;" class="text-muted">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
-                                    <td style="font-size: 0.7rem;">
-                                        <span class="badge bg-secondary" style="font-size: 0.6rem;">{{ documento.get_tipo_documento_display }}</span>
-                                    </td>
-                                    <td style="font-size: 0.7rem;">
-                                        <strong>{{ documento.numero_documento }}</strong>
-                                    </td>
-                                    <td style="font-size: 0.7rem;">
-                                        <div class="d-flex align-items-center">
-                                            <i class="fas fa-truck text-muted me-2"></i>
-                                            {{ documento.proveedor.nombre }}
-                                        </div>
-                                    </td>
-                                    <td style="font-size: 0.7rem;">{{ documento.fecha_emision|date:"d/m/Y" }}</td>
-                                    <td style="font-size: 0.7rem;">{{ documento.fecha_vencimiento|date:"d/m/Y"|default:"-" }}</td>
-                                    <td style="font-size: 0.7rem; font-weight: 600;">${{ documento.total|floatformat:0|intcomma }}</td>
-                                    <td style="font-size: 0.7rem;">
-                                        {% if documento.estado_pago == 'pagado' %}
-                                            <span class="badge bg-success" style="font-size: 0.6rem;">Pagado</span>
-                                        {% elif documento.estado_pago == 'vencida' %}
-                                            <span class="badge bg-danger" style="font-size: 0.6rem;">Vencido</span>
-                                        {% elif documento.estado_pago == 'parcial' %}
-                                            <span class="badge bg-warning" style="font-size: 0.6rem;">Parcial</span>
-                                        {% else %}
-                                            <span class="badge bg-info" style="font-size: 0.6rem;">Pendiente</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="btn-group" role="group">
-                                            <button type="button"
-                                                    class="btn btn-sm btn-action btn-outline-secondary"
-                                                    title="Editar"
-                                                    onclick="editarDocumento({{ documento.pk }})">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button type="button"
-                                                    class="btn btn-sm btn-action btn-outline-danger"
-                                                    title="Eliminar"
-                                                    onclick="eliminarDocumento({{ documento.pk }}, '{{ documento.numero_documento }}')">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="9" class="text-center py-2">
-                                        <i class="fas fa-inbox fa-2x mb-2" style="color: #D4A574;"></i>
-                                        <p style="color: #8B7355; font-size: 0.8rem;">No hay documentos pendientes registrados</p>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- PAGINACIÓN -->
-                    {% if page_obj.has_other_pages %}
-                    <div class="d-flex justify-content-center mt-2">
-                        <nav aria-label="Paginación">
-                            <ul class="pagination pagination-sm mb-0">
-                                {% if page_obj.has_previous %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">«</a>
-                                </li>
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">‹</a>
-                                </li>
-                                {% endif %}
-
-                                <li class="page-item active">
-                                    <span class="page-link" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; font-size: 0.7rem; padding: 4px 8px;">
-                                        {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-                                    </span>
-                                </li>
-
-                                {% if page_obj.has_next %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">›</a>
-                                </li>
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}" style="padding: 4px 8px; font-size: 0.7rem;">»</a>
-                                </li>
-                                {% endif %}
-                            </ul>
-                        </nav>
-                    </div>
-                    {% endif %}
+                <div class="header-text">
+                    <h1>Documentos <span class="fw-bold">Pendientes</span></h1>
+                    <p>Proveedores</p>
                 </div>
             </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}" class="btn-action-secondary" title="Volver">
+                    <i class="fas fa-arrow-left me-1"></i> Volver a Cta. Cte.
+                </a>
+                <button type="button" class="btn-action-primary" data-bs-toggle="modal" data-bs-target="#modalDocumento">
+                    <i class="fas fa-plus me-1"></i> Nuevo Documento
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+
+            <!-- FILTROS -->
+            <div class="stone-filter-box">
+                <form method="get">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-9">
+                            <label class="form-label-stone"><i class="fas fa-search me-1"></i>Buscar</label>
+                            <input type="text" name="search" class="form-control-stone" placeholder="Buscar por N° documento o proveedor..." value="{{ search }}">
+                        </div>
+                        <div class="col-md-3 d-flex gap-2">
+                            <button type="submit" class="btn-filter-apply">
+                                <i class="fas fa-search me-1"></i> Filtrar
+                            </button>
+                            <a href="{% url 'tesoreria:documento_pendiente_proveedor_list' %}" class="btn btn-outline-secondary d-flex align-items-center justify-content-center" style="border-radius: 8px; width: 40px;">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- TABLA -->
+            <div class="table-responsive">
+                <table class="table-piedra">
+                    <thead>
+                        <tr>
+                            <th width="10%">Tipo</th>
+                            <th width="12%">N° Documento</th>
+                            <th width="20%">Proveedor</th>
+                            <th width="10%">Emisión</th>
+                            <th width="10%">Vencimiento</th>
+                            <th width="12%" class="text-end">Total</th>
+                            <th width="10%" class="text-center">Estado</th>
+                            <th width="10%" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for documento in page_obj %}
+                        <tr>
+                            <td><span class="badge badge-stone badge-stone-secondary">{{ documento.get_tipo_documento_display }}</span></td>
+                            <td><span class="fw-bold text-dark">{{ documento.numero_documento }}</span></td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-truck text-muted me-2 small"></i>
+                                    {{ documento.proveedor.nombre }}
+                                </div>
+                            </td>
+                            <td>{{ documento.fecha_emision|date:"d/m/Y" }}</td>
+                            <td>{{ documento.fecha_vencimiento|date:"d/m/Y"|default:"-" }}</td>
+                            <td class="text-end fw-bold format-number" data-value="{{ documento.total|floatformat:0 }}">$</td>
+                            <td class="text-center">
+                                {% if documento.estado_pago == 'pagado' %}
+                                    <span class="badge badge-stone badge-stone-success">Pagado</span>
+                                {% elif documento.estado_pago == 'vencida' %}
+                                    <span class="badge badge-stone badge-stone-danger">Vencido</span>
+                                {% elif documento.estado_pago == 'parcial' %}
+                                    <span class="badge badge-stone badge-stone-warning">Parcial</span>
+                                {% else %}
+                                    <span class="badge badge-stone badge-stone-info">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-1">
+                                    <button type="button" class="btn-icon" title="Editar" onclick="editarDocumento({{ documento.pk }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn-icon btn-icon-danger" title="Eliminar" onclick="eliminarDocumento({{ documento.pk }}, '{{ documento.numero_documento }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <i class="fas fa-inbox fa-3x mb-3" style="color: #E8DCC8;"></i>
+                                <h6 class="text-muted fw-bold">No hay documentos pendientes</h6>
+                                <p class="text-muted small">Registra nuevos documentos para comenzar.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PAGINACION -->
+            {% if page_obj.has_other_pages %}
+            <nav class="mt-4 d-flex justify-content-center">
+                <ul class="pagination pagination-sm">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}">&laquo;</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">&lsaquo;</a></li>
+                    {% endif %}
+                    
+                    <li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">&rsaquo;</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}">&raquo;</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
         </div>
     </div>
 </div>
 
-<style>
-    .filter-section {
-        background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%);
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .table-compact {
-        font-size: 0.75rem;
-        line-height: 1.1;
-    }
-
-    .table-compact thead th {
-        padding: 4px 2px;
-        font-weight: 600;
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-        border: none;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.2px;
-        line-height: 1.1;
-    }
-
-    .table-compact tbody td {
-        padding: 2px 3px;
-        vertical-align: middle;
-        line-height: 1.2;
-        font-size: 0.7rem;
-    }
-
-    .table-compact tbody tr {
-        height: 28px;
-    }
-
-    .btn-filter {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        border: none;
-        color: white;
-        padding: 8px 20px;
-        font-weight: 500;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-filter:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
-        color: white;
-    }
-
-    .btn-action {
-        padding: 4px 10px;
-        font-size: 0.75rem;
-        border-radius: 6px;
-    }
-</style>
-
 <!-- Modal para Crear/Editar Documento -->
 <div class="modal fade" id="modalDocumento" tabindex="-1" aria-labelledby="modalDocumentoLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content" style="border: 2px solid #E8DCC8; border-radius: 15px;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-bottom: 2px solid #D4C4A8;">
-                <h5 class="modal-title" id="modalDocumentoLabel" style="color: #6F5B44; font-weight: 600;">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content modal-content-stone">
+            <div class="modal-header modal-header-stone">
+                <h5 class="modal-title" id="modalDocumentoLabel">
                     <i class="fas fa-file-invoice me-2"></i>Nuevo Documento
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="modalDocumentoBody" style="background: #FAFAF8;">
-                <!-- Aquí se cargará el formulario -->
+            <div class="modal-body p-4" id="modalDocumentoBody" style="background-color: #FAFAF8;">
+                <!-- Cargado via AJAX -->
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// Cargar formulario de crear documento
+// FORMATTER
+function formatearNumero(numero) {
+    const num = Math.round(parseFloat(numero) || 0);
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.format-number').forEach(element => {
+        const value = element.dataset.value;
+        if (value) {
+            const cleanValue = value.toString().replace(/[^\d.-]/g, '');
+            element.textContent = '$' + formatearNumero(cleanValue);
+        }
+    });
+
     const modalCrear = document.getElementById('modalDocumento');
     if (modalCrear) {
         modalCrear.addEventListener('show.bs.modal', function() {
+            // Solo cargar si esta vacio o si se fuerza recarga
             document.getElementById('modalDocumentoLabel').innerHTML = '<i class="fas fa-file-invoice me-2"></i>Nuevo Documento';
-            document.getElementById('modalDocumentoBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div><p class="mt-2">Cargando...</p></div>';
+            document.getElementById('modalDocumentoBody').innerHTML = '<div class="text-center py-5"><div class="spinner-border text-secondary" role="status"></div></div>';
             
             fetch('{% url "tesoreria:documento_pendiente_proveedor_create" %}')
-            .then(response => response.text())
+            .then(r => r.text())
             .then(html => {
                 document.getElementById('modalDocumentoBody').innerHTML = html;
                 setupFormHandler();
             })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('modalDocumentoBody').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            .catch(err => {
+                 document.getElementById('modalDocumentoBody').innerHTML = `<div class="alert alert-danger">Error al cargar: ${err.message}</div>`;
             });
         });
     }
@@ -287,110 +329,67 @@ document.addEventListener('DOMContentLoaded', function() {
 function editarDocumento(documentoId) {
     const modal = new bootstrap.Modal(document.getElementById('modalDocumento'));
     document.getElementById('modalDocumentoLabel').innerHTML = '<i class="fas fa-edit me-2"></i>Editar Documento';
-    document.getElementById('modalDocumentoBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div><p class="mt-2">Cargando...</p></div>';
+    document.getElementById('modalDocumentoBody').innerHTML = '<div class="text-center py-5"><div class="spinner-border text-secondary" role="status"></div></div>';
     modal.show();
     
     fetch(`/tesoreria/documentos-pendientes/proveedores/${documentoId}/editar/`)
-    .then(response => response.text())
+    .then(r => r.text())
     .then(html => {
         document.getElementById('modalDocumentoBody').innerHTML = html;
         setupFormHandler();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('modalDocumentoBody').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
     });
 }
 
 function setupFormHandler() {
     const form = document.querySelector('#modalDocumentoBody form');
     if (form) {
+        // Mejorar estilo de inputs
+        form.querySelectorAll('.form-control, .form-select').forEach(el => {
+            el.classList.add('form-control-stone');
+            el.classList.remove('form-control', 'form-select');
+        });
+        
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            
             const formData = new FormData(this);
-            const url = this.action;
-            
-            fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                }
+            fetch(this.action, {
+                method: 'POST', body: formData, headers: {'X-Requested-With': 'XMLHttpRequest'}
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
                     bootstrap.Modal.getInstance(document.getElementById('modalDocumento')).hide();
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Éxito!',
-                        text: data.message,
-                        confirmButtonColor: '#8B7355',
-                        timer: 2000
-                    }).then(() => {
-                        location.reload();
-                    });
+                    Swal.fire({icon: 'success', title: '¡Guardado!', text: d.message, confirmButtonColor: '#8B7355', timer: 1500})
+                        .then(() => location.reload());
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message,
-                        confirmButtonColor: '#8B7355'
-                    });
+                    Swal.fire({icon: 'error', title: 'Error', text: d.message, confirmButtonColor: '#8B7355'});
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error al procesar la solicitud',
-                    confirmButtonColor: '#8B7355'
-                });
-            });
+            .catch(e => Swal.fire({icon: 'error', title: 'Error', text: 'Error inesperado', confirmButtonColor: '#8B7355'}));
         });
     }
 }
 
-function eliminarDocumento(documentoId, numeroDocumento) {
+function eliminarDocumento(id, numero) {
     Swal.fire({
-        title: '¿Estás seguro?',
-        text: `¿Deseas eliminar el documento "${numeroDocumento}"? Esta acción no se puede deshacer.`,
+        title: '¿Eliminar documento?',
+        text: `Se eliminará el documento ${numero} permanentemente.`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#8B7355',
-        cancelButtonColor: '#6c757d',
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            fetch(`/tesoreria/documentos-pendientes/proveedores/${documentoId}/eliminar/`, {
+            fetch(`/tesoreria/documentos-pendientes/proveedores/${id}/eliminar/`, {
                 method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json',
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Eliminado!',
-                        text: data.message,
-                        confirmButtonColor: '#8B7355',
-                        timer: 2000
-                    }).then(() => {
-                        location.reload();
-                    });
+                headers: {'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json'}
+            }).then(r => r.json()).then(d => {
+                if(d.success) {
+                    Swal.fire('Eliminado', d.message, 'success').then(() => location.reload());
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message,
-                        confirmButtonColor: '#8B7355'
-                    });
+                    Swal.fire('Error', d.message, 'error');
                 }
             });
         }
@@ -412,5 +411,4 @@ function getCookie(name) {
     return cookieValue;
 }
 </script>
-
 {% endblock %}

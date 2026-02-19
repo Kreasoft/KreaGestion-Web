@@ -1,121 +1,129 @@
-<div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 12px 20px;">
-    <h5 class="modal-title text-white" style="font-size: 1.1rem; font-weight: 600;">
-        <i class="fas fa-adjust me-2"></i>Detalle del Ajuste #{{ ajuste.numero_folio|default:ajuste.id }}
-    </h5>
-    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+{% load format_filters %}
+
+<div class="modal-header stone-modal-header" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%); padding: 1.5rem 2rem; border-bottom: 1px solid #E8DCC8; border-radius: 16px 16px 0 0;">
+    <div class="d-flex align-items-center gap-3">
+        <div class="header-icon-box" style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15); color: #6F5B44; font-size: 1.25rem;">
+            <i class="fas fa-search-plus"></i>
+        </div>
+        <div>
+            <h5 class="modal-title fw-bold m-0" style="color: #5D4037; font-family: 'Poppins', sans-serif;">
+                Detalle del Ajuste #{{ ajuste.numero_folio|default:ajuste.id }}
+            </h5>
+            <p class="m-0 text-muted small" style="font-size: 0.85rem;">
+                Información completa del movimiento de stock
+            </p>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.5;"></button>
 </div>
 
-<div class="modal-body" style="padding: 15px; background: #FAFAF8;">
-    <div class="row g-2">
-        <!-- Información General -->
+<div class="modal-body p-4" style="background: #FAFAF8; border-radius: 0 0 16px 16px;">
+    <div class="row g-4">
+        <!-- Columna Izquierda: Detalles Principales -->
         <div class="col-md-6">
-            <div class="card" style="border: 1px solid #E8DCC8; border-radius: 8px; background: #FFFFFF;">
-                <div class="card-header py-2" style="background: linear-gradient(135deg, #D4C4A8 0%, #C9B896 100%); border-bottom: 1px solid #E8DCC8;">
-                    <h6 class="mb-0" style="font-size: 0.85rem; color: #6F5B44; font-weight: 600;"><i class="fas fa-info-circle me-2"></i>Información General</h6>
+            <div class="p-3 bg-white border rounded-3 h-100" style="border-color: #E8DCC8 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <h6 class="text-uppercase small fw-bold text-muted mb-3 border-bottom pb-2" style="letter-spacing: 0.5px; color: #8B7355 !important;">
+                    <i class="fas fa-info-circle me-2"></i>Información General
+                </h6>
+                
+                <div class="mb-3">
+                    <small class="text-muted d-block">Fecha de Registro</small>
+                    <span class="fs-6 fw-medium" style="color: #5D4037;">
+                        {{ ajuste.fecha_movimiento|date:"d \d\e F, Y - H:i" }}
+                    </span>
                 </div>
-                <div class="card-body p-2" style="font-size: 0.8rem;">
-                    <div class="mb-2">
-                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Fecha</div>
-                        <div class="fw-bold" style="color: #6F5B44;">{{ ajuste.fecha_movimiento|date:"d/m/Y H:i" }}</div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Tipo de Movimiento</small>
+                    <div class="mt-1">
+                        {% if ajuste.cantidad > 0 %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill">
+                                <i class="fas fa-arrow-down me-1"></i> ENTRADA DE STOCK
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 rounded-pill">
+                                <i class="fas fa-arrow-up me-1"></i> SALIDA DE STOCK
+                            </span>
+                        {% endif %}
                     </div>
-                    
-                    <div class="mb-2">
-                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Tipo</div>
-                        <div>
-                            {% if ajuste.cantidad > 0 %}
-                            <span class="badge" style="background: #28A745; font-size: 0.7rem;">ENTRADA</span>
-                            {% else %}
-                            <span class="badge" style="background: #DC3545; font-size: 0.7rem;">SALIDA</span>
-                            {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Usuario Responsable</small>
+                    <div class="d-flex align-items-center mt-1">
+                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; color: #8B7355;">
+                            <i class="fas fa-user"></i>
                         </div>
-                    </div>
-                    
-                    <div class="mb-2">
-                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Usuario</div>
-                        <div class="fw-bold" style="color: #6F5B44;">
-                            <i class="fas fa-user me-1" style="font-size: 0.7rem;"></i>
-                            {{ ajuste.creado_por.username|default:"-" }}
-                        </div>
+                        <span class="fw-medium" style="color: #5D4037;">{{ ajuste.creado_por.username|default:"Sistema" }}</span>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Bodega -->
+
+        <!-- Columna Derecha: Ubicación y Notas -->
         <div class="col-md-6">
-            <div class="card" style="border: 1px solid #E8DCC8; border-radius: 8px; background: #FFFFFF;">
-                <div class="card-header py-2" style="background: linear-gradient(135deg, #D4C4A8 0%, #C9B896 100%); border-bottom: 1px solid #E8DCC8;">
-                    <h6 class="mb-0" style="font-size: 0.85rem; color: #6F5B44; font-weight: 600;"><i class="fas fa-warehouse me-2"></i>Bodega</h6>
+            <div class="p-3 bg-white border rounded-3 h-100" style="border-color: #E8DCC8 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <h6 class="text-uppercase small fw-bold text-muted mb-3 border-bottom pb-2" style="letter-spacing: 0.5px; color: #8B7355 !important;">
+                    <i class="fas fa-map-marker-alt me-2"></i>Ubicación y Detalles
+                </h6>
+                
+                <div class="mb-3">
+                    <small class="text-muted d-block">Bodega Afectada</small>
+                    <span class="fs-6 fw-bold" style="color: #6F5B44;">
+                        <i class="fas fa-warehouse me-1 opacity-50"></i> {{ ajuste.bodega_destino.nombre }}
+                    </span>
                 </div>
-                <div class="card-body p-2" style="font-size: 0.8rem;">
-                    <div class="mb-2">
-                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Bodega</div>
-                        <div class="fw-bold" style="font-size: 1.1rem; color: #8B7355;">{{ ajuste.bodega_destino.nombre }}</div>
-                    </div>
-                    
-                    <div class="mb-2">
-                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Descripción</div>
-                        <div style="color: #6F5B44;">{{ ajuste.descripcion|default:"-" }}</div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Descripción / Motivo</small>
+                    <div class="p-2 rounded bg-light mt-1 text-secondary fst-italic border" style="font-size: 0.9rem;">
+                        {{ ajuste.descripcion|default:"Sin descripción registrada." }}
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Artículos -->
+
+        <!-- Fila Inferior: Artículo -->
         <div class="col-12">
-            <div class="card" style="border: 1px solid #E8DCC8; border-radius: 8px; background: #FFFFFF;">
-                <div class="card-header py-2" style="background: linear-gradient(135deg, #D4C4A8 0%, #C9B896 100%); border-bottom: 1px solid #E8DCC8;">
-                    <h6 class="mb-0" style="font-size: 0.85rem; color: #6F5B44; font-weight: 600;"><i class="fas fa-box me-2"></i>Artículos del Ajuste</h6>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-sm mb-0" style="font-size: 0.75rem;">
-                            <thead style="background: #F5F1E8;">
-                                <tr>
-                                    <th style="padding: 6px 10px; font-weight: 600; color: #6F5B44;">Código</th>
-                                    <th style="padding: 6px 10px; font-weight: 600; color: #6F5B44;">Artículo</th>
-                                    <th style="padding: 6px 10px; font-weight: 600; color: #6F5B44; text-align: right;">Cantidad</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="padding: 6px 10px; font-weight: 600; color: #8B7355;">{{ ajuste.articulo.codigo }}</td>
-                                    <td style="padding: 6px 10px;">{{ ajuste.articulo.nombre }}</td>
-                                    <td style="padding: 6px 10px; text-align: right; font-weight: 700; font-size: 0.85rem; {% if ajuste.cantidad > 0 %}color: #28A745;{% else %}color: #DC3545;{% endif %}">
-                                        {% if ajuste.cantidad > 0 %}+{% endif %}{{ ajuste.cantidad|floatformat:0 }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+            <div class="p-3 bg-white border rounded-3" style="border-color: #E8DCC8 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <h6 class="text-uppercase small fw-bold text-muted mb-3 border-bottom pb-2" style="letter-spacing: 0.5px; color: #8B7355 !important;">
+                    <i class="fas fa-box-open me-2"></i>Detalle del Artículo
+                </h6>
+                
+                <div class="table-responsive">
+                    <table class="table table-borderless align-middle mb-0">
+                        <thead class="bg-light text-secondary small text-uppercase">
+                            <tr>
+                                <th class="ps-3 rounded-start">Código</th>
+                                <th>Artículo</th>
+                                <th class="text-end pe-3 rounded-end">Cantidad Ajustada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="ps-3"><span class="badge bg-secondary bg-opacity-10 text-dark">{{ ajuste.articulo.codigo }}</span></td>
+                                <td class="fw-medium text-dark">{{ ajuste.articulo.nombre }}</td>
+                                <td class="text-end pe-3">
+                                    <span class="fs-5 fw-bold {% if ajuste.cantidad > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if ajuste.cantidad > 0 %}+{% endif %}{{ ajuste.cantidad|floatformat:2 }}
+                                    </span>
+                                    <small class="text-muted ms-1">UN</small>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="modal-footer" style="border-top: 1px solid #E8DCC8; padding: 10px 15px; background: #FAFAF8;">
-    <button type="button" class="btn btn-sm btn-editar" data-id="{{ ajuste.id|stringformat:'d' }}" style="background: #8B7355; color: white; font-size: 0.75rem;">
-        <i class="fas fa-edit me-1"></i>Editar
+<div class="modal-footer border-top-0 d-flex justify-content-between p-4" style="background: #FAFAF8; border-radius: 0 0 16px 16px;">
+    <button type="button" class="btn btn-light border text-secondary fw-medium px-4" data-bs-dismiss="modal">
+        Cerrar
     </button>
-    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" style="font-size: 0.75rem;">
-        <i class="fas fa-times me-1"></i>Cerrar
+    <button type="button" class="btn text-white fw-medium px-4 btn-editar" data-id="{{ ajuste.id|stringformat:'d' }}" 
+            style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2);">
+        <i class="fas fa-edit me-2"></i> Editar Ajuste
     </button>
 </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

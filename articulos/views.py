@@ -1505,12 +1505,21 @@ def kit_oferta_create(request):
             kit = form.save(commit=False)
             kit.empresa = request.empresa
             kit.save()
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'message': 'Kit creado exitosamente'})
+                
             messages.success(request, 'Kit de oferta creado exitosamente.')
             return redirect('articulos:kit_oferta_detail', pk=kit.pk)
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'errors': form.errors}, status=400)
     else:
         form = KitOfertaForm()
     
-    return render(request, 'articulos/kit_oferta_form.html', {
+    template = 'articulos/kit_oferta_form_ajax.html' if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else 'articulos/kit_oferta_form.html'
+    
+    return render(request, template, {
         'form': form,
         'action': 'Crear'
     })
@@ -1527,12 +1536,21 @@ def kit_oferta_update(request, pk):
         form = KitOfertaForm(request.POST, request.FILES, instance=kit)
         if form.is_valid():
             form.save()
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'message': 'Kit actualizado exitosamente'})
+                
             messages.success(request, 'Kit de oferta actualizado exitosamente.')
             return redirect('articulos:kit_oferta_detail', pk=kit.pk)
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'errors': form.errors}, status=400)
     else:
         form = KitOfertaForm(instance=kit)
     
-    return render(request, 'articulos/kit_oferta_form.html', {
+    template = 'articulos/kit_oferta_form_ajax.html' if request.headers.get('X-Requested-With') == 'XMLHttpRequest' else 'articulos/kit_oferta_form.html'
+    
+    return render(request, template, {
         'form': form,
         'kit': kit,
         'action': 'Editar'

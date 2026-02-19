@@ -120,10 +120,13 @@ def apertura_list(request):
         id__in=AperturaCaja.objects.filter(estado='abierta').values_list('caja_id', flat=True)
     )
     
+    apertura_activa = AperturaCaja.objects.filter(caja__empresa=request.empresa, estado='abierta').first()
+    
     context = {
         'aperturas': aperturas,
         'estado_filtro': estado,
         'cajas_disponibles': cajas_disponibles,
+        'apertura_activa': apertura_activa,
     }
     return render(request, 'caja/apertura_list.html', context)
 
@@ -196,7 +199,7 @@ def apertura_detail(request, pk):
     tickets_invertidos = Venta.objects.filter(
         empresa=request.empresa,
         tipo_documento__in=['boleta', 'factura', 'guia'],
-        tipo_documento_planeado='vale',
+        tipo_documento_planeado__in=['vale', 'ticket'],
         facturado=False,
         estado__in=['borrador', 'confirmada']
     )
@@ -204,20 +207,30 @@ def apertura_detail(request, pk):
     if tickets_invertidos.exists():
         for ticket in tickets_invertidos:
             tipo_original = ticket.tipo_documento
-            ticket.tipo_documento = 'vale'
+            ticket.tipo_documento = 'ticket'
             ticket.tipo_documento_planeado = tipo_original
             ticket.save()
+
+    # CORRECCIÓN EXTRA: Si hay tickets guardados como 'vale' (vieja lógica), 
+    # pasarlos a 'ticket' con planeado 'vale' para que aparezcan en la lista
+    vales_antiguos = Venta.objects.filter(
+        empresa=request.empresa,
+        tipo_documento='vale',
+        facturado=False
+    )
+    if vales_antiguos.exists():
+        vales_antiguos.update(tipo_documento='ticket', tipo_documento_planeado='vale')
     
     # Corregir tickets sin tipo_documento_planeado válido
     tickets_a_corregir = Venta.objects.filter(
         empresa=request.empresa,
-        tipo_documento='vale',
+        tipo_documento='ticket',
         facturado=False,
         estado__in=['borrador', 'confirmada']
     ).filter(
         Q(tipo_documento_planeado__isnull=True) | 
         Q(tipo_documento_planeado='') |
-        Q(tipo_documento_planeado='vale')
+        Q(tipo_documento_planeado='ticket')
     )
     if tickets_a_corregir.exists():
         tickets_a_corregir.update(tipo_documento_planeado='boleta')
@@ -226,10 +239,10 @@ def apertura_detail(request, pk):
     # NO restringir por fecha, NO restringir por estado, solo facturado=False
     tickets_pendientes = Venta.objects.filter(
         empresa=request.empresa,
-        tipo_documento='vale',
+        tipo_documento='ticket',
         facturado=False
     ).exclude(
-        tipo_documento_planeado='vale'
+        tipo_documento_planeado='ticket'
     ).exclude(
         tipo_documento_planeado__isnull=True
     ).exclude(
@@ -470,6 +483,46 @@ def estado_caf_pos(request):
 @requiere_permiso('caja.add_ventaprocesada', mensaje='No tienes permisos para procesar ventas. Contacta al administrador.', redirect_url='caja:apertura_list')
 def procesar_venta_buscar(request):
     """Buscar ticket para procesar"""
+    # CORRECCIÓN DE EMERGENCIA: Asegurar consistencia de tipos de documento ANTES de cualquier operación
+    from django.db.models import Q
+    
+    # 1. Corregir tickets invertidos (ej: tipo='boleta' planeado='ticket' -> tipo='ticket' planeado='boleta')
+    tickets_invertidos = Venta.objects.filter(
+        empresa=request.empresa,
+        tipo_documento__in=['boleta', 'factura', 'guia'],
+        tipo_documento_planeado__in=['vale', 'ticket'],
+        facturado=False,
+        estado__in=['borrador', 'confirmada']
+    )
+    if tickets_invertidos.exists():
+        for t in tickets_invertidos:
+            tipo_orig = t.tipo_documento
+            t.tipo_documento = 'ticket'
+            t.tipo_documento_planeado = tipo_orig
+            t.save()
+
+    # 2. Corregir vales antiguos (tipo='vale' -> tipo='ticket' planeado='vale')
+    vales_antiguos = Venta.objects.filter(
+        empresa=request.empresa,
+        tipo_documento='vale',
+        facturado=False
+    )
+    if vales_antiguos.exists():
+        vales_antiguos.update(tipo_documento='ticket', tipo_documento_planeado='vale')
+
+    # 3. Corregir tickets sin tipo_planeado válido
+    tickets_sin_planeado = Venta.objects.filter(
+        empresa=request.empresa,
+        tipo_documento='ticket',
+        facturado=False
+    ).filter(
+        Q(tipo_documento_planeado__isnull=True) | 
+        Q(tipo_documento_planeado='') |
+        Q(tipo_documento_planeado='ticket')
+    )
+    if tickets_sin_planeado.exists():
+        tickets_sin_planeado.update(tipo_documento_planeado='boleta')
+
     # Obtener apertura activa
     apertura_activa = None
     for caja in Caja.objects.filter(empresa=request.empresa, activo=True):
@@ -491,12 +544,12 @@ def procesar_venta_buscar(request):
         
         if numero_ticket:
             try:
-                # Buscar vale que no haya sido facturado aún - LÓGICA SIMPLE
+                # Buscar ticket que no haya sido facturado aún - LÓGICA SIMPLE
                 ticket = Venta.objects.filter(
                     empresa=request.empresa,
                     numero_venta=numero_ticket,
-                    tipo_documento='vale',
-                    facturado=False  # Solo vales NO facturados
+                    tipo_documento='ticket',
+                    facturado=False  # Solo tickets NO facturados
                 ).first()
                 
                 if ticket:
@@ -508,47 +561,14 @@ def procesar_venta_buscar(request):
         else:
             messages.error(request, 'Debe ingresar un número de ticket.')
     
-    # CORRECCIÓN: Primero corregir TODOS los tickets invertidos sin restricción de fecha
-    from django.db.models import Q
-    from datetime import timedelta
-    
-    tickets_invertidos = Venta.objects.filter(
-        empresa=request.empresa,
-        tipo_documento__in=['boleta', 'factura', 'guia'],
-        tipo_documento_planeado='vale',
-        facturado=False,
-        estado__in=['borrador', 'confirmada']
-    )
-    
-    if tickets_invertidos.exists():
-        for ticket in tickets_invertidos:
-            tipo_original = ticket.tipo_documento
-            ticket.tipo_documento = 'vale'
-            ticket.tipo_documento_planeado = tipo_original
-            ticket.save()
-    
-    # Corregir tickets sin tipo_documento_planeado válido
-    tickets_a_corregir = Venta.objects.filter(
-        empresa=request.empresa,
-        tipo_documento='vale',
-        facturado=False,
-        estado__in=['borrador', 'confirmada']
-    ).filter(
-        Q(tipo_documento_planeado__isnull=True) | 
-        Q(tipo_documento_planeado='') |
-        Q(tipo_documento_planeado='vale')
-    )
-    if tickets_a_corregir.exists():
-        tickets_a_corregir.update(tipo_documento_planeado='boleta')
-    
     # CONSULTA SIMPLIFICADA AL MÁXIMO: Solo condiciones esenciales
     # NO restringir por fecha, NO restringir por estado, solo facturado=False
     tickets_pendientes = Venta.objects.filter(
         empresa=request.empresa,
-        tipo_documento='vale',
+        tipo_documento='ticket',
         facturado=False
     ).exclude(
-        tipo_documento_planeado='vale'
+        tipo_documento_planeado='ticket'
     ).exclude(
         tipo_documento_planeado__isnull=True
     ).exclude(
@@ -556,45 +576,45 @@ def procesar_venta_buscar(request):
     ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')[:500]  # Limitar a 500 para rendimiento
     
     # Debug: información de depuración
-    todos_los_vales = Venta.objects.filter(
+    todos_los_tickets = Venta.objects.filter(
         empresa=request.empresa,
-        tipo_documento='vale'
+        tipo_documento='ticket'
     )
     
     # Verificar también si hay VentaProcesada asociados
     vales_con_procesada = []
-    for v in todos_los_vales:
+    for v in todos_los_tickets:
         if VentaProcesada.objects.filter(venta_preventa=v).exists():
             vales_con_procesada.append(v.id)
     
     # Debug: imprimir información de depuración simplificada
     print("=" * 80)
     print(f"[DEBUG PROCESAR VENTA BUSCAR] Empresa: {request.empresa.nombre} (ID: {request.empresa.id})")
-    print(f"[DEBUG] Total vales: {todos_los_vales.count()}")
-    print(f"[DEBUG] Vales NO facturados (facturado=False): {todos_los_vales.filter(facturado=False).count()}")
-    print(f"[DEBUG] Vales facturados (facturado=True): {todos_los_vales.filter(facturado=True).count()}")
-    print(f"[DEBUG] Vales con VentaProcesada asociada: {len(vales_con_procesada)}")
-    print(f"[DEBUG] Vales pendientes encontrados: {tickets_pendientes.count()}")
+    print(f"[DEBUG] Total tickets: {todos_los_tickets.count()}")
+    print(f"[DEBUG] Tickets NO facturados (facturado=False): {todos_los_tickets.filter(facturado=False).count()}")
+    print(f"[DEBUG] Tickets facturados (facturado=True): {todos_los_tickets.filter(facturado=True).count()}")
+    print(f"[DEBUG] Tickets con VentaProcesada asociada: {len(vales_con_procesada)}")
+    print(f"[DEBUG] Tickets pendientes encontrados: {tickets_pendientes.count()}")
     
-    # Mostrar detalles de los primeros vales para depuración
-    if todos_los_vales.exists():
-        print("\n[DEBUG] Primeros vales del día:")
-        for v in todos_los_vales[:10]:
+    # Mostrar detalles de los primeros tickets para depuración
+    if todos_los_tickets.exists():
+        print("\n[DEBUG] Primeros tickets del día:")
+        for v in todos_los_tickets[:10]:
             tiene_procesada = VentaProcesada.objects.filter(venta_preventa=v).exists()
-            print(f"  - Vale #{v.numero_venta}: facturado={v.facturado}, estado={v.estado}, tipo_planeado={v.tipo_documento_planeado}, tiene_procesada={tiene_procesada}, estacion={v.estacion_trabajo.nombre if v.estacion_trabajo else 'N/A'}")
+            print(f"  - Ticket #{v.numero_venta}: facturado={v.facturado}, estado={v.estado}, tipo_planeado={v.tipo_documento_planeado}, tiene_procesada={tiene_procesada}, estacion={v.estacion_trabajo.nombre if v.estacion_trabajo else 'N/A'}")
     
     if tickets_pendientes.exists():
-        print("\n[DEBUG] Vales pendientes que aparecerán en la lista:")
+        print("\n[DEBUG] Tickets pendientes que aparecerán en la lista:")
         for v in tickets_pendientes[:5]:
             tiene_procesada = VentaProcesada.objects.filter(venta_preventa=v).exists()
-            print(f"  - Vale #{v.numero_venta}: facturado={v.facturado}, tipo_planeado={v.tipo_documento_planeado}, tiene_procesada={tiene_procesada}")
+            print(f"  - Ticket #{v.numero_venta}: facturado={v.facturado}, tipo_planeado={v.tipo_documento_planeado}, tiene_procesada={tiene_procesada}")
     else:
-        print("\n[DEBUG] ⚠️ NO HAY VALES PENDIENTES")
-        vales_no_facturados = todos_los_vales.filter(facturado=False)
-        if vales_no_facturados.exists():
-            print(f"  → Hay {vales_no_facturados.count()} vales con facturado=False pero no aparecen")
+        print("\n[DEBUG] ⚠️ NO HAY TICKETS PENDIENTES")
+        tickets_no_facturados = todos_los_tickets.filter(facturado=False)
+        if tickets_no_facturados.exists():
+            print(f"  → Hay {tickets_no_facturados.count()} tickets con facturado=False pero no aparecen")
             print("  → Verificando si tienen VentaProcesada asociada...")
-            for v in vales_no_facturados[:5]:
+            for v in tickets_no_facturados[:5]:
                 tiene_procesada = VentaProcesada.objects.filter(venta_preventa=v).exists()
                 print(f"    - Vale #{v.numero_venta}: tiene_procesada={tiene_procesada}")
     print("=" * 80)
@@ -612,9 +632,21 @@ def procesar_venta_buscar(request):
 @requiere_empresa
 @requiere_permiso('caja.add_ventaprocesada', mensaje='No tienes permisos para procesar ventas. Contacta al administrador.', redirect_url='caja:apertura_list')
 def procesar_venta(request, ticket_id):
-    """Procesar un ticket (preventa) y convertirlo en documento tributario"""
-    empresa = request.empresa  # Definir empresa localmente para evitar errores
-    ticket = get_object_or_404(Venta, pk=ticket_id, empresa=empresa, tipo_documento='vale')
+    """
+    Procesar un vale desde el MÓDULO DE CAJA
+    
+    IMPORTANTE: Esta vista es EXCLUSIVA para el módulo de CAJA.
+    El POS usa su propia vista: ventas.views_pos_procesar.procesar_venta_pos
+    
+    FLUJO:
+    1. Cajero busca vale pendiente
+    2. Muestra formulario con formas de pago (SIEMPRE)
+    3. Genera DTE (Factura/Boleta según tipo_documento_planeado)
+    4. Imprime documento
+    5. Vuelve a lista de vales en caja
+    """
+    empresa = request.empresa
+    ticket = get_object_or_404(Venta, pk=ticket_id, empresa=empresa, tipo_documento='ticket')
     
     # DEBUG: Verificar sesión al inicio
     print("=" * 80)
@@ -634,6 +666,16 @@ def procesar_venta(request, ticket_id):
     if VentaProcesada.objects.filter(venta_preventa=ticket).exists():
         messages.warning(request, 'Este ticket ya ha sido procesado.')
         return redirect('caja:apertura_list')
+    
+    # CRÍTICO: Verificar también si el ticket ya fue facturado (para vales del POS)
+    # Cuando se procesa un vale desde el POS, se marca como facturado=True pero NO se crea VentaProcesada
+    if ticket.facturado:
+        messages.warning(request, 'Este ticket ya ha sido facturado. No se puede procesar nuevamente.')
+        # Redirigir al POS si es un vale del POS, o a caja si es otro tipo
+        if ticket.estacion_trabajo and ticket.tipo_documento == 'vale':
+            return redirect('ventas:pos_view')
+        else:
+            return redirect('caja:apertura_list')
     
     # Obtener apertura activa
     apertura_activa = None
@@ -728,7 +770,7 @@ def procesar_venta(request, ticket_id):
         # VALIDACIÓN CRÍTICA: Asegurar que tipo_documento sea válido
         # IMPORTANTE: Solo validar y corregir si es necesario, pero NO guardar aquí
         # porque podría afectar otros campos como facturado o fecha_creacion
-        tipos_validos = ['factura', 'boleta', 'guia', 'cotizacion']
+        tipos_validos = ['factura', 'boleta', 'guia', 'cotizacion', 'vale']
         if tipo_documento not in tipos_validos:
             print(f"[ERROR CRÍTICO] tipo_documento_planeado inválido: '{tipo_documento}', corrigiendo a 'boleta'")
             tipo_documento = 'boleta'
@@ -833,19 +875,33 @@ def procesar_venta(request, ticket_id):
         # DEFINICIÓN DE ESCENARIOS (HILOS INDEPENDIENTES)
         # ==============================================================================
         
-        # DETECTAR SI ESTAMOS EN EL MÓDULO DE CAJA
-        # Si hay una apertura activa, significa que estamos procesando desde el módulo de caja
-        es_modulo_caja = apertura_activa is not None
+        # ========================================================================
+        # DETECCIÓN SIMPLE DEL ORIGEN (POST)
+        # ========================================================================
+        # Usar el mismo parámetro 'origen' del POST
+        origen = request.POST.get('origen')
+        
+        if not origen:
+            # Auto-detectar: si hay estación en sesión → POS, sino → CAJA
+            if request.session.get('pos_estacion_id'):
+                origen = 'pos'
+            else:
+                origen = 'caja'
+        
+        es_modulo_caja = (origen == 'caja')
+        es_desde_pos = (origen == 'pos')
+        
+        print(f"[ORIGEN POST] Parámetro origen: {origen}")
+        print(f"[ORIGEN POST] es_modulo_caja: {es_modulo_caja}")
+        print(f"[ORIGEN POST] es_desde_pos: {es_desde_pos}")
+        
+        # Determinar si es POS Vale
+        es_pos_vale = es_desde_pos and (not cierre_directo_flag)
         
         # 1. ESCENARIO GUÍA (Guía de Despacho)
         # Documento de traslado, no requiere pago, genera DTE 52
-        es_guia = (tipo_documento_original == 'guia' or tipo_documento == 'guia')
-        
-        # 2. ESCENARIO POS VALE (Solo Ticket)
-        # Estación POS sin cierre directo ni envío SII. Solo genera vale para cobrar después.
-        # NO requiere pago, NO genera DTE.
-        # CRÍTICO: NO considerar como POS Vale si estamos en el módulo de caja
-        es_pos_vale = (not es_guia) and (not es_modulo_caja) and (not cierre_directo_flag and not enviar_sii_directo_flag)
+        # PERO: Si estamos en modo POS vale, NO generar guía, generar vale
+        es_guia = (not es_pos_vale) and (tipo_documento_original == 'guia' or tipo_documento == 'guia')
         
         # 3. ESCENARIO VENTA FINAL (Caja o POS Directo)
         # Caja procesando vale O Estación POS con cierre directo.
@@ -853,10 +909,13 @@ def procesar_venta(request, ticket_id):
         es_venta_final = (not es_guia) and (not es_pos_vale)
         
         print(f"[ESCENARIO DETECTADO]")
-        print(f"  - Es Módulo Caja: {es_modulo_caja}")
+        print(f"  - Es desde POS (ticket.estacion_trabajo existe): {es_desde_pos}")
+        print(f"  - Es Módulo Caja (NO tiene estacion): {es_modulo_caja}")
+        print(f"  - cierre_directo_flag: {cierre_directo_flag}")
         print(f"  - Es Guía: {es_guia}")
         print(f"  - Es POS Vale (Solo Ticket): {es_pos_vale}")
         print(f"  - Es Venta Final (Caja/POS Directo): {es_venta_final}")
+        print(f"  - Estación: {ticket.estacion_trabajo.nombre if ticket.estacion_trabajo else 'N/A'}")
         
         # ==============================================================================
         # VALIDACIÓN DE PAGOS SEGÚN ESCENARIO
@@ -1024,6 +1083,29 @@ def procesar_venta(request, ticket_id):
                         numero_venta_temporal = f"T{numero_temp:05d}{timestamp_suffix:03d}"
                         print(f"Número temporal para la venta: {numero_venta_temporal} (se reemplazará con folio CAF si se genera DTE)")
                         
+                        # VALIDACIÓN CRÍTICA: Verificar que no exista una venta con este número temporal
+                        # Esto previene IntegrityError si el usuario reintenta procesar el mismo ticket
+                        if Venta.objects.filter(
+                            empresa=request.empresa,
+                            numero_venta=numero_venta_temporal,
+                            tipo_documento=tipo_documento
+                        ).exists():
+                            print(f"⚠️ ERROR: Ya existe una venta con numero_venta={numero_venta_temporal}")
+                            messages.error(
+                                request,
+                                f'Este ticket ya fue procesado anteriormente. '
+                                f'Si necesita generar un nuevo documento, cree un nuevo ticket desde el POS.'
+                            )
+                            # Marcar el ticket como ya facturado para evitar futuros intentos
+                            ticket.facturado = True
+                            ticket.save()
+                            print(f"✅ Ticket ID {ticket.id} marcado como facturado para prevenir futuros intentos")
+                            # Redirigir según origen
+                            if ticket.estacion_trabajo:
+                                return redirect('ventas:pos_view')
+                            else:
+                                return redirect('caja:procesar_venta_buscar')
+                        
                         # Usar la primera forma de pago como principal (solo si NO es guía y hay formas de pago)
                         primera_forma_pago = None
                         if tipo_documento != 'guia' and formas_pago_dict:
@@ -1052,9 +1134,23 @@ def procesar_venta(request, ticket_id):
                             tipo_doc_crear = 'guia'
                             tipo_doc_planeado_crear = 'guia'
                         else:
-                            print(f"[CREACIÓN] Escenario VENTA FINAL: Creando documento tipo '{tipo_documento}'")
+                            # VENTA FINAL (CAJA procesando vale O POS con cierre directo)
+                            print(f"[CREACIÓN] Escenario VENTA FINAL")
+                            
+                            # CRÍTICO: El ticket SIEMPRE es tipo 'ticket', usamos el tipo_documento_planeado
+                            # para saber qué documento oficial crear (boleta, factura o vale)
+                            if ticket.tipo_documento == 'ticket' and ticket.tipo_documento_planeado:
+                                tipo_doc_crear = ticket.tipo_documento_planeado
+                                tipo_doc_planeado_crear = ticket.tipo_documento_planeado
+                                print(f"  → Ticket siendo procesado en CAJA, usando tipo planeado: '{tipo_doc_crear}'")
+                            else:
+                                # Fallback por si acaso
+                                tipo_doc_crear = tipo_documento
+                                tipo_doc_planeado_crear = tipo_documento
+                                print(f"  → Usando tipo documento: '{tipo_doc_crear}'")
+                            
                             # Validar que sea un tipo válido de venta final
-                            if tipo_doc_crear not in ['factura', 'boleta', 'guia']:
+                            if tipo_doc_crear not in ['factura', 'boleta', 'factura_electronica', 'boleta_electronica', 'vale']:
                                 print(f"[WARN] Tipo '{tipo_doc_crear}' inválido para venta final, corrigiendo a 'boleta'")
                                 tipo_doc_crear = 'boleta'
                                 tipo_doc_planeado_crear = 'boleta'
@@ -1206,11 +1302,11 @@ def procesar_venta(request, ticket_id):
                         
                     elif es_venta_final:
                         print("[DTE] Escenario VENTA FINAL: Generando DTE Factura/Boleta...")
-                        # Verificar que la empresa tenga FE activa
-                        if request.empresa.facturacion_electronica:
+                        # Verificar que la empresa tenga FE activa Y el documento sea facturable (no vale)
+                        if request.empresa.facturacion_electronica and tipo_documento != 'vale':
                             debe_generar_dte = True
                         else:
-                            print("[WARN] Empresa sin FE activa, no se genera DTE.")
+                            print(f"[WARN] No se genera DTE. FE activa: {request.empresa.facturacion_electronica}, Tipo: {tipo_documento}")
                             debe_generar_dte = False
                     
                     print(f"  → ¿Debe generar DTE?: {debe_generar_dte}")
@@ -1222,7 +1318,7 @@ def procesar_venta(request, ticket_id):
                     # Calcular mostrar_formas_pago ANTES del bloque try para que esté disponible en caso de error
                     # NO mostrar formas de pago para vales (se cobran al procesar en caja)
                     if tipo_documento == 'vale':
-                        mostrar_formas_pago = False
+                        mostrar_formas_pago = True # Vales se pagan igual que boletas
                     else:
                         mostrar_formas_pago = (cierre_directo_flag or enviar_sii_directo_flag) or tipo_documento in ['factura', 'boleta']
                     
@@ -1264,9 +1360,11 @@ def procesar_venta(request, ticket_id):
                             # Obtener sucursal para asignación de folios
                             sucursal_facturacion = request.sucursal_activa if hasattr(request, 'sucursal_activa') and request.sucursal_activa else None
                             if not sucursal_facturacion:
-                                sucursal_facturacion = Sucursal.objects.filter(empresa=request.empresa, es_principal=True).first()
+                                # Buscar casa matriz
+                                sucursal_facturacion = request.empresa.casa_matriz
                             if not sucursal_facturacion:
-                                sucursal_facturacion = Sucursal.objects.filter(empresa=request.empresa).first()
+                                # Fallback: cualquier sucursal activa
+                                sucursal_facturacion = Sucursal.objects.filter(empresa=request.empresa, activo=True).first()
                             
                             if not sucursal_facturacion:
                                 raise ValueError("No se encontró sucursal para asignar folios. Debe existir al menos una sucursal activa.")
@@ -1552,15 +1650,27 @@ def procesar_venta(request, ticket_id):
                     if dte_para_mostrar:
                         # DTE GENERADO → Mostrar documento tributario electrónico con timbre
                         # Esto aplica para:
-                        # 1. CAJA procesando vales facturables (✅ ESTE ES EL CASO QUE ESTABA FALLANDO)
+                        # 1. CAJA procesando vales facturables
                         # 2. POS con cierre directo
-                        caja_url = reverse('caja:procesar_venta_buscar')
+                        # 3. Guías de despacho
+                        
+                        # Determinar la URL de retorno según el origen REAL (no el del ticket)
+                        # Usar la variable es_modulo_caja que ya calculamos correctamente
+                        if es_modulo_caja:
+                            # Procesando desde CAJA → Volver a buscar venta
+                            return_url = reverse('caja:procesar_venta_buscar')
+                            print(f"[OK] ✅ DTE GENERADO desde CAJA - Redirigiendo con retorno a caja")
+                        else:
+                            # Procesando desde POS → Volver al POS
+                            return_url = reverse('ventas:pos_view')
+                            print(f"[OK] ✅ DTE GENERADO desde POS - Redirigiendo con retorno al POS")
+                        
                         doc_url = reverse('facturacion_electronica:ver_factura_electronica', args=[dte_para_mostrar.pk])
-                        doc_url += f"?auto=1&from_caja=1&return_url={caja_url}"
-                        print(f"[OK] ✅ DTE GENERADO - Redirigiendo a documento tributario")
+                        doc_url += f"?auto=1&from_caja=1&return_url={return_url}"
                         print(f"     DTE ID: {dte_para_mostrar.pk}")
                         print(f"     Folio: {dte_para_mostrar.folio}")
                         print(f"     Tipo: {dte_para_mostrar.get_tipo_dte_display()}")
+                        print(f"     Return URL: {return_url}")
                         return redirect(doc_url)
                     else:
                         # NO SE GENERÓ DTE → Mostrar ticket/vale
@@ -1576,18 +1686,49 @@ def procesar_venta(request, ticket_id):
                     # --- FIN: Bloque para impresión automática ---
                     
                 except IntegrityError as e:
-                    if 'UNIQUE constraint failed' in str(e) and 'numero_venta' in str(e):
-                        print(f"Numero {numero_venta} ya existe (IntegrityError), incrementando...")
-                        # Incrementar el número y reintentar
-                        numero += 1
-                        numero_venta = f"{numero:06d}"
-                        print(f"   Nuevo numero: {numero_venta}")
-                        if reintento == max_reintentos - 1:
-                            raise Exception(f"No se pudo generar un número único después de {max_reintentos} intentos")
-                        continue
+                    error_msg = str(e)
+                    print(f"⚠️ IntegrityError detectado: {error_msg}")
+                    
+                    # Caso 1: Conflicto de numero_venta
+                    if 'numero_venta' in error_msg or 'UNIQUE constraint' in error_msg:
+                        # Extraer el numero_venta del error si es posible
+                        import re
+                        match = re.search(r'numero_venta\)=\([^,]+,\s*[^,]+,\s*([^)]+)\)', error_msg)
+                        numero_conflicto = match.group(1) if match else 'desconocido'
+                        
+                        print(f"   Conflicto con numero_venta: {numero_conflicto}")
+                        print(f"   Ticket ID: {ticket.id}, facturado: {ticket.facturado}")
+                        
+                        # Si el ticket NO está marcado como facturado, marcarlo ahora
+                        if not ticket.facturado:
+                            ticket.facturado = True
+                            ticket.save()
+                            print(f"   ✅ Ticket {ticket.id} marcado como facturado")
+                        
+                        # Mostrar mensaje amigable al usuario
+                        messages.error(
+                            request,
+                            f'⚠️ Este ticket ya fue procesado anteriormente. '
+                            f'El documento ya existe en el sistema. '
+                            f'Si necesita generar un nuevo documento, cree un nuevo ticket desde el POS.'
+                        )
+                        
+                        # Redirigir según origen
+                        if ticket.estacion_trabajo:
+                            print(f"   → Redirigiendo al POS")
+                            return redirect('ventas:pos_view')
+                        else:
+                            print(f"   → Redirigiendo a buscar venta")
+                            return redirect('caja:procesar_venta_buscar')
                     else:
-                        # Otro tipo de IntegrityError
-                        raise
+                        # Otro tipo de IntegrityError - reportar como error técnico
+                        print(f"   ❌ IntegrityError NO relacionado con numero_venta")
+                        messages.error(
+                            request,
+                            f'Error técnico al procesar el ticket: {error_msg}. '
+                            f'Por favor, contacte al administrador del sistema.'
+                        )
+                        return redirect('caja:procesar_venta_buscar')
                 
                 except Exception as e:
                     print(f"[ERROR] ERROR en intento {reintento + 1}: {type(e).__name__}: {str(e)}")
@@ -1632,66 +1773,83 @@ def procesar_venta(request, ticket_id):
         except Exception as e:
             print(f"Error al cargar vehículos/choferes: {e}")
     
-    # Obtener configuración de la estación para el template
-    estacion_id = request.session.get('pos_estacion_id')
+    # ============================================================================
+    # DETECCIÓN SIMPLE Y CLARA DEL ORIGEN
+    # ============================================================================
+    # REGLA SIMPLE: Si accedes a /caja/procesar-venta/ por GET, SIEMPRE es desde CAJA
+    # El POS procesa directamente por POST sin mostrar el formulario
+    
+    # En GET, SIEMPRE es CAJA (porque estás viendo el formulario de caja)
+    origen = 'caja'
+    es_modulo_caja = True
+    es_desde_pos = False
+    
+    # Obtener configuración de estación (aunque no la usemos en GET)
     cierre_directo_flag = False
     enviar_sii_directo_flag = False
     
-    if estacion_id:
-        try:
-            from ventas.models import EstacionTrabajo
-            estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa)
-            estacion.refresh_from_db()
-            cierre_directo_flag = bool(estacion.cierre_directo)
-            enviar_sii_directo_flag = bool(estacion.enviar_sii_directo)
-        except EstacionTrabajo.DoesNotExist:
+    print(f"[ORIGEN] Parámetro origen: {origen}")
+    print(f"[ORIGEN] es_modulo_caja: {es_modulo_caja}")
+    print(f"[ORIGEN] es_desde_pos: {es_desde_pos}")
+    
+    # Obtener configuración de la estación (solo relevante para POS)
+    cierre_directo_flag = False
+    enviar_sii_directo_flag = False
+    
+    if es_desde_pos:
+        estacion_id = request.session.get('pos_estacion_id')
+        if estacion_id:
+            try:
+                from ventas.models import EstacionTrabajo
+                estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa)
+                estacion.refresh_from_db()
+                cierre_directo_flag = bool(estacion.cierre_directo)
+                enviar_sii_directo_flag = bool(estacion.enviar_sii_directo)
+            except EstacionTrabajo.DoesNotExist:
+                cierre_directo_flag = request.session.get('pos_cierre_directo', False)
+                enviar_sii_directo_flag = request.session.get('pos_enviar_sii_directo', False)
+        else:
             cierre_directo_flag = request.session.get('pos_cierre_directo', False)
             enviar_sii_directo_flag = request.session.get('pos_enviar_sii_directo', False)
-    else:
-        cierre_directo_flag = request.session.get('pos_cierre_directo', False)
-        enviar_sii_directo_flag = request.session.get('pos_enviar_sii_directo', False)
     
-    # Determinar si mostrar formas de pago
-    # CRÍTICO: En la CAJA, SIEMPRE debemos mostrar formas de pago para cobrar vales facturables
-    # Solo NO mostrar formas de pago para Guías de Despacho (documentos de traslado sin cobro)
+    # Determinar tipo de documento
     tipo_doc_planeado = ticket.tipo_documento_planeado or 'boleta'
     tipo_doc_actual = ticket.tipo_documento or 'vale'
     
-    # DETECTAR SI ESTAMOS EN EL MÓDULO DE CAJA
-    # Si hay una apertura activa, significa que estamos procesando desde el módulo de caja
-    es_modulo_caja = apertura_activa is not None
+    # Determinar si es un POS Vale (solo si viene del POS sin cierre directo)
+    es_pos_vale = es_desde_pos and (not cierre_directo_flag)
     
-    # LÓGICA CORREGIDA:
-    # 1. Guías de despacho → NO requieren pago (documentos de traslado)
-    # 2. MÓDULO DE CAJA → SIEMPRE mostrar formas de pago (excepto guías) porque estamos facturando y cobrando
-    # 3. POS sin cierre directo (solo vale) → NO requieren pago aquí (se cobra después en caja)
-    # 4. POS con cierre directo → SÍ requieren pago
+    # ============================================================================
+    # LÓGICA SIMPLE DE FORMAS DE PAGO
+    # ============================================================================
+    # Reglas claras:
+    # 1. Guías → NO pago (documento de traslado)
+    # 2. CAJA → SIEMPRE pago (estamos cobrando)
+    # 3. POS sin cierre directo → NO pago (solo vale)
+    # 4. POS con cierre directo → SÍ pago (factura/boleta directa)
     
     if tipo_doc_planeado == 'guia':
-        # Las guías de despacho NO requieren pago (son documentos de traslado)
         mostrar_formas_pago = False
-        print(f"[DEBUG] Guía de despacho detectada - NO mostrar formas de pago")
+        print(f"[PAGO] Guía de despacho → NO mostrar formas de pago")
     elif es_modulo_caja:
-        # MÓDULO DE CAJA: Siempre mostrar formas de pago (excepto guías que ya fueron filtradas arriba)
-        # Cuando estamos en caja, estamos facturando documentos, por lo tanto debemos cobrar
         mostrar_formas_pago = True
-        print(f"[DEBUG] MÓDULO DE CAJA detectado (apertura activa existe) - SÍ mostrar formas de pago")
-    elif not cierre_directo_flag and not enviar_sii_directo_flag:
-        # POS sin cierre directo: Solo genera vale facturable (se cobra después en caja)
+        print(f"[PAGO] MÓDULO DE CAJA → SÍ mostrar formas de pago")
+    elif es_pos_vale:
         mostrar_formas_pago = False
-        print(f"[DEBUG] POS modo vale (sin cierre directo) - NO mostrar formas de pago")
+        print(f"[PAGO] POS modo vale → NO mostrar formas de pago")
     else:
-        # POS con cierre directo → SÍ mostrar formas de pago
         mostrar_formas_pago = True
-        print(f"[DEBUG] POS con cierre directo - SÍ mostrar formas de pago")
+        print(f"[PAGO] POS con cierre directo → SÍ mostrar formas de pago")
     
     print(f"[DEBUG] mostrar_formas_pago: {mostrar_formas_pago}")
-    print(f"  - es_modulo_caja (apertura_activa existe): {es_modulo_caja}")
+    print(f"  - es_desde_pos (ticket.estacion_trabajo existe): {es_desde_pos}")
+    print(f"  - es_modulo_caja (NO tiene estacion): {es_modulo_caja}")
     print(f"  - cierre_directo_flag: {cierre_directo_flag}")
     print(f"  - enviar_sii_directo_flag: {enviar_sii_directo_flag}")
     print(f"  - tipo_documento (actual del ticket): {tipo_doc_actual}")
     print(f"  - tipo_documento_planeado: {tipo_doc_planeado}")
     print(f"  - Es vale facturable: {tipo_doc_actual == 'vale'}")
+    print(f"  - Estación: {ticket.estacion_trabajo.nombre if ticket.estacion_trabajo else 'N/A'}")
     print(f"  - Se mostrará sección de pago: {mostrar_formas_pago}")
     
     context = {
@@ -1710,6 +1868,7 @@ def procesar_venta(request, ticket_id):
         'mostrar_formas_pago': mostrar_formas_pago,
         'cierre_directo_flag': cierre_directo_flag,
         'enviar_sii_directo_flag': enviar_sii_directo_flag,
+        'es_pos_vale': es_pos_vale,  # Para saber si debe auto-redirigir al POS después de imprimir
     }
     
     return render(request, 'caja/procesar_venta.html', context)

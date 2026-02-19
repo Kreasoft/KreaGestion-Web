@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=302">
@@ -212,7 +213,7 @@
             body {
                 width: 80mm;
             }
-            
+
             .no-print {
                 display: none !important;
             }
@@ -223,6 +224,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="ticket-container">
 
@@ -246,9 +248,9 @@
             <div class="document-type">BOLETA ELECTRÓNICA</div>
             <div class="document-folio">
                 {% if dte and dte.folio %}
-                    N° {{ dte.folio }}
+                N° {{ dte.folio }}
                 {% else %}
-                    N° {{ venta.numero_venta }}
+                N° {{ venta.numero_venta }}
                 {% endif %}
             </div>
             <div class="document-fecha">
@@ -278,7 +280,8 @@
                 <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
                 <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
                 <div class="producto-detalle">
-                    <span class="producto-cantidad">{{ detalle.cantidad|floatformat:0 }} x ${{ detalle.precio_unitario|format_miles }}</span>
+                    <span class="producto-cantidad">{{ detalle.cantidad|floatformat:0 }} x ${{
+                        detalle.precio_unitario|format_miles }}</span>
                     <span class="producto-precio">${{ detalle.precio_total|format_miles }}</span>
                 </div>
                 {% if detalle.descuento > 0 %}
@@ -346,9 +349,11 @@
             {% for ref in venta.referencias.all %}
             <div style="font-size: 7pt; margin-bottom: 1mm; padding: 1mm; background: #f5f5f5; border-radius: 2mm;">
                 <div><strong>Tipo:</strong> {{ ref.get_tipo_referencia_display }}</div>
-                <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d/m/Y" }}</div>
+                <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{
+                    ref.fecha_referencia|date:"d/m/Y" }}</div>
                 {% if ref.razon_referencia %}
-                <div style="font-size: 6pt; color: #666;"><strong>Razón:</strong> {{ ref.razon_referencia|truncatewords:10 }}</div>
+                <div style="font-size: 6pt; color: #666;"><strong>Razón:</strong> {{
+                    ref.razon_referencia|truncatewords:10 }}</div>
                 {% endif %}
             </div>
             {% endfor %}
@@ -358,17 +363,17 @@
         <!-- TIMBRE ELECTRÓNICO -->
         <div class="timbre-section">
             {% if dte and dte.timbre_pdf417 %}
-                <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico" class="timbre-img">
+            <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico" class="timbre-img">
             {% elif dte and dte.folio %}
-                <div style="padding: 5mm; background: #f5f5f5;">
-                    <div style="font-size: 8pt; font-weight: bold;">TIMBRE ELECTRÓNICO SII</div>
-                    <div style="font-size: 7pt; color: #666;">Folio: {{ dte.folio }}</div>
-                </div>
+            <div style="padding: 5mm; background: #f5f5f5;">
+                <div style="font-size: 8pt; font-weight: bold;">TIMBRE ELECTRÓNICO SII</div>
+                <div style="font-size: 7pt; color: #666;">Folio: {{ dte.folio }}</div>
+            </div>
             {% else %}
-                <div style="padding: 5mm; background: #fff8dc;">
-                    <div style="font-size: 8pt; font-weight: bold; color: #ff8c00;">DOCUMENTO NO ELECTRÓNICO</div>
-                    <div style="font-size: 7pt; color: #666;">N° Venta: {{ venta.numero_venta }}</div>
-                </div>
+            <div style="padding: 5mm; background: #fff8dc;">
+                <div style="font-size: 8pt; font-weight: bold; color: #ff8c00;">DOCUMENTO NO ELECTRÓNICO</div>
+                <div style="font-size: 7pt; color: #666;">N° Venta: {{ venta.numero_venta }}</div>
+            </div>
             {% endif %}
             <div class="timbre-info">
                 <strong>Timbre Electrónico SII</strong><br>
@@ -389,156 +394,79 @@
 
     <!-- Botones de acción (solo en pantalla) -->
     <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
-        <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
+        <button onclick="window.print()"
+            style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             🖨️ Imprimir
         </button>
-        <button id="btnBackPOS" onclick="safeCloseWindow()" style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
+        <button id="btn-cerrar" onclick="safeCloseWindow()"
+            style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             ← Volver
         </button>
     </div>
 
     <script>
-        // Función universal para cerrar/volver desde templates de impresión
+        // Parámetros URL globales
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoPrint = urlParams.get('auto');
+        const autoClose = urlParams.get('autoclose');
+        const autoCloseDelay = parseInt(urlParams.get('autoclose_delay')) || 3000;
+        const returnUrl = urlParams.get('return_url');
+
+        console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl });
+
         function safeCloseWindow() {
-            console.log('safeCloseWindow llamado');
-            
-            const posUrl = "{% url 'ventas:pos_view' %}";
-            
-            // Intentar notificar al padre si existe
+            // Notificar al padre si existe
             try {
                 if (window.opener && window.opener !== window && !window.opener.closed) {
                     window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
                 }
-            } catch (e) {
-                console.log('No se pudo notificar al padre:', e);
+            } catch (e) { console.log('No se pudo notificar al padre:', e); }
+
+            console.log('[DTE AUTO] Cerrando ventana...');
+
+            // Si es un popup (tiene window.opener), cerrarlo directamente
+            if (window.opener) {
+                console.log('[DTE AUTO] Es un popup - cerrando...');
+                try { window.close(); } catch(e) {}
+                return;
             }
-            
-            // Intentar cerrar la ventana si fue abierta por otra ventana
-            if (window.opener && window.opener !== window && !window.opener.closed) {
-                try {
-                    window.close();
-                    console.log('Ventana cerrada');
-                    return;
-                } catch (e) {
-                    console.log('No se pudo cerrar la ventana:', e);
-                }
+
+            // PRIORIDAD: Si hay return_url, SIEMPRE ir ahí (para emisión directa desde POS)
+            if (returnUrl) {
+                console.log('[DTE AUTO] Volviendo a return_url:', returnUrl);
+                window.location.href = decodeURIComponent(returnUrl);
+                return;
             }
-            
-            // Intentar obtener la URL de referencia guardada o desde parámetros URL
-            const params = new URLSearchParams(window.location.search);
-            const returnUrl = params.get('return_url');
-            const refererUrl = returnUrl || sessionStorage.getItem('print_referer') || localStorage.getItem('print_referer');
-            
-            if (refererUrl && refererUrl !== window.location.href) {
-                console.log('Redirigiendo a:', refererUrl);
-                window.location.href = refererUrl;
+
+            // Fallback: usar referrer si viene del POS
+            const referrer = document.referrer;
+            if (referrer && referrer.includes('/pos/')) {
+                console.log('[DTE AUTO] Volviendo al POS (referrer)');
+                window.location.href = referrer;
                 return;
             }
             
-            // Si no hay referrer guardado, intentar volver atrás
-            if (window.history.length > 1) {
-                try {
-                    console.log('Intentando volver atrás');
-                    window.history.back();
-                    return;
-                } catch (e) {
-                    console.log('No se pudo volver atrás:', e);
-                }
-            }
-            
-            // Fallback: redirigir al POS si viene con auto=1 (desde POS), sino al dashboard
-            if (params.get('auto') === '1') {
-                // Si viene con auto=1, siempre es desde el POS
-                console.log('Redirigiendo al POS (auto=1 detectado)');
-                window.location.href = posUrl;
-            } else {
-                // Si no viene con auto=1, intentar detectar si viene del POS por el referrer
-                const fromPos = document.referrer && document.referrer.includes('/ventas/pos');
-                if (fromPos) {
-                    console.log('Redirigiendo al POS (detectado por referrer)');
-                    window.location.href = posUrl;
-                } else {
-                    console.log('Redirigiendo al dashboard');
-                    window.location.href = '/';
-                }
-            }
+            // Último fallback: ir a Caja
+            console.log('[DTE AUTO] Fallback a Caja');
+            window.location.href = "{% url 'caja:procesar_venta_buscar' %}";
         }
-        
-        // Guardar la URL de referencia cuando se carga la página
-        window.addEventListener('load', function() {
-            const params = new URLSearchParams(window.location.search);
-            const returnUrl = params.get('return_url');
-            
-            // Guardar la URL de referencia si existe
-            if (returnUrl) {
-                sessionStorage.setItem('print_referer', returnUrl);
-                console.log('Return URL guardado:', returnUrl);
-            } else if (document.referrer && document.referrer !== window.location.href) {
-                sessionStorage.setItem('print_referer', document.referrer);
-                console.log('Referrer guardado:', document.referrer);
-            } else {
-                // Si no hay referrer, guardar el POS como fallback si viene de auto=1
-                if (params.get('auto') === '1') {
-                    sessionStorage.setItem('print_referer', "{% url 'ventas:pos_view' %}");
-                    console.log('Referrer fallback guardado: POS');
-                }
-            }
-        });
-        
-        // Asegurar que el botón funcione
-        document.addEventListener('DOMContentLoaded', function() {
-            const backBtn = document.getElementById('btnBackPOS');
-            if (backBtn) {
-                backBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    safeCloseWindow();
-                });
-                console.log('Event listener agregado al botón volver');
-            }
-        });
-        
-        // Auto-print cuando viene con auto=1
-        (function() {
-            try {
-                const params = new URLSearchParams(window.location.search);
-                const auto = params.get('auto');
-                const nombreImpresora = "{{ nombre_impresora|default:'' }}";
-                
-                if (auto === '1') {
-                    setTimeout(() => { 
-                        try { 
-                            // Si hay nombre de impresora específico, intentar usarlo (requiere extensión o API)
-                            if (nombreImpresora) {
-                                console.log('[PRINT] Impresora configurada:', nombreImpresora);
-                            }
-                            window.print(); 
-                        } catch(e) {
-                            console.log('Error al imprimir:', e);
-                        }
-                    }, 150);
-                    
-                    // Volver tras afterprint solo si fue abierto por script
-                    if ('onafterprint' in window && window.opener && window.opener !== window) {
-                        window.addEventListener('afterprint', () => {
-                            setTimeout(() => {
-                                try {
-                                    if (window.opener && !window.opener.closed) {
-                                        window.close();
-                                    }
-                                } catch (e) {
-                                    safeCloseWindow();
-                                }
-                            }, 100);
-                        });
+
+        // Auto-ejecución
+        if (autoPrint === '1') {
+            window.addEventListener('load', function () {
+                console.log('[DTE AUTO] Iniciando impresión automática...');
+                setTimeout(function () {
+                    window.print();
+
+                    if (autoClose === '1') {
+                        console.log('[DTE AUTO] Cierre programado en ' + autoCloseDelay + 'ms');
+                        setTimeout(safeCloseWindow, autoCloseDelay);
                     }
-                }
-            } catch (e) {
-                console.log('Error en auto-print:', e);
-            }
-        })();
+                }, 500);
+            });
+        }
     </script>
 
 </body>
-</html>
 
+</html>

@@ -3,248 +3,363 @@
 
 {% block title %}Exportar Datos{% endblock %}
 
+{% block body_class %}hide-top-bar{% endblock %}
+
 {% block extra_css %}
 <style>
+    /* VARIABLES ESTILO STONE PREMIUM */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #F5F5F5 0%, #E0E0E0 100%);
+        --stone-text: #5D4037;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #43A047;
+        --stone-danger: #e53935;
+        --stone-warning: #FB8C00;
+        --stone-info: #039BE5;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.25rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .header-icon-box {
+        width: 52px; height: 52px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 14px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text h1 span { font-weight: 700; }
+    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* ACTION BUTTONS */
+    .btn-action-secondary {
+        background: white; border: 1px solid var(--stone-light); color: var(--stone-text);
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-action-secondary:hover { background: var(--stone-bg); transform: translateY(-1px); }
+
+    /* SECTION TITLE */
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--stone-text);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .section-title i { color: var(--stone-primary); }
+
+    /* EXPORT CARDS */
     .export-card {
-        background: white;
-        border-radius: 10px;
+        background: #FFFFFF;
+        border-radius: 12px;
         padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         transition: all 0.3s ease;
-        border: 1px solid #E8DCC8;
+        border: 1px solid var(--stone-light);
         height: 100%;
         position: relative;
         overflow: hidden;
-    }
-    
-    .export-card .bg-icon {
-        position: absolute;
-        right: -10px;
-        bottom: -10px;
-        font-size: 6rem;
-        color: #F5F1E8;
-        opacity: 0.3;
-        z-index: 0;
+        display: flex;
+        flex-direction: column;
     }
     
     .export-card:hover {
-        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
-        transform: translateY(-2px);
-        border-color: #D4A574;
+        box-shadow: 0 8px 24px rgba(139, 115, 85, 0.15);
+        transform: translateY(-4px);
+        border-color: var(--stone-primary);
     }
     
-    .export-card > * {
-        position: relative;
-        z-index: 1;
+    .bg-icon {
+        position: absolute;
+        right: -15px;
+        bottom: -15px;
+        font-size: 5rem;
+        color: var(--stone-primary);
+        opacity: 0.05;
+        z-index: 0;
+        transition: transform 0.3s ease;
     }
+    .export-card:hover .bg-icon { transform: scale(1.1) rotate(5deg); opacity: 0.1; }
+    
+    .export-content { position: relative; z-index: 1; flex-grow: 1; }
     
     .export-icon {
-        width: 50px;
-        height: 50px;
-        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+        width: 48px; height: 48px;
+        background: linear-gradient(135deg, #FAF8F3 0%, #F5F0EB 100%);
         border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        display: flex; align-items: center; justify-content: center;
         margin-bottom: 1rem;
+        border: 1px solid var(--stone-light);
     }
-    
-    .export-icon i {
-        font-size: 1.5rem;
-        color: #8B7355;
-    }
+    .export-icon i { font-size: 1.5rem; color: var(--stone-primary); }
     
     .export-title {
         font-size: 1.1rem;
-        font-weight: 600;
-        font-family: 'Poppins', sans-serif;
-        color: #5A4A37;
+        font-weight: 700;
+        color: var(--stone-text);
         margin-bottom: 0.5rem;
     }
     
     .export-description {
-        font-size: 0.875rem;
-        color: #6c757d;
-        margin-bottom: 1rem;
-        line-height: 1.4;
+        font-size: 0.85rem;
+        color: #795548;
+        margin-bottom: 1.25rem;
+        line-height: 1.5;
     }
-    
-    .section-title {
-        font-size: 1.35rem;
-        font-weight: 600;
-        font-family: 'Poppins', sans-serif;
-        color: #5A4A37;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #F5F1E8;
-    }
-    
-    .section-title i {
-        color: #8B7355;
-        margin-right: 0.5rem;
-    }
-    
+
     .btn-export {
-        background: #8B7355 !important;
-        border-color: #8B7355 !important;
-        color: white !important;
+        background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        border: 1px solid #d7ccc8;
+        color: #5D4037 !important;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        width: 100%;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        box-shadow: 0 4px 6px rgba(93, 64, 55, 0.1);
+        position: relative;
+        overflow: hidden;
     }
     
     .btn-export:hover {
-        background: #6F5B44 !important;
-        border-color: #6F5B44 !important;
-        color: white !important;
+        background: linear-gradient(135deg, #f5f1f0 0%, #efebe9 100%);
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 15px rgba(93, 64, 55, 0.15);
+        color: #5D4037 !important;
+        border-color: #C2B7AE;
+    }
+    
+    .btn-export::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: 0.5s;
+    }
+    
+    .btn-export:hover::after {
+        left: 100%;
+    }
+
+    .form-control-stone {
+        border-radius: 8px;
+        border: 1px solid var(--stone-light);
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        background-color: #FAFAF8;
+    }
+    .form-control-stone:focus {
+        border-color: var(--stone-primary);
+        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.15);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <h4 class="mb-1" style="color: #2c3e50;">
-                <i class="fas fa-file-export me-2" style="color: #8B7355;"></i>Exportar Datos
-            </h4>
-            <p class="text-muted mb-0">Descarga informes y datos en formato Excel</p>
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- Header Premium -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-file-export"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Exportar <span>Datos</span></h1>
+                    <p>Descarga informes y registros del sistema en formato Excel</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'utilidades:dashboard' %}" class="btn-action-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                </a>
+            </div>
         </div>
-    </div>
 
-    <!-- Ventas -->
-    <div class="row mb-4">
-        <div class="col-12">
+        <div class="card-body p-4">
+            
+            <!-- Ventas -->
             <h3 class="section-title">
                 <i class="fas fa-shopping-cart"></i>Ventas
             </h3>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="export-card">
-                <i class="fas fa-calendar-alt bg-icon"></i>
-                <div class="export-icon">
-                    <i class="fas fa-calendar-alt"></i>
-                </div>
-                <h4 class="export-title">Ventas por Período</h4>
-                <p class="export-description">Exporta el análisis de ventas diarias con totales y promedios.</p>
-                <form method="get" action="{% url 'informes:exportar_ventas_excel' %}" class="mb-2">
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <input type="date" name="fecha_desde" class="form-control form-control-sm" required>
-                        </div>
-                        <div class="col-6">
-                            <input type="date" name="fecha_hasta" class="form-control form-control-sm" required>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-export btn-sm w-100 mt-2">
-                        <i class="fas fa-file-excel me-1"></i>Exportar Excel
-                    </button>
-                </form>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="export-card">
-                <i class="fas fa-trophy bg-icon"></i>
-                <div class="export-icon">
-                    <i class="fas fa-trophy"></i>
-                </div>
-                <h4 class="export-title">Productos Más Vendidos</h4>
-                <p class="export-description">Exporta el top 50 de productos con mayor cantidad de ventas.</p>
-                <form method="get" action="{% url 'informes:exportar_productos_excel' %}" class="mb-2">
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <input type="date" name="fecha_desde" class="form-control form-control-sm" required>
-                        </div>
-                        <div class="col-6">
-                            <input type="date" name="fecha_hasta" class="form-control form-control-sm" required>
+            <div class="row g-4 mb-5">
+                <div class="col-md-6 col-lg-4">
+                    <div class="export-card">
+                        <i class="fas fa-calendar-alt bg-icon"></i>
+                        <div class="export-content">
+                            <div class="export-icon"><i class="fas fa-calendar-alt"></i></div>
+                            <h4 class="export-title">Ventas por Período</h4>
+                            <p class="export-description">Exporta el análisis detallado de ventas diarias, incluyendo totales y promedios por día.</p>
+                            <form method="get" action="{% url 'informes:exportar_ventas_excel' %}">
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <input type="date" name="fecha_desde" class="form-control form-control-stone" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="date" name="fecha_hasta" class="form-control form-control-stone" required>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn-export">
+                                    <i class="fas fa-file-excel"></i> Exportar a Excel
+                                </button>
+                            </form>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-export btn-sm w-100 mt-2">
-                        <i class="fas fa-file-excel me-1"></i>Exportar Excel
-                    </button>
-                </form>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="export-card">
+                        <i class="fas fa-trophy bg-icon"></i>
+                        <div class="export-content">
+                            <div class="export-icon"><i class="fas fa-trophy"></i></div>
+                            <h4 class="export-title">Productos Más Vendidos</h4>
+                            <p class="export-description">Genera un ranking de los 50 productos con mayor volumen de ventas en el período seleccionado.</p>
+                            <form method="get" action="{% url 'informes:exportar_productos_excel' %}">
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <input type="date" name="fecha_desde" class="form-control form-control-stone" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="date" name="fecha_hasta" class="form-control form-control-stone" required>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn-export">
+                                    <i class="fas fa-file-excel"></i> Exportar a Excel
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Inventario -->
-    <div class="row mb-4">
-        <div class="col-12">
+            <!-- Inventario -->
             <h3 class="section-title">
                 <i class="fas fa-warehouse"></i>Inventario
             </h3>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="export-card">
-                <i class="fas fa-boxes bg-icon"></i>
-                <div class="export-icon">
-                    <i class="fas fa-boxes"></i>
+            <div class="row g-4 mb-5">
+                <div class="col-md-6 col-lg-4">
+                    <div class="export-card">
+                        <i class="fas fa-boxes bg-icon"></i>
+                        <div class="export-content">
+                            <div class="export-icon"><i class="fas fa-boxes"></i></div>
+                            <h4 class="export-title">Stock Actual</h4>
+                            <p class="export-description">Descarga el inventario actual de todas las bodegas, detallando cantidades disponibles y valorización de stock.</p>
+                        </div>
+                        <a href="{% url 'informes:exportar_stock_excel' %}" class="btn-export mt-auto">
+                            <i class="fas fa-file-excel"></i> Exportar Stock Actual
+                        </a>
+                    </div>
                 </div>
-                <h4 class="export-title">Stock Actual</h4>
-                <p class="export-description">Exporta el inventario actual por bodega con valorización.</p>
-                <a href="{% url 'informes:exportar_stock_excel' %}" class="btn btn-export btn-sm w-100">
-                    <i class="fas fa-file-excel me-1"></i>Exportar Excel
-                </a>
             </div>
-        </div>
-    </div>
 
-    <!-- Maestros -->
-    <div class="row mb-4">
-        <div class="col-12">
+            <!-- Datos Maestros -->
             <h3 class="section-title">
                 <i class="fas fa-database"></i>Datos Maestros
             </h3>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="export-card">
-                <i class="fas fa-user-friends bg-icon"></i>
-                <div class="export-icon">
-                    <i class="fas fa-user-friends"></i>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="export-card">
+                        <i class="fas fa-user-friends bg-icon"></i>
+                        <div class="export-content">
+                            <div class="export-icon"><i class="fas fa-user-friends"></i></div>
+                            <h4 class="export-title">Clientes</h4>
+                            <p class="export-description">Obtén el listado completo de clientes registrados con su información de contacto, direcciones y datos fiscales.</p>
+                        </div>
+                        <a href="{% url 'informes:exportar_clientes_excel' %}" class="btn-export mt-auto">
+                            <i class="fas fa-file-excel"></i> Exportar Clientes
+                        </a>
+                    </div>
                 </div>
-                <h4 class="export-title">Clientes</h4>
-                <p class="export-description">Exporta el listado completo de clientes con todos sus datos.</p>
-                <a href="{% url 'informes:exportar_clientes_excel' %}" class="btn btn-export btn-sm w-100">
-                    <i class="fas fa-file-excel me-1"></i>Exportar Excel
-                </a>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="export-card">
-                <i class="fas fa-truck bg-icon"></i>
-                <div class="export-icon">
-                    <i class="fas fa-truck"></i>
+                <div class="col-md-6 col-lg-4">
+                    <div class="export-card">
+                        <i class="fas fa-truck bg-icon"></i>
+                        <div class="export-content">
+                            <div class="export-icon"><i class="fas fa-truck"></i></div>
+                            <h4 class="export-title">Proveedores</h4>
+                            <p class="export-description">Descarga la base de datos de proveedores, incluyendo contactos, condiciones comerciales y detalles de la empresa.</p>
+                        </div>
+                        <a href="{% url 'informes:exportar_proveedores_excel' %}" class="btn-export mt-auto">
+                            <i class="fas fa-file-excel"></i> Exportar Proveedores
+                        </a>
+                    </div>
                 </div>
-                <h4 class="export-title">Proveedores</h4>
-                <p class="export-description">Exporta el listado completo de proveedores con sus datos de contacto.</p>
-                <a href="{% url 'informes:exportar_proveedores_excel' %}" class="btn btn-export btn-sm w-100">
-                    <i class="fas fa-file-excel me-1"></i>Exportar Excel
-                </a>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="export-card">
-                <i class="fas fa-box bg-icon"></i>
-                <div class="export-icon">
-                    <i class="fas fa-box"></i>
+                <div class="col-md-6 col-lg-4">
+                    <div class="export-card">
+                        <i class="fas fa-box bg-icon"></i>
+                        <div class="export-content">
+                            <div class="export-icon"><i class="fas fa-box"></i></div>
+                            <h4 class="export-title">Artículos</h4>
+                            <p class="export-description">Genera un catálogo maestro de todos los artículos, incluyendo códigos, descripciones, precios y familias asociadas.</p>
+                        </div>
+                        <a href="{% url 'informes:exportar_articulos_excel' %}" class="btn-export mt-auto">
+                            <i class="fas fa-file-excel"></i> Exportar Artículos
+                        </a>
+                    </div>
                 </div>
-                <h4 class="export-title">Artículos</h4>
-                <p class="export-description">Exporta el catálogo completo de artículos con precios y categorías.</p>
-                <a href="{% url 'informes:exportar_articulos_excel' %}" class="btn btn-export btn-sm w-100">
-                    <i class="fas fa-file-excel me-1"></i>Exportar Excel
-                </a>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="export-card">
-                <i class="fas fa-tags bg-icon"></i>
-                <div class="export-icon">
-                    <i class="fas fa-tags"></i>
+                <div class="col-md-6 col-lg-4">
+                    <div class="export-card">
+                        <i class="fas fa-tags bg-icon"></i>
+                        <div class="export-content">
+                            <div class="export-icon"><i class="fas fa-tags"></i></div>
+                            <h4 class="export-title">Categorías</h4>
+                            <p class="export-description">Exporta el árbol de familias y categorías de productos configuradas en el sistema.</p>
+                        </div>
+                        <a href="{% url 'informes:exportar_categorias_excel' %}" class="btn-export mt-auto">
+                            <i class="fas fa-file-excel"></i> Exportar Categorías
+                        </a>
+                    </div>
                 </div>
-                <h4 class="export-title">Categorías</h4>
-                <p class="export-description">Exporta el listado completo de categorías de artículos.</p>
-                <a href="{% url 'informes:exportar_categorias_excel' %}" class="btn btn-export btn-sm w-100">
-                    <i class="fas fa-file-excel me-1"></i>Exportar Excel
-                </a>
             </div>
+
         </div>
     </div>
 </div>

@@ -1,0 +1,102 @@
+{% load widget_tweaks %}
+
+<form method="post" enctype="multipart/form-data" action="{{ request.path }}">
+    {% csrf_token %}
+    
+    <div class="row g-3">
+        <!-- Identificación -->
+        <div class="col-12">
+            <h6 class="text-uppercase fw-bold opacity-50 mb-2" style="font-size: 0.65rem; letter-spacing: 2px;">Identificación del Kit</h6>
+        </div>
+
+        <div class="col-md-5">
+            <label class="form-label-premium mb-1"><i class="fas fa-barcode me-2"></i>Código *</label>
+            {% render_field form.codigo class="form-control form-control-premium py-1" placeholder="Ej: KIT001" %}
+            {% if form.codigo.errors %}<div class="text-danger extra-small mt-1">{{ form.codigo.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="col-md-7">
+            <label class="form-label-premium mb-1"><i class="fas fa-tag me-2"></i>Nombre del Kit *</label>
+            {% render_field form.nombre class="form-control form-control-premium py-1" placeholder="Ej: Pack Parrillero" %}
+            {% if form.nombre.errors %}<div class="text-danger extra-small mt-1">{{ form.nombre.errors.0 }}</div>{% endif %}
+        </div>
+
+        <div class="col-12">
+            <label class="form-label-premium mb-1"><i class="fas fa-align-left me-2"></i>Descripción</label>
+            {% render_field form.descripcion class="form-control form-control-premium" rows="2" placeholder="Qué incluye el kit..." %}
+        </div>
+
+        <!-- Precios y Stock -->
+        <div class="col-12 mt-3">
+            <h6 class="text-uppercase fw-bold opacity-50 mb-2" style="font-size: 0.65rem; letter-spacing: 2px;">Venta y Stock</h6>
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label-premium mb-1"><i class="fas fa-dollar-sign me-2"></i>Precio Kit *</label>
+            {% render_field form.precio_kit class="form-control form-control-premium py-1 text-end" placeholder="0" %}
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label-premium mb-1"><i class="fas fa-percentage me-2"></i>% Desc. Ref.</label>
+            {% render_field form.descuento_porcentaje class="form-control form-control-premium py-1 text-end" placeholder="0.00" %}
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label-premium mb-1"><i class="fas fa-cubes me-2"></i>Stock Inicial</label>
+            {% render_field form.stock_disponible class="form-control form-control-premium py-1 text-end" placeholder="0" %}
+        </div>
+
+        <!-- Estados -->
+        <div class="col-12 mt-2">
+            <div class="d-flex gap-3">
+                <label class="checkbox-container-premium flex-grow-1 py-2">
+                    {{ form.activo }}
+                    <span class="small fw-bold">ACTIVO</span>
+                </label>
+                <label class="checkbox-container-premium flex-grow-1 py-2">
+                    {{ form.destacado }}
+                    <span class="small fw-bold">DESTACADO</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Multimedia -->
+        <div class="col-12 mt-2">
+            <label class="form-label-premium mb-1"><i class="fas fa-image me-2"></i>Imagen del Kit</label>
+            {% render_field form.imagen class="form-control form-control-premium py-1" %}
+            {% if kit.imagen %}
+                <div class="mt-2 text-center">
+                    <img src="{{ kit.imagen.url }}" alt="Actual" class="rounded border shadow-sm" style="max-height: 80px;">
+                    <p class="extra-small text-muted mt-1">Imagen actual</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<style>
+    .form-label-premium {
+        font-weight: 700;
+        color: #5D4037;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .form-control-premium {
+        border-radius: 10px;
+        border: 1px solid #d7ccc8;
+        font-size: 0.85rem;
+        background-color: #fdfcfb;
+    }
+    .checkbox-container-premium {
+        background: #fdfcfb;
+        border: 1px solid #d7ccc8;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+    }
+    .extra-small { font-size: 0.65rem; }
+</style>

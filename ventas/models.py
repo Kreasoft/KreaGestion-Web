@@ -13,7 +13,8 @@ TIPO_DOCUMENTO_CHOICES = [
     ('boleta', 'Boleta'),
     ('guia', 'Guía de Despacho'),
     ('cotizacion', 'Cotización'),
-    ('vale', 'Vale Facturable'),
+    ('ticket', 'Ticket Facturable'),
+    ('vale', 'Vale Interno'),
 ]
 
 
@@ -76,6 +77,27 @@ class FormaPago(models.Model):
     
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
+
+
+class DispositivoMovil(models.Model):
+    """Modelo para gestionar y autorizar dispositivos móviles que usan la app"""
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    vendedor = models.ForeignKey(Vendedor, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vendedor Asignado")
+    unique_id = models.CharField(max_length=100, verbose_name="Identificador Único (UUID/Fingerprint)")
+    nombre_dispositivo = models.CharField(max_length=100, verbose_name="Nombre del Dispositivo", help_text="Ej: Samsung S23 de Pedro")
+    modelo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Modelo/SO")
+    autorizado = models.BooleanField(default=False, verbose_name="Autorizado para Vender")
+    
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    ultima_sincronizacion = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Dispositivo Móvil"
+        verbose_name_plural = "Dispositivos Móviles"
+        unique_together = ['empresa', 'unique_id']
+
+    def __str__(self):
+        return f"{self.nombre_dispositivo} ({'AUTORIZADO' if self.autorizado else 'PENDIENTE'})"
 
 
 class Venta(models.Model):
@@ -183,17 +205,21 @@ class Venta(models.Model):
         """Calcula automáticamente el saldo pendiente antes de guardar y valida tipo_documento_planeado"""
         # CRÍTICO: Asegurar que tipo_documento_planeado siempre tenga un valor válido
         if not self.tipo_documento_planeado:
-            if self.tipo_documento == 'vale':
-                # Vale directo: usar 'boleta' como tipo por defecto (más común)
+            if self.tipo_documento == 'ticket':
+                # Ticket: usar 'boleta' como tipo por defecto para procesamiento posterior
                 self.tipo_documento_planeado = 'boleta'
-                print(f"[WARN] Venta #{self.numero_venta}: Vale sin tipo_documento_planeado, asignado 'boleta' por defecto")
+                print(f"[WARN] Venta #{self.numero_venta}: Ticket sin tipo_documento_planeado, asignado 'boleta' por defecto")
+            elif self.tipo_documento == 'vale':
+                # Vale Interno: no se convierte, se queda como vale
+                self.tipo_documento_planeado = 'vale'
+                print(f"[INFO] Venta #{self.numero_venta}: Vale Interno asignado planeado='vale'")
             else:
                 # Otros documentos: usar su propio tipo
                 self.tipo_documento_planeado = self.tipo_documento or 'boleta'
                 print(f"[WARN] Venta #{self.numero_venta}: tipo_documento_planeado estaba vacío, asignado: {self.tipo_documento_planeado}")
         
-        # Validar que tipo_documento_planeado sea válido (no puede ser 'vale')
-        tipos_validos = ['factura', 'boleta', 'guia', 'cotizacion']
+        # Validar que tipo_documento_planeado sea válido
+        tipos_validos = ['factura', 'boleta', 'guia', 'cotizacion', 'vale']
         if self.tipo_documento_planeado not in tipos_validos:
             print(f"[ERROR] Venta #{self.numero_venta}: tipo_documento_planeado inválido '{self.tipo_documento_planeado}', corrigiendo a 'boleta'")
             self.tipo_documento_planeado = 'boleta'
@@ -312,13 +338,15 @@ class EstacionTrabajo(models.Model):
     puede_boletar = models.BooleanField(default=True, verbose_name="Puede Emitir Boletas")
     puede_guia = models.BooleanField(default=False, verbose_name="Puede Emitir Guías")
     puede_cotizar = models.BooleanField(default=True, verbose_name="Puede Emitir Cotizaciones")
-    puede_vale = models.BooleanField(default=False, verbose_name="Puede Emitir Vales")
+    puede_ticket = models.BooleanField(default=True, verbose_name="Puede Emitir Tickets Facturables")
+    puede_vale = models.BooleanField(default=False, verbose_name="Puede Emitir Vales Internos")
     
     # Configuración de límites
     max_items_factura = models.PositiveIntegerField(default=20, verbose_name="Máx. Items Factura")
     max_items_boleta = models.PositiveIntegerField(default=35, verbose_name="Máx. Items Boleta")
     max_items_guia = models.PositiveIntegerField(default=50, verbose_name="Máx. Items Guía")
     max_items_cotizacion = models.PositiveIntegerField(default=50, verbose_name="Máx. Items Cotización")
+    max_items_ticket = models.PositiveIntegerField(default=50, verbose_name="Máx. Items Ticket")
     max_items_vale = models.PositiveIntegerField(default=30, verbose_name="Máx. Items Vale")
     
     # Modo de operación del POS
@@ -386,6 +414,8 @@ class EstacionTrabajo(models.Model):
             tipos.append('guia')
         if self.puede_cotizar:
             tipos.append('cotizacion')
+        if self.puede_ticket:
+            tipos.append('ticket')
         if self.puede_vale:
             tipos.append('vale')
         return tipos
@@ -397,6 +427,7 @@ class EstacionTrabajo(models.Model):
             'boleta': self.max_items_boleta,
             'guia': self.max_items_guia,
             'cotizacion': self.max_items_cotizacion,
+            'ticket': self.max_items_ticket,
             'vale': self.max_items_vale,
         }
         return max_items.get(tipo_documento, 20)
@@ -874,3 +905,21 @@ class NotaCreditoDetalle(models.Model):
         descuento_monto = subtotal * (self.descuento / Decimal('100'))
         self.total = subtotal - descuento_monto
         super().save(*args, **kwargs)
+
+
+class VendedorUbicacion(models.Model):
+    """Modelo para registrar la ubicación geográfica de los vendedores"""
+    
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    vendedor = models.ForeignKey(Vendedor, on_delete=models.CASCADE, related_name='ubicaciones', verbose_name="Vendedor")
+    latitud = models.DecimalField(max_digits=12, decimal_places=9, verbose_name="Latitud")
+    longitud = models.DecimalField(max_digits=12, decimal_places=9, verbose_name="Longitud")
+    fecha_registro = models.DateTimeField(default=timezone.now, verbose_name="Fecha Registro")
+    
+    class Meta:
+        verbose_name = "Ubicación de Vendedor"
+        verbose_name_plural = "Ubicaciones de Vendedores"
+        ordering = ['-fecha_registro']
+    
+    def __str__(self):
+        return f"{self.vendedor.nombre} - {self.fecha_registro}"

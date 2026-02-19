@@ -32,7 +32,8 @@ from .exportaciones import (
     exportar_cierres_caja_excel,
     exportar_compras_periodo_excel,
     exportar_utilidad_familias_excel,
-    exportar_categorias_excel
+    exportar_categorias_excel,
+    exportar_utilidad_articulos_excel
 )
 
 
@@ -185,23 +186,40 @@ def informe_productos_vendidos(request):
 def informe_stock_actual(request):
     """Informe de stock actual por bodega"""
     from inventario.models import Stock
+    from bodegas.models import Bodega
+    from articulos.models import CategoriaArticulo
     from decimal import Decimal
+    from django.core.paginator import Paginator
+    from django.db.models import Q
     
-    bodega_id = clean_id(clean_id(request.GET.get('bodega_id')))
+    bodega_id = clean_id(clean_id(request.GET.get('bodega'))) # Changed from bodega_id to match template standard usually or keep as is but clarify param
+    categoria_id = clean_id(clean_id(request.GET.get('categoria')))
+    search = request.GET.get('search', '')
     
     stocks = Stock.objects.filter(
         bodega__empresa=request.empresa
-    ).select_related('articulo', 'bodega')
+    ).select_related('articulo', 'bodega').order_by('bodega__nombre', 'articulo__nombre')
     
     if bodega_id:
         stocks = stocks.filter(bodega_id=bodega_id)
-    
-    stocks = stocks.order_by('bodega__nombre', 'articulo__nombre')
+        
+    if categoria_id:
+        stocks = stocks.filter(articulo__categoria_id=categoria_id)
+        
+    if search:
+        stocks = stocks.filter(
+            Q(articulo__nombre__icontains=search) | 
+            Q(articulo__codigo__icontains=search)
+        )
     
     # Calcular valorización y agregar a cada stock
     stocks_list = []
     total_valorizacion = Decimal('0')
     articulos_unicos = set()  # Para contar artículos únicos
+    
+    # We need to iterate over all filtered stocks to calculate totals correctly BEFORE pagination if we want accurate totals for the whole set
+    # OR we calculate totals on the queryset using aggregate if possible, but price_avg * qty calculation is row-based.
+    # Given the previous implementation iterated, we'll iterate.
     
     for stock in stocks:
         # Obtener precio promedio (puede ser None o 0)
@@ -218,13 +236,28 @@ def informe_stock_actual(request):
             articulos_unicos.add(stock.articulo.id)
         
         stocks_list.append(stock)
+        
+    # Paginación
+    paginator = Paginator(stocks_list, 50) # Show 50 contacts per page.
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
     
     total_articulos = len(articulos_unicos)
     
+    # Get filters data
+    bodegas = Bodega.objects.filter(empresa=request.empresa)
+    categorias = CategoriaArticulo.objects.filter(empresa=request.empresa, activa=True)
+    
     context = {
-        'stocks': stocks_list,
+        'page_obj': page_obj, # Replaces 'stocks' with page_obj for the loop
         'total_valorizacion': total_valorizacion,
         'total_articulos': total_articulos,
+        'bodegas': bodegas,
+        'categorias': categorias,
+        # Preserve filter values
+        'bodega_id': bodega_id,
+        'categoria_id': categoria_id,
+        'search': search,
     }
     
     return render(request, 'informes/stock_actual.html', context)
@@ -595,7 +628,9 @@ def exportar_productos_excel(request):
 @requiere_empresa
 def exportar_stock_excel(request):
     """Exportar stock actual a Excel"""
-    bodega_id = clean_id(clean_id(request.GET.get('bodega_id')))
+    bodega_id = clean_id(clean_id(request.GET.get('bodega'))) or clean_id(clean_id(request.GET.get('bodega_id')))
+    categoria_id = clean_id(clean_id(request.GET.get('categoria')))
+    search = request.GET.get('search', '')
     
     stocks = Stock.objects.filter(
         bodega__empresa=request.empresa
@@ -603,6 +638,15 @@ def exportar_stock_excel(request):
     
     if bodega_id:
         stocks = stocks.filter(bodega_id=bodega_id)
+
+    if categoria_id:
+        stocks = stocks.filter(articulo__categoria_id=categoria_id)
+        
+    if search:
+        stocks = stocks.filter(
+            Q(articulo__nombre__icontains=search) | 
+            Q(articulo__codigo__icontains=search)
+        )
     
     stocks = stocks.order_by('bodega__nombre', 'articulo__nombre')
     
@@ -920,8 +964,8 @@ def informe_utilidad_familias(request):
         'articulo__categoria__id',
         'articulo__categoria__nombre'
     ).annotate(
-        total_ventas=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField()),
-        total_costo=Sum(F('cantidad') * F('articulo__precio_costo'), output_field=DecimalField()),
+        total_ventas=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField(max_digits=20, decimal_places=2)),
+        total_costo=Sum(F('cantidad') * Cast(F('articulo__precio_costo'), DecimalField(max_digits=20, decimal_places=2)), output_field=DecimalField(max_digits=20, decimal_places=2)),
         cantidad_vendida=Sum('cantidad'),
         num_ventas=Count('venta', distinct=True)
     )
@@ -1003,8 +1047,8 @@ def informe_utilidad_familias_detalle(request, familia_id):
         'articulo__codigo',
         'articulo__nombre'
     ).annotate(
-        total_ventas=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField()),
-        total_costo=Sum(F('cantidad') * F('articulo__precio_costo'), output_field=DecimalField()),
+        total_ventas=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField(max_digits=20, decimal_places=2)),
+        total_costo=Sum(F('cantidad') * Cast(F('articulo__precio_costo'), DecimalField(max_digits=20, decimal_places=2)), output_field=DecimalField(max_digits=20, decimal_places=2)),
         cantidad_vendida=Sum('cantidad')
     ).order_by('-total_ventas')
     
@@ -1115,3 +1159,91 @@ def exportar_ventas_vendedor_excel(request):
     response['Content-Disposition'] = f'attachment; filename=ventas_vendedor_{fecha_desde}_{fecha_hasta}.xlsx'
     wb.save(response)
     return response
+
+
+@login_required
+@requiere_empresa
+def informe_utilidad_articulos(request):
+    """Informe de utilidad y margen por artículo"""
+    from articulos.models import CategoriaArticulo
+    
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    familia_id = request.GET.get('familia')
+    
+    if not fecha_desde or not fecha_hasta:
+        fecha_hasta = datetime.now().date()
+        fecha_desde = fecha_hasta - timedelta(days=30)
+    else:
+        fecha_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+        fecha_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+    
+    # Query base de ventas por artículo
+    ventas_query = VentaDetalle.objects.filter(
+        venta__empresa=request.empresa,
+        venta__fecha__range=[fecha_desde, fecha_hasta],
+        venta__estado='confirmada'
+    ).values(
+        'articulo__id',
+        'articulo__nombre',
+        'articulo__codigo',
+        'articulo__categoria__nombre'
+    ).annotate(
+        total_ventas=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField(max_digits=20, decimal_places=2)),
+        total_costo=Sum(F('cantidad') * Cast(F('articulo__precio_costo'), DecimalField(max_digits=20, decimal_places=2)), output_field=DecimalField(max_digits=20, decimal_places=2)),
+        cantidad_vendida=Sum('cantidad')
+    )
+    
+    if familia_id:
+        ventas_query = ventas_query.filter(articulo__categoria__id=familia_id)
+    
+    # Ordenar por ventas (descendente)
+    ventas_query = ventas_query.order_by('-total_ventas')
+    
+    resultados = []
+    total_ventas_general = 0
+    total_costo_general = 0
+    utilidad_general = 0
+    
+    for item in ventas_query:
+        ventas = float(item['total_ventas'] or 0)
+        costo = float(item['total_costo'] or 0)
+        utilidad = ventas - costo
+        margen = (utilidad / ventas * 100) if ventas > 0 else 0
+        
+        resultados.append({
+            'nombre': item['articulo__nombre'],
+            'codigo': item['articulo__codigo'],
+            'familia': item['articulo__categoria__nombre'] or 'Sin Familia',
+            'cantidad': float(item['cantidad_vendida']),
+            'total_ventas': ventas,
+            'total_costo': costo,
+            'utilidad': utilidad,
+            'margen': margen
+        })
+        
+        total_ventas_general += ventas
+        total_costo_general += costo
+        
+    utilidad_general = total_ventas_general - total_costo_general
+    margen_general = (utilidad_general / total_ventas_general * 100) if total_ventas_general > 0 else 0
+    
+    # Obtener todas las familias para el filtro
+    familias = CategoriaArticulo.objects.filter(
+        empresa=request.empresa,
+        activa=True
+    ).order_by('nombre')
+    
+    context = {
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'familia_id': familia_id,
+        'familias': familias,
+        'resultados': resultados,
+        'total_ventas_general': total_ventas_general,
+        'total_costo_general': total_costo_general,
+        'utilidad_general': utilidad_general,
+        'margen_general': margen_general
+    }
+    
+    return render(request, 'informes/utilidad_articulos.html', context)

@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="container mt-4">
-    
+
     <div class="row mb-4">
         <div class="col-md-8">
             <h2>
@@ -61,13 +61,13 @@
                     <th>Estado SII:</th>
                     <td>
                         {% if dte.estado_sii == 'aceptado' %}
-                            <span class="badge bg-success">Aceptado</span>
+                        <span class="badge bg-success">Aceptado</span>
                         {% elif dte.estado_sii == 'rechazado' %}
-                            <span class="badge bg-danger">Rechazado</span>
+                        <span class="badge bg-danger">Rechazado</span>
                         {% elif dte.estado_sii == 'pendiente' %}
-                            <span class="badge bg-warning">Pendiente</span>
+                        <span class="badge bg-warning">Pendiente</span>
                         {% else %}
-                            <span class="badge bg-secondary">{{ dte.estado_sii }}</span>
+                        <span class="badge bg-secondary">{{ dte.estado_sii }}</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -88,13 +88,83 @@
 </div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+    // Obtener parámetros de la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoPrint = urlParams.get('auto');
+    const autoClose = urlParams.get('autoclose');
+    const autoCloseDelay = parseInt(urlParams.get('autoclose_delay')) || 3000;
+    const returnUrl = urlParams.get('return_url');
 
+    console.log('[DTE AUTO] Parámetros detectados:', {
+        autoPrint: autoPrint,
+        autoClose: autoClose,
+        autoCloseDelay: autoCloseDelay,
+        returnUrl: returnUrl
+    });
 
+    // Función para volver a la URL de retorno o cerrar ventana
+    function volverAlOrigen() {
+        // Si es una ventana popup (abierta con window.open), cerrarla
+        if (window.opener) {
+            console.log('[DTE AUTO] Es un popup - Cerrando ventana...');
+            window.close();
+        } else if (returnUrl) {
+            // Si es la ventana principal, redirigir
+            console.log('[DTE AUTO] Volviendo a:', returnUrl);
+            window.location.href = returnUrl;
+        } else {
+            console.log('[DTE AUTO] No hay URL de retorno, volviendo atrás');
+            window.history.back();
+        }
+    }
 
+    // Si auto=1, imprimir automáticamente al cargar
+    if (autoPrint === '1') {
+        console.log('[DTE AUTO] Imprimiendo automáticamente...');
 
+        // Esperar un momento para que la página cargue completamente
+        setTimeout(function () {
+            window.print();
+            console.log('[DTE AUTO] Impresión Iniciada');
 
+            // Si autoclose=1, cerrar después de imprimir
+            if (autoClose === '1') {
+                console.log('[DTE AUTO] Programando cierre automático en', autoCloseDelay, 'ms');
 
+                // Mostrar contador regresivo
+                let countDown = Math.floor(autoCloseDelay / 1000);
+                const interval = setInterval(() => {
+                    countDown--;
+                    if (countDown <= 0) {
+                        clearInterval(interval);
+                    }
+                    console.log('[DTE AUTO] Volviendo en', countDown, 'segundos...');
+                }, 1000);
 
+                // Volver después del delay
+                setTimeout(volverAlOrigen, autoCloseDelay);
+            }
+        }, 1000);
+    }
 
+    // Detectar cuando se cierra el diálogo de impresión
+    window.onafterprint = function () {
+        console.log('[DTE AUTO] Diálogo de impresión cerrado');
 
+        // Si está configurado autoclose, ya se programó el cierre
+        // Este es solo un log para debugging
+        if (autoClose === '1') {
+            console.log('[DTE AUTO] Esperando', autoCloseDelay, 'ms antes de volver...');
+        }
+    };
 
+    // Detectar si el usuario cancela la impresión (opcional)
+    let beforePrintFired = false;
+    window.onbeforeprint = function () {
+        beforePrintFired = true;
+        console.log('[DTE AUTO] Iniciando impresión...');
+    };
+</script>
+{% endblock %}

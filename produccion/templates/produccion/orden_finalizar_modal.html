@@ -1,0 +1,81 @@
+{% load static %}
+{% load humanize %}
+
+<div class="modal-header stone-modal-header" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%); padding: 1.5rem 2rem; border-bottom: 1px solid #E8DCC8; border-radius: 16px 16px 0 0;">
+    <div class="d-flex align-items-center gap-3">
+        <div class="header-icon-box" style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15); color: #6F5B44; font-size: 1.25rem;">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div>
+            <h5 class="modal-title fw-bold" style="color: #5D4037; font-size: 1.1rem; letter-spacing: -0.5px; margin: 0;">Finalizar Producción</h5>
+            <p class="mb-0 text-muted" style="font-size: 0.8rem;">Confirmar terminación de orden {{ orden.numero_orden }}</p>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<div class="modal-body p-4" style="background: white;">
+
+    <form id="finalizarOrdenForm" method="post" action="{% url 'produccion:orden_finalizar' orden.pk %}">
+        {% csrf_token %}
+        
+        <!-- Resumen -->
+        <div class="alert alert-soft-warning d-flex align-items-center mb-4" role="alert" style="background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404;">
+            <i class="fas fa-exclamation-triangle me-2 fa-lg"></i>
+            <div>
+                 Al finalizar, se consumirá el stock de insumos y se agregará el producto final.
+                 <strong>Esta acción es irreversible.</strong>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted mb-1">Cantidad Producida <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <input type="number" name="cantidad_producida" class="form-control form-control-stone" value="{{ orden.cantidad_planificada }}" step="0.01" min="0" required style="border-radius: 8px 0 0 8px; border: 1px solid #D4C4A8; height: 38px;">
+                     <span class="input-group-text" style="background-color: #f8f9fa; border: 1px solid #D4C4A8; border-left: none; border-radius: 0 8px 8px 0; color: #6c757d;">{{ orden.receta.producto_final.unidad_medida.simbolo }}</span>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted mb-1">Merma Real</label>
+                <div class="input-group">
+                     <input type="number" name="merma_real" class="form-control form-control-stone" value="0" step="0.01" min="0" style="border-radius: 8px 0 0 8px; border: 1px solid #D4C4A8; height: 38px;">
+                     <span class="input-group-text" style="background-color: #f8f9fa; border: 1px solid #D4C4A8; border-left: none; border-radius: 0 8px 8px 0; color: #6c757d;">{{ orden.receta.producto_final.unidad_medida.simbolo }}</span>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                 <label class="form-label small fw-bold text-muted mb-1">Bodega Insumos (Origen) <span class="text-danger">*</span></label>
+                 <select name="bodega_insumos" class="form-select py-2" required style="border-radius: 8px; border: 1px solid #D4C4A8;">
+                    <option value="">Seleccione...</option>
+                    {% for bodega in bodegas %}
+                    <option value="{{ bodega.id }}" {% if orden.bodega_id == bodega.id %}selected{% endif %}>{{ bodega.nombre }}</option>
+                    {% endfor %}
+                 </select>
+            </div>
+
+            <div class="col-md-6">
+                 <label class="form-label small fw-bold text-muted mb-1">Bodega Producto (Destino) <span class="text-danger">*</span></label>
+                 <select name="bodega_productos" class="form-select py-2" required style="border-radius: 8px; border: 1px solid #D4C4A8;">
+                    <option value="">Seleccione...</option>
+                    {% for bodega in bodegas %}
+                    <option value="{{ bodega.id }}" {% if orden.bodega_id == bodega.id %}selected{% endif %}>{{ bodega.nombre }}</option>
+                    {% endfor %}
+                 </select>
+            </div>
+
+            <div class="col-12 mt-3">
+                <label class="form-label small fw-bold text-muted mb-1">Observaciones</label>
+                <textarea name="comentarios" class="form-control" rows="2" placeholder="Comentarios finales..." style="border-radius: 8px; border: 1px solid #D4C4A8; resize: none;"></textarea>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top border-light">
+            <button type="button" class="btn btn-light border" data-bs-dismiss="modal" style="font-size: 0.85rem; font-weight: 500; color: #5D4037;">Cancelar</button>
+            <button type="submit" class="btn text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); font-size: 0.85rem; font-weight: 500; border: none;">
+                <i class="fas fa-check me-2"></i>Finalizar Orden
+            </button>
+        </div>
+    </form>
+</div>

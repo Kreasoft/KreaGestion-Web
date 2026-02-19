@@ -1,106 +1,220 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load inventario_tags %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block page_title %}{{ titulo }} - GestionCloud{% endblock %}
 
-{% block extra_head %}
+{% block extra_css %}
 <style>
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+    }
+
     body {
-        background: #FAFAF8 !important;
-        min-height: 100vh;
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 56px; height: 56px;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(4px);
+        border-radius: 16px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 700;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    /* BOTONES ACCION HEADER */
+    .header-btn {
+        padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.2s; border: 1px solid transparent; cursor: pointer;
+    }
+    .btn-action-base { color: white; border: none; }
+    .btn-action-base:hover { transform: translateY(-1px); color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    
+    .btn-volver { background: rgba(255,255,255,0.5); border: 1px solid #D4C4A8; color: #6F5B44; }
+    .btn-volver:hover { background: white; color: #8B7355; }
+
+    /* SECCIONES DETAILS */
+    .detail-card {
+        background: #FAFAF8;
+        border: 1px solid #E8DCC8;
+        border-radius: 12px;
+        overflow: hidden;
+        height: 100%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .detail-header {
+        background: linear-gradient(135deg, #F3ECE2 0%, #E8DCC8 100%);
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #E8DCC8;
+        font-weight: 600;
+        color: var(--stone-secondary);
+        display: flex; align-items: center; gap: 0.5rem;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .detail-row {
+        margin-bottom: 0.75rem;
+    }
+    .detail-label {
+        font-size: 0.75rem; color: #8B7355; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 2px;
+    }
+    .detail-value {
+        font-size: 0.95rem; color: #5D4037; font-weight: 500;
+    }
+
+    /* BADGES */
+    .badge-stone { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* TABLA DETALLES COMPACTA */
+    .table-piedra { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 10px 15px;
+    }
+    .table-piedra tbody tr { 
+        height: 32px !important; /* Compact fixed height */
+        transition: all 0.2s; 
+    }
+    .table-piedra tbody tr:hover { background-color: #f8f9fa; }
+    .table-piedra tbody td {
+        padding: 4px 15px; /* Reduced padding */
+        vertical-align: middle; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; color: #4A5568;
+    }
+    .table-piedra tbody tr:last-child td { border-bottom: none; }
+
+    /* TOTALES */
+    .totals-box {
+        background: linear-gradient(135deg, #FDFCFB 0%, #F5F1E8 100%);
+        border-top: 2px solid #E8DCC8;
+        padding: 1.5rem;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
-    <div class="row">
-        <div class="col-12">
-            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-bottom: 3px solid #D4C4A8; padding: 15px 20px;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-exchange-alt me-3" style="font-size: 1.8rem; color: #F5F1E8;"></i>
-                            <div>
-                                <h5 class="mb-1" style="font-size: 1.3rem; font-weight: 600; color: white;">
-                                    Transferencia {{ transferencia.numero_folio }}
-                                </h5>
-                                <small style="font-size: 0.75rem; color: #F5F1E8;">
-                                    Detalle de la transferencia de inventario
-                                </small>
-                            </div>
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+            
+            <div class="single-card-container">
+                <!-- HEADER -->
+                <div class="stone-header-premium">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="header-icon-box">
+                            <i class="fas fa-exchange-alt"></i>
                         </div>
-                        <div class="d-flex gap-2">
-                            <a href="{% url 'inventario:transferencia_list' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: white; font-size: 0.75rem;">
-                                <i class="fas fa-arrow-left me-1"></i> Volver
-                            </a>
-                            {% if transferencia.estado != 'cancelado' %}
+                        <div class="header-text">
+                            <h1>Transferencia #{{ transferencia.numero_folio }}</h1>
+                            <p>Detalle completo del movimiento de inventario</p>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'inventario:transferencia_list' %}" class="header-btn btn-volver">
+                            <i class="fas fa-arrow-left me-2"></i> Volver
+                        </a>
+
+                        {% if transferencia.estado != 'cancelado' %}
                             {% if not transferencia.guia_despacho %}
-                            <button type="button" id="btnGenerarGuia" class="btn btn-sm" style="background: rgba(107, 142, 35, 0.9); border: 1px solid #6B8E23; color: white; font-weight: 600; font-size: 0.75rem;">
-                                <i class="fas fa-file-invoice me-1"></i> Generar Guía
-                            </button>
+                                <button type="button" id="btnGenerarGuia" class="header-btn btn-action-base" style="background: #6B8E23;">
+                                    <i class="fas fa-file-invoice me-2"></i> Generar Guía
+                                </button>
                             {% else %}
-                            <a href="{% url 'inventario:transferencia_imprimir_guia' transferencia.pk %}" target="_blank" class="btn btn-sm" style="background: rgba(107, 142, 35, 0.9); border: 1px solid #6B8E23; color: white; font-weight: 600; font-size: 0.75rem;">
-                                <i class="fas fa-print me-1"></i> Imprimir Guía N° {{ transferencia.guia_despacho.folio }}
-                            </a>
+                                <a href="{% url 'inventario:transferencia_imprimir_guia' transferencia.pk %}" target="_blank" class="header-btn btn-action-base" style="background: #6B8E23;">
+                                    <i class="fas fa-print me-2"></i> Guía N° {{ transferencia.guia_despacho.folio }}
+                                </a>
                             {% endif %}
-                            <a href="{% url 'inventario:transferencia_create' %}?edit={{ transferencia.pk }}" class="btn btn-sm" style="background: rgba(212, 165, 116, 0.9); border: 1px solid #D4A574; color: white; font-weight: 600; font-size: 0.75rem;">
-                                <i class="fas fa-edit me-1"></i> Editar
+                            
+                            <a href="{% url 'inventario:transferencia_create' %}?edit={{ transferencia.pk }}" class="header-btn btn-action-base" style="background: #D4A574;">
+                                <i class="fas fa-edit me-2"></i> Editar
                             </a>
-                            <a href="{% url 'inventario:transferencia_cancelar' transferencia.pk %}" class="btn btn-sm" style="background: rgba(193, 148, 97, 0.9); border: 1px solid #C19461; color: white; font-weight: 600; font-size: 0.75rem;">
-                                <i class="fas fa-times me-1"></i> Cancelar
+                            
+                            <a href="{% url 'inventario:transferencia_cancelar' transferencia.pk %}" class="header-btn btn-action-base" style="background: #C19461;">
+                                <i class="fas fa-times me-2"></i> Cancelar
                             </a>
-                            {% endif %}
-                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
-                <div class="card-body" style="background: #FAFAF8; padding: 15px;">
-                    <div class="row g-2">
-                        <!-- Información General -->
-                        <div class="col-md-4">
-                            <div class="card" style="border: 1px solid #E8DCC8; border-radius: 8px; background: #FFFFFF;">
-                                <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
-                                    <h6 class="mb-0" style="font-size: 0.85rem;"><i class="fas fa-info-circle me-2"></i>Información General</h6>
+                <!-- BODY -->
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <!-- COLUMNA IZQUIERDA: DATOS -->
+                        <div class="col-lg-4">
+                            <!-- INFO GENERAL -->
+                            <div class="detail-card mb-3">
+                                <div class="detail-header">
+                                    <i class="fas fa-info-circle"></i> Información General
                                 </div>
-                                <div class="card-body p-2" style="font-size: 0.8rem;">
-                                    <div class="mb-2">
-                                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Número de Folio</div>
-                                        <div class="fw-bold" style="font-size: 1.1rem; color: #8B7355;">{{ transferencia.numero_folio }}</div>
-                                    </div>
-                                    
-                                    <div class="mb-2">
-                                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Estado</div>
-                                        <div>
+                                <div class="p-3">
+                                    <div class="detail-row">
+                                        <span class="detail-label">Estado</span>
+                                        <div class="detail-value mt-1">
                                             {% if transferencia.estado == 'pendiente' %}
-                                            <span class="badge" style="background: #D4A574; font-size: 0.7rem;">Pendiente</span>
+                                                <span class="badge-stone" style="background: #FFF3E0; color: #E65100; border: 1px solid #FFE0B2;">Pendiente</span>
                                             {% elif transferencia.estado == 'confirmado' %}
-                                            <span class="badge" style="background: #6B8E23; font-size: 0.7rem;">Confirmado</span>
+                                                <span class="badge-stone" style="background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9;">Confirmado</span>
                                             {% elif transferencia.estado == 'cancelado' %}
-                                            <span class="badge" style="background: #C19461; font-size: 0.7rem;">Cancelado</span>
+                                                <span class="badge-stone" style="background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2;">Cancelado</span>
                                             {% endif %}
                                         </div>
                                     </div>
-                                    
-                                    <div class="mb-2">
-                                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Fecha</div>
-                                        <div class="fw-bold" style="color: #6F5B44;">{{ transferencia.fecha_transferencia|date:"d/m/Y H:i" }}</div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Fecha</span>
+                                        <span class="detail-value">{{ transferencia.fecha_transferencia|date:"d \d\e F, Y - H:i" }}</span>
                                     </div>
-                                    
-                                    <div class="mb-2">
-                                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Creado Por</div>
-                                        <div class="fw-bold" style="color: #6F5B44;">
-                                            <i class="fas fa-user me-1" style="font-size: 0.7rem;"></i>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Creado Por</span>
+                                        <span class="detail-value">
+                                            <i class="fas fa-user-circle me-1 text-muted"></i>
                                             {{ transferencia.creado_por.get_full_name|default:transferencia.creado_por.username }}
-                                        </div>
+                                        </span>
                                     </div>
                                     
                                     {% if transferencia.observaciones %}
-                                    <div class="mb-0">
-                                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Observaciones</div>
-                                        <div class="alert alert-info mb-0 py-1 px-2" style="font-size: 0.75rem; background: rgba(139, 115, 85, 0.1); border-color: #E8DCC8;">
+                                    <div class="detail-row">
+                                        <span class="detail-label">Observaciones</span>
+                                        <div class="p-2 bg-white rounded border mt-1 small text-muted fst-italic">
                                             {{ transferencia.observaciones }}
                                         </div>
                                     </div>
@@ -108,136 +222,120 @@
                                 </div>
                             </div>
 
-                            <!-- Bodegas -->
-                            <div class="card mt-2" style="border: 1px solid #E8DCC8; border-radius: 8px; background: #FFFFFF;">
-                                <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #6B8E23 0%, #8B9F4A 100%);">
-                                    <h6 class="mb-0" style="font-size: 0.85rem;"><i class="fas fa-warehouse me-2"></i>Bodegas</h6>
+                            <!-- BODEGAS -->
+                            <div class="detail-card">
+                                <div class="detail-header">
+                                    <i class="fas fa-warehouse"></i> Bodegas
                                 </div>
-                                <div class="card-body p-2" style="font-size: 0.8rem;">
-                                    <div class="mb-2">
-                                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Origen</div>
-                                        <div class="fw-bold" style="color: #C19461;">
-                                            <i class="fas fa-arrow-up me-1" style="font-size: 0.7rem;"></i>
-                                            {{ transferencia.bodega_origen.nombre }}
+                                <div class="p-3">
+                                    <div class="d-flex align-items-center mb-3 p-2 rounded" style="background: #FFF8E1; border: 1px solid #FFE0B2;">
+                                        <div class="me-3 text-center" style="width: 40px;">
+                                            <i class="fas fa-arrow-up text-danger fs-5"></i>
                                         </div>
-                                        <small style="font-size: 0.65rem; color: #999;">{{ transferencia.bodega_origen.codigo }}</small>
-                                    </div>
-                                    
-                                    <div class="text-center my-2">
-                                        <i class="fas fa-arrow-down" style="font-size: 1.2rem; color: #8B7355;"></i>
-                                    </div>
-                                    
-                                    <div class="mb-0">
-                                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Destino</div>
-                                        <div class="fw-bold" style="color: #6B8E23;">
-                                            <i class="fas fa-arrow-down me-1" style="font-size: 0.7rem;"></i>
-                                            {{ transferencia.bodega_destino.nombre }}
+                                        <div>
+                                            <span class="detail-label text-danger">Origen</span>
+                                            <div class="fw-bold" style="color: #5D4037;">{{ transferencia.bodega_origen.nombre }}</div>
+                                            <small class="text-muted">{{ transferencia.bodega_origen.codigo }}</small>
                                         </div>
-                                        <small style="font-size: 0.65rem; color: #999;">{{ transferencia.bodega_destino.codigo }}</small>
                                     </div>
-                                </div>
-                            </div>
 
-                            <!-- Resumen -->
-                            <div class="card mt-2" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
-                                <div class="card-body p-2">
-                                    <div class="text-center mb-2">
-                                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Total Artículos</div>
-                                        <div class="fw-bold" style="font-size: 1.3rem; color: #8B7355;">{{ total_articulos }}</div>
-                                    </div>
-                                    <div class="text-center mb-2">
-                                        <div style="font-size: 0.65rem; color: #6F5B44; font-weight: 600;">Total Unidades</div>
-                                        <div class="fw-bold" style="font-size: 1.1rem; color: #6B8E23;">{{ total_cantidad }}</div>
-                                    </div>
-                                    <hr class="my-2" style="border-color: #D4C4A8;">
-                                    <div class="d-flex justify-content-between px-2 mb-1">
-                                        <span style="font-size: 0.7rem; color: #6F5B44;">Subtotal:</span>
-                                        <span class="fw-bold" style="font-size: 0.8rem; color: #6F5B44;">${{ subtotal|floatformat:0 }}</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between px-2 mb-1">
-                                        <span style="font-size: 0.7rem; color: #6F5B44;">IVA (19%):</span>
-                                        <span class="fw-bold" style="font-size: 0.8rem; color: #6F5B44;">${{ iva|floatformat:0 }}</span>
-                                    </div>
-                                    <hr class="my-2" style="border-color: #D4C4A8;">
-                                    <div class="text-center">
-                                        <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">TOTAL</div>
-                                        <div class="fw-bold" style="font-size: 1.5rem; color: #8B7355;">${{ total_con_iva|floatformat:0 }}</div>
+                                    <div class="d-flex align-items-center p-2 rounded" style="background: #E8F5E9; border: 1px solid #C8E6C9;">
+                                        <div class="me-3 text-center" style="width: 40px;">
+                                            <i class="fas fa-arrow-down text-success fs-5"></i>
+                                        </div>
+                                        <div>
+                                            <span class="detail-label text-success">Destino</span>
+                                            <div class="fw-bold" style="color: #5D4037;">{{ transferencia.bodega_destino.nombre }}</div>
+                                            <small class="text-muted">{{ transferencia.bodega_destino.codigo }}</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Detalle de Artículos -->
-                        <div class="col-md-8">
-                            <div class="card" style="border: 1px solid #E8DCC8; border-radius: 8px; background: #FFFFFF;">
-                                <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);">
-                                    <h6 class="mb-0" style="font-size: 0.85rem;"><i class="fas fa-boxes me-2"></i>Artículos Transferidos</h6>
+                        <!-- COLUMNA DERECHA: ARTÍCULOS -->
+                        <div class="col-lg-8">
+                            <div class="detail-card">
+                                <div class="detail-header justify-content-between">
+                                    <span><i class="fas fa-boxes"></i> Artículos Transferidos</span>
+                                    <span class="badge bg-white text-dark small" style="opacity: 0.8;">{{ total_articulos }} Items</span>
                                 </div>
-                                <div class="card-body p-2">
-                                    <div class="table-responsive">
-                                        <table class="table table-hover align-middle table-sm mb-0" style="font-size: 0.8rem;">
-                                            <thead style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); color: #6F5B44;">
-                                                <tr>
-                                                    <th class="py-2" style="font-size: 0.75rem;">Código</th>
-                                                    <th class="py-2" style="font-size: 0.75rem;">Artículo</th>
-                                                    <th class="text-center py-2" style="font-size: 0.75rem;">Cantidad</th>
-                                                    <th class="text-end py-2" style="font-size: 0.75rem;">Precio Unit.</th>
-                                                    <th class="text-end py-2" style="font-size: 0.75rem;">Total</th>
-                                                    <th class="text-center py-2" style="font-size: 0.75rem;">Estado</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for detalle in detalles %}
-                                                <tr style="border-bottom: 1px solid #E8DCC8;">
-                                                    <td class="py-2">
-                                                        <code style="color: #8B7355; font-size: 0.75rem;">{{ detalle.articulo.codigo }}</code>
-                                                    </td>
-                                                    <td class="py-2">
-                                                        <strong style="color: #6F5B44;">{{ detalle.articulo.nombre }}</strong>
-                                                        {% if detalle.articulo.unidad_medida %}
-                                                        <br><small style="font-size: 0.65rem; color: #999;">{{ detalle.articulo.unidad_medida.nombre }}</small>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td class="text-center py-2">
-                                                        <span class="badge" style="background: #A0826D; font-size: 0.7rem;">{{ detalle.cantidad }}</span>
-                                                    </td>
-                                                    <td class="text-end py-2" style="color: #6F5B44;">
-                                                        ${{ detalle.precio_unitario|floatformat:0 }}
-                                                    </td>
-                                                    <td class="text-end py-2 fw-bold" style="color: #8B7355;">
-                                                        ${{ detalle.total|floatformat:0 }}
-                                                    </td>
-                                                    <td class="text-center py-2">
-                                                        {% if detalle.estado == 'confirmado' %}
-                                                        <span class="badge" style="background: #6B8E23; font-size: 0.7rem;">Confirmado</span>
-                                                        {% elif detalle.estado == 'cancelado' %}
-                                                        <span class="badge" style="background: #C19461; font-size: 0.7rem;">Cancelado</span>
-                                                        {% else %}
-                                                        <span class="badge" style="background: #D4A574; font-size: 0.7rem;">{{ detalle.get_estado_display }}</span>
-                                                        {% endif %}
-                                                    </td>
-                                                </tr>
-                                                {% empty %}
-                                                <tr>
-                                                    <td colspan="6" class="text-center py-4">
-                                                        <i class="fas fa-inbox fa-2x" style="color: #D4C4A8;"></i>
-                                                        <p class="text-muted mt-2 mb-0" style="font-size: 0.8rem;">No hay artículos en esta transferencia</p>
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
+                                
+                                <div class="table-responsive">
+                                    <table class="table-piedra">
+                                        <thead>
+                                            <tr>
+                                                <th>Código</th>
+                                                <th>Artículo</th>
+                                                <th class="text-center">Cant.</th>
+                                                <th class="text-end">Precio Unit.</th>
+                                                <th class="text-end">Total</th>
+                                                <th class="text-center">Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for detalle in detalles %}
+                                            <tr>
+                                                <td><span class="badge bg-light text-dark border">{{ detalle.articulo.codigo }}</span></td>
+                                                <td>
+                                                    <span class="fw-bold text-dark">{{ detalle.articulo.nombre }}</span>
+                                                </td>
+                                                <td class="text-center fw-bold">{{ detalle.cantidad }}</td>
+                                                <td class="text-end text-muted">${{ detalle.precio_unitario|format_miles }}</td>
+                                                <td class="text-end fw-bold text-stone-secondary">${{ detalle.total|format_miles }}</td>
+                                                <td class="text-center">
+                                                    {% if detalle.estado == 'confirmado' %}
+                                                        <i class="fas fa-check-circle text-success" title="Confirmado"></i>
+                                                    {% elif detalle.estado == 'cancelado' %}
+                                                        <i class="fas fa-times-circle text-danger" title="Cancelado"></i>
+                                                    {% else %}
+                                                        <i class="fas fa-clock text-warning" title="{{ detalle.get_estado_display }}"></i>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="6" class="text-center py-5">
+                                                    <i class="fas fa-box-open fa-3x text-muted opacity-25 mb-3"></i>
+                                                    <p class="text-muted">No hay artículos en esta transferencia</p>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <!-- TOTALES FOOTER -->
+                                <div class="totals-box">
+                                    <div class="row">
+                                        <div class="col-md-6 offset-md-6">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="text-muted small text-uppercase fw-bold">Subtotal</span>
+                                                <span class="fw-bold text-secondary">${{ subtotal|format_miles }}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-3">
+                                                <span class="text-muted small text-uppercase fw-bold">IVA (19%)</span>
+                                                <span class="fw-bold text-secondary">${{ iva|format_miles }}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between pt-3 border-top border-secondary">
+                                                <span class="fs-5 fw-bold" style="color: var(--stone-primary);">TOTAL</span>
+                                                <span class="fs-4 fw-bold" style="color: var(--stone-secondary);">${{ total_con_iva|format_miles }}</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
+
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 // Generar guía electrónica
 document.addEventListener('DOMContentLoaded', function() {
@@ -245,43 +343,41 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnGenerarGuia) {
         btnGenerarGuia.addEventListener('click', function() {
             Swal.fire({
-                title: '¿Generar Guía de Despacho Electrónica?',
+                title: 'Generar Guía de Despacho',
                 html: `
                     <div class="text-start">
-                        <p class="mb-2">Se generará una Guía de Despacho Electrónica (Tipo 52) para esta transferencia.</p>
-                        <p class="mb-2"><strong>Datos de la transferencia:</strong></p>
-                        <ul class="small">
-                            <li>Folio: {{ transferencia.numero_folio }}</li>
-                            <li>Origen: {{ transferencia.bodega_origen.nombre }}</li>
-                            <li>Destino: {{ transferencia.bodega_destino.nombre }}</li>
-                            <li>Total: ${{ total_con_iva|floatformat:0 }}</li>
-                        </ul>
-                        <p class="mb-0 small text-muted">Se utilizará un folio del CAF disponible para Guías de Despacho.</p>
+                        <p class="mb-3 text-muted">¿Está seguro que desea generar la Guía de Despacho Electrónica (Tipo 52)?</p>
+                        <div class="p-3 bg-light rounded border mb-2 small">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Folio Transferencia:</span>
+                                <strong>{{ transferencia.numero_folio }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Origen:</span>
+                                <strong>{{ transferencia.bodega_origen.nombre }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Destino:</span>
+                                <strong>{{ transferencia.bodega_destino.nombre }}</strong>
+                            </div>
+                        </div>
                     </div>
                 `,
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#6B8E23',
-                cancelButtonColor: '#C19461',
-                confirmButtonText: '<i class="fas fa-check me-2"></i>Sí, Generar Guía',
-                cancelButtonText: 'Cancelar',
-                customClass: {
-                    popup: 'swal-wide'
-                }
+                confirmButtonColor: '#8B7355',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, Generar Guía',
+                cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Mostrar loading
                     Swal.fire({
-                        title: 'Generando Guía...',
-                        html: 'Por favor espere mientras se genera la guía electrónica.',
+                        title: 'Procesando...',
+                        text: 'Generando documento electrónico',
                         allowOutsideClick: false,
-                        allowEscapeKey: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
+                        didOpen: () => { Swal.showLoading(); }
                     });
                     
-                    // Enviar solicitud para generar guía
                     fetch('{% url "inventario:transferencia_generar_guia" transferencia.pk %}', {
                         method: 'POST',
                         headers: {
@@ -294,10 +390,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (data.success) {
                             Swal.fire({
                                 icon: 'success',
-                                title: '¡Guía Generada!',
-                                html: `Guía de Despacho N° <strong>${data.folio}</strong> generada exitosamente.`,
-                                confirmButtonColor: '#6B8E23',
-                                confirmButtonText: 'Aceptar'
+                                title: '¡Éxito!',
+                                html: `Guía <strong>N° ${data.folio}</strong> generada correctamente.`,
+                                confirmButtonColor: '#8B7355'
                             }).then(() => {
                                 window.location.reload();
                             });
@@ -305,19 +400,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Error',
-                                text: data.error || 'No se pudo generar la guía electrónica',
-                                confirmButtonColor: '#C19461',
-                                confirmButtonText: 'Aceptar'
+                                text: data.error || 'No se pudo generar la guía',
+                                confirmButtonColor: '#8B7355'
                             });
                         }
                     })
-                    .catch(error => {
+                    .catch(() => {
                         Swal.fire({
                             icon: 'error',
-                            title: 'Error',
-                            text: 'Ocurrió un error al generar la guía',
-                            confirmButtonColor: '#C19461',
-                            confirmButtonText: 'Aceptar'
+                            title: 'Error de Conexión',
+                            text: 'Verifique su conexión e intente nuevamente',
+                            confirmButtonColor: '#8B7355'
                         });
                     });
                 }
@@ -332,10 +425,9 @@ document.addEventListener('DOMContentLoaded', function() {
     {% for message in messages %}
         Swal.fire({
             icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% else %}info{% endif %}',
-            title: '{% if message.tags == "success" %}¡Éxito!{% elif message.tags == "error" %}Error{% elif message.tags == "warning" %}Advertencia{% else %}Información{% endif %}',
+            title: 'Notificación',
             text: '{{ message|escapejs }}',
-            confirmButtonColor: '#8B7355',
-            confirmButtonText: 'Aceptar'
+            confirmButtonColor: '#8B7355'
         });
     {% endfor %}
 </script>

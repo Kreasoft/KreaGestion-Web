@@ -6,454 +6,408 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_css %}
+<!-- V7: SOFT UI PASTEL COLORS -->
+<style>
+    /* Estilos tabla Piedra (Compacta) */
+    .table-piedra {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-family: 'Poppins', sans-serif !important;
+    }
+
+    .table-piedra thead th {
+        background: #FDFCFB !important;
+        border-bottom: 2px solid #E8DCC8 !important;
+        color: #8B7355 !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        font-size: 0.7rem !important;
+        letter-spacing: 1px !important;
+        padding: 12px 15px !important;
+    }
+
+    .table-piedra tbody tr {
+        height: 32px !important;
+        transition: all 0.2s ease !important;
+    }
+
+    .table-piedra tbody tr:nth-of-type(odd) {
+        background-color: rgba(245, 241, 232, 0.3) !important;
+    }
+    
+    .table-piedra tbody tr:nth-of-type(even) {
+        background-color: white !important;
+    }
+
+    .table-piedra tbody tr:hover {
+        background-color: #F5F1E8 !important;
+    }
+
+    .table-piedra tbody td {
+        padding: 4px 15px !important;
+        border-bottom: 1px solid #F5F1E8 !important;
+        vertical-align: middle !important;
+        font-size: 0.85rem !important;
+        color: #4A5568 !important;
+    }
+
+    /* Botones de acción */
+    .btn-action-piedra {
+        width: 28px !important;
+        height: 28px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: white !important;
+        border: 1px solid #D4C4A8 !important;
+        border-radius: 6px !important;
+        color: #8B7355 !important;
+        font-size: 0.75rem !important;
+        transition: all 0.2s ease !important;
+        text-decoration: none !important;
+        cursor: pointer !important;
+    }
+    .btn-action-piedra:hover {
+        background: #8B7355 !important;
+        color: white !important;
+        transform: scale(1.1) !important;
+    }
+    .btn-action-piedra i { font-size: 0.8rem !important; }
+
+    /* --- SOFT UI PASTEL CARDS (Replicando estilo custom-colors.css) --- */
+    /* Base */
+    .card-stats-pastel-base {
+        border-radius: 12px !important;
+        position: relative !important;
+        overflow: hidden !important;
+        min-height: 100px !important;
+        color: #4A5568 !important;
+        transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+    }
+    .card-stats-pastel-base:hover {
+        transform: translateY(-5px) !important;
+    }
+
+    /* Rojo Pastel (Soft UI) */
+    .card-stats-pastel-rojo {
+        background: linear-gradient(135deg, #ffcdd2 0%, #ffebee 100%) !important;
+        border: 2px solid #e57373 !important; /* Rojo suave */
+        box-shadow: 0 10px 25px rgba(229, 115, 115, 0.2) !important;
+    }
+
+    /* Verde Pastel (Soft UI) */
+    .card-stats-pastel-verde {
+        background: linear-gradient(135deg, #c8e6c9 0%, #e8f5e9 100%) !important;
+        border: 2px solid #81c784 !important; /* Verde suave */
+        box-shadow: 0 10px 25px rgba(129, 199, 132, 0.2) !important;
+    }
+
+    /* Textos dentro de cards */
+    .card-title-pastel {
+        font-size: 0.65rem !important;
+        letter-spacing: 1px !important;
+        font-weight: 700 !important;
+        opacity: 0.8 !important;
+        color: #4A5568 !important;
+        text-transform: uppercase !important;
+        margin-bottom: 0.25rem !important;
+    }
+    .card-value-pastel {
+        color: #2D3748 !important;
+        font-weight: 700 !important;
+        font-size: 1.8rem !important;
+    }
+    .card-icon-bg {
+        position: absolute !important;
+        right: -5px !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        font-size: 110px !important;
+        opacity: 0.1 !important;
+        pointer-events: none !important;
+        z-index: 1 !important;
+    }
+
+    /* Badges */
+    .badge-subtle {
+        font-size: 0.65rem !important;
+        padding: 4px 8px !important;
+        border-radius: 6px !important;
+        font-weight: 500 !important;
+        border: 1px solid transparent !important;
+    }
+    .badge-active { background: #E8F5E9 !important; color: #2E7D32 !important; border-color: #C8E6C9 !important; }
+    .badge-void { background: #FFEBEE !important; color: #C62828 !important; border-color: #FFCDD2 !important; }
+    .badge-paid { background: #E3F2FD !important; color: #1565C0 !important; border-color: #BBDEFB !important; }
+    .badge-pending { background: #FFF8E1 !important; color: #F57F17 !important; border-color: #FFECB3 !important; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    <!-- Mensajes del sistema -->
+    {% if messages %}
+        <div class="row mb-3">
+            <div class="col-12">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-custom alert-dismissible fade show shadow-sm" style="border-left: 4px solid {% if message.tags == 'success' %}#28a745{% else %}#8B7355{% endif %};">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; padding: 10px 15px; font-family: 'Poppins', sans-serif;">
+            <!-- TARJETA PRINCIPAL CONTENEDORA -->
+            <div class="card" style="border: 2px solid #E8DCC8 !important; border-radius: 15px !important; overflow: hidden !important; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15) !important;">
+                
+                <!-- HEADER -->
+                <div class="card-header" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%) !important; border-bottom: 3px solid #D4C4A8 !important; padding: 15px 20px !important;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-file-invoice fa-2x text-white me-3"></i>
+                            <i class="fas fa-file-invoice me-3" style="font-size: 2.2rem; color: #5D4037; opacity: 0.8;"></i>
                             <div>
-                                <h5 class="mb-0 text-white" style="font-size: 1.2rem; font-family: 'Poppins', sans-serif; font-weight: 600;">
-                                    Gestión de Documentos de Compra
-                                </h5>
-                                <small class="text-white-50" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">Administra facturas, guías, notas de crédito y otros documentos</small>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: #5D4037; letter-spacing: -1px; font-size: 1.8rem;">
+                                    Gestión de <span class="fw-bold">Documentos</span>
+                                </h2>
+                                <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: #5D4037; opacity: 0.8; margin-top: 2px;">
+                                    Administra facturas, guías y notas de crédito de proveedores.
+                                </div>
                             </div>
                         </div>
                         <div class="d-flex gap-2">
-                            <!-- Botón Exportar a Excel -->
-                            <a href="{% url 'documentos:documento_compra_export_excel' %}?{{ request.GET.urlencode }}" class="btn btn-sm" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white; font-family: 'Poppins', sans-serif; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);" title="Exportar a Excel">
-                                <i class="fas fa-file-excel me-1"></i> Exportar Excel
+                             <a href="{% url 'documentos:documento_compra_export_excel' %}?{{ request.GET.urlencode }}" class="btn btn-sm" style="background: rgba(40, 167, 69, 0.1); border: 1px solid rgba(40, 167, 69, 0.3); color: #28a745; font-size: 0.75rem;" title="Exportar a Excel">
+                                <i class="fas fa-file-excel me-1"></i> Excel
                             </a>
-                            <!-- Botón toggle de vista -->
-                            <div class="btn-group" role="group" aria-label="Toggle de vista">
-                                <button type="button" class="btn btn-sm" id="viewCardBtn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; font-family: 'Poppins', sans-serif;" title="Vista de tarjetas">
-                                    <i class="fas fa-th-large"></i>
-                                </button>
-                                <button type="button" class="btn btn-sm" id="viewListBtn" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); border: none; color: white; font-family: 'Poppins', sans-serif;" title="Vista de lista">
-                                    <i class="fas fa-list"></i>
-                                </button>
-                            </div>
-                            <a href="{% url 'documentos:documento_compra_create' %}" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3); font-family: 'Poppins', sans-serif;">
-                                <i class="fas fa-plus me-2"></i> Nuevo Documento
+                            <a href="{% url 'documentos:documento_compra_create' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                                <i class="fas fa-plus me-1"></i> Nuevo Doc.
                             </a>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Estadísticas dentro de la tarjeta -->
-                <div class="card-body" style="padding: 10px 15px;">
-                    <div class="row mb-2">
+
+                <div class="card-body" style="background: #FAFAF8 !important; padding: 15px !important;">
+                    <!-- ESTADISTICAS SOFT UI -->
+                    <div class="row g-3 mb-4">
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 10px 15px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Total Documentos</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.total_documentos }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">Registrados</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-file-invoice fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
+                            <!-- Azul (Usa clase global custom-colors.css) -->
+                            <div class="card card-stats-pastel-azul card-stats-pastel-base">
+                                <div class="card-body p-3" style="position: relative; z-index: 2;">
+                                    <div class="card-title-pastel">Total Documentos</div>
+                                    <h3 class="card-value-pastel">{{ stats.total_documentos }}</h3>
+                                </div>
+                                <div class="card-icon-bg" style="color: #1e3c72;">
+                                    <i class="fas fa-file-alt"></i>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); border: none; box-shadow: 0 2px 8px rgba(160, 130, 109, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 10px 15px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Pendientes</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.documentos_pendientes }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">Por aprobar</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-clock fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
+                            <!-- Terracota (Usa clase global custom-colors.css) -->
+                            <div class="card card-stats-pastel-terracota card-stats-pastel-base">
+                                <div class="card-body p-3" style="position: relative; z-index: 2;">
+                                    <div class="card-title-pastel">Pendientes Pago</div>
+                                    <h3 class="card-value-pastel">{{ stats.documentos_credito }}</h3>
+                                </div>
+                                <div class="card-icon-bg" style="color: #E65100;">
+                                    <i class="fas fa-credit-card"></i>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #C19A6B 0%, #A0826D 100%); border: none; box-shadow: 0 2px 8px rgba(193, 154, 107, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 10px 15px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">En Crédito</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">{{ stats.documentos_credito }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">Por pagar</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-credit-card fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
+                            <!-- Rojo (Definido localmente estilo Soft UI) -->
+                            <div class="card card-stats-pastel-rojo card-stats-pastel-base">
+                                <div class="card-body p-3" style="position: relative; z-index: 2;">
+                                    <div class="card-title-pastel">Monto Pendiente</div>
+                                    <h3 class="card-value-pastel">${{ stats.monto_pendiente|floatformat:0 }}</h3>
+                                </div>
+                                <div class="card-icon-bg" style="color: #c62828;">
+                                    <i class="fas fa-dollar-sign"></i>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card text-white" style="background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%); border: none; box-shadow: 0 2px 8px rgba(212, 165, 116, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <div class="card-body" style="padding: 10px 15px;">
-                                    <div class="d-flex justify-content-between">
-                                        <div>
-                                            <h6 class="card-title" style="color: rgba(255, 255, 255, 0.8); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif;">Monto Pendiente</h6>
-                                            <h4 class="mb-0" style="color: white; font-weight: 700; font-size: 1.2rem; font-family: 'Poppins', sans-serif;">${{ stats.monto_pendiente|floatformat:0 }}</h4>
-                                            <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.65rem; font-family: 'Poppins', sans-serif;">Por pagar</small>
-                                        </div>
-                                        <div class="align-self-center">
-                                            <i class="fas fa-dollar-sign fa-lg" style="color: rgba(255, 255, 255, 0.6);"></i>
-                                        </div>
-                                    </div>
+                         <div class="col-md-3">
+                            <!-- Verde (Definido localmente estilo Soft UI) -->
+                            <div class="card card-stats-pastel-verde card-stats-pastel-base">
+                                <div class="card-body p-3" style="position: relative; z-index: 2;">
+                                    <div class="card-title-pastel">Pendientes Aprob.</div>
+                                    <h3 class="card-value-pastel">{{ stats.documentos_pendientes }}</h3>
+                                </div>
+                                <div class="card-icon-bg" style="color: #1B5E20;">
+                                    <i class="fas fa-check-double"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Formulario de búsqueda -->
-                    <div class="card" style="background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%); border: 1px solid #e3e6f0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 10px; margin-bottom: 15px;">
-                        <div class="card-body" style="padding: 12px 15px;">
-                            <form method="get" class="row g-2">
+                    <!-- FILTROS -->
+                    <div style="padding: 15px; background: #FAFAF8; border-bottom: 1px solid #E8DCC8; margin-bottom: 15px; border-radius: 8px;">
+                        <form method="get" id="filterForm">
+                            <div class="row g-2 align-items-center">
                                 <div class="col-md-3">
-                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem; margin-bottom: 0.25rem;">Buscar</label>
-                                    {{ search_form.search }}
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text" style="background: white; border-right: none; color: #8B7355; border-color: #D4C4A8;"><i class="fas fa-search"></i></span>
+                                        {{ search_form.search }}
+                                    </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem; margin-bottom: 0.25rem;">Tipo</label>
                                     {{ search_form.tipo_documento }}
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem; margin-bottom: 0.25rem;">Estado</label>
                                     {{ search_form.estado_documento }}
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem; margin-bottom: 0.25rem;">Pago</label>
                                     {{ search_form.estado_pago }}
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label" style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.85rem; margin-bottom: 0.25rem;">Proveedor</label>
                                     {{ search_form.proveedor }}
                                 </div>
-                                <div class="col-md-1 d-flex align-items-end">
-                                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; border-radius: 8px; font-weight: 500; font-family: 'Poppins', sans-serif; padding: 0.375rem 0.75rem;">
-                                        <i class="fas fa-search"></i>
+                                <div class="col-md-1 text-end">
+                                    <button type="submit" class="btn btn-sm w-100" style="background: #8B7355; color: white; font-size: 0.75rem; border: none; padding: 4px 10px;">
+                                        <i class="fas fa-filter"></i>
                                     </button>
                                 </div>
-                            </form>
-                        </div>
+                            </div>
+                        </form>
                     </div>
 
-                    <!-- Lista de documentos -->
-                    <!-- Vista de tarjetas (por defecto) -->
-                    <div id="cardView" class="row">
-                        {% for documento in page_obj %}
-                        <div class="col-md-6 col-lg-4 mb-3">
-                            <div class="card h-100" style="border: 1px solid #e3e6f0; border-radius: 10px; transition: all 0.3s ease; background: white; overflow: hidden; position: relative;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'">
-                                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);"></div>
-                                <div class="card-body" style="padding: 12px 15px;">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <div>
-                                            <h6 class="card-title mb-1" style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif; font-size: 0.95rem;">{{ documento.get_tipo_documento_display }} {{ documento.numero_documento }}</h6>
-                                            <p class="text-muted mb-0" style="font-size: 0.8rem; font-family: 'Poppins', sans-serif;">{{ documento.proveedor.nombre }}</p>
-                                        </div>
-                                        <div class="text-end">
-                                            {% if documento.estado_documento == 'activo' %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; font-size: 0.65rem; padding: 0.3rem 0.6rem; border-radius: 15px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Activo</span>
-                                            {% elif documento.estado_documento == 'anulado' %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; font-size: 0.7rem; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Anulado</span>
-                                            {% else %}
-                                                <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white; font-size: 0.7rem; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">{{ documento.get_estado_documento_display }}</span>
+                    <!-- TABLA -->
+                    <div class="table-responsive">
+                        <table class="table-piedra mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">DOCUMENTO</th>
+                                    <th style="width: 20%;">PROVEEDOR</th>
+                                    <th style="width: 12%;">FECHA</th>
+                                    <th style="width: 13%; text-align: right;">TOTAL</th>
+                                    <th style="width: 10%; text-align: center;">ESTADO</th>
+                                    <th style="width: 10%; text-align: center;">PAGO</th>
+                                    <th style="width: 10%; text-align: center;">ACCIONES</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for documento in page_obj %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span class="fw-bold" style="color: #6F5B44; font-size: 0.85rem;">{{ documento.get_tipo_documento_display }} {{ documento.numero_documento }}</span>
+                                            {% if documento.bodega %}
+                                            <small class="text-muted" style="font-size: 0.75rem;">{{ documento.bodega.nombre }}</small>
                                             {% endif %}
                                         </div>
-                                    </div>
-                                    
-                                    <div class="mb-2">
-                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif;">
-                                            <i class="fas fa-calendar me-1"></i>
-                                            Emisión: {{ documento.fecha_emision|date:"d/m/Y" }}
-                                        </small>
-                                        {% if documento.fecha_vencimiento %}
-                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif;">
-                                            <i class="fas fa-calendar-times me-1"></i>
-                                            Vencimiento: {{ documento.fecha_vencimiento|date:"d/m/Y" }}
-                                        </small>
-                                        {% endif %}
-                                        {% if documento.orden_compra %}
-                                        <small class="text-primary d-block" style="font-family: 'Poppins', sans-serif; font-weight: 500;">
-                                            <i class="fas fa-shopping-cart me-1"></i>
-                                            OC: {{ documento.orden_compra.numero_orden }}
-                                        </small>
-                                        {% endif %}
-                                        <small class="text-muted d-block" style="font-family: 'Poppins', sans-serif;">
-                                            <i class="fas fa-building me-1"></i>
-                                            RUT: {{ documento.rut_proveedor }}
-                                        </small>
-                                    </div>
-                                    
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <small class="text-muted" style="font-family: 'Poppins', sans-serif;">Total: </small>
-                                            <strong style="color: #2c3e50; font-family: 'Poppins', sans-serif;">{{ documento.total_documento|currency_format_with_symbol }}</strong>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                             <div class="me-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; background: #E8DCC8; color: #6F5B44; font-size: 0.7rem;">
+                                                {{ documento.proveedor.nombre|slice:":1" }}
+                                            </div>
+                                            <div class="d-flex flex-column">
+                                                <span style="color: #4A5568;">{{ documento.proveedor.nombre|truncatechars:20 }}</span>
+                                                <small class="text-muted" style="font-size: 0.7rem;">{{ documento.proveedor.rut }}</small>
+                                            </div>
                                         </div>
-                                        <div class="btn-group" role="group">
-                                            <a href="{% url 'documentos:documento_compra_detail' documento.pk %}" class="btn btn-sm" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white; border-radius: 8px; font-weight: 500; font-family: 'Poppins', sans-serif;">
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span style="color: #4A5568;">{{ documento.fecha_emision|date:"d/m/Y" }}</span>
+                                            {% if documento.fecha_vencimiento %}
+                                            <small class="text-muted" style="font-size: 0.7rem;">V: {{ documento.fecha_vencimiento|date:"d/m" }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="text-end fw-bold" style="color: #6F5B44;">
+                                        {{ documento.total_documento|currency_format_with_symbol }}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if documento.estado_documento == 'activo' %}
+                                            <span class="badge-subtle badge-active">Activo</span>
+                                        {% elif documento.estado_documento == 'anulado' %}
+                                            <span class="badge-subtle badge-void">Anulado</span>
+                                        {% else %}
+                                            <span class="badge-subtle badge-draft">{{ documento.get_estado_documento_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                         {% if documento.estado_pago == 'pagado' %}
+                                             <span class="badge-subtle badge-paid">Pagado</span>
+                                        {% else %}
+                                            <span class="badge-subtle badge-pending">{{ documento.get_estado_pago_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <a href="{% url 'documentos:documento_compra_detail' documento.pk %}" class="btn-action-piedra" title="Ver Detalle">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             {% if user.is_superuser or perms.documentos.change_documentocompra %}
-                                                <a href="{% url 'documentos:documento_compra_update' documento.pk %}" class="btn btn-sm btn-outline-secondary" style="border-radius: 8px; font-family: 'Poppins', sans-serif;">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
+                                            <a href="{% url 'documentos:documento_compra_update' documento.pk %}" class="btn-action-piedra" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
                                             {% endif %}
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% empty %}
-                        <div class="col-12">
-                            <div class="text-center py-5">
-                                <div style="background: white; border-radius: 20px; padding: 3rem 2rem; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border: 1px solid #e3e6f0;">
-                                    <div class="mb-4" style="opacity: 0.6;">
-                                        <i class="fas fa-file-invoice fa-4x text-muted"></i>
-                                    </div>
-                                    <h3 class="text-muted mb-3" style="font-family: 'Poppins', sans-serif;">No hay documentos de compra</h3>
-                                    <p class="text-muted mb-4" style="font-family: 'Poppins', sans-serif;">Comienza creando tu primer documento de compra para gestionar facturas y otros documentos</p>
-                                    <a href="{% url 'documentos:documento_compra_create' %}" class="btn btn-lg" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border: none; color: white; border-radius: 25px; font-weight: 500; font-family: 'Poppins', sans-serif;">
-                                        <i class="fas fa-plus me-2"></i>
-                                        Crear Primer Documento
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Vista de lista (tabla compacta) -->
-                    <div id="listView" class="d-none">
-                        <div class="card" style="border: 1px solid #e3e6f0; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                            <div class="card-body" style="padding: 0;">
-                                <div class="table-responsive">
-                                    <table class="table table-hover table-sm mb-0" style="font-size: 0.8rem;">
-                                        <thead style="background: #F5F1E8; border-bottom: 2px solid #E0D5C7;">
-                                            <tr>
-                                                <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem; font-family: 'Poppins', sans-serif;">
-                                                    Documento
-                                                </th>
-                                                <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem; font-family: 'Poppins', sans-serif;">
-                                                    Proveedor
-                                                </th>
-                                                <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem; font-family: 'Poppins', sans-serif;">
-                                                    Fecha
-                                                </th>
-                                                <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem; font-family: 'Poppins', sans-serif;">
-                                                    Total
-                                                </th>
-                                                <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem; font-family: 'Poppins', sans-serif;">
-                                                    Estado
-                                                </th>
-                                                <th style="border: none; padding: 6px 10px; font-weight: 600; color: #6F5B44; font-size: 0.75rem; font-family: 'Poppins', sans-serif; text-align: center; width: 80px;">
-                                                    Acciones
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for documento in page_obj %}
-                                            <tr style="transition: all 0.2s ease; border-bottom: 1px solid #E8DED5;" onmouseover="this.style.backgroundColor='#F5F1E8'" onmouseout="this.style.backgroundColor=''">
-                                                <td style="border: none; padding: 6px 10px; vertical-align: middle;">
-                                                    <div>
-                                                        <div style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif; font-size: 0.75rem; line-height: 1.2;">
-                                                            {{ documento.get_tipo_documento_display }} {{ documento.numero_documento }}
-                                                        </div>
-                                                        <small class="text-muted" style="font-family: 'Poppins', sans-serif; font-size: 0.65rem;">
-                                                            {{ documento.bodega.nombre|default:"Sin bodega" }}
-                                                        </small>
-                                                    </div>
-                                                </td>
-                                                <td style="border: none; padding: 6px 10px; vertical-align: middle;">
-                                                    <div style="font-weight: 500; color: #495057; font-family: 'Poppins', sans-serif; font-size: 0.75rem; line-height: 1.2;">
-                                                        {{ documento.proveedor.nombre|truncatechars:25 }}
-                                                    </div>
-                                                    <small class="text-muted" style="font-family: 'Poppins', sans-serif; font-size: 0.65rem;">
-                                                        {{ documento.proveedor.rut }}
-                                                    </small>
-                                                    {% if documento.orden_compra %}
-                                                    <div>
-                                                        <small class="text-primary" style="font-family: 'Poppins', sans-serif; font-size: 0.65rem; font-weight: 500;">
-                                                            <i class="fas fa-shopping-cart"></i> {{ documento.orden_compra.numero_orden }}
-                                                        </small>
-                                                    </div>
-                                                    {% endif %}
-                                                </td>
-                                                <td style="border: none; padding: 6px 10px; vertical-align: middle;">
-                                                    <div style="font-family: 'Poppins', sans-serif; font-size: 0.75rem; color: #495057; line-height: 1.2;">
-                                                        {{ documento.fecha_emision|date:"d/m/Y" }}
-                                                    </div>
-                                                    {% if documento.fecha_vencimiento %}
-                                                    <small class="text-muted" style="font-family: 'Poppins', sans-serif; font-size: 0.65rem;">
-                                                        V:{{ documento.fecha_vencimiento|date:"d/m" }}
-                                                    </small>
-                                                    {% endif %}
-                                                </td>
-                                                <td style="border: none; padding: 6px 10px; vertical-align: middle;">
-                                                    <div style="font-weight: 600; color: #2c3e50; font-family: 'Poppins', sans-serif; font-size: 0.8rem; line-height: 1.2;">
-                                                        {{ documento.total_documento|currency_format_with_symbol }}
-                                                    </div>
-                                                    <small class="text-muted" style="font-family: 'Poppins', sans-serif; font-size: 0.65rem;">
-                                                        {{ documento.get_estado_pago_display }}
-                                                    </small>
-                                                </td>
-                                                <td style="border: none; padding: 6px 10px; vertical-align: middle;">
-                                                    {% if documento.estado_documento == 'activo' %}
-                                                        <span class="badge" style="background: #28a745; color: white; font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 12px; font-weight: 500;">Activo</span>
-                                                    {% elif documento.estado_documento == 'anulado' %}
-                                                        <span class="badge" style="background: #dc3545; color: white; font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 12px; font-weight: 500;">Anulado</span>
-                                                    {% else %}
-                                                        <span class="badge" style="background: #dc3545; color: white; font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 12px; font-weight: 500;">{{ documento.get_estado_documento_display }}</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td style="border: none; padding: 6px 10px; vertical-align: middle; text-align: center;">
-                                                    <div class="btn-group" role="group">
-                                                        <a href="{% url 'documentos:documento_compra_detail' documento.pk %}" class="btn btn-sm" style="background: #28a745; border: none; color: white; border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="Ver detalles">
-                                                            <i class="fas fa-eye"></i>
-                                                        </a>
-                                                        {% if user.is_superuser or perms.documentos.change_documentocompra %}
-                                                            <a href="{% url 'documentos:documento_compra_update' documento.pk %}" class="btn btn-sm btn-outline-secondary" style="border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-color: #6c757d;" title="Editar">
-                                                                <i class="fas fa-edit"></i>
-                                                            </a>
-                                                        {% endif %}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {% empty %}
-                                            <tr>
-                                                <td colspan="6" style="text-align: center; padding: 2rem; border: none;">
-                                                    <div style="opacity: 0.6;">
-                                                        <i class="fas fa-file-invoice fa-2x text-muted mb-2"></i>
-                                                    </div>
-                                                    <h6 class="text-muted mb-2" style="font-family: 'Poppins', sans-serif;">No hay documentos de compra</h6>
-                                                    <a href="{% url 'documentos:documento_compra_create' %}" class="btn btn-sm" style="background: #28a745; border: none; color: white; border-radius: 15px; font-weight: 500; font-family: 'Poppins', sans-serif;">
-                                                        <i class="fas fa-plus me-1"></i>
-                                                        Crear Documento
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-5">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="fas fa-file-invoice fa-3x mb-3 opacity-25" style="color: #8B7355;"></i>
+                                            <h6 class="fw-bold" style="color: #8B7355;">No se encontraron documentos</h6>
+                                            <p class="text-muted small mb-3">Registra facturas y guías de despacho.</p>
+                                            <a href="{% url 'documentos:documento_compra_create' %}" class="btn btn-sm btn-outline-secondary" style="border-color: #D4C4A8; color: #8B7355;">
+                                                <i class="fas fa-plus me-1"></i> Crear Documento
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
 
                     <!-- Paginación -->
                     {% if page_obj.has_other_pages %}
-                    <nav aria-label="Paginación de documentos">
-                        <ul class="pagination justify-content-center">
-                            {% if page_obj.has_previous %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_documento %}&tipo_documento={{ request.GET.tipo_documento }}{% endif %}{% if request.GET.estado_documento %}&estado_documento={{ request.GET.estado_documento }}{% endif %}{% if request.GET.estado_pago %}&estado_pago={{ request.GET.estado_pago }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #28a745; font-weight: 500;">
-                                        <i class="fas fa-angle-double-left"></i>
-                                    </a>
-                                </li>
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_documento %}&tipo_documento={{ request.GET.tipo_documento }}{% endif %}{% if request.GET.estado_documento %}&estado_documento={{ request.GET.estado_documento }}{% endif %}{% if request.GET.estado_pago %}&estado_pago={{ request.GET.estado_pago }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #28a745; font-weight: 500;">
-                                        <i class="fas fa-angle-left"></i>
-                                    </a>
-                                </li>
-                            {% endif %}
-                            
-                            {% for num in page_obj.paginator.page_range %}
-                                {% if page_obj.number == num %}
-                                    <li class="page-item active">
-                                        <span class="page-link" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); border-color: #28a745; border-radius: 10px; margin: 0 2px;">{{ num }}</span>
-                                    </li>
-                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <div class="card-footer bg-white border-top-0 py-3 mt-3">
+                        <nav>
+                            <ul class="pagination pagination-sm justify-content-center mb-0">
+                                {% if page_obj.has_previous %}
                                     <li class="page-item">
-                                        <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_documento %}&tipo_documento={{ request.GET.tipo_documento }}{% endif %}{% if request.GET.estado_documento %}&estado_documento={{ request.GET.estado_documento }}{% endif %}{% if request.GET.estado_pago %}&estado_pago={{ request.GET.estado_pago }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #28a745; font-weight: 500;" onmouseover="this.style.backgroundColor='#f8f9fc'; this.style.color='#1e7e34'; this.style.transform='translateY(-1px)'" onmouseout="this.style.backgroundColor=''; this.style.color='#28a745'; this.style.transform='translateY(0)'">{{ num }}</a>
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" style="color: #8B7355; border-color: #E8DCC8;"><i class="fas fa-chevron-left"></i></a>
                                     </li>
                                 {% endif %}
-                            {% endfor %}
-                            
-                            {% if page_obj.has_next %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_documento %}&tipo_documento={{ request.GET.tipo_documento }}{% endif %}{% if request.GET.estado_documento %}&estado_documento={{ request.GET.estado_documento }}{% endif %}{% if request.GET.estado_pago %}&estado_pago={{ request.GET.estado_pago }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #28a745; font-weight: 500;">
-                                        <i class="fas fa-angle-right"></i>
-                                    </a>
+                                
+                                <li class="page-item active">
+                                    <span class="page-link" style="background: #8B7355; border-color: #8B7355;">{{ page_obj.number }}</span>
                                 </li>
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.tipo_documento %}&tipo_documento={{ request.GET.tipo_documento }}{% endif %}{% if request.GET.estado_documento %}&estado_documento={{ request.GET.estado_documento }}{% endif %}{% if request.GET.estado_pago %}&estado_pago={{ request.GET.estado_pago }}{% endif %}{% if request.GET.proveedor %}&proveedor={{ request.GET.proveedor }}{% endif %}" style="border-radius: 10px; margin: 0 2px; border: none; color: #28a745; font-weight: 500;">
-                                        <i class="fas fa-angle-double-right"></i>
-                                    </a>
-                                </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
+                                
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" style="color: #8B7355; border-color: #E8DCC8;"><i class="fas fa-chevron-right"></i></a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Obtener elementos del DOM
-    const viewCardBtn = document.getElementById('viewCardBtn');
-    const viewListBtn = document.getElementById('viewListBtn');
-    const cardView = document.getElementById('cardView');
-    const listView = document.getElementById('listView');
-    
-    // Clave para localStorage
-    const STORAGE_KEY = 'documentos_compra_view_preference';
-    
-    // Función para cambiar a vista de tarjetas
-    function showCardView() {
-        cardView.classList.remove('d-none');
-        listView.classList.add('d-none');
-        
-        // Actualizar estilos de botones
-        viewCardBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)';
-        viewListBtn.style.background = 'linear-gradient(135deg, #6c757d 0%, #495057 100%)';
-        
-        // Guardar preferencia
-        localStorage.setItem(STORAGE_KEY, 'card');
-    }
-    
-    // Función para cambiar a vista de lista
-    function showListView() {
-        cardView.classList.add('d-none');
-        listView.classList.remove('d-none');
-        
-        // Actualizar estilos de botones
-        viewCardBtn.style.background = 'linear-gradient(135deg, #6c757d 0%, #495057 100%)';
-        viewListBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)';
-        
-        // Guardar preferencia
-        localStorage.setItem(STORAGE_KEY, 'list');
-    }
-    
-    // Event listeners para los botones
-    viewCardBtn.addEventListener('click', function() {
-        showCardView();
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputs = document.querySelectorAll('#filterForm input, #filterForm select');
+        inputs.forEach(input => {
+            input.classList.add('form-control', 'form-control-sm');
+            input.style.borderColor = '#D4C4A8';
+            input.style.fontSize = '0.75rem';
+        });
     });
-    
-    viewListBtn.addEventListener('click', function() {
-        showListView();
-    });
-    
-    // Cargar preferencia guardada al cargar la página
-    const savedView = localStorage.getItem(STORAGE_KEY);
-    if (savedView === 'list') {
-        showListView();
-    } else {
-        // Por defecto mostrar vista de tarjetas
-        showCardView();
-    }
-});
 </script>
 {% endblock %}

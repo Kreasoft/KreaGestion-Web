@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Monitoreo de Vendedores - GestionCloud{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+    #map { height: 650px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative; z-index: 1; }
+    .seller-popup { font-family: 'Poppins', sans-serif; min-width: 150px; }
+    .seller-name { font-weight: bold; color: #8B7355; font-size: 1rem; }
+    .btn-terroso { background-color: #8B7355; color: white; border: none; }
+    .btn-terroso:hover { background-color: #6F5B44; color: white; }
+    .legend-card { position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); font-size: 0.8rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h2 class="fw-bold mb-0">Ruta de Fuerza de Venta</h2>
+                <p class="text-muted">Visualización en tiempo real de la última ubicación reportada por sus vendedores.</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="btn-group">
+                    <button onclick="location.reload()" class="btn btn-terroso">
+                        <i class="fas fa-sync me-2"></i> ACTUALIZAR MAPA
+                    </button>
+                    <a href="{% url 'ventas:vendedor_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-2"></i> LISTADO
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm overflow-hidden">
+            <div class="card-body p-0 position-relative">
+                <div id="map"></div>
+                <div class="legend-card">
+                    <div class="fw-bold mb-1 border-bottom pb-1">Leyenda</div>
+                    <div class="d-flex align-items-center mb-1">
+                        <i class="fas fa-map-marker-alt text-primary me-2"></i> Posición Reportada
+                    </div>
+                    <div class="text-muted small">* Datos actualizados desde la App Móvil</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h6 class="fw-bold mb-0">Detalle de Últimas Posiciones</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th>Vendedor</th>
+                                        <th>Fecha / Hora</th>
+                                        <th>Coordenadas</th>
+                                        <th class="text-end">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for v in vendedores %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-bold">{{ v.nombre }}</div>
+                                            <div class="small text-muted">{{ v.codigo }}</div>
+                                        </td>
+                                        <td>{{ v.fecha_pos|date:"d/m/Y H:i" }}</td>
+                                        <td><code class="small">{{ v.lat|stringformat:".6f" }}, {{ v.lng|stringformat:".6f" }}</code></td>
+                                        <td class="text-end">
+                                            <button onclick="centrarMapa({{ v.lat|stringformat:"f" }}, {{ v.lng|stringformat:"f" }}, '{{ v.nombre }}')" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-crosshairs me-1"></i> Ir alpunto
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">No hay ubicaciones registradas recientemente.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+    var map;
+    var markers = {};
+
+    function centrarMapa(lat, lng, nombre) {
+        if (map) {
+            map.setView([lat, lng], 16);
+            if (markers[nombre]) {
+                markers[nombre].openPopup();
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        map = L.map('map').setView([-33.4489, -70.6693], 12);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap markers'
+        }).addTo(map);
+
+        var groupMarkers = [];
+        {% for v in vendedores %}
+        if ("{{ v.lat }}" && "{{ v.lng }}") {
+            var lat = parseFloat("{{ v.lat|stringformat:"f" }}");
+            var lng = parseFloat("{{ v.lng|stringformat:"f" }}");
+            
+            var marker = L.marker([lat, lng]).addTo(map);
+            marker.bindPopup(`
+                <div class="seller-popup">
+                    <div class="seller-name">{{ v.nombre }}</div>
+                    <div class="small"><b>Código:</b> {{ v.codigo }}</div>
+                    <hr class="my-1">
+                    <div class="small text-muted">Última ubicación:</div>
+                    <div class="small">{{ v.fecha_pos|date:"d/m/Y H:i" }}</div>
+                </div>
+            `);
+            markers["{{ v.nombre }}"] = marker;
+            groupMarkers.push(marker);
+        }
+        {% endfor %}
+
+        if (groupMarkers.length > 0) {
+            var group = new L.featureGroup(groupMarkers);
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+    });
+</script>
+{% endblock %}

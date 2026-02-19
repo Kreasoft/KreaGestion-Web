@@ -2,556 +2,343 @@
 {% load static %}
 {% load currency_filters %}
 
-{% block title %}Detalle Documento {{ documento.numero_documento }} - GestionCloud{% endblock %}
+{% block title %}
+    {{ documento.get_tipo_documento_display }} {{ documento.numero_documento }}
+{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Paleta terrosa suave */
+    /* VARIABLES ESTILO PIEDRA */
     :root {
-        --earth-primary: #8B7355;
-        --earth-secondary: #A68B5B;
-        --earth-light: #D2C4A6;
-        --earth-lighter: #F5F1E8;
-        --earth-dark: #6B5B47;
-        --earth-accent: #B8860B;
-        --earth-success: #9CAF88;
-        --earth-warning: #D4A574;
-        --earth-danger: #C48A6B;
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
     }
-    
-    .detail-card {
+
+    body {
+        background-color: var(--stone-bg) !important;
+        font-family: 'Poppins', sans-serif;
+        color: var(--stone-text);
+    }
+
+    /* Header Piedra */
+    .stone-header-card {
+        background: var(--stone-gradient);
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        border-bottom: 3px solid var(--stone-light);
+        color: var(--stone-text);
+    }
+
+    .stone-title {
+        font-weight: 700;
+        font-size: 1.5rem;
+        margin: 0;
+        color: var(--stone-secondary);
+    }
+
+    /* Card Principal */
+    .main-card {
         background: white;
-        border-radius: 8px;
-        padding: 1rem;
-        box-shadow: 0 2px 8px rgba(139, 115, 85, 0.1);
-        border: 1px solid var(--earth-light);
-        margin-bottom: 1rem;
-    }
-    
-    .detail-header {
-        background: linear-gradient(135deg, var(--earth-primary) 0%, var(--earth-dark) 100%);
-        color: white;
-        border-radius: 6px;
-        padding: 0.75rem;
-        margin-bottom: 1rem;
-    }
-    
-    .detail-section {
-        background: var(--earth-lighter);
-        border-radius: 6px;
-        padding: 0.75rem;
-        margin-bottom: 0.75rem;
-        border: 1px solid var(--earth-light);
-    }
-    
-    .detail-section h5 {
-        color: var(--earth-dark);
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        font-size: 0.9rem;
-    }
-    
-    .detail-section h5 i {
-        margin-right: 0.3rem;
-        color: var(--earth-primary);
-        font-size: 0.8rem;
-    }
-    
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.3rem 0;
-        border-bottom: 1px solid var(--earth-light);
-        font-size: 0.8rem;
-    }
-    
-    .info-row:last-child {
-        border-bottom: none;
-    }
-    
-    .info-label {
-        font-weight: 500;
-        color: var(--earth-dark);
-    }
-    
-    .info-value {
-        color: var(--earth-primary);
-        font-weight: 500;
-    }
-    
-    .items-table {
-        background: white;
-        border-radius: 6px;
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         overflow: hidden;
-        box-shadow: 0 1px 4px rgba(139, 115, 85, 0.1);
+        margin-top: 1.5rem;
     }
-    
-    .items-table table {
-        margin-bottom: 0;
+
+    /* Columna Info */
+    .info-column {
+        background-color: #fdfbf7;
+        border-right: 1px solid var(--stone-light);
+        padding: 2rem;
+    }
+
+    .section-title {
+        color: var(--stone-primary);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid var(--stone-light);
+        padding-bottom: 0.5rem;
+    }
+
+    .info-label {
         font-size: 0.8rem;
+        color: #8d8d8d;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.2rem;
     }
-    
-    .items-table th {
-        background: var(--earth-primary);
-        color: white;
-        border: none;
+
+    .info-value {
+        font-size: 1rem;
+        color: var(--stone-text);
         font-weight: 500;
-        padding: 0.5rem 0.75rem;
-        font-size: 0.75rem;
-        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    /* Badges */
+    .badge-stone {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+        display: inline-block;
     }
     
-    .items-table td {
-        padding: 0.5rem 0.75rem;
-        border-top: 1px solid var(--earth-light);
+    .badge-activo { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+    .badge-anulado { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+    .badge-pagado { background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; }
+    .badge-pendiente { background: #FFF8E1; color: #FF8F00; border: 1px solid #FFE0B2; }
+
+    /* Tabla Detalle */
+    .table-stone {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table-stone th {
+        background: #fafafa;
+        color: var(--stone-secondary);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        padding: 1rem;
+        border-bottom: 2px solid var(--stone-light);
+    }
+
+    .table-stone td {
+        padding: 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        color: #495057;
         vertical-align: middle;
     }
-    
-    .items-table tbody tr:hover {
-        background-color: var(--earth-lighter);
+
+    /* Totales */
+    .totals-box {
+        background: #fafafa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        border: 1px solid var(--stone-light);
+        margin-top: 1.5rem;
     }
-    
-    .totals-section {
-        background: var(--earth-primary);
-        color: white;
-        border-radius: 6px;
-        padding: 0.75rem;
-        margin-top: 0.5rem;
-    }
-    
+
     .total-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.25rem;
-        padding: 0.25rem 0;
-        font-size: 0.8rem;
+        margin-bottom: 0.5rem;
+        color: #6c757d;
     }
-    
-    .total-row:last-child {
-        margin-bottom: 0;
-        font-weight: bold;
-        font-size: 0.9rem;
-        border-top: 1px solid rgba(255,255,255,0.3);
-        padding-top: 0.5rem;
-        margin-top: 0.5rem;
+
+    .total-final {
+        border-top: 2px solid var(--stone-light);
+        margin-top: 1rem;
+        padding-top: 1rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--stone-text);
     }
-    
-    .status-badge {
-        font-size: 0.65rem;
-        padding: 0.2rem 0.5rem;
-        border-radius: 12px;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-    }
-    
-    .badge-borrador { background: var(--earth-secondary); color: white; }
-    .badge-pendiente { background: var(--earth-warning); color: white; }
-    .badge-aprobado { background: var(--earth-success); color: white; }
-    .badge-rechazado { background: var(--earth-danger); color: white; }
-    .badge-anulado { background: var(--earth-dark); color: white; }
-    
-    .badge-pagada { background: var(--earth-success); color: white; }
-    .badge-credito { background: var(--earth-secondary); color: white; }
-    .badge-parcial { background: var(--earth-warning); color: white; }
-    .badge-vencida { background: var(--earth-danger); color: white; }
-    
-    .btn-action {
-        border-radius: 15px;
-        padding: 0.4rem 0.8rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        margin: 0.15rem;
-        font-size: 0.75rem;
-    }
-    
-    .btn-action:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3);
-    }
-    
-    .btn-primary {
-        background: linear-gradient(135deg, var(--earth-primary) 0%, var(--earth-dark) 100%);
-        border: none;
-    }
-    
-    .btn-warning {
-        background: linear-gradient(135deg, var(--earth-warning) 0%, var(--earth-secondary) 100%);
-        border: none;
-        color: white;
-    }
-    
-    .btn-success {
-        background: linear-gradient(135deg, var(--earth-success) 0%, var(--earth-primary) 100%);
-        border: none;
-    }
-    
-    .btn-danger {
-        background: linear-gradient(135deg, var(--earth-danger) 0%, var(--earth-dark) 100%);
-        border: none;
-    }
-    
-    .btn-secondary {
-        background: linear-gradient(135deg, var(--earth-secondary) 0%, var(--earth-dark) 100%);
-        border: none;
-    }
-    
-    .alert {
+
+    /* Botones */
+    .btn-stone-outline {
+        border: 1px solid var(--stone-light);
+        background: white;
+        color: var(--stone-secondary);
+        font-weight: 600;
+        padding: 0.5rem 1rem;
         border-radius: 6px;
-        border: none;
-        font-size: 0.8rem;
-        padding: 0.5rem 0.75rem;
+        transition: all 0.2s;
     }
-    
-    .alert-info {
-        background: var(--earth-lighter);
-        color: var(--earth-dark);
-        border-left: 3px solid var(--earth-primary);
-    }
-    
-    .alert-success {
-        background: #f0f8f0;
-        color: #2d5016;
-        border-left: 3px solid var(--earth-success);
-    }
-    
-    .alert-warning {
-        background: #fef7e0;
-        color: #8b5a2b;
-        border-left: 3px solid var(--earth-warning);
-    }
-    
-    .alert-danger {
-        background: #fdf2f0;
-        color: #8b3a2b;
-        border-left: 3px solid var(--earth-danger);
-    }
-    
-    .page-header {
-        background: var(--earth-lighter);
-        border-radius: 6px;
-        padding: 0.75rem;
-        margin-bottom: 1rem;
-        border-left: 3px solid var(--earth-primary);
+    .btn-stone-outline:hover {
+        background: #fafafa;
+        border-color: var(--stone-primary);
+        color: var(--stone-primary);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid py-4">
+    
     <!-- Header -->
-    <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h5 class="mb-1" style="color: var(--earth-dark); font-weight: 600;">
-                    <i class="fas fa-file-invoice-dollar me-2" style="color: var(--earth-primary);"></i>
-                    {{ documento.get_tipo_documento_display }} N°{{ documento.numero_documento }}
-                </h5>
-                <small class="text-muted">{{ documento.proveedor.nombre }}</small>
+    <div class="stone-header-card p-4 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <div class="me-3 p-3 rounded-circle bg-white shadow-sm" style="color: var(--stone-primary);">
+                <i class="fas fa-file-invoice fa-2x"></i>
             </div>
             <div>
-                <a href="{% url 'documentos:documento_compra_list' %}" class="btn btn-secondary btn-action">
-                    <i class="fas fa-arrow-left me-1"></i>Volver
-                </a>
-                {% if user.is_superuser or perms.documentos.change_documentocompra %}
-                    <a href="{% url 'documentos:documento_compra_update' pk=documento.pk %}" class="btn btn-primary btn-action">
-                        <i class="fas fa-edit me-1"></i>Editar
-                    </a>
-                {% endif %}
-                {% if documento.estado_documento == 'activo' and documento.estado_pago == 'pendiente' %}
-                    <form method="post" action="{% url 'documentos:documento_compra_cambiar_estado_pago' pk=documento.pk %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" name="estado_pago" value="credito" class="btn btn-warning btn-action">
-                            <i class="fas fa-credit-card me-1"></i>Marcar como Crédito
-                        </button>
-                    </form>
-                {% elif documento.estado_documento == 'activo' and documento.estado_pago == 'credito' %}
-                    <form method="post" action="{% url 'documentos:documento_compra_cambiar_estado_pago' pk=documento.pk %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" name="estado_pago" value="pagada" class="btn btn-success btn-action">
-                            <i class="fas fa-check-circle me-1"></i>Marcar como Pagada
-                        </button>
-                    </form>
-                {% endif %}
-                {% if documento.puede_editar %}
-                    <a href="{% url 'documentos:documento_compra_delete' pk=documento.pk %}" class="btn btn-danger btn-action">
-                        <i class="fas fa-trash-alt me-1"></i>Eliminar
-                    </a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Mensajes -->
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
-
-    <!-- Información del Documento -->
-    <div class="detail-card">
-        <div class="detail-header">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <h6 class="mb-1">{{ documento.proveedor.nombre }}</h6>
-                    <small class="opacity-75">{{ documento.fecha_emision|date:"d/m/Y" }} - {{ documento.bodega.nombre }}</small>
-                </div>
-                <div class="col-md-6 text-end">
-                    <span class="status-badge badge-{{ documento.estado_documento }}">
-                        {{ documento.get_estado_documento_display }}
-                    </span>
-                    <span class="status-badge badge-{{ documento.estado_pago }}">
-                        {{ documento.get_estado_pago_display }}
-                    </span>
+                <h1 class="stone-title">
+                    {{ documento.get_tipo_documento_display }} 
+                    <span class="fw-light ms-2">#{{ documento.numero_documento }}</span>
+                </h1>
+                <div class="mt-1 text-muted small fw-bold text-uppercase" style="letter-spacing: 1px;">
+                    {{ documento.fecha_emision|date:"d M Y" }} • {{ documento.proveedor.nombre }}
                 </div>
             </div>
         </div>
-
-        <div class="row">
-            <div class="col-md-6">
-                <div class="detail-section">
-                    <h5><i class="fas fa-info-circle"></i> Información General</h5>
-                    <div class="info-row">
-                        <span class="info-label">Tipo de Documento:</span>
-                        <span class="info-value">{{ documento.get_tipo_documento_display }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Número de Documento:</span>
-                        <span class="info-value">{{ documento.numero_documento }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">RUT Proveedor:</span>
-                        <span class="info-value">{{ documento.rut_proveedor }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Fecha de Emisión:</span>
-                        <span class="info-value">{{ documento.fecha_emision|date:"d/m/Y" }}</span>
-                    </div>
-                    {% if documento.fecha_vencimiento %}
-                    <div class="info-row">
-                        <span class="info-label">Fecha de Vencimiento:</span>
-                        <span class="info-value">{{ documento.fecha_vencimiento|date:"d/m/Y" }}</span>
-                    </div>
-                    {% endif %}
-                    <div class="info-row">
-                        <span class="info-label">Bodega:</span>
-                        <span class="info-value">{{ documento.bodega.nombre }}</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-6">
-                <div class="detail-section">
-                    <h5><i class="fas fa-cogs"></i> Estados y Totales</h5>
-                    <div class="info-row">
-                        <span class="info-label">Estado del Documento:</span>
-                        <span class="info-value">
-                            <span class="status-badge badge-{{ documento.estado_documento }}">
-                                {{ documento.get_estado_documento_display }}
-                            </span>
-                        </span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Estado de Pago:</span>
-                        <span class="info-value">
-                            <span class="status-badge badge-{{ documento.estado_pago }}">
-                                {{ documento.get_estado_pago_display }}
-                            </span>
-                        </span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Subtotal:</span>
-                        <span class="info-value">${{ documento.subtotal|currency_format }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Descuentos:</span>
-                        <span class="info-value">${{ documento.descuentos_totales|currency_format }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Impuestos:</span>
-                        <span class="info-value">${{ documento.impuestos_totales|currency_format }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Total del Documento:</span>
-                        <span class="info-value"><strong>${{ documento.total_documento|currency_format }}</strong></span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Monto Pagado:</span>
-                        <span class="info-value">${{ documento.monto_pagado|currency_format }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Saldo Pendiente:</span>
-                        <span class="info-value"><strong>${{ documento.saldo_pendiente|currency_format }}</strong></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {% if documento.observaciones %}
-        <div class="detail-section">
-            <h5><i class="fas fa-comment-alt"></i> Observaciones</h5>
-            <p class="mb-0">{{ documento.observaciones }}</p>
-        </div>
-        {% endif %}
-
-        {% if documento.archivo_documento %}
-        <div class="detail-section">
-            <h5><i class="fas fa-paperclip"></i> Archivo Adjunto</h5>
-            <a href="{{ documento.archivo_documento.url }}" class="btn btn-outline-primary" target="_blank">
-                <i class="fas fa-download me-2"></i>
-                Descargar Archivo
+        <div class="d-flex gap-2">
+            <a href="{% url 'documentos:documento_compra_list' %}" class="btn-stone-outline">
+                <i class="fas fa-arrow-left me-2"></i> Volver
+            </a>
+            <a href="{% url 'documentos:documento_compra_update' documento.pk %}" class="btn btn-primary" style="background: var(--stone-primary); border-color: var(--stone-primary);">
+                <i class="fas fa-pen me-2"></i> Editar
+            </a>
+            <a href="{% url 'documentos:documento_compra_delete' documento.pk %}" class="btn btn-outline-danger" style="border-color: #ffcdd2;">
+                <i class="fas fa-trash-alt"></i>
             </a>
         </div>
-        {% endif %}
     </div>
 
-    <!-- Items del Documento -->
-    <div class="detail-card">
-        <div class="detail-section">
-            <h5><i class="fas fa-list"></i> Items del Documento</h5>
-            <div class="items-table">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th style="color: white; font-weight: 600;">Código</th>
-                            <th style="color: white; font-weight: 600;">Descripción</th>
-                            <th style="color: white; font-weight: 600;">Cantidad</th>
-                            <th style="color: white; font-weight: 600;">Precio Unit.</th>
-                            <th style="color: white; font-weight: 600;">Descuento</th>
-                            <th style="color: white; font-weight: 600;">Impuesto</th>
-                            <th style="color: white; font-weight: 600;">Total Item</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in documento.items.all %}
-                        <tr>
-                            <td>{{ item.articulo.codigo }}</td>
-                            <td>{{ item.articulo.nombre }}</td>
-                            <td>{{ item.cantidad|floatformat:0|currency_format }}</td>
-                            <td>${{ item.precio_unitario|currency_format }}</td>
-                            <td>{{ item.descuento_porcentaje|floatformat:0 }}%</td>
-                            <td>{{ item.impuesto_porcentaje|floatformat:0 }}%</td>
-                            <td><strong>${{ item.total_item|currency_format }}</strong></td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
-                                <i class="fas fa-inbox fa-2x mb-2"></i><br>
-                                No hay items registrados en este documento
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    <!-- Contenido Principal -->
+    <div class="main-card">
+        <div class="row g-0">
             
-            <div class="totals-section">
-                <div class="total-row">
-                    <span>Subtotal:</span>
-                    <span>{{ documento.subtotal|currency_format_with_symbol }}</span>
-                </div>
-                <div class="total-row">
-                    <span>Descuentos Totales:</span>
-                    <span>{{ documento.descuentos_totales|currency_format_with_symbol }}</span>
-                </div>
-                <div class="total-row">
-                    <span>Impuestos Totales:</span>
-                    <span>{{ documento.impuestos_totales|currency_format_with_symbol }}</span>
-                </div>
-                <div class="total-row">
-                    <span>TOTAL DEL DOCUMENTO:</span>
-                    <span>{{ documento.total_documento|currency_format_with_symbol }}</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Historial de Pagos -->
-    {% if historial_pagos %}
-    <div class="detail-card">
-        <div class="detail-section">
-            <h5><i class="fas fa-credit-card"></i> Historial de Pagos</h5>
-            <div class="items-table">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th style="color: white; font-weight: 600;">Fecha de Pago</th>
-                            <th style="color: white; font-weight: 600;">Monto Pagado</th>
-                            <th style="color: white; font-weight: 600;">Método de Pago</th>
-                            <th style="color: white; font-weight: 600;">Observaciones</th>
-                            <th style="color: white; font-weight: 600;">Registrado por</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for pago in historial_pagos %}
-                        <tr>
-                            <td>{{ pago.fecha_pago|date:"d/m/Y H:i" }}</td>
-                            <td><strong>${{ pago.monto_total_pagado|currency_format }}</strong></td>
-                            <td>
-                                {% if pago.formas_pago.exists %}
-                                    {% for forma in pago.formas_pago.all %}
-                                        {{ forma.forma_pago.nombre }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>{{ pago.observaciones|default:"-" }}</td>
-                            <td>{{ pago.registrado_por.get_full_name|default:pago.registrado_por.username }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Información de Auditoría -->
-    <div class="detail-card">
-        <div class="detail-section">
-            <h5><i class="fas fa-history"></i> Información de Auditoría</h5>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="info-row">
-                        <span class="info-label">Creado por:</span>
-                        <span class="info-value">{{ documento.creado_por.get_full_name|default:documento.creado_por.username }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Fecha de Creación:</span>
-                        <span class="info-value">{{ documento.fecha_creacion|date:"d/m/Y H:i" }}</span>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="info-row">
-                        <span class="info-label">Última Modificación:</span>
-                        <span class="info-value">{{ documento.fecha_modificacion|date:"d/m/Y H:i" }}</span>
-                    </div>
-                    {% if documento.en_cuenta_corriente %}
-                    <div class="info-row">
-                        <span class="info-label">En Cuenta Corriente:</span>
-                        <span class="info-value">
-                            <span class="status-badge badge-success">Sí</span>
+            <!-- Columna Izquierda: Información -->
+            <div class="col-lg-4 info-column">
+                
+                <div class="mb-5">
+                    <h5 class="section-title"><i class="fas fa-info-circle me-2"></i> Estados</h5>
+                    <div class="d-flex flex-column gap-2">
+                        <span class="badge badge-stone w-100 text-center
+                            {% if documento.estado_documento == 'activo' %}badge-activo
+                            {% elif documento.estado_documento == 'anulado' %}badge-anulado
+                            {% else %}badge-secondary{% endif %}">
+                            DOC: {{ documento.get_estado_documento_display|upper }}
+                        </span>
+                        <span class="badge badge-stone w-100 text-center
+                            {% if documento.estado_pago == 'pagado' %}badge-pagado
+                            {% elif documento.estado_pago == 'pendiente' %}badge-pendiente
+                            {% else %}badge-secondary{% endif %}">
+                            PAGO: {{ documento.get_estado_pago_display|upper }}
                         </span>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">Fecha Registro CC:</span>
-                        <span class="info-value">{{ documento.fecha_registro_cc|date:"d/m/Y H:i" }}</span>
-                    </div>
-                    {% endif %}
                 </div>
+
+                <div class="mb-5">
+                    <h5 class="section-title"><i class="fas fa-building me-2"></i> Proveedor</h5>
+                    <div class="info-value mb-1 fw-bold text-primary">{{ documento.proveedor.nombre }}</div>
+                    <div class="text-muted small">{{ documento.proveedor.rut }}</div>
+                    <div class="text-muted small mt-1">{{ documento.proveedor.telefono|default:'-' }}</div>
+                </div>
+
+                <div class="mb-4">
+                    <h5 class="section-title"><i class="fas fa-calendar-alt me-2"></i> Fechas</h5>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="info-label">Emisión</div>
+                            <div class="info-value">{{ documento.fecha_emision|date:"d/m/Y" }}</div>
+                        </div>
+                        {% if documento.fecha_vencimiento %}
+                        <div class="col-6">
+                            <div class="info-label">Vencimiento</div>
+                            <div class="info-value text-danger">{{ documento.fecha_vencimiento|date:"d/m/Y" }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h5 class="section-title"><i class="fas fa-warehouse me-2"></i> Logística</h5>
+                    <div class="info-label">Bodega Destino</div>
+                    <div class="info-value">{{ documento.bodega.nombre }}</div>
+                </div>
+
+                {% if documento.orden_compra %}
+                <div class="mb-4">
+                     <h5 class="section-title"><i class="fas fa-link me-2"></i> Vinculaciones</h5>
+                    <div class="info-label">Orden Compra</div>
+                    <a href="{% url 'compras:orden_compra_detail' documento.orden_compra.pk %}" class="info-value d-block text-decoration-none text-info">
+                        <i class="fas fa-external-link-alt me-1"></i> #{{ documento.orden_compra.numero_orden }}
+                    </a>
+                </div>
+                {% endif %}
+
+                {% if documento.observaciones %}
+                <div class="mt-4 p-3 bg-light rounded border border-light fst-italic text-muted small">
+                    <i class="fas fa-comment-alt me-2"></i> {{ documento.observaciones }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Columna Derecha: Items -->
+            <div class="col-lg-8 p-4">
+                <h5 class="section-title mb-4"><i class="fas fa-boxes me-2"></i> Detalle Documento</h5>
+                
+                <div class="table-responsive rounded border border-light mb-4">
+                    <table class="table-stone">
+                        <thead>
+                            <tr>
+                                <th style="width: 40%;">Artículo</th>
+                                <th class="text-center">Cant.</th>
+                                <th class="text-end">Precio U.</th>
+                                <th class="text-center">Desc.</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in documento.items.all %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ item.articulo.codigo }}</div>
+                                    <div class="text-muted small">{{ item.articulo.nombre|truncatechars:45 }}</div>
+                                </td>
+                                <td class="text-center fw-bold fs-5">{{ item.cantidad }}</td>
+                                <td class="text-end text-muted">{{ item.precio_unitario|currency_format_with_symbol }}</td>
+                                <td class="text-center text-muted">{{ item.descuento_porcentaje }}%</td>
+                                <td class="text-end fw-bold text-dark">{{ item.total_item|currency_format_with_symbol }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="row justify-content-end">
+                    <div class="col-md-7">
+                        <div class="totals-box">
+                            <div class="total-row">
+                                <span>Subtotal Neto</span>
+                                <span class="fw-bold text-dark">{{ documento.subtotal|currency_format_with_symbol }}</span>
+                            </div>
+                            <div class="total-row">
+                                <span>Descuentos</span>
+                                <span class="text-danger">{{ documento.descuentos_totales|currency_format_with_symbol }}</span>
+                            </div>
+                            <div class="total-row">
+                                <span>IVA (19%)</span>
+                                <span>{{ documento.impuestos_totales|currency_format_with_symbol }}</span>
+                            </div>
+                            {% if documento.impuesto_unico > 0 %}
+                            <div class="total-row">
+                                <span>Impuesto Único</span>
+                                <span>{{ documento.impuesto_unico|currency_format_with_symbol }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="total-final d-flex justify-content-between">
+                                <span>TOTAL</span>
+                                <span style="color: #2e7d32;">{{ documento.total_documento|currency_format_with_symbol }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
+    </div>
+    
+    <div class="text-end mt-3 text-muted small">
+        Creado: {{ documento.fecha_creacion|date:"d/m/Y H:i" }}
     </div>
 </div>
 {% endblock %}

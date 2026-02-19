@@ -1,56 +1,122 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Eliminar Kit{% endblock %}
+{% block title %}Eliminar Kit - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
 
 {% block extra_css %}
 <style>
-    .top-bar {
-        display: none !important;
+    body {
+        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
     }
-    .main-content {
-        padding-top: 0 !important;
+
+    /* Ocultar top-bar si existe y ajustar layout */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-top: 5rem !important; }
+
+    /* Estilo Piedra - Variables Locales */
+    :root {
+        --color-piedra-texto: #5D4037;
+        --color-piedra-boton: #8D6E63;
+        --color-piedra-borde: #d7ccc8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --shadow-piedra: 0 4px 15px rgba(93, 64, 55, 0.15);
+    }
+
+    .card-premium {
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid var(--color-piedra-borde) !important;
+        background: white;
+        box-shadow: var(--shadow-piedra);
+    }
+
+    .header-danger-piedra {
+        background: linear-gradient(135deg, #8d6e63 0%, #5d4037 100%);
+        padding: 2.5rem;
+        text-align: center;
+        color: white;
+    }
+
+    .btn-piedra {
+        background: var(--gradient-piedra);
+        border: 1px solid var(--color-piedra-borde);
+        color: var(--color-piedra-texto) !important;
+        font-weight: 600;
+        padding: 0.8rem 2rem;
+        border-radius: 12px;
+        box-shadow: var(--shadow-piedra);
+        transition: all 0.3s ease;
+    }
+
+    .btn-piedra:hover {
+        transform: translateY(-2px);
+        filter: brightness(0.95);
+    }
+
+    .btn-piedra-danger {
+        background: linear-gradient(135deg, #e57373 0%, #d32f2f 100%);
+        border: none;
+        color: white !important;
+        font-weight: 600;
+        padding: 0.8rem 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(211, 47, 47, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .btn-piedra-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(211, 47, 47, 0.3);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px;">
-                <div class="card-header" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border: none; padding: 12px 16px;">
-                    <h5 class="mb-0 text-white" style="font-size: 1.1rem; font-weight: 600;">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
-                    </h5>
+        <div class="col-md-7 col-lg-6">
+            <div class="card card-premium shadow-lg border-0">
+                <div class="header-danger-piedra">
+                    <div class="mb-3">
+                        <i class="fas fa-exclamation-triangle fa-4x opacity-50"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0" style="font-family: 'Poppins', sans-serif;">Confirmar Eliminación</h3>
                 </div>
 
-                <div class="card-body" style="padding: 1.5rem;">
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                        ¿Estás seguro de que deseas eliminar este kit de oferta?
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <p class="lead text-muted">¿Está seguro de que desea eliminar el siguiente kit?</p>
+                        <div class="p-4 bg-light rounded-4 border">
+                            <h4 class="fw-bold text-dark mb-1">{{ kit.nombre }}</h4>
+                            <code class="text-muted" style="font-size: 1rem;">Código: {{ kit.codigo }}</code>
+                            <div class="mt-2">
+                                <span class="badge bg-white text-dark border px-3 py-2 rounded-pill">
+                                    <i class="fas fa-boxes me-2 text-muted"></i>{{ kit.items.count }} artículos asociados
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <strong>Kit:</strong> {{ kit.nombre }}<br>
-                        <strong>Código:</strong> {{ kit.codigo }}<br>
-                        <strong>Artículos incluidos:</strong> {{ kit.items.count }}
+                    <div class="alert alert-danger border-0 rounded-4 p-3 d-flex align-items-center mb-5" style="background: rgba(211, 47, 47, 0.05);">
+                        <i class="fas fa-info-circle fa-2x me-3 text-danger"></i>
+                        <small class="text-danger fw-bold">Al eliminar este kit, se perderá toda su configuración de precios y descuentos asociados.</small>
                     </div>
-
-                    <p class="text-danger">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Esta acción no se puede deshacer. Se eliminarán también todos los artículos asociados al kit.
-                    </p>
 
                     <form method="post">
                         {% csrf_token %}
-                        <div class="d-flex justify-content-end gap-2">
-                            <a href="{% url 'articulos:kit_oferta_detail' kit.pk %}" class="btn btn-secondary">
-                                <i class="fas fa-times me-1"></i> Cancelar
-                            </a>
-                            <button type="submit" class="btn btn-danger">
-                                <i class="fas fa-trash me-1"></i> Eliminar
-                            </button>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <a href="{% url 'articulos:kit_oferta_detail' kit.pk %}" class="btn btn-piedra w-100">
+                                    <i class="fas fa-times me-2"></i>Cancelar
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <button type="submit" class="btn btn-piedra-danger w-100">
+                                    <i class="fas fa-trash me-2"></i>Eliminar Kit
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>

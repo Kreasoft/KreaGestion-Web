@@ -4,47 +4,72 @@
 
 {% block title %}Convertir Cotización - #{{ cotizacion.numero_venta }}{% endblock %}
 
+{% block body_class %}hide-top-bar{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header" style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); color: white;">
-                    <h4 class="mb-0">
-                        <i class="fas fa-exchange-alt me-2"></i>
-                        Convertir Cotización en Venta
-                    </h4>
+        <div class="col-12 col-xl-9">
+            <div class="card" style="border: none; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(139, 115, 85, 0.15);">
+                <!-- Header Estilo Piedra Premium -->
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 20px 25px;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exchange-alt me-3" style="font-size: 2.2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                        <div>
+                            <h4 class="mb-0 fw-normal" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px;">
+                                CONVERTIR <span class="fw-bold">COTIZACIÓN EN VENTA</span>
+                            </h4>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="row">
+                
+                <div class="card-body" style="background: white; padding: 30px;">
+                    <div class="row g-4 mb-4">
                         <div class="col-md-6">
-                            <h5>Información de la Cotización</h5>
-                            <div class="info-card" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                                <p><strong>Número:</strong> #{{ cotizacion.numero_venta }}</p>
-                                <p><strong>Cliente:</strong> {{ cotizacion.cliente.nombre|default:"Sin cliente" }}</p>
-                                <p><strong>Vendedor:</strong> {{ cotizacion.vendedor.nombre|default:"Sin vendedor" }}</p>
-                                <p><strong>Total:</strong> ${{ cotizacion.total|format_miles }}</p>
-                                <p><strong>Items:</strong> {{ cotizacion.ventadetalle_set.count }}</p>
+                            <h6 class="mb-3 px-2" style="font-size: 0.8rem; color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                                <i class="fas fa-file-invoice me-2 opacity-50"></i> Documento de Origen
+                            </h6>
+                            <div class="card border-0" style="border-radius: 12px; background: #FDFCFB; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted small">Número:</span>
+                                        <strong style="color: #2D3748;">#{{ cotizacion.numero_venta }}</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted small">Cliente:</span>
+                                        <strong style="color: #2D3748;">{{ cotizacion.cliente.nombre|default:"Sin cliente" }}</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted small">Vendedor:</span>
+                                        <strong style="color: #2D3748;">{{ cotizacion.vendedor.nombre|default:"Sin vendedor" }}</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-0 pt-2" style="border-top: 1px solid #F5F1E8;">
+                                        <span class="text-muted small">Total:</span>
+                                        <strong style="color: #8B7355; font-size: 1.1rem;">${{ cotizacion.total|format_miles }}</strong>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
                         <div class="col-md-6">
-                            <h5>Detalle de Productos</h5>
-                            <div class="table-responsive">
-                                <table class="table table-sm">
+                            <h6 class="mb-3 px-2" style="font-size: 0.8rem; color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                                <i class="fas fa-boxes me-2 opacity-50"></i> Detalle de Ítems ({{ cotizacion.ventadetalle_set.count }})
+                            </h6>
+                            <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                <table class="table table-sm table-piedra mb-0">
                                     <thead>
                                         <tr>
                                             <th>Producto</th>
-                                            <th>Cant.</th>
-                                            <th>Total</th>
+                                            <th class="text-center">Cant.</th>
+                                            <th class="text-end">Total</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for detalle in cotizacion.ventadetalle_set.all %}
                                         <tr>
-                                            <td>{{ detalle.articulo.nombre|truncatechars:30 }}</td>
-                                            <td>{{ detalle.cantidad }}</td>
-                                            <td>${{ detalle.precio_total|format_miles }}</td>
+                                            <td class="small fw-bold">{{ detalle.articulo.nombre|truncatechars:25 }}</td>
+                                            <td class="text-center small">{{ detalle.cantidad }}</td>
+                                            <td class="text-end small">${{ detalle.precio_total|format_miles }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -53,45 +78,51 @@
                         </div>
                     </div>
                     
-                    <hr>
+                    <hr class="my-5 opacity-10">
                     
                     <form method="post">
                         {% csrf_token %}
-                        <div class="mb-4">
-                            <h5>Seleccionar Tipo de Venta</h5>
-                            <p class="text-muted">Selecciona el tipo de documento que se generará a partir de esta cotización.</p>
+                        <div class="mb-5">
+                            <h6 class="mb-4 text-center" style="font-family: 'Poppins', sans-serif; color: #6F5B44; font-weight: 600;">
+                                SELECCIONA EL TIPO DE DOCUMENTO A GENERAR
+                            </h6>
                             
-                            <div class="row">
+                            <div class="row g-3 justify-content-center">
                                 {% for value, label in tipos_venta %}
-                                <div class="col-md-4 mb-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="tipo_venta" id="tipo_{{ value }}" value="{{ value }}" required>
-                                        <label class="form-check-label" for="tipo_{{ value }}">
-                                            <div class="card h-100">
-                                                <div class="card-body text-center">
-                                                    <i class="fas fa-file-invoice fa-2x mb-2" style="color: #17a2b8;"></i>
-                                                    <h6>{{ label }}</h6>
-                                                </div>
+                                <div class="col-md-4">
+                                    <label class="w-100 mb-0">
+                                        <input type="radio" name="tipo_venta" class="card-input-element d-none" value="{{ value }}" required>
+                                        <div class="card card-selection h-100 text-center p-4" style="cursor: pointer; border: 2px solid #F5F1E8; border-radius: 15px; transition: all 0.3s ease;">
+                                            <div class="selection-icon mb-3">
+                                                <i class="fas fa-file-invoice fa-3x" style="color: #D4C4A8; transition: all 0.3s ease;"></i>
                                             </div>
-                                        </label>
-                                    </div>
+                                            <h6 class="text-uppercase mb-0" style="font-size: 0.8rem; font-weight: 700; letter-spacing: 0.5px; color: #8B7355;">{{ label }}</h6>
+                                        </div>
+                                    </label>
                                 </div>
                                 {% endfor %}
                             </div>
                         </div>
                         
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Nota:</strong> Al convertir la cotización, se creará una nueva venta con el mismo detalle de productos y totales. 
-                            La cotización original se marcará como "Convertida en Venta".
+                        <div class="p-4 mb-5" style="background: #F0F4F8; border-radius: 12px; border-left: 6px solid #2B6CB0;">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-info-circle fa-2x text-primary me-4 opacity-50"></i>
+                                <div>
+                                    <strong style="color: #2D3748;">Información del Proceso</strong>
+                                    <p class="mb-0 text-muted small mt-1">
+                                        Al confirmar, se generará el documento seleccionado con los mismos artículos y valores. 
+                                        La cotización original pasará a estado <strong>"Convertida"</strong>.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>Cancelar
+                        <div class="d-flex gap-3 justify-content-center">
+                            <a href="{% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn btn-outline-piedra-lg px-5 py-3">
+                                <i class="fas fa-arrow-left me-2"></i> CANCELAR
                             </a>
-                            <button type="submit" class="btn" style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); color: white; border: none;">
-                                <i class="fas fa-exchange-alt me-2"></i>Convertir en Venta
+                            <button type="submit" class="btn btn-piedra-lg px-5 py-3 shadow">
+                                <i class="fas fa-check-circle me-2"></i> CONFIRMAR CONVERSIÓN
                             </button>
                         </div>
                     </form>
@@ -100,4 +131,73 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Estilos para la selección tipo radio como tarjetas */
+.card-input-element:checked + .card-selection {
+    border-color: #8B7355 !important;
+    background-color: #FDFCFB !important;
+    box-shadow: 0 8px 25px rgba(139, 115, 85, 0.2) !important;
+    transform: translateY(-5px);
+}
+
+.card-input-element:checked + .card-selection .selection-icon i {
+    color: #8B7355 !important;
+    transform: scale(1.1);
+}
+
+.card-selection:hover {
+    border-color: #D4C4A8 !important;
+    background-color: #FAFAF8 !important;
+}
+
+/* Reutilizando estilos Piedra Premium */
+.table-piedra thead th {
+    background: transparent;
+    border: none;
+    color: #8B7355;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    padding: 10px 15px;
+}
+
+.table-piedra tbody td {
+    padding: 10px 15px;
+    vertical-align: middle;
+    border-bottom: 1px solid #F5F1E8;
+}
+
+.btn-piedra-lg {
+    background: var(--gradient-piedra);
+    color: var(--color-piedra-texto);
+    border: none;
+    font-weight: 700;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.btn-piedra-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(139, 115, 85, 0.3);
+    color: var(--color-piedra-texto);
+}
+
+.btn-outline-piedra-lg {
+    background: transparent;
+    color: #8B7355;
+    border: 2px solid #D4C4A8;
+    font-weight: 700;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-piedra-lg:hover {
+    background: #F5F1E8;
+    color: #6F5B44;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
+</style>
 {% endblock %}

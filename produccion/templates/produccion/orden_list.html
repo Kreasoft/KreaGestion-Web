@@ -1,548 +1,383 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block title %}Órdenes de Producción{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Ocultar top-bar */
-    .top-bar {
-        display: none !important;
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
     }
-    .main-content {
-        margin-top: 0 !important;
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
     }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 48px; height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    /* BOTONES */
+    .header-btn {
+        padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.2s; border: 1px solid transparent; cursor: pointer;
+    }
+    .btn-action-primary { background: var(--stone-primary); color: white; border: none; }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; }
+
+    /* STATS CARDS - SOFT UI PASTEL */
+    .stat-card {
+        border: none; border-radius: 12px; transition: all 0.3s ease; 
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        height: 100%; position: relative; overflow: hidden;
+        display: flex; align-items: stretch; justify-content: space-between;
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1); }
+    
+    /* Azul Pastel (Total) */
+    .stat-card-1 { 
+        background: linear-gradient(135deg, #a5c0d1 0%, #c6d8e5 100%);
+        border: 2px solid #9ab8cd;
+    }
+    /* Verde Pastel (Terminadas) */
+    .stat-card-2 { 
+        background: linear-gradient(135deg, #a8d5ba 0%, #ccead7 100%);
+        border: 2px solid #8fc2a3;
+    }
+    /* Amarillo/Naraja Pastel (En Proceso) */
+    .stat-card-3 { 
+        background: linear-gradient(135deg, #f7dca5 0%, #fbe8c3 100%);
+        border: 2px solid #e8cd96;
+    }
+    /* Rosa/Rojo Pastel (Canceladas/Pendientes) */
+    .stat-card-4 { 
+        background: linear-gradient(135deg, #f7d9d9 0%, #fef5e7 100%);
+        border: 2px solid #f4d1d1;
+    }
+    
+    .stat-content {
+        padding: 1.25rem;
+        display: flex; flex-direction: column; justify-content: center;
+        z-index: 2;
+    }
+    .stat-value { 
+        font-size: 1.5rem; 
+        font-weight: 700; 
+        margin-bottom: 0.25rem; 
+        line-height: 1; 
+        color: #2D3748; 
+    }
+    .stat-label { 
+        font-size: 0.75rem; 
+        text-transform: uppercase; 
+        letter-spacing: 0.5px; 
+        font-weight: 600;
+        color: #4A5568; 
+    }
+    
+    .stat-icon-full {
+        width: auto;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 4.5rem; 
+        color: rgba(255, 255, 255, 0.4); 
+        position: absolute; 
+        right: -10px;
+        bottom: -10px; 
+        height: 100%;
+        overflow: hidden;
+        z-index: 1;
+        transform: rotate(-10deg);
+    }
+
+    /* FILTROS */
+    .stone-filter-box {
+        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;
+    }
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.4rem 0.75rem; font-size: 0.85rem; background-color: white; width: 100%; color: var(--stone-text);
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+
+    /* TABLA PIEDRA COMPACTA */
+    .table-piedra { width: 100%; border-collapse: collapse; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 10px 15px;
+    }
+    .table-piedra tbody tr { 
+        height: 32px !important; 
+        transition: all 0.2s ease; border-bottom: 1px solid #F5F1E8; 
+    }
+    .table-piedra tbody tr:hover { background-color: #F5F1E8; }
+    .table-piedra tbody td { 
+        padding: 2px 15px; 
+        vertical-align: middle; font-size: 0.85rem; color: #4A5568; 
+    }
+
+    /* BADGES */
+    .badge-stone { padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; display: inline-block; }
+
+    /* Ocultar top-bar original si es necesario */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header con estilo terroso -->
-    <div class="d-flex justify-content-between align-items-center mb-3" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div>
-            <h2 class="mb-0" style="color: white; font-size: 1.5rem;">
-                <i class="fas fa-industry me-2"></i>Órdenes de Producción
-            </h2>
-            <p class="mb-0 mt-1" style="color: rgba(255,255,255,0.85); font-size: 0.85rem;">
-                Planifica y controla las órdenes de fabricación con seguimiento de estado
-            </p>
+    <div class="single-card-container">
+        <!-- HEADER -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-industry"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Órdenes de <span class="fw-bold">Producción</span></h1>
+                    <p>Planificación y control de fabricación</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="header-btn" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i> Reportes
+                </button>
+                <button type="button" class="header-btn btn-action-primary" onclick="openOrdenModal('{% url 'produccion:orden_create' %}')">
+                    <i class="fas fa-plus me-2"></i> Nueva Orden
+                </button>
+            </div>
         </div>
-        <button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#ordenModal" onclick="abrirModalNuevaOrden()" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; border: none; padding: 8px 20px; font-weight: 500;">
-            <i class="fas fa-plus me-2"></i>Nueva Orden
-        </button>
-    </div>
-
-    <!-- Filtros compactos -->
-    <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
-        <div class="card-body" style="padding: 12px 15px;">
-            <form method="get" class="row g-2">
+        
+        <div class="card-body p-4">
+            
+            <!-- STATS CARDS -->
+            <div class="row g-3 mb-4">
                 <div class="col-md-3">
-                    <input type="text" name="search" class="form-control" placeholder="Buscar..." value="{{ search }}">
-                </div>
-                <div class="col-md-2">
-                    <select name="estado" class="form-select">
-                        <option value="">Todos los estados</option>
-                        <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
-                        <option value="en_proceso" {% if estado == 'en_proceso' %}selected{% endif %}>En Proceso</option>
-                        <option value="terminada" {% if estado == 'terminada' %}selected{% endif %}>Terminada</option>
-                        <option value="cancelada" {% if estado == 'cancelada' %}selected{% endif %}>Cancelada</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
-                </div>
-                <div class="col-md-2">
-                    <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
+                    <div class="stat-card stat-card-1">
+                        <div class="stat-content">
+                            <div class="stat-value">{{ ordenes.count|default:"-" }}</div>
+                            <div class="stat-label">Total Órdenes</div>
+                        </div>
+                        <div class="stat-icon-full">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-3">
-                    <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; padding: 6px 12px;">
-                        <i class="fas fa-search me-2"></i>Filtrar
-                    </button>
+                    <div class="stat-card stat-card-3">
+                        <div class="stat-content">
+                            <!-- Placeholder metric -->
+                            <div class="stat-value">{{ en_proceso_count|default:"-" }}</div>
+                            <div class="stat-label">En Proceso</div>
+                        </div>
+                        <div class="stat-icon-full">
+                            <i class="fas fa-cog fa-spin" style="animation-duration: 10s;"></i>
+                        </div>
+                    </div>
                 </div>
-            </form>
-        </div>
-    </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-2">
+                        <div class="stat-content">
+                            <div class="stat-value">{{ terminadas_count|default:"-" }}</div>
+                            <div class="stat-label">Terminadas</div>
+                        </div>
+                        <div class="stat-icon-full">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card stat-card-4">
+                        <div class="stat-content">
+                            <div class="stat-value">{{ pendientes_count|default:"-" }}</div>
+                            <div class="stat-label">Pendientes</div>
+                        </div>
+                        <div class="stat-icon-full">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Tabla de órdenes compacta -->
-    <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
-        <div class="card-body" style="padding: 10px;">
+            <!-- FILTROS -->
+                <div class="stone-filter-box">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Buscar</label>
+                        <input type="text" name="search" class="form-control-stone" 
+                                placeholder="Orden, Receta, Responsable..." value="{{ search|default:'' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Estado</label>
+                        <select name="estado" class="form-select-stone">
+                            <option value="">Todos</option>
+                            <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                            <option value="en_proceso" {% if estado == 'en_proceso' %}selected{% endif %}>En Proceso</option>
+                            <option value="terminada" {% if estado == 'terminada' %}selected{% endif %}>Terminada</option>
+                            <option value="cancelada" {% if estado == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Desde</label>
+                        <input type="date" name="fecha_desde" class="form-control-stone" value="{{ fecha_desde|default:'' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Hasta</label>
+                        <input type="date" name="fecha_hasta" class="form-control-stone" value="{{ fecha_hasta|default:'' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="header-btn btn-action-primary w-100 justify-content-center">
+                            <i class="fas fa-filter me-2"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- TABLA -->
             <div class="table-responsive">
-                <table class="table table-hover table-sm mb-0" style="font-size: 0.75rem;">
-                    <thead style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
+                <table class="table-piedra">
+                    <thead>
                         <tr>
-                            <th style="padding: 6px 8px; font-size: 0.7rem;">N° Orden</th>
-                            <th style="padding: 6px 8px; font-size: 0.7rem;">Receta</th>
-                            <th style="padding: 6px 8px; font-size: 0.7rem;">Cantidad</th>
-                            <th style="padding: 6px 8px; font-size: 0.7rem;">Producido</th>
-                            <th style="padding: 6px 8px; font-size: 0.7rem;">% Completado</th>
-                            <th style="padding: 6px 8px; font-size: 0.7rem;">Estado</th>
-                            <th style="padding: 6px 8px; font-size: 0.7rem;">Fecha</th>
-                            <th style="padding: 6px 8px; font-size: 0.7rem;">Responsable</th>
-                            <th style="padding: 6px 8px; font-size: 0.7rem;">Acciones</th>
+                            <th>N° Orden</th>
+                            <th>Receta</th>
+                            <th>Bodega</th>
+                            <th class="text-center">Planificado</th>
+                            <th class="text-center">Prod.</th>
+                            <th class="text-center">Avance</th>
+                            <th class="text-center">Estado</th>
+                            <th>Fecha</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for orden in ordenes %}
-                        <tr style="height: 32px;">
-                            <td style="padding: 4px 8px; vertical-align: middle;"><strong>OP-{{ orden.numero_orden }}</strong></td>
-                            <td style="padding: 4px 8px; vertical-align: middle;">{{ orden.receta.nombre }}</td>
-                            <td style="padding: 4px 8px; vertical-align: middle;">{{ orden.cantidad_planificada }}</td>
-                            <td style="padding: 4px 8px; vertical-align: middle;">{{ orden.cantidad_producida }}</td>
-                            <td style="padding: 4px 8px; vertical-align: middle;">
-                                <div class="progress" style="height: 16px; background-color: #E8E8E8; border-radius: 4px;">
-                                    {% with porcentaje=orden.porcentaje_completado|floatformat:0 %}
-                                    <div class="progress-bar" role="progressbar" 
-                                         style="width: {{ porcentaje }}%; background: {% if porcentaje == '100' %}linear-gradient(135deg, #6B7C4A 0%, #556338 100%){% else %}linear-gradient(135deg, #8B7355 0%, #6F5B44 100%){% endif %}; border-radius: 6px;"
-                                         aria-valuenow="{{ porcentaje }}" 
-                                         aria-valuemin="0" aria-valuemax="100">
-                                        <span style="font-weight: 600; font-size: 0.65rem; color: white;">{{ porcentaje }}%</span>
-                                    </div>
-                                    {% endwith %}
-                                </div>
+                        <tr>
+                            <td>
+                                <span class="fw-bold" style="color: #5D4037;">{{ orden.numero_orden }}</span>
                             </td>
-                            <td style="padding: 4px 8px; vertical-align: middle;">
+                            <td>{{ orden.receta.nombre }}</td>
+                            <td>{{ orden.sucursal.nombre|default:"-" }}</td>
+                            <td class="text-center">{{ orden.cantidad_planificada|floatformat:0 }}</td>
+                            <td class="text-center">{{ orden.cantidad_producida|floatformat:0 }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark border">{{ orden.porcentaje_completado|floatformat:0 }}%</span>
+                            </td>
+                            <td class="text-center">
                                 {% if orden.estado == 'pendiente' %}
-                                    <span class="badge bg-secondary" style="font-size: 0.65rem;">Pendiente</span>
+                                    <span class="badge bg-secondary">Pendiente</span>
                                 {% elif orden.estado == 'en_proceso' %}
-                                    <span class="badge bg-primary" style="font-size: 0.65rem;">En Proceso</span>
+                                    <span class="badge bg-primary">En Proc.</span>
                                 {% elif orden.estado == 'terminada' %}
-                                    <span class="badge bg-success" style="font-size: 0.65rem;">Terminada</span>
+                                    <span class="badge bg-success">Terminada</span>
                                 {% elif orden.estado == 'cancelada' %}
-                                    <span class="badge bg-danger" style="font-size: 0.65rem;">Cancelada</span>
+                                    <span class="badge bg-danger">Cancelada</span>
                                 {% endif %}
                             </td>
-                            <td style="padding: 4px 8px; vertical-align: middle;">{{ orden.fecha_planificada|date:"d/m/Y" }}</td>
-                            <td style="padding: 4px 8px; vertical-align: middle;">{{ orden.responsable|default:"-" }}</td>
-                            <td style="padding: 4px 8px; vertical-align: middle;">
-                                <button type="button" class="btn btn-sm" style="background: #8B7355; color: white; padding: 2px 6px; font-size: 0.7rem;" title="Ver Detalle" onclick="verDetalleOrden({{ orden.pk }})">
-                                    <i class="fas fa-eye" style="font-size: 0.7rem;"></i>
-                                </button>
-                                {% if orden.estado == 'pendiente' %}
-                                <button type="button" class="btn btn-sm" style="background: #ffc107; color: white; padding: 2px 6px; font-size: 0.7rem;" title="Editar" onclick="abrirModalEditarOrden({{ orden.pk }}, '{{ orden.numero_orden }}', {{ orden.receta.id }}, '{{ orden.cantidad_planificada }}', '-1', '{{ orden.fecha_planificada|date:'Y-m-d' }}', '{{ orden.responsable|escapejs }}', '{{ orden.lote_produccion|escapejs }}', '{{ orden.observaciones|escapejs }}')">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <a href="{% url 'produccion:orden_iniciar' orden.pk %}" class="btn btn-sm btn-success" style="padding: 2px 6px; font-size: 0.7rem;" title="Iniciar">
-                                    <i class="fas fa-play" style="font-size: 0.7rem;"></i>
-                                </a>
-                                <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 0.7rem;" title="Cancelar" onclick="cancelarOrden({{ orden.pk }}, '{{ orden.numero_orden }}')">
-                                    <i class="fas fa-ban"></i>
-                                </button>
-                                {% elif orden.estado == 'en_proceso' %}
-                                <button type="button" class="btn btn-sm" style="background: #C8A882; color: white; padding: 2px 6px; font-size: 0.7rem;" title="Finalizar Orden" onclick="abrirModalFinalizar({{ orden.pk }}, '{{ orden.numero_orden }}', {{ orden.cantidad_planificada }})">
-                                    <i class="fas fa-check"></i>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 0.7rem;" title="Cancelar" onclick="cancelarOrden({{ orden.pk }}, '{{ orden.numero_orden }}')">
-                                    <i class="fas fa-ban" style="font-size: 0.7rem;"></i>
-                                </button>
-                                {% endif %}
+                            <td>{{ orden.fecha_planificada|date:"d/m/Y" }}</td>
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-1">
+                                    <button type="button" class="btn btn-sm text-secondary p-0 border-0" style="width: 24px; height: 24px;" title="Ver Detalle" onclick="openOrdenModal('{% url 'produccion:orden_detail' orden.pk %}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    
+                                    {% if orden.estado == 'pendiente' %}
+                                    <button type="button" class="btn btn-sm text-success p-0 border-0" style="width: 24px; height: 24px;" title="Iniciar Producción" onclick="openOrdenModal('{% url 'produccion:orden_iniciar' orden.pk %}')">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm text-secondary p-0 border-0" style="width: 24px; height: 24px;" title="Editar" onclick="openOrdenModal('{% url 'produccion:orden_update' orden.pk %}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm text-danger p-0 border-0" style="width: 24px; height: 24px;" title="Cancelar" onclick="confirmarCancelarOrden('{% url 'produccion:orden_delete' orden.pk %}', '{{ orden.numero_orden }}')">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                    {% endif %}
+
+                                    {% if orden.estado == 'en_proceso' %}
+                                     <button type="button" class="btn btn-sm text-success p-0 border-0" style="width: 24px; height: 24px;" title="Finalizar" onclick="openOrdenModal('{% url 'produccion:orden_finalizar' orden.pk %}')">
+                                        <i class="fas fa-check-circle"></i>
+                                    </button>
+                                     <button type="button" class="btn btn-sm text-danger p-0 border-0" style="width: 24px; height: 24px;" title="Cancelar" onclick="confirmarCancelarOrden('{% url 'produccion:orden_delete' orden.pk %}', '{{ orden.numero_orden }}')">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="9" class="text-center py-4">
-                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">No hay órdenes registradas</p>
+                            <td colspan="9" class="text-center py-5">
+                                <div class="d-flex flex-column align-items-center opacity-25">
+                                    <i class="fas fa-industry fa-3x mb-3 text-muted"></i>
+                                    <h6 class="fw-bold text-muted">No hay órdenes registradas</h6>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Paginación placeholder si existe logic -->
         </div>
     </div>
 </div>
 
-<!-- Modal Terroso para Finalizar Orden -->
-<div class="modal fade" id="finalizarModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content" style="border: 2px solid #8B7355; border-radius: 12px;">
-            <!-- Header terroso -->
-            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-bottom: none; border-radius: 10px 10px 0 0; padding: 20px 25px;">
-                <div>
-                    <h5 class="modal-title mb-1" style="color: white; font-weight: 600;">
-                        <i class="fas fa-check-circle me-2"></i>Finalizar Orden de Producción
-                    </h5>
-                    <p class="mb-0" style="color: rgba(255,255,255,0.85); font-size: 0.8rem;">
-                        Registra la cantidad producida, garantía y finaliza la orden
-                    </p>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            
-            <!-- Body -->
-            <form id="finalizarForm">
-                {% csrf_token %}
-                <input type="hidden" id="finalizarOrdenId">
-                
-                <div class="modal-body" style="padding: 25px;">
-                    <div class="alert" style="background: #F5F5F0; border-left: 4px solid #8B7355; border-radius: 6px; margin-bottom: 20px;">
-                        <strong style="color: #6F5B44;"><i class="fas fa-industry me-2"></i>Orden: <span id="finalizarNumeroOrden"></span></strong>
-                    </div>
-                    
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Cantidad Planificada</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-cubes" style="color: #8B7355;"></i>
-                                </span>
-                                <input type="number" id="finalizarCantidadPlanificada" class="form-control" style="height: 35px; border-color: #ccc; background: #f8f8f8;" readonly>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Cantidad Producida *</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-box-open" style="color: #8B7355;"></i>
-                                </span>
-                                <input type="number" name="cantidad_producida" id="finalizarCantidadProducida" class="form-control" style="height: 35px; border-color: #ccc;" step="0.01" min="0" required>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Merma Real</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-exclamation-triangle" style="color: #C8A882;"></i>
-                                </span>
-                                <input type="number" name="merma_real" id="finalizarMerma" class="form-control" style="height: 35px; border-color: #ccc;" step="0.01" min="0" value="0" readonly>
-                            </div>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Meses de Garantía</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-shield-alt" style="color: #8B7355;"></i>
-                                </span>
-                                <input type="number" name="meses_garantia" id="finalizarMesesGarantia" class="form-control" style="height: 35px; border-color: #ccc;" min="0" placeholder="Opcional">
-                            </div>
-                            <small class="text-muted" style="font-size: 0.75rem;">
-                                <i class="fas fa-info-circle me-1"></i>Período de garantía del producto fabricado (opcional)
-                            </small>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Bodega de Insumos *</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-boxes" style="color: #8B7355;"></i>
-                                </span>
-                                <select name="bodega_insumos" id="finalizarBodegaInsumos" class="form-select" style="height: 42px; border-color: #ccc; padding: 8px 12px;" required>
-                                    <option value="">Seleccione bodega...</option>
-                                    {% for bodega in bodegas %}
-                                    <option value="{{ bodega.id }}">{{ bodega.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <small class="text-muted" style="font-size: 0.75rem;">
-                                <i class="fas fa-info-circle me-1"></i>De donde se consumirán los insumos
-                            </small>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Bodega de Productos *</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-warehouse" style="color: #8B7355;"></i>
-                                </span>
-                                <select name="bodega_productos" id="finalizarBodegaProductos" class="form-select" style="height: 42px; border-color: #ccc; padding: 8px 12px;" required>
-                                    <option value="">Seleccione bodega...</option>
-                                    {% for bodega in bodegas %}
-                                    <option value="{{ bodega.id }}">{{ bodega.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <small class="text-muted" style="font-size: 0.75rem;">
-                                <i class="fas fa-info-circle me-1"></i>Donde se almacenará el producto terminado
-                            </small>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">
-                                Comentarios / Observaciones <span id="comentarioRequerido" style="color: #dc3545; display: none;">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text align-items-start pt-2" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-comment-alt" style="color: #8B7355;"></i>
-                                </span>
-                                <textarea name="comentarios" id="finalizarComentarios" class="form-control" style="border-color: #ccc; min-height: 70px;" rows="3" placeholder="Notas sobre la producción, problemas encontrados, etc..."></textarea>
-                            </div>
-                            <small id="comentarioAyuda" class="text-muted" style="font-size: 0.75rem;">
-                                <i class="fas fa-info-circle me-1"></i>Información adicional sobre el proceso de producción
-                            </small>
-                            <small id="comentarioAlerta" class="text-danger" style="font-size: 0.75rem; display: none;">
-                                <i class="fas fa-exclamation-circle me-1"></i>Obligatorio cuando la cantidad producida es menor a la planificada
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Footer terroso -->
-                <div class="modal-footer" style="border-top: 1px solid #D4A574; background: #F5F5F0;">
-                    <button type="button" class="btn" data-bs-dismiss="modal" style="background: #6F5B44; color: white; padding: 8px 16px; border: none;">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </button>
-                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; padding: 8px 20px; border: none; font-weight: 600;">
-                        <i class="fas fa-check me-2"></i>Finalizar Orden
-                    </button>
-                </div>
-            </form>
+<!-- Modal Container -->
+<div class="modal fade" id="ordenModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" id="ordenModalContent" style="border-radius: 16px; overflow: hidden; border: none; box-shadow: 0 15px 40px rgba(0,0,0,0.2);">
+            <!-- Content loaded via AJAX -->
         </div>
     </div>
 </div>
 
-<!-- Modal Terroso para Ver Detalle de Orden -->
-<div class="modal fade" id="detalleModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content" style="border: 2px solid #8B7355; border-radius: 12px;">
-            <!-- Header terroso -->
-            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-bottom: none; border-radius: 10px 10px 0 0; padding: 20px 25px;">
-                <div class="d-flex align-items-center w-100">
-                    <div class="flex-grow-1">
-                        <h5 class="modal-title mb-1" style="color: white; font-weight: 600;">
-                            <i class="fas fa-industry me-2"></i><span id="detalleNumero">OP-000001</span>
-                        </h5>
-                        <p class="mb-0" style="color: rgba(255,255,255,0.85); font-size: 0.8rem;">
-                            Detalle completo de la orden de producción
-                        </p>
-                    </div>
-                    <div class="me-3">
-                        <span id="detalleBadgeEstado" class="badge" style="font-size: 0.9rem; padding: 8px 16px;"></span>
-                    </div>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            
-            <!-- Body -->
-            <div class="modal-body" style="padding: 25px;">
-                <!-- Barra de progreso -->
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span style="font-weight: 600; color: #6F5B44;">Progreso de Producción</span>
-                        <span id="detallePorcentaje" style="font-weight: 700; font-size: 1.1rem; color: #8B7355;">0%</span>
-                    </div>
-                    <div class="progress" style="height: 25px; background-color: #E8E8E8; border-radius: 8px;">
-                        <div id="detalleBarraProgreso" class="progress-bar" role="progressbar" 
-                             style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-radius: 8px;">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Información General -->
-                <div class="card mb-3" style="border: 1px solid #D4A574; border-radius: 8px;">
-                    <div class="card-header" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); color: white; padding: 10px 15px;">
-                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información General</h6>
-                    </div>
-                    <div class="card-body" style="padding: 15px;">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Receta</small>
-                                <strong id="detalleReceta" style="color: #6F5B44;">-</strong>
-                            </div>
-                            <div class="col-md-6">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Producto</small>
-                                <strong id="detalleProducto" style="color: #6F5B44;">-</strong>
-                            </div>
-                            <div class="col-md-6">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Responsable</small>
-                                <strong id="detalleResponsable" style="color: #6F5B44;">-</strong>
-                            </div>
-                            <div class="col-md-6">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Lote de Producción</small>
-                                <strong id="detalleLote" style="color: #6F5B44;">-</strong>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Fecha Planificada</small>
-                                <strong id="detalleFechaPlanificada" style="color: #6F5B44;">-</strong>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Fecha Inicio</small>
-                                <strong id="detalleFechaInicio" style="color: #6F5B44;">-</strong>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Fecha Fin</small>
-                                <strong id="detalleFechaFin" style="color: #6F5B44;">-</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cantidades y Costos -->
-                <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
-                    <div class="card-header" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); color: white; padding: 10px 15px;">
-                        <h6 class="mb-0"><i class="fas fa-calculator me-2"></i>Cantidades y Costos</h6>
-                    </div>
-                    <div class="card-body" style="padding: 15px;">
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Cantidad Planificada</small>
-                                <strong id="detalleCantidadPlanificada" style="color: #6F5B44; font-size: 1.1rem;">-</strong>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Cantidad Producida</small>
-                                <strong id="detalleCantidadProducida" style="color: #8B7355; font-size: 1.1rem;">-</strong>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Merma Real</small>
-                                <strong id="detalleMerma" style="color: #C8A882; font-size: 1.1rem;">-</strong>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">Costo Total</small>
-                                <strong id="detalleCosto" style="color: #6F5B44; font-size: 1.1rem;">-</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Observaciones -->
-                <div id="detalleObservacionesContainer" class="mt-3" style="display: none;">
-                    <div class="alert" style="background: #F5F5F0; border-left: 4px solid #8B7355; border-radius: 6px;">
-                        <strong style="color: #6F5B44;"><i class="fas fa-comment-alt me-2"></i>Observaciones:</strong>
-                        <p id="detalleObservaciones" class="mb-0 mt-2" style="color: #666;"></p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Footer terroso -->
-            <div class="modal-footer" style="border-top: 1px solid #D4A574; background: #F5F5F0;">
-                <a id="btnExportarOrden" href="#" class="btn" style="background: #28a745; color: white; padding: 8px 16px; border: none;" target="_blank">
-                    <i class="fas fa-file-excel me-2"></i>Exportar Excel
-                </a>
-                <button type="button" class="btn" data-bs-dismiss="modal" style="background: #6F5B44; color: white; padding: 8px 16px; border: none;">
-                    <i class="fas fa-times me-2"></i>Cerrar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Terroso para Crear/Editar Orden -->
-<div class="modal fade" id="ordenModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content" style="border: 2px solid #8B7355; border-radius: 12px;">
-            <!-- Header terroso -->
-            <div class="modal-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-bottom: none; border-radius: 10px 10px 0 0; padding: 20px 25px;">
-                <div>
-                    <h5 class="modal-title mb-1" style="color: white; font-weight: 600;" id="ordenModalLabel">
-                        <i class="fas fa-industry me-2"></i><span id="modalTitulo">Nueva Orden de Producción</span>
-                    </h5>
-                    <p class="mb-0" style="color: rgba(255,255,255,0.85); font-size: 0.8rem;">
-                        <span id="modalSubtitulo">Planifica la fabricación de productos según recetas definidas</span>
-                    </p>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            
-            <!-- Body -->
-            <form id="ordenForm" method="post">
-                {% csrf_token %}
-                <input type="hidden" id="ordenId" name="orden_id">
-                
-                <div class="modal-body" style="padding: 25px;">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Número de Orden *</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-hashtag" style="color: #8B7355;"></i>
-                                </span>
-                                <input type="text" name="numero_orden" id="numero_orden" class="form-control" style="height: 35px; border-color: #ccc;" placeholder="Ej: OP-2025-001" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Cantidad a Producir *</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-cubes" style="color: #8B7355;"></i>
-                                </span>
-                                <input type="number" name="cantidad_planificada" id="cantidad_planificada" class="form-control" style="height: 35px; border-color: #ccc;" step="0.01" min="0" value="1" placeholder="Cantidad" required>
-                            </div>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Receta de Producción *</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-flask" style="color: #8B7355;"></i>
-                                </span>
-                                <select name="receta" id="receta" class="form-select" style="height: 42px; border-color: #ccc; padding: 8px 12px;" required>
-                                    <option value="">Seleccione la receta a fabricar...</option>
-                                    {% for receta in recetas %}
-                                    <option value="{{ receta.id|stringformat:'d' }}">{{ receta.codigo }} - {{ receta.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <small class="text-muted" style="font-size: 0.75rem;">
-                                <i class="fas fa-info-circle me-1"></i>Selecciona la receta que define los insumos y proceso de fabricación
-                            </small>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Bodega *</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-warehouse" style="color: #8B7355;"></i>
-                                </span>
-                                <select name="bodega" id="bodega" class="form-select" style="height: 42px; border-color: #ccc; padding: 8px 12px;" required>
-                                    <option value="">Seleccione la bodega...</option>
-                                    {% for bodega in bodegas %}
-                                    <option value="{{ bodega.id }}">{{ bodega.nombre }} ({{ bodega.codigo }})</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <small class="text-muted" style="font-size: 0.75rem;">
-                                <i class="fas fa-info-circle me-1"></i>Bodega de donde se consumirán los insumos y se agregará el producto final
-                            </small>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Fecha Planificada *</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-calendar-alt" style="color: #8B7355;"></i>
-                                </span>
-                                <input type="date" name="fecha_planificada" id="fecha_planificada" class="form-control" style="height: 35px; border-color: #ccc;" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Responsable</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-user" style="color: #8B7355;"></i>
-                                </span>
-                                <input type="text" name="responsable" id="responsable" class="form-control" style="height: 35px; border-color: #ccc;" placeholder="Nombre del responsable">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Lote de Producción</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-barcode" style="color: #8B7355;"></i>
-                                </span>
-                                <input type="text" name="lote_produccion" id="lote_produccion" class="form-control" style="height: 35px; border-color: #ccc;" placeholder="Ej: LOTE-2025-001">
-                            </div>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #6F5B44;">Observaciones / Comentarios</label>
-                            <div class="input-group">
-                                <span class="input-group-text align-items-start pt-2" style="background: #F5F5F0; border-color: #ccc;">
-                                    <i class="fas fa-comment-alt" style="color: #8B7355;"></i>
-                                </span>
-                                <textarea name="observaciones" id="observaciones" class="form-control" style="border-color: #ccc; min-height: 70px;" rows="3" placeholder="Notas, instrucciones especiales o comentarios sobre esta orden..."></textarea>
-                            </div>
-                            <small class="text-muted" style="font-size: 0.75rem;">
-                                <i class="fas fa-info-circle me-1"></i>Información adicional relevante para la producción
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Footer terroso -->
-                <div class="modal-footer" style="border-top: 1px solid #D4A574; background: #F5F5F0;">
-                    <button type="button" class="btn" data-bs-dismiss="modal" style="background: #6F5B44; color: white; padding: 8px 16px; border: none;">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </button>
-                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; padding: 8px 20px; border: none; font-weight: 600;">
-                        <i class="fas fa-save me-2"></i>Guardar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Formulario oculto para eliminar/cancelar con CSRF Token -->
+<form id="deleteForm" method="post" style="display:none;">
+    {% csrf_token %}
+</form>
 
 <script>
 // Ocultar top menu
@@ -553,289 +388,134 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Abrir modal para nueva orden
-function abrirModalNuevaOrden() {
-    document.getElementById('modalTitulo').textContent = 'Nueva Orden';
-    document.getElementById('ordenForm').reset();
-    document.getElementById('ordenId').value = '';
-    document.getElementById('ordenForm').action = '{% url "produccion:orden_create" %}';
-}
-
-// Abrir modal para editar orden
-function abrirModalEditarOrden(ordenId, numeroOrden, recetaId, cantidad, bodegaId, fecha, responsable, lote, observaciones) {
-    document.getElementById('modalTitulo').textContent = 'Editar Orden de Producción';
-    document.getElementById('modalSubtitulo').textContent = 'Modifica los datos de la orden de producción';
-    document.getElementById('ordenId').value = ordenId;
-    document.getElementById('numero_orden').value = numeroOrden;
-    document.getElementById('receta').value = recetaId;
-    document.getElementById('cantidad_planificada').value = parseFloat(cantidad) || cantidad;
-    document.getElementById('bodega').value = (bodegaId && bodegaId != '-1') ? bodegaId : '';
-    document.getElementById('fecha_planificada').value = fecha;
-    document.getElementById('responsable').value = responsable || '';
-    document.getElementById('lote_produccion').value = lote || '';
-    document.getElementById('observaciones').value = observaciones || '';
-    document.getElementById('ordenForm').action = '/produccion/ordenes/' + ordenId + '/editar/';
+// Modal Logic
+function openOrdenModal(url) {
+    const modalContent = document.getElementById('ordenModalContent');
+    const modalEl = document.getElementById('ordenModal');
+    const modal = new bootstrap.Modal(modalEl);
     
-    var modal = new bootstrap.Modal(document.getElementById('ordenModal'));
+    modalContent.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-secondary" role="status"></div></div>';
     modal.show();
-}
 
-// Manejar envío del formulario
-document.getElementById('ordenForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    var formData = new FormData(this);
-    var url = this.action;
-    
     fetch(url, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            Swal.fire({
-                icon: 'success',
-                title: '¡Éxito!',
-                text: data.message,
-                confirmButtonColor: '#8B7355'
-            }).then(() => {
-                location.reload();
-            });
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: data.message,
-                confirmButtonColor: '#8B7355'
-            });
-        }
+    .then(response => response.text())
+    .then(html => {
+        modalContent.innerHTML = html;
+        executeScripts(modalContent);
+        bindModalForm();
     })
-    .catch(error => {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Error al procesar la solicitud',
-            confirmButtonColor: '#8B7355'
-        });
+    .catch(err => {
+        console.error(err);
+        modalContent.innerHTML = '<div class="p-4 text-center text-danger">Error al cargar datos. <br>Intente nuevamente.</div>';
     });
-});
+}
 
-// Función para ver detalle de orden
-function verDetalleOrden(ordenId) {
-    fetch(`/produccion/ordenes/${ordenId}/detalle-json/`)
-        .then(response => response.json())
-        .then(data => {
-            // Header
-            document.getElementById('detalleNumero').textContent = `OP-${data.numero_orden}`;
-            
-            // Badge de estado
-            const badgeEstado = document.getElementById('detalleBadgeEstado');
-            badgeEstado.className = 'badge';
-            if (data.estado === 'pendiente') {
-                badgeEstado.classList.add('bg-secondary');
-                badgeEstado.textContent = 'Pendiente';
-            } else if (data.estado === 'en_proceso') {
-                badgeEstado.classList.add('bg-primary');
-                badgeEstado.textContent = 'En Proceso';
-            } else if (data.estado === 'terminada') {
-                badgeEstado.classList.add('bg-success');
-                badgeEstado.textContent = 'Terminada';
-            } else if (data.estado === 'cancelada') {
-                badgeEstado.classList.add('bg-danger');
-                badgeEstado.textContent = 'Cancelada';
-            }
-            
-            // Barra de progreso
-            const porcentaje = Math.round(data.porcentaje_completado);
-            document.getElementById('detallePorcentaje').textContent = `${porcentaje}%`;
-            const barraProgreso = document.getElementById('detalleBarraProgreso');
-            barraProgreso.style.width = `${porcentaje}%`;
-            // Cambiar color a verde oliva oscuro terroso cuando está completado
-            if (porcentaje === 100) {
-                barraProgreso.style.background = 'linear-gradient(135deg, #6B7C4A 0%, #556338 100%)';
-            } else {
-                barraProgreso.style.background = 'linear-gradient(135deg, #8B7355 0%, #6F5B44 100%)';
-            }
-            
-            // Información General
-            document.getElementById('detalleReceta').textContent = data.receta_nombre;
-            document.getElementById('detalleProducto').textContent = data.producto_nombre;
-            document.getElementById('detalleResponsable').textContent = data.responsable || '-';
-            document.getElementById('detalleLote').textContent = data.lote_produccion || '-';
-            document.getElementById('detalleFechaPlanificada').textContent = data.fecha_planificada || '-';
-            document.getElementById('detalleFechaInicio').textContent = data.fecha_inicio || '-';
-            document.getElementById('detalleFechaFin').textContent = data.fecha_fin || '-';
-            
-            // Cantidades y Costos
-            document.getElementById('detalleCantidadPlanificada').textContent = data.cantidad_planificada;
-            document.getElementById('detalleCantidadProducida').textContent = data.cantidad_producida;
-            document.getElementById('detalleMerma').textContent = data.merma_real;
-            document.getElementById('detalleCosto').textContent = data.costo_total;
-            
-            // Observaciones
-            if (data.observaciones) {
-                document.getElementById('detalleObservaciones').textContent = data.observaciones;
-                document.getElementById('detalleObservacionesContainer').style.display = 'block';
-            } else {
-                document.getElementById('detalleObservacionesContainer').style.display = 'none';
-            }
-            
-            // Actualizar enlace de exportar Excel
-            document.getElementById('btnExportarOrden').href = `/produccion/ordenes/${ordenId}/excel/`;
-            
-            // Mostrar modal
-            var modal = new bootstrap.Modal(document.getElementById('detalleModal'));
-            modal.show();
+function bindModalForm() {
+    // Try to find either the create/edit form, start form, or finalize form
+    const form = document.querySelector('#ordenModalContent form');
+    
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const url = form.action;
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
+        
+        if(submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando...';
+        }
+
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .catch(error => {
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json().then(data => {
+                    if (data.success) {
+                        const modalEl = document.getElementById('ordenModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        modal.hide();
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Éxito!',
+                            text: data.message,
+                            confirmButtonColor: '#8B7355'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Ocurrió un error inesperado',
+                            confirmButtonColor: '#8B7355'
+                        });
+                        if(submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalBtnText;
+                        }
+                    }
+                });
+            } else {
+                return response.text().then(html => {
+                    const modalContent = document.getElementById('ordenModalContent');
+                    modalContent.innerHTML = html;
+                    executeScripts(modalContent);
+                    bindModalForm();
+                });
+            }
+        })
+        .catch(err => {
+            console.error(err);
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: 'No se pudo cargar el detalle de la orden',
+                text: 'Error de conexión',
                 confirmButtonColor: '#8B7355'
             });
-        });
-}
-
-// Función para abrir modal de finalizar
-function abrirModalFinalizar(ordenId, numeroOrden, cantidadPlanificada) {
-    document.getElementById('finalizarOrdenId').value = ordenId;
-    document.getElementById('finalizarNumeroOrden').textContent = `OP-${numeroOrden}`;
-    document.getElementById('finalizarCantidadPlanificada').value = cantidadPlanificada;
-    document.getElementById('finalizarCantidadProducida').value = cantidadPlanificada;
-    document.getElementById('finalizarMerma').value = 0;
-    document.getElementById('finalizarMesesGarantia').value = '';
-    document.getElementById('finalizarComentarios').value = '';
-    
-    // Resetear validación de comentarios
-    document.getElementById('comentarioRequerido').style.display = 'none';
-    document.getElementById('comentarioAyuda').style.display = 'block';
-    document.getElementById('comentarioAlerta').style.display = 'none';
-    document.getElementById('finalizarComentarios').removeAttribute('required');
-    
-    var modal = new bootstrap.Modal(document.getElementById('finalizarModal'));
-    modal.show();
-}
-
-// Calcular merma automáticamente y validar comentarios
-document.getElementById('finalizarCantidadProducida').addEventListener('input', function() {
-    const planificada = parseFloat(document.getElementById('finalizarCantidadPlanificada').value) || 0;
-    const producida = parseFloat(this.value) || 0;
-    const merma = Math.max(0, planificada - producida);
-    
-    document.getElementById('finalizarMerma').value = merma.toFixed(2);
-    
-    // Si producida < planificada, comentarios son obligatorios
-    if (producida < planificada) {
-        document.getElementById('comentarioRequerido').style.display = 'inline';
-        document.getElementById('comentarioAyuda').style.display = 'none';
-        document.getElementById('comentarioAlerta').style.display = 'block';
-        document.getElementById('finalizarComentarios').setAttribute('required', 'required');
-    } else {
-        document.getElementById('comentarioRequerido').style.display = 'none';
-        document.getElementById('comentarioAyuda').style.display = 'block';
-        document.getElementById('comentarioAlerta').style.display = 'none';
-        document.getElementById('finalizarComentarios').removeAttribute('required');
-    }
-});
-
-// Manejar envío del formulario de finalizar
-document.getElementById('finalizarForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const ordenId = document.getElementById('finalizarOrdenId').value;
-    const formData = new FormData(this);
-    
-    fetch(`/produccion/ordenes/${ordenId}/finalizar/`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            Swal.fire({
-                icon: 'success',
-                title: '¡Éxito!',
-                text: data.message,
-                confirmButtonColor: '#8B7355'
-            }).then(() => {
-                location.reload();
-            });
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: data.message,
-                confirmButtonColor: '#8B7355'
-            });
-        }
-    })
-    .catch(error => {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Error al finalizar la orden',
-            confirmButtonColor: '#8B7355'
+            if(submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
         });
     });
-});
+}
 
-// Función para cancelar orden
-function cancelarOrden(ordenId, numeroOrden) {
+function confirmarCancelarOrden(url, numeroOrden) {
     Swal.fire({
-        title: '¿Cancelar Orden?',
-        html: `¿Estás seguro de cancelar la orden <strong>OP-${numeroOrden}</strong>?<br><small>Esta acción no se puede deshacer.</small>`,
+        title: '¿Cancelar/Eliminar Orden?',
+        text: `¿Estás seguro de cancelar/eliminar la orden "${numeroOrden}"?`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6F5B44',
-        confirmButtonText: 'Sí, cancelar',
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, continuar',
         cancelButtonText: 'No, volver'
     }).then((result) => {
         if (result.isConfirmed) {
-            fetch(`/produccion/ordenes/${ordenId}/cancelar/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Cancelada!',
-                        text: data.message,
-                        confirmButtonColor: '#8B7355'
-                    }).then(() => {
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message,
-                        confirmButtonColor: '#8B7355'
-                    });
-                }
-            })
-            .catch(error => {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error al cancelar la orden',
-                    confirmButtonColor: '#8B7355'
-                });
-            });
+            const form = document.getElementById('deleteForm');
+            form.action = url;
+            form.submit();
         }
+    });
+}
+
+function executeScripts(element) {
+    const scripts = element.querySelectorAll('script');
+    scripts.forEach(script => {
+        const newScript = document.createElement('script');
+        Array.from(script.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        newScript.appendChild(document.createTextNode(script.innerHTML));
+        script.parentNode.replaceChild(newScript, script);
     });
 }
 </script>

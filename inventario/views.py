@@ -16,7 +16,7 @@ import json
 from .models import Inventario, Stock
 from .forms import InventarioForm, StockForm, InventarioFilterForm
 from core.decorators import requiere_empresa
-from articulos.models import Articulo
+from articulos.models import Articulo, CategoriaArticulo
 from empresas.models import Sucursal
 
 
@@ -629,6 +629,7 @@ def stock_list(request):
     # Base: artículos activos y bodegas activas para construir vista completa artículo×bodega
     articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria').order_by('nombre')
     bodegas = Bodega.objects.filter(empresa=request.empresa)
+    categorias = CategoriaArticulo.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
     
     # Calcular cantidades desde movimientos de Inventario (estado confirmado), por artículo×bodega
     mov_rows = (
@@ -694,6 +695,7 @@ def stock_list(request):
     estado = request.GET.get('estado')
     search = request.GET.get('search', '')
     tipo_articulo = request.GET.get('tipo_articulo', '')
+    categoria_id = request.GET.get('categoria')
     
     if bodega_id:
         try:
@@ -713,6 +715,13 @@ def stock_list(request):
     
     if tipo_articulo:
         stocks_data = [s for s in stocks_data if getattr(s.articulo, 'tipo_articulo', '') == tipo_articulo]
+
+    if categoria_id:
+        try:
+            cat_id_int = int(categoria_id)
+            stocks_data = [s for s in stocks_data if s.articulo.categoria and s.articulo.categoria.id == cat_id_int]
+        except ValueError:
+            pass
     
     if search:
         q = search.lower()
@@ -735,6 +744,7 @@ def stock_list(request):
     context = {
         'page_obj': page_obj,
         'bodegas': bodegas,
+        'categorias': categorias,
         'total_articulos': total_articulos,
         'sin_stock': sin_stock,
         'stock_bajo': stock_bajo,

@@ -3,88 +3,257 @@
 {% load humanize %}
 {% load format_filters %}
 
-{% block title %}Compras por Período{% endblock %}
+{% block title %}Informe de Compras del Período - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block extra_css %}
 <style>
+    /* VARIABLES ESTILO PIEDRA PREMIUM */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #43A047;
+        --stone-danger: #e53935;
+        --stone-warning: #FB8C00;
+        --stone-info: #039BE5;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+    
     @media print { .no-print { display: none !important; } }
-    .tabla-informe thead { background: #17a2b8; color: white; }
-    .tabla-informe tbody tr:hover { background: #f8f9fa; }
-    .tabla-informe th, .tabla-informe td { padding: 0.5rem !important; font-size: 0.875rem; }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.25rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .header-icon-box {
+        width: 52px; height: 52px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 14px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text h1 span { font-weight: 700; }
+    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* FILTROS */
+    .stone-filter-box {
+        background: linear-gradient(to right, #FAF9F6, #FFFFFF);
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* ACTION BUTTONS */
+    .btn-action-secondary {
+        background: white; border: 1px solid var(--stone-light); color: var(--stone-text);
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-action-secondary:hover { background: var(--stone-bg); transform: translateY(-1px); }
+
+    .btn-action-primary {
+        background: var(--stone-primary); border: none; color: white;
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2);
+        transition: all 0.2s;
+    }
+    .btn-action-primary:hover { background: var(--stone-secondary); transform: translateY(-1px); color: white; }
+
+    /* EXCEL BUTTON */
+    .btn-excel {
+        background: linear-gradient(135deg, #1D6F42 0%, #107C41 100%);
+        border: none; color: white;
+        padding: 0.5rem 1.25rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none;
+        box-shadow: 0 4px 12px rgba(29, 111, 66, 0.25);
+        transition: all 0.2s ease;
+    }
+    .btn-excel:hover { 
+        background: linear-gradient(135deg, #107C41 0%, #0c5c30 100%); 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 15px rgba(29, 111, 66, 0.35); 
+        color: white; 
+    }
+
+    /* STAT CARD */
+    .stone-stat-card {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    
+    .card-success { border-left: 4px solid var(--stone-success); }
+    
+    .stat-label { font-size: 0.85rem; color: #8D6E63; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem; display: block; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: var(--stone-text); margin: 0; line-height: 1.2; }
+    
+    .stat-icon-bg { 
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+        font-size: 3.5rem;
+        opacity: 0.1;
+        color: var(--stone-primary);
+    }
+
+    /* TABLA */
+    .table-container {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--stone-light);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+    
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row mb-3 no-print">
-        <div class="col-md-8">
-            <h5 class="mb-1" style="color: #2c3e50;"><i class="fas fa-shopping-basket me-2" style="color: #17a2b8;"></i>Compras por Período</h5>
-            <small class="text-muted">{{ fecha_desde|date:"d/m/Y" }} - {{ fecha_hasta|date:"d/m/Y" }}</small>
-        </div>
-        <div class="col-md-4 text-end">
-            <a href="{% url 'informes:dashboard' %}" class="btn btn-sm btn-outline-secondary me-1"><i class="fas fa-arrow-left"></i></a>
-            <button onclick="window.print()" class="btn btn-sm btn-info"><i class="fas fa-print"></i></button>
-        </div>
-    </div>
-
-    <div class="row mb-3 no-print">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body p-3">
-                    <form method="get" class="row g-2 align-items-end">
-                        <div class="col-md-5">
-                            <label class="form-label mb-1 small">Desde</label>
-                            <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde|date:'Y-m-d' }}" required>
-                        </div>
-                        <div class="col-md-5">
-                            <label class="form-label mb-1 small">Hasta</label>
-                            <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta|date:'Y-m-d' }}" required>
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-sm w-100 btn-info"><i class="fas fa-search"></i></button>
-                        </div>
-                    </form>
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- Header Premium -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-shopping-basket"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Compras del <span>Período</span></h1>
+                    <p>{{ fecha_desde|date:"d/m/Y" }} - {{ fecha_hasta|date:"d/m/Y" }}</p>
                 </div>
             </div>
+            <div class="d-flex gap-2 no-print">
+                <a href="{% url 'informes:dashboard' %}" class="btn-action-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+                <button onclick="window.print()" class="btn-action-secondary">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+                <a href="{% url 'informes:exportar_compras_periodo_excel' %}?fecha_desde={{ fecha_desde|date:'Y-m-d' }}&fecha_hasta={{ fecha_hasta|date:'Y-m-d' }}" class="btn-excel">
+                    <i class="fas fa-file-excel"></i> Exportar Excel
+                </a>
+            </div>
         </div>
-    </div>
 
-    <div class="row">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0 tabla-informe">
-                            <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Proveedor</th>
-                                    <th>Documento</th>
-                                    <th class="text-end">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for compra in compras %}
-                                <tr>
-                                    <td>{{ compra.fecha_emision|date:"d/m/Y" }}</td>
-                                    <td>{{ compra.proveedor.nombre }}</td>
-                                    <td><small class="text-muted">{{ compra.tipo_documento|upper }} {{ compra.numero_documento }}</small></td>
-                                    <td class="text-end fw-bold">${{ compra.total_documento|format_miles }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="4" class="text-center py-3">
-                                        <small class="text-muted">No hay compras en el período</small>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+        <div class="card-body p-4">
+            
+            <!-- Filtros -->
+            <div class="stone-filter-box no-print">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold" style="color: #6F5B44;">Desde</label>
+                        <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde|date:'Y-m-d' }}" required style="border-radius: 8px; border: 1px solid #D4C4A8; background-color: #FAFAF8;">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold" style="color: #6F5B44;">Hasta</label>
+                        <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta|date:'Y-m-d' }}" required style="border-radius: 8px; border: 1px solid #D4C4A8; background-color: #FAFAF8;">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn-action-primary w-100 justify-content-center">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Resumen Estadístico -->
+             <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="stone-stat-card card-success">
+                        <span class="stat-label">Total Compras</span>
+                        <span class="stat-value text-success">${{ total_compras|format_miles }}</span>
+                        <i class="fas fa-money-bill-wave stat-icon-bg"></i>
                     </div>
                 </div>
             </div>
+
+            <!-- Tabla de Resultados -->
+            <div class="table-container">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 tabla-informe" style="width: 100%; border-collapse: collapse; font-family: 'Poppins', sans-serif;">
+                        <thead>
+                            <tr>
+                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Fecha</th>
+                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Proveedor</th>
+                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Documento</th>
+                                <th class="text-end" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for compra in compras %}
+                            <tr style="border-bottom: 1px solid #F5F1E8; height: 32px;">
+                                <td style="padding: 0.25rem 1.5rem; color: #5D4037; vertical-align: middle;">{{ compra.fecha_emision|date:"d/m/Y" }}</td>
+                                <td style="padding: 0.25rem 1.5rem; vertical-align: middle; font-weight: 500;">{{ compra.proveedor.nombre }}</td>
+                                <td style="padding: 0.25rem 1.5rem; vertical-align: middle;">
+                                    <span class="badge bg-light text-dark border">{{ compra.tipo_documento|upper }} {{ compra.numero_documento }}</span>
+                                </td>
+                                <td class="text-end fw-bold" style="padding: 0.25rem 1.5rem; color: #5D4037; vertical-align: middle;">${{ compra.total_documento|format_miles }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4">
+                                    <div class="text-muted d-flex flex-column align-items-center">
+                                        <i class="fas fa-shopping-bag fa-2x mb-2" style="opacity: 0.3;"></i>
+                                        No hay compras registradas en el período
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Información de impresión -->
+            <div class="row mt-4 d-none d-print-block">
+                <div class="col-12 text-center">
+                    <p class="text-muted small mb-0">
+                        Generado el {{ now|date:"d/m/Y H:i" }} - {{ request.empresa.nombre }}
+                    </p>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Eliminar Lista de Precios - GestionCloud{% endblock %}
 
@@ -8,107 +9,102 @@
 <style>
     body {
         background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
-        min-height: 100vh;
     }
 
-    .delete-container {
-        background: white;
-        border: 2px solid #E8DCC8;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    /* Ocultar top-bar si existe y ajustar layout */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; padding-top: 2rem !important; }
+
+    /* Estilo Piedra - Variables Locales */
+    :root {
+        --color-piedra-texto: #5D4037;
+        --color-piedra-boton: #8D6E63;
+        --color-piedra-borde: #d7ccc8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --shadow-piedra: 0 4px 15px rgba(93, 64, 55, 0.15);
+    }
+
+    .card-premium {
+        border-radius: 20px;
         overflow: hidden;
+        border: 1px solid var(--color-piedra-borde) !important;
+        background: white;
         max-width: 600px;
-        margin: 2rem auto;
+        margin: 0 auto;
     }
 
-    .delete-header {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-        padding: 2rem;
+    .header-danger-piedra {
+        background: linear-gradient(135deg, #8d6e63 0%, #5d4037 100%);
+        padding: 2.5rem;
         text-align: center;
-    }
-
-    .delete-body {
-        padding: 2rem;
-        background: #FAFAF8;
-    }
-
-    .btn-delete {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        border: none;
         color: white;
-        padding: 0.75rem 2rem;
-        font-weight: 500;
-        border-radius: 8px;
+    }
+
+    .btn-piedra-danger {
+        background: linear-gradient(135deg, #e57373 0%, #d32f2f 100%);
+        border: none;
+        color: white !important;
+        font-weight: 600;
+        padding: 0.8rem 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(211, 47, 47, 0.2);
         transition: all 0.3s ease;
     }
 
-    .btn-delete:hover {
+    .btn-piedra-danger:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
-        color: white;
-    }
-
-    .btn-cancel {
-        background: rgba(139, 115, 85, 0.15);
-        border: 1px solid rgba(139, 115, 85, 0.25);
-        color: #8B7355;
-        padding: 0.75rem 2rem;
-        font-weight: 500;
-        border-radius: 8px;
-    }
-
-    .btn-cancel:hover {
-        background: rgba(139, 115, 85, 0.25);
-        color: #6F5B44;
+        box-shadow: 0 6px 20px rgba(211, 47, 47, 0.3);
+        filter: brightness(1.1);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="margin-top: 80px;">
+<div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-lg-6">
-            <div class="delete-container">
-                <div class="delete-header">
-                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
-                    <h4 class="mb-0" style="font-weight: 600; font-family: 'Poppins', sans-serif;">
-                        Confirmar Eliminación
-                    </h4>
-                    <p class="mb-0 mt-2" style="font-size: 0.9rem; opacity: 0.9;">
-                        Esta acción no se puede deshacer
-                    </p>
+        <div class="col-lg-12">
+            <div class="card card-premium shadow-lg border-0">
+                <div class="header-danger-piedra">
+                    <div class="p-3 bg-white bg-opacity-20 rounded-circle d-inline-block mb-3">
+                        <i class="fas fa-exclamation-triangle fa-3x text-white"></i>
+                    </div>
+                    <h2 class="fw-bold mb-0">Confirmar Eliminación</h2>
+                    <p class="mb-0 opacity-75 mt-2">Esta acción eliminará permanentemente la lista de precios</p>
                 </div>
 
-                <div class="delete-body">
-                    <div class="text-center mb-4">
-                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
-                            <i class="fas fa-tags fa-2x text-white"></i>
-                        </div>
-                        <h5 style="color: #2c3e50; font-weight: 600; margin-bottom: 10px;">{{ lista.nombre }}</h5>
-                        <p class="text-muted mb-0">{{ lista.descripcion|default:"Sin descripción" }}</p>
+                <div class="card-body p-5">
+                    <div class="text-center mb-5">
+                        <span class="badge rounded-pill px-4 py-2 mb-3" style="background: rgba(141, 110, 99, 0.1); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); font-size: 0.9rem;">
+                            <i class="fas fa-tag me-2"></i>LISTA SELECCIONADA
+                        </span>
+                        <h3 class="fw-bold" style="color: var(--color-piedra-texto);">{{ lista.nombre }}</h3>
+                        <p class="text-muted">{{ lista.descripcion|default:"Sin descripción adicional" }}</p>
                     </div>
 
-                    <div class="alert alert-warning" style="border: none; border-radius: 10px; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107;">
-                        <div class="d-flex align-items-start">
-                            <i class="fas fa-exclamation-triangle fa-2x text-warning me-3 mt-1"></i>
+                    <div class="alert p-4" style="background: rgba(141, 110, 99, 0.05); border: 1px dashed var(--color-piedra-borde); border-radius: 15px;">
+                        <div class="d-flex align-items-center">
+                            <div class="p-3 rounded-circle me-3" style="background: rgba(211, 47, 47, 0.1); color: #d32f2f;">
+                                <i class="fas fa-info-circle fa-lg"></i>
+                            </div>
                             <div>
-                                <h6 class="alert-heading" style="font-weight: 600;">¿Estás seguro?</h6>
-                                <p class="mb-0">
-                                    Se eliminará la lista de precios "{{ lista.nombre }}" y todos los precios asociados a esta lista.
+                                <h6 class="fw-bold mb-1" style="color: var(--color-piedra-texto);">Aviso Importante</h6>
+                                <p class="mb-0 text-muted small">
+                                    Al eliminar esta lista, todos los precios asociados a los artículos en esta categoría se perderán. Las ventas históricas no se verán afectadas.
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <form method="post" class="d-flex justify-content-between mt-4">
+                    <form method="post" class="mt-5">
                         {% csrf_token %}
-                        <a href="{% url 'articulos:lista_precio_list' %}" class="btn btn-cancel">
-                            <i class="fas fa-arrow-left me-2"></i>Cancelar
-                        </a>
-                        <button type="submit" class="btn btn-delete">
-                            <i class="fas fa-trash me-2"></i>Eliminar Lista
-                        </button>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'articulos:lista_precio_list' %}" class="btn px-4" style="background: rgba(93, 64, 55, 0.05); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 10px; font-weight: 500;">
+                                <i class="fas fa-arrow-left me-2"></i>Mantener Lista
+                            </a>
+                            <button type="submit" class="btn btn-piedra-danger px-5">
+                                <i class="fas fa-trash-alt me-2"></i>Eliminar Definitivamente
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>

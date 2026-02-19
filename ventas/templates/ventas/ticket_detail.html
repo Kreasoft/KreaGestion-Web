@@ -2,210 +2,229 @@
 {% load static %}
 {% load articulo_filters %}
 
-{% block title %}Detalle Ticket #{{ ticket.numero_venta }} - GestionCloud{% endblock %}
+{% block title %}Detalle {% if ticket.tipo_documento == 'ticket' %}Ticket{% else %}Vale{% endif %} #{{ ticket.numero_venta }} - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 48px; height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    .btn-back { background: rgba(255,255,255,0.6); border: 1px solid #D4C4A8; color: var(--stone-secondary); transition: all 0.2s; }
+    .btn-back:hover { background: white; color: var(--stone-primary); }
+
+    .btn-action-primary { background: var(--stone-primary); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; }
+
+    /* TABLA PIEDRA */
+    .table-piedra { width: 100%; border-collapse: collapse; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 12px 15px;
+    }
+    .table-piedra tbody tr { border-bottom: 1px solid #F5F1E8; transition: all 0.2s; }
+    .table-piedra tbody tr:hover { background-color: #F5F1E8; }
+    .table-piedra tbody td { padding: 8px 15px; vertical-align: middle; font-size: 0.85rem; color: #4A5568; }
+    .table-piedra tfoot td {
+        background: #FAFAF8; border-top: 2px solid #E8DCC8; font-weight: 700; color: var(--stone-text); padding: 10px 15px;
+    }
+
+    /* INFO CARDS */
+    .stone-card-info {
+        background: white; border: 1px solid #E8DCC8; border-radius: 12px; height: 100%; overflow: hidden;
+    }
+    .stone-card-header {
+        background: #FAFAF8; border-bottom: 1px solid #E8DCC8; padding: 0.75rem 1rem;
+        font-size: 0.8rem; font-weight: 700; color: #8B7355; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .stone-card-body { padding: 1.25rem; }
+
+    .label-stone { font-size: 0.75rem; color: #8B7355; font-weight: 600; text-transform: uppercase; margin-bottom: 0.2rem; display: block; }
+    .value-stone { font-size: 0.95rem; color: #2D3748; font-weight: 500; }
+
+    /* Ocultar top-bar original */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
-    <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
-        <!-- Header -->
-        <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; padding: 15px 20px; border-bottom: 3px solid #D4C4A8;">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-receipt me-3" style="font-size: 1.8rem; color: #F5F1E8;"></i>
-                        <div>
-                            <h5 class="mb-1" style="font-weight: 600; font-size: 1.3rem; font-family: 'Poppins', sans-serif;">
-                                Detalle Ticket #{{ ticket.numero_venta }}
-                            </h5>
-                            <small style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: #F5F1E8;">
-                                {{ ticket.fecha_creacion|date:"d/m/Y H:i:s" }}
-                            </small>
-                        </div>
-                    </div>
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- HEADER -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-receipt"></i>
                 </div>
-                <div class="col-md-4 text-end">
-                    <a href="{% url 'ventas:ticket_list' %}" class="btn btn-sm me-2" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: white; padding: 4px 12px; font-size: 0.75rem;">
-                        <i class="fas fa-arrow-left me-1"></i>Volver
-                    </a>
-                    <a href="{% url 'ventas:ticket_reimprimir' ticket.pk %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; padding: 4px 12px; font-size: 0.75rem;" target="_blank">
-                        <i class="fas fa-print me-1"></i>Imprimir
-                    </a>
+                <div class="header-text">
+                    <h1>Detalle de <span class="fw-bold">{% if ticket.tipo_documento == 'ticket' %}Ticket Facturable{% else %}Vale Interno{% endif %}</span></h1>
+                    <p>Comprobante de venta #{{ ticket.numero_venta }}</p>
                 </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% if ticket.tipo_documento == 'ticket' %}{% url 'ventas:ticket_list' %}{% else %}{% url 'ventas:vale_list' %}{% endif %}" class="btn btn-back btn-sm fw-bold px-3 py-2">
+                    <i class="fas fa-arrow-left me-2"></i> Volver al Listado
+                </a>
+                <a href="{% url 'ventas:ticket_reimprimir' ticket.pk %}" class="btn btn-action-primary btn-sm fw-bold px-3 py-2" target="_blank">
+                    <i class="fas fa-print me-2"></i> Imprimir
+                </a>
             </div>
         </div>
 
-        <div class="card-body" style="background: #FAFAF8; padding: 20px;">
-            <div class="row">
-                <!-- Información del Ticket -->
-                <div class="col-md-6 mb-3">
-                    <div class="card" style="border: 1px solid #E8DCC8; border-radius: 10px;">
-                        <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-bottom: 2px solid #D4C4A8; padding: 10px 15px;">
-                            <h6 class="mb-0" style="color: #6F5B44; font-weight: 600;">
-                                <i class="fas fa-info-circle me-2"></i>Información General
-                            </h6>
+        <div class="card-body p-4">
+            
+            <div class="row g-4 mb-4">
+                <!-- Info General -->
+                <div class="col-md-6">
+                    <div class="stone-card-info">
+                        <div class="stone-card-header">
+                            <i class="fas fa-info-circle me-2"></i>Información General
                         </div>
-                        <div class="card-body" style="padding: 15px;">
-                            <div class="row mb-2">
+                        <div class="stone-card-body">
+                            <div class="row g-3">
                                 <div class="col-6">
-                                    <small class="text-muted" style="font-size: 0.75rem;">Cliente:</small>
-                                    <p class="mb-0" style="font-weight: 600; color: #6F5B44; font-size: 0.85rem;">
-                                        {{ ticket.cliente.nombre|default:"Sin cliente" }}
-                                    </p>
+                                    <span class="label-stone">Cliente</span>
+                                    <div class="value-stone">{{ ticket.cliente.nombre|default:"Consumidor Final" }}</div>
                                 </div>
                                 <div class="col-6">
-                                    <small class="text-muted" style="font-size: 0.75rem;">Vendedor:</small>
-                                    <p class="mb-0" style="font-weight: 600; color: #6F5B44; font-size: 0.85rem;">
-                                        {{ ticket.vendedor.nombre|default:"Sin vendedor" }}
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-6">
-                                    <small class="text-muted" style="font-size: 0.75rem;">Estación:</small>
-                                    <p class="mb-0" style="font-weight: 600; color: #6F5B44; font-size: 0.85rem;">
-                                        {{ ticket.estacion_trabajo.nombre|default:"Sin estación" }}
-                                    </p>
+                                    <span class="label-stone">Vendedor</span>
+                                    <div class="value-stone">{{ ticket.vendedor.nombre|default:"N/A" }}</div>
                                 </div>
                                 <div class="col-6">
-                                    <small class="text-muted" style="font-size: 0.75rem;">Estado:</small>
-                                    <p class="mb-0">
+                                    <span class="label-stone">Estación</span>
+                                    <div class="value-stone">{{ ticket.estacion_trabajo.nombre|default:"N/A" }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <span class="label-stone">Estado</span>
+                                    <div>
                                         {% if ticket.estado == 'confirmada' %}
-                                        <span class="badge bg-success" style="font-size: 0.75rem;">Confirmada</span>
+                                        <span class="badge bg-success">Confirmada</span>
                                         {% elif ticket.estado == 'anulada' %}
-                                        <span class="badge bg-danger" style="font-size: 0.75rem;">Anulada</span>
+                                        <span class="badge bg-danger">Anulada</span>
                                         {% else %}
-                                        <span class="badge bg-warning text-dark" style="font-size: 0.75rem;">Borrador</span>
+                                        <span class="badge bg-warning text-dark">Borrador</span>
                                         {% endif %}
-                                    </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Totales -->
-                <div class="col-md-6 mb-3">
-                    <div class="card" style="border: 1px solid #E8DCC8; border-radius: 10px;">
-                        <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-bottom: 2px solid #D4C4A8; padding: 10px 15px;">
-                            <h6 class="mb-0" style="color: #6F5B44; font-weight: 600;">
-                                <i class="fas fa-dollar-sign me-2"></i>Totales
-                            </h6>
+                <!-- Resumen Valores -->
+                <div class="col-md-6">
+                     <div class="stone-card-info">
+                        <div class="stone-card-header">
+                            <i class="fas fa-calculator me-2"></i>Resumen de Valores
                         </div>
-                        <div class="card-body" style="padding: 15px;">
-                            <div class="row mb-2">
-                                <div class="col-6">
-                                    <small class="text-muted" style="font-size: 0.75rem;">Subtotal:</small>
-                                    <p class="mb-0" style="font-weight: 600; color: #6F5B44; font-size: 0.9rem;">
-                                        ${{ ticket.subtotal|format_price }}
-                                    </p>
-                                </div>
-                                <div class="col-6">
-                                    <small class="text-muted" style="font-size: 0.75rem;">Descuento:</small>
-                                    <p class="mb-0" style="font-weight: 600; color: #dc3545; font-size: 0.9rem;">
-                                        ${{ ticket.descuento|format_price }}
-                                    </p>
-                                </div>
+                        <div class="stone-card-body">
+                             <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted small">Subtotal:</span>
+                                <span class="fw-bold text-dark">${{ ticket.subtotal|format_price }}</span>
                             </div>
-                            <div class="row mb-2">
-                                <div class="col-6">
-                                    <small class="text-muted" style="font-size: 0.75rem;">IVA:</small>
-                                    <p class="mb-0" style="font-weight: 600; color: #6F5B44; font-size: 0.9rem;">
-                                        ${{ ticket.iva|format_price }}
-                                    </p>
-                                </div>
-                                <div class="col-6">
-                                    <small class="text-muted" style="font-size: 0.75rem;">Total:</small>
-                                    <p class="mb-0" style="font-weight: 700; color: #8B7355; font-size: 1.2rem;">
-                                        ${{ ticket.total|format_price }}
-                                    </p>
-                                </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted small">Descuento:</span>
+                                <span class="fw-bold text-danger">-${{ ticket.descuento|format_price }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="text-muted small">IVA:</span>
+                                <span class="fw-bold text-dark">${{ ticket.iva|format_price }}</span>
+                            </div>
+                            <hr class="my-2 opacity-25">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="h6 mb-0 text-dark fw-bold">TOTAL</span>
+                                <span class="h4 mb-0 text-dark fw-bold">${{ ticket.total|format_price }}</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Detalle de Productos -->
-            <div class="card" style="border: 1px solid #E8DCC8; border-radius: 10px;">
-                <div class="card-header" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); border-bottom: 2px solid #D4C4A8; padding: 10px 15px;">
-                    <h6 class="mb-0" style="color: #6F5B44; font-weight: 600;">
-                        <i class="fas fa-box me-2"></i>Productos
-                    </h6>
+            <!-- Tabla de Ítems -->
+            <div class="stone-card-info">
+                <div class="stone-card-header">
+                    <i class="fas fa-boxes me-2"></i>Ítems del Comprobante
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0 table-compact">
-                            <thead>
-                                <tr>
-                                    <th style="width: 10%;">Código</th>
-                                    <th style="width: 40%;">Producto</th>
-                                    <th style="width: 10%; text-align: center;">Cantidad</th>
-                                    <th style="width: 15%; text-align: right;">Precio Unit.</th>
-                                    <th style="width: 15%; text-align: right;">Subtotal</th>
-                                    <th style="width: 10%; text-align: right;">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for detalle in ticket.ventadetalle_set.all %}
-                                <tr style="border-bottom: 1px solid #F5F1E8;">
-                                    <td style="font-size: 0.75rem; color: #6c757d;">
-                                        {{ detalle.articulo.codigo }}
-                                    </td>
-                                    <td style="font-size: 0.75rem;">
-                                        <strong style="color: #495057;">{{ detalle.articulo.nombre }}</strong>
-                                    </td>
-                                    <td style="font-size: 0.75rem; text-align: center; color: #6c757d;">
-                                        {{ detalle.cantidad }}
-                                    </td>
-                                    <td style="font-size: 0.75rem; text-align: right; color: #6c757d;">
-                                        ${{ detalle.precio_unitario|format_price }}
-                                    </td>
-                                    <td style="font-size: 0.75rem; text-align: right; color: #6c757d;">
-                                        ${{ detalle.precio_total|format_price }}
-                                    </td>
-                                    <td style="font-size: 0.8rem; text-align: right; font-weight: 600; color: #6F5B44;">
-                                        ${{ detalle.precio_total|format_price }}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="table-responsive">
+                    <table class="table-piedra">
+                        <thead>
+                            <tr>
+                                <th width="15%">Código</th>
+                                <th width="45%">Producto</th>
+                                <th width="10%" class="text-center">Cant.</th>
+                                <th width="15%" class="text-end">Unitario</th>
+                                <th width="15%" class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for detalle in ticket.ventadetalle_set.all %}
+                            <tr>
+                                <td class="text-muted small">{{ detalle.articulo.codigo|default:"N/A" }}</td>
+                                <td class="fw-bold text-dark">{{ detalle.articulo.nombre }}</td>
+                                <td class="text-center">{{ detalle.cantidad }}</td>
+                                <td class="text-end text-muted">${{ detalle.precio_unitario|format_price }}</td>
+                                <td class="text-end fw-bold text-dark">${{ detalle.precio_total|format_price }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
+
         </div>
     </div>
 </div>
-
-<style>
-.table-compact {
-    font-size: 0.75rem;
-    line-height: 1.1;
-}
-
-.table-compact thead th {
-    padding: 8px 6px;
-    font-weight: 600;
-    background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-    color: white;
-    border: none;
-    font-size: 0.75rem;
-    text-align: left;
-    white-space: nowrap;
-    line-height: 1.1;
-}
-
-.table-compact tbody td {
-    padding: 8px 6px;
-    vertical-align: middle;
-    line-height: 1.2;
-}
-
-.table-compact tbody tr:hover {
-    background-color: #F5F1E8;
-    transition: background-color 0.2s ease;
-}
-</style>
 {% endblock %}

@@ -3,96 +3,337 @@
 {% load humanize %}
 {% load format_filters %}
 
-{% block title %}Informe de Stock Actual{% endblock %}
+{% block title %}Informe de Stock Actual - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block extra_css %}
 <style>
+    /* VARIABLES ESTILO PIEDRA PREMIUM */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #43A047;
+        --stone-danger: #e53935;
+        --stone-warning: #FB8C00;
+        --stone-info: #039BE5;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+    
     @media print { .no-print { display: none !important; } }
-    .stat-card { background: white; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
-    .stat-value { font-size: 1.5rem; font-weight: 600; color: #8B7355; margin: 0; }
-    .stat-label { font-size: 0.75rem; color: #6c757d; margin: 0; }
-    .tabla-informe thead { background: #8B7355; color: white; }
-    .tabla-informe tbody tr:hover { background: #f8f9fa; }
-    .tabla-informe th, .tabla-informe td { padding: 0.5rem !important; font-size: 0.875rem; }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.25rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .header-icon-box {
+        width: 52px; height: 52px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 14px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text h1 span { font-weight: 700; }
+    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* ESTADISTICAS */
+    .stone-stats-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .stone-stat-card {
+        background: #FFFFFF;
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        padding: 1rem 1rem 1rem 1.5rem;
+        padding-right: 70px; /* Space for icon */
+        display: flex;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+        min-height: 80px;
+    }
+    .stone-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(139, 115, 85, 0.1); }
+    
+    .stat-content { display: flex; flex-direction: column; position: relative; z-index: 1; }
+    .stat-label { font-size: 0.75rem; color: #8D6E63; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+    .stat-value { font-size: 1.25rem; font-weight: 700; color: var(--stone-text); margin-top: 0.25rem; }
+    
+    .stat-icon { 
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 3rem;
+        opacity: 0.15;
+    }
+
+    /* TARJETAS COLOREADAS */
+    .card-primary { background: linear-gradient(135deg, #fdfbf7 0%, #ffffff 100%); }
+    .card-success { background: linear-gradient(135deg, #f1f8e9 0%, #ffffff 100%); }
+    .card-info { background: linear-gradient(135deg, #e1f5fe 0%, #ffffff 100%); }
+    
+    .card-primary .stat-icon { color: var(--stone-primary); }
+    .card-success .stat-icon { color: var(--stone-success); }
+    .card-info .stat-icon { color: var(--stone-info); }
+
+    /* ACTION BUTTONS */
+    .btn-action-secondary {
+        background: white; border: 1px solid var(--stone-light); color: var(--stone-text);
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-action-secondary:hover { background: var(--stone-bg); transform: translateY(-1px); }
+
+    .btn-action-primary {
+        background: var(--stone-primary); border: none; color: white;
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2);
+        transition: all 0.2s;
+    }
+    .btn-action-primary:hover { background: var(--stone-secondary); transform: translateY(-1px); color: white; }
+    
+    .btn-action-success {
+        background: var(--stone-success); border: none; color: white;
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        box-shadow: 0 4px 12px rgba(67, 160, 71, 0.2);
+        transition: all 0.2s;
+    }
+    .btn-action-success:hover { background: #388E3C; transform: translateY(-1px); color: white; }
+
+    /* TABLA */
+    .table-container {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--stone-light);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+    
     .stock-bajo { color: #dc3545; font-weight: 600; }
-    .stock-ok { color: #28a745; }
+    .stock-bajo { color: #dc3545; font-weight: 600; }
+    .stock-ok { color: #28a745; font-weight: 600; }
+
+    /* FILTROS */
+    .stone-filter-box {
+        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;
+    }
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.5rem 0.75rem; font-size: 0.85rem; background-color: white; width: 100%; color: var(--stone-text);
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+
+    /* PAGINACIÓN */
+    .page-link { color: var(--stone-secondary); border-color: #E8DCC8; }
+    .page-link:hover { color: var(--stone-primary); background-color: #FAFAF8; }
+    .page-item.active .page-link { background-color: var(--stone-primary); border-color: var(--stone-primary); color: white; }
+
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Header -->
-    <div class="row mb-3 no-print">
-        <div class="col-md-8">
-            <h5 class="mb-1" style="color: #2c3e50;"><i class="fas fa-boxes me-2" style="color: #8B7355;"></i>Stock Actual</h5>
-            <small class="text-muted">Inventario por bodega</small>
-        </div>
-        <div class="col-md-4 text-end">
-            <a href="{% url 'informes:dashboard' %}" class="btn btn-sm btn-outline-secondary me-1"><i class="fas fa-arrow-left"></i></a>
-            <a href="{% url 'informes:exportar_stock_excel' %}" class="btn btn-sm btn-success me-1"><i class="fas fa-file-excel"></i></a>
-            <button onclick="window.print()" class="btn btn-sm" style="background: #8B7355; color: white;"><i class="fas fa-print"></i></button>
-        </div>
-    </div>
-
-    <!-- Resumen -->
-    <div class="row mb-3">
-        <div class="col-md-6 mb-2">
-            <div class="stat-card">
-                <p class="stat-label">Total Artículos</p>
-                <p class="stat-value">{{ total_articulos|default:0|format_miles }}</p>
-            </div>
-        </div>
-        <div class="col-md-6 mb-2">
-            <div class="stat-card">
-                <p class="stat-label">Valorización Total</p>
-                <p class="stat-value">${{ total_valorizacion|default:0|format_miles }}</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tabla -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0 tabla-informe">
-                            <thead>
-                                <tr>
-                                    <th>Bodega</th>
-                                    <th>Código</th>
-                                    <th>Artículo</th>
-                                    <th class="text-end">Stock</th>
-                                    <th class="text-end">Precio Prom.</th>
-                                    <th class="text-end">Valorización</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for stock in stocks %}
-                                <tr>
-                                    <td><small class="text-muted">{{ stock.bodega.nombre }}</small></td>
-                                    <td><small class="text-muted">{{ stock.articulo.codigo }}</small></td>
-                                    <td>{{ stock.articulo.nombre }}</td>
-                                    <td class="text-end {% if stock.cantidad <= stock.articulo.stock_minimo %}stock-bajo{% else %}stock-ok{% endif %}">
-                                        {{ stock.cantidad|floatformat:0 }}
-                                    </td>
-                                    <td class="text-end">${{ stock.precio_promedio|format_miles }}</td>
-                                    <td class="text-end">${{ stock.valorizacion|format_miles }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center py-3">
-                                        <small class="text-muted">No hay stock registrado</small>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- Header Premium -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    {% if request.empresa.logo %}
+                        <img src="{{ request.empresa.logo.url }}" alt="Logo" style="max-width: 80%; max-height: 80%; object-fit: contain;">
+                    {% else %}
+                        <i class="fas fa-boxes"></i>
+                    {% endif %}
+                </div>
+                <div class="header-text">
+                    <h1>Stock <span>Actual</span></h1>
+                    <p>Inventario valorizado por bodega</p>
                 </div>
             </div>
+            <div class="d-flex gap-2 no-print">
+                <a href="{% url 'informes:dashboard' %}" class="btn-action-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+                <button onclick="window.print()" class="btn-action-secondary">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+                <a href="{% url 'informes:exportar_stock_excel' %}?{% for key, value in request.GET.items %}{{ key }}={{ value }}&{% endfor %}" class="btn-action-success">
+                    <i class="fas fa-file-excel"></i> Exportar
+                </a>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            
+            <!-- Estadísticas -->
+            <div class="stone-stats-container mb-4">
+                <div class="stone-stat-card card-primary">
+                    <div class="stat-content">
+                        <span class="stat-label">Total Artículos</span>
+                        <span class="stat-value text-primary">{{ total_articulos|default:0|format_miles }}</span>
+                    </div>
+                    <i class="fas fa-cubes stat-icon"></i>
+                </div>
+                <!-- Card adicional para balancear el grid si fuera necesario -->
+                <div class="stone-stat-card card-success">
+                    <div class="stat-content">
+                        <span class="stat-label">Valorización Total</span>
+                        <span class="stat-value text-success">${{ total_valorizacion|default:0|format_miles }}</span>
+                    </div>
+                    <i class="fas fa-dollar-sign stat-icon"></i>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="stone-filter-box">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Bodega</label>
+                        <select name="bodega" class="form-select-stone">
+                            <option value="">Todas</option>
+                            {% for b in bodegas %}
+                                <option value="{{ b.id }}" {% if bodega_id == b.id|stringformat:"s" %}selected{% endif %}>{{ b.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Categoría</label>
+                        <select name="categoria" class="form-select-stone">
+                            <option value="">Todas</option>
+                            {% for c in categorias %}
+                                <option value="{{ c.id }}" {% if categoria_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1">Buscar</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0" style="border-color: #D4C4A8;"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" name="search" class="form-control form-control-stone border-start-0" 
+                                   placeholder="Nombre, código..." value="{{ search }}" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                        </div>
+                    </div>
+                    <div class="col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn-action-primary w-100 justify-content-center">
+                            <i class="fas fa-filter me-2"></i> Filtrar
+                        </button>
+                        <a href="{% url 'informes:stock_actual' %}" class="btn-action-secondary px-3" title="Limpiar">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tabla de Resultados -->
+            <div class="table-container">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 tabla-informe" style="width: 100%; border-collapse: collapse; font-family: 'Poppins', sans-serif;">
+                        <thead>
+                            <tr>
+                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Bodega</th>
+                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Código</th>
+                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Artículo</th>
+                                <th class="text-end" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Stock</th>
+                                <th class="text-end" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Precio Prom.</th>
+                                <th class="text-end" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 1rem 1.5rem;">Valorización</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stock in page_obj %}
+                            <tr style="border-bottom: 1px solid #F5F1E8; height: 32px;">
+                                <td style="padding: 0.25rem 1.5rem; vertical-align: middle;"><small class="text-muted">{{ stock.bodega.nombre }}</small></td>
+                                <td style="padding: 0.25rem 1.5rem; vertical-align: middle;"><small class="text-muted">{{ stock.articulo.codigo }}</small></td>
+                                <td style="padding: 0.25rem 1.5rem; color: #5D4037; vertical-align: middle;">{{ stock.articulo.nombre }}</td>
+                                <td class="text-end {% if stock.cantidad <= stock.articulo.stock_minimo %}stock-bajo{% else %}stock-ok{% endif %}" style="padding: 0.25rem 1.5rem; font-weight: 600; vertical-align: middle;">
+                                    {{ stock.cantidad|floatformat:0 }}
+                                </td>
+                                <td class="text-end" style="padding: 0.25rem 1.5rem; color: #5D4037; vertical-align: middle;">${{ stock.precio_promedio|default:0|format_miles }}</td>
+                                <td class="text-end" style="padding: 0.25rem 1.5rem; color: #5D4037; vertical-align: middle;">${{ stock.valorizacion|default:0|format_miles }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="text-muted d-flex flex-column align-items-center">
+                                        <i class="fas fa-boxes fa-2x mb-2" style="opacity: 0.3;"></i>
+                                        No hay stock registrado
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                </div>
+                
+                <!-- Paginación -->
+                {% if page_obj.has_other_pages %}
+                <div class="d-flex justify-content-center mt-4 border-top pt-3">
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item"><a class="page-link" href="?page=1{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">«</a></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">‹</a></li>
+                            {% endif %}
+                            <li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+                            {% if page_obj.has_next %}
+                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">›</a></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if bodega_id %}&bodega={{ bodega_id }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">»</a></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Información de impresión -->
+            <div class="row mt-4 d-none d-print-block">
+                <div class="col-12 text-center">
+                    <p class="text-muted small mb-0">
+                        Generado el {{ now|date:"d/m/Y H:i" }} - {{ request.empresa.nombre }}
+                    </p>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>

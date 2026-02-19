@@ -76,6 +76,17 @@ class Cliente(models.Model):
         help_text="Ruta asignada para el despacho de productos a este cliente"
     )
     
+    # Vendedor asignado (Para centralización en preventa móvil)
+    vendedor = models.ForeignKey(
+        'ventas.Vendedor',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='clientes_asignados',
+        verbose_name="Vendedor Asignado",
+        help_text="Vendedor responsable de este cliente"
+    )
+    
     # Información adicional
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     fecha_alta = models.DateField(default=timezone.now, verbose_name="Fecha de Alta")

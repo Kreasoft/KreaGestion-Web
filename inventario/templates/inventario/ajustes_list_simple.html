@@ -1,185 +1,309 @@
 {% extends "base.html" %}
+{% load format_filters %}
+{% load static %}
 
 {% block body_class %}hide-top-bar{% endblock %}
-{% load format_filters %}
 
 {% block title %}Ajustes de Stock - GestionCloud{% endblock %}
 
-{% block extra_head %}
+{% block extra_css %}
+<!-- Select2 CSS (Opcional, pero recomendado si hay filtros complejos) -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
-    body {
-        background: #FAFAF8 !important;
-        min-height: 100vh;
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+
+        /* SOFT UI PALETTE */
+        --soft-blue: #9ab8cd;
+        --soft-red: #f4d1d1;
+        --soft-orange: #e39d7e;
+        --soft-green: #c6d8e5;
+        --soft-crema: #fdf5e6;
     }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 48px; height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    /* BOTONES */
+    .header-btn {
+        padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.2s; border: 1px solid transparent; cursor: pointer;
+    }
+    .btn-action-primary { background: var(--stone-primary); color: white; border: none; }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; }
+    
+    .btn-limpiar { border: 1px solid #D4C4A8; color: #6F5B44; background: white; }
+    .btn-limpiar:hover { background: #f8f9fa; border-color: #8B7355; color: #8B7355; }
+
+    /* STATS CARDS */
+    .stat-card {
+        border: none; border-radius: 20px; transition: all 0.3s ease; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.03); 
+        height: 100%; position: relative; overflow: hidden;
+        padding: 1.25rem !important;
+        border: 1px solid rgba(0,0,0,0.02);
+    }
+    .stat-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.06); }
+    
+    .stat-card-1 { background-color: var(--soft-blue); }
+    .stat-card-2 { background-color: var(--soft-green); }
+    .stat-card-3 { background-color: var(--soft-red); }
+    .stat-card-4 { background-color: var(--soft-orange); }
+    
+    .stat-value { font-size: 1.6rem; font-weight: 800; color: #3E2723; margin-bottom: 2px; }
+    .stat-label { color: #5D4037; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; opacity: 0.8; }
+    .stat-icon { 
+        font-size: 4rem; 
+        color: rgba(0,0,0,0.05); 
+        position: absolute; 
+        right: -10px; 
+        top: 50%; 
+        transform: translateY(-50%);
+        height: 100%;
+        display: flex;
+        align-items: center;
+    }
+
+    /* FILTROS */
+    .stone-filter-box {
+        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;
+    }
+    .form-control-stone, .form-select-stone {
+        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.4rem 0.75rem; font-size: 0.85rem; background-color: white; width: 100%; color: var(--stone-text);
+    }
+    .form-control-stone:focus, .form-select-stone:focus {
+        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+
+    /* TABLA PIEDRA */
+    .table-piedra { width: 100%; border-collapse: collapse; }
+    .table-piedra thead th {
+        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 12px 15px;
+    }
+    .table-piedra tbody tr { height: 32px !important; transition: all 0.2s ease; border-bottom: 1px solid #F5F1E8; }
+    .table-piedra tbody tr:hover { background-color: #FDFCFB; }
+    .table-piedra tbody td { 
+        padding: 0 15px; 
+        vertical-align: middle; 
+        font-size: 0.82rem; 
+        color: #4A5568; 
+        white-space: nowrap; 
+        height: 32px !important;
+    }
+
+    /* BADGES */
+    .badge-stone { padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; display: inline-block; }
+    .bg-entrada { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+    .bg-salida { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+
+    /* ACCIONES */
+    .btn-icon-stone {
+        width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E8DCC8; background: white; color: var(--stone-secondary); transition: all 0.2s;
+    }
+    .btn-icon-stone:hover { background: var(--stone-primary); color: white; border-color: var(--stone-primary); }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+<div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
-                <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border-bottom: 3px solid #D4C4A8; padding: 15px 20px;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-adjust me-3" style="font-size: 1.8rem; color: #F5F1E8;"></i>
-                            <div>
-                                <h5 class="mb-1" style="font-size: 1.3rem; font-weight: 600; color: white;">
-                                    Ajustes de Stock
-                                </h5>
-                                <small style="font-size: 0.75rem; color: #F5F1E8;">
-                                    Control de entradas y salidas de inventario
-                                </small>
-                            </div>
+            
+            <!-- STATS -->
+
+
+            <div class="single-card-container">
+                <!-- HEADER -->
+                <div class="stone-header-premium">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="header-icon-box">
+                            <i class="fas fa-adjust"></i>
                         </div>
-                        <div class="d-flex gap-2">
-                            <a href="{% url 'inventario:ajuste_create_simple' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
-                                <i class="fas fa-plus me-1"></i> Nuevo Ajuste
-                            </a>
+                        <div class="header-text">
+                            <h1>Ajustes de <span class="fw-bold">Stock</span></h1>
+                            <p>Control de entradas y salidas de inventario</p>
                         </div>
+                    </div>
+                    <div>
+                        <button type="button" class="header-btn btn-action-primary" onclick="crearAjuste()">
+                            <i class="fas fa-plus me-2"></i> Nuevo Ajuste
+                        </button>
                     </div>
                 </div>
 
-                <div class="card-body" style="background: #FAFAF8; padding: 15px;">
-                    <!-- Estadísticas -->
-                    <div class="row g-2 mb-3">
+                <!-- BODY -->
+                <div class="card-body p-4">
+
+                    <!-- STATS -->
+                    <div class="row g-3 mb-4">
                         <div class="col-md-3">
-                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Total Ajustes</div>
-                                            <div style="font-size: 1.3rem; color: #8B7355; font-weight: 700;">{{ total_ajustes|default:0 }}</div>
-                                        </div>
-                                        <i class="fas fa-adjust" style="font-size: 1.5rem; color: rgba(139, 115, 85, 0.3);"></i>
-                                    </div>
-                                </div>
+                            <div class="stat-card stat-card-1 p-3">
+                                <div class="stat-value">{{ total_ajustes|default:0 }}</div>
+                                <div class="stat-label">Total Ajustes</div>
+                                <i class="fas fa-adjust stat-icon"></i>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Entradas</div>
-                                            <div style="font-size: 1.3rem; color: #8B7355; font-weight: 700;">{{ ajustes_entrada|default:0 }}</div>
-                                        </div>
-                                        <i class="fas fa-arrow-up" style="font-size: 1.5rem; color: rgba(40, 167, 69, 0.5);"></i>
-                                    </div>
-                                </div>
+                            <div class="stat-card stat-card-2 p-3">
+                                <div class="stat-value">{{ ajustes_entrada|default:0 }}</div>
+                                <div class="stat-label">Entradas</div>
+                                <i class="fas fa-arrow-up stat-icon"></i>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Salidas</div>
-                                            <div style="font-size: 1.3rem; color: #8B7355; font-weight: 700;">{{ ajustes_salida|default:0 }}</div>
-                                        </div>
-                                        <i class="fas fa-arrow-down" style="font-size: 1.5rem; color: rgba(220, 53, 69, 0.5);"></i>
-                                    </div>
-                                </div>
+                            <div class="stat-card stat-card-3 p-3">
+                                <div class="stat-value">{{ ajustes_salida|default:0 }}</div>
+                                <div class="stat-label">Salidas</div>
+                                <i class="fas fa-arrow-down stat-icon"></i>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card h-100" style="border: 1px solid #E8DCC8; border-radius: 8px; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Este Mes</div>
-                                            <div style="font-size: 1.3rem; color: #8B7355; font-weight: 700;">{{ total_ajustes|default:0 }}</div>
-                                        </div>
-                                        <i class="fas fa-calendar" style="font-size: 1.5rem; color: rgba(139, 115, 85, 0.3);"></i>
-                                    </div>
-                                </div>
+                            <div class="stat-card stat-card-4 p-3">
+                                <div class="stat-value">{{ total_ajustes|default:0 }}</div>
+                                <div class="stat-label">Este Mes</div>
+                                <i class="fas fa-calendar stat-icon"></i>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Filtros -->
-                    <div class="card mb-3" style="border: 1px solid #E8DCC8; border-radius: 8px;">
-                        <div class="card-body p-2">
-                            <form method="get">
-                                <div class="row g-2">
-                                    <div class="col-md-3">
-                                        <select name="bodega" class="form-select form-select-sm" style="border: 1px solid #D4C4A8;">
-                                            <option value="">Todas las bodegas</option>
-                                            {% for bod in bodegas %}
-                                            <option value="{{ bod.id }}">{{ bod.nombre }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <input type="date" name="fecha_desde" class="form-control form-control-sm" style="border: 1px solid #D4C4A8;">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <input type="date" name="fecha_hasta" class="form-control form-control-sm" style="border: 1px solid #D4C4A8;">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <select name="tipo" class="form-select form-select-sm" style="border: 1px solid #D4C4A8;">
-                                            <option value="">Todos los tipos</option>
-                                            <option value="entrada">Entradas</option>
-                                            <option value="salida">Salidas</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="d-flex gap-1">
-                                            <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; font-size: 0.75rem;">
-                                                <i class="fas fa-filter me-1"></i> Filtrar
-                                            </button>
-                                            <a href="{% url 'inventario:ajustes_list' %}" class="btn btn-sm btn-outline-secondary" style="border-color: #D4C4A8; color: #6c757d; font-size: 0.75rem;">
-                                                <i class="fas fa-times me-1"></i> Limpiar
-                                            </a>
-                                        </div>
-                                    </div>
+                    
+                    <!-- FILTROS -->
+                     <div class="stone-filter-box">
+                        <form method="get" class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted mb-1">Bodega</label>
+                                <select name="bodega" class="form-select-stone">
+                                    <option value="">Todas las bodegas</option>
+                                    {% for bod in bodegas %}
+                                    <option value="{{ bod.id }}" {% if request.GET.bodega == bod.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ bod.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted mb-1">Fecha</label>
+                                <div class="input-group">
+                                    <input type="date" name="fecha_desde" class="form-control-stone" style="border-radius: 8px 0 0 8px;" value="{{ request.GET.fecha_desde }}">
+                                    <input type="date" name="fecha_hasta" class="form-control-stone" style="border-radius: 0 8px 8px 0; border-left: 0;" value="{{ request.GET.fecha_hasta }}">
                                 </div>
-                            </form>
-                        </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted mb-1">Tipo de Ajuste</label>
+                                <select name="tipo" class="form-select-stone">
+                                    <option value="">Todos los tipos</option>
+                                    <option value="entrada" {% if request.GET.tipo == 'entrada' %}selected{% endif %}>Entradas</option>
+                                    <option value="salida" {% if request.GET.tipo == 'salida' %}selected{% endif %}>Salidas</option>
+                                </select>
+                            </div>
+                             <div class="col-md-3">
+                                <div class="d-flex gap-2">
+                                     <button type="submit" class="header-btn btn-action-primary w-100 justify-content-center">
+                                        <i class="fas fa-filter me-2"></i> Filtrar
+                                    </button>
+                                    <a href="{% url 'inventario:ajustes_list' %}" class="header-btn btn-limpiar w-100 justify-content-center">
+                                        <i class="fas fa-times me-2"></i> Limpiar
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
                     </div>
 
-                    <!-- Tabla -->
+                    <!-- TABLA -->
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0" style="font-size: 0.7rem;">
-                            <thead style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%); color: #6F5B44;">
+                        <table class="table-piedra">
+                            <thead>
                                 <tr>
-                                    <th style="padding: 6px 8px; font-weight: 600; font-size: 0.65rem;">Fecha</th>
-                                    <th style="padding: 6px 8px; font-weight: 600; font-size: 0.65rem;">Folio</th>
-                                    <th style="padding: 6px 8px; font-weight: 600; font-size: 0.65rem;">Tipo</th>
-                                    <th style="padding: 6px 8px; font-weight: 600; font-size: 0.65rem;">Artículo</th>
-                                    <th style="padding: 6px 8px; font-weight: 600; font-size: 0.65rem;">Bodega</th>
-                                    <th style="padding: 6px 8px; font-weight: 600; font-size: 0.65rem; text-align: right;">Cantidad</th>
-                                    <th style="padding: 6px 8px; font-weight: 600; font-size: 0.65rem;">Descripción</th>
-                                    <th style="padding: 6px 8px; font-weight: 600; font-size: 0.65rem;">Usuario</th>
-                                    <th style="padding: 6px 8px; font-weight: 600; font-size: 0.65rem; width: 80px;">Acciones</th>
+                                    <th>Fecha</th>
+                                    <th>Folio</th>
+                                    <th>Tipo</th>
+                                    <th>Artículo</th>
+                                    <th>Bodega</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th>Descripción</th>
+                                    <th>Usuario</th>
+                                    <th class="text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for ajuste in ajustes %}
-                                <tr style="border-bottom: 1px solid #F5F1E8;">
-                                    <td style="padding: 4px 8px; font-size: 0.7rem;">{{ ajuste.fecha_movimiento|date:"d/m/y H:i" }}</td>
-                                    <td style="padding: 4px 8px; font-weight: 600; font-size: 0.7rem;">{{ ajuste.numero_folio|default:"-" }}</td>
-                                    <td style="padding: 4px 8px;">
+                                <tr>
+                                    <td>{{ ajuste.fecha_movimiento|date:"d/m/y H:i" }}</td>
+                                    <td><strong style="color: var(--stone-primary);">{{ ajuste.numero_folio|default:"-" }}</strong></td>
+                                    <td>
                                         {% if ajuste.cantidad > 0 %}
-                                        <span class="badge" style="background: #28A745; font-size: 0.6rem; padding: 2px 6px;">ENT</span>
+                                            <span class="badge-stone bg-entrada">ENT</span>
                                         {% else %}
-                                        <span class="badge" style="background: #DC3545; font-size: 0.6rem; padding: 2px 6px;">SAL</span>
+                                            <span class="badge-stone bg-salida">SAL</span>
                                         {% endif %}
                                     </td>
-                                    <td style="padding: 4px 8px; font-size: 0.7rem;">{{ ajuste.articulo.nombre|truncatewords:3 }}</td>
-                                    <td style="padding: 4px 8px; font-size: 0.7rem;">{{ ajuste.bodega_destino.nombre|default:"-" }}</td>
-                                    <td style="padding: 4px 8px; text-align: right; font-weight: 700; font-size: 0.75rem; {% if ajuste.cantidad > 0 %}color: #28A745;{% else %}color: #DC3545;{% endif %}">
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 200px;" title="{{ ajuste.articulo.nombre }}">
+                                            {{ ajuste.articulo.nombre }}
+                                        </div>
+                                    </td>
+                                    <td>{{ ajuste.bodega_destino.nombre|default:"-" }}</td>
+                                    <td class="text-end fw-bold {% if ajuste.cantidad > 0 %}text-success{% else %}text-danger{% endif %}">
                                         {% if ajuste.cantidad > 0 %}+{% endif %}{{ ajuste.cantidad|format_miles }}
                                     </td>
-                                    <td style="padding: 4px 8px; font-size: 0.7rem;">{{ ajuste.descripcion|truncatewords:3|default:"-" }}</td>
-                                    <td style="padding: 4px 8px; font-size: 0.65rem;">{{ ajuste.creado_por.username|default:"-" }}</td>
-                                    <td style="padding: 4px 8px;">
-                                        <div class="d-flex gap-1">
-                                            <button type="button" class="btn btn-sm btn-ver" data-id="{{ ajuste.id|stringformat:'d' }}" style="padding: 2px 6px; font-size: 0.6rem; background: #F5F1E8; border: 1px solid #E8DCC8; color: #6F5B44;">
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 150px;">
+                                            {{ ajuste.descripcion|default:"-" }}
+                                        </div>
+                                    </td>
+                                    <td><small class="text-muted">{{ ajuste.creado_por.username|default:"-" }}</small></td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <button type="button" class="btn-icon-stone btn-ver" data-id="{{ ajuste.id|stringformat:'d' }}" title="Ver Detalle">
                                                 <i class="fas fa-eye"></i>
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-editar" data-id="{{ ajuste.id|stringformat:'d' }}" style="padding: 2px 6px; font-size: 0.6rem; background: #8B7355; color: white;">
+                                            <button type="button" class="btn-icon-stone btn-editar" data-id="{{ ajuste.id|stringformat:'d' }}" title="Editar">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                         </div>
@@ -187,43 +311,46 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="9" class="text-center" style="padding: 40px;">
-                                        <i class="fas fa-inbox" style="font-size: 3rem; color: #D4C4A8; margin-bottom: 10px;"></i>
-                                        <p style="color: #8B7355; margin: 0;">No hay ajustes registrados</p>
+                                    <td colspan="9" class="text-center py-5">
+                                        <div class="d-flex flex-column align-items-center opacity-50">
+                                            <i class="fas fa-inbox fa-3x mb-3 text-muted"></i>
+                                            <h6 class="fw-bold text-muted">No hay ajustes registrados</h6>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal para detalle -->
-<div class="modal fade" id="detalleModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content" id="detalleContent">
+<!-- Modal para detalle con fondo transparente para dejar que el partial cargue su header -->
+<div class="modal fade" id="detalleModal">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <!-- Contenido transparente -->
+        <div class="modal-content shadow-lg border-0" id="detalleContent" style="background: transparent; border-radius: 16px;">
             <!-- El contenido se cargará aquí -->
+            <div class="text-center py-5" style="background: white; border-radius: 16px;">
+                <div class="spinner-border text-secondary" role="status"></div>
+                <p class="mt-2 text-muted small">Cargando...</p>
+            </div>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-// Versión 2.0 - Corregido para usar data-id
+// Versión Stone Premium
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Script de ajustes cargado - v2.0');
-    
     // Event delegation para botones de ver y editar
     document.addEventListener('click', function(e) {
         const btnVer = e.target.closest('.btn-ver');
         if (btnVer) {
             const ajusteId = btnVer.getAttribute('data-id');
-            console.log('Ver ajuste - ID desde data-id:', ajusteId);
             verDetalle(ajusteId);
             return;
         }
@@ -231,7 +358,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const btnEditar = e.target.closest('.btn-editar');
         if (btnEditar) {
             const ajusteId = btnEditar.getAttribute('data-id');
-            console.log('Editar ajuste - ID desde data-id:', ajusteId);
             editarAjuste(ajusteId);
             return;
         }
@@ -239,36 +365,56 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function verDetalle(ajusteId) {
+    const modalElement = document.getElementById('detalleModal');
+    const modalContent = document.getElementById('detalleContent');
+    
+    // Reset loading state
+    modalContent.innerHTML = `
+        <div class="text-center py-5" style="background: white; border-radius: 16px;">
+            <div class="spinner-border text-secondary" role="status"></div>
+            <p class="mt-2 text-muted small">Cargando detalle...</p>
+        </div>`;
+    
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+
     fetch('/inventario/ajustes/' + ajusteId + '/')
         .then(response => response.text())
         .then(html => {
-            document.getElementById('detalleContent').innerHTML = html;
-            const modal = new bootstrap.Modal(document.getElementById('detalleModal'));
-            modal.show();
+            modalContent.innerHTML = html;
         })
         .catch(error => {
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: 'No se pudo cargar el detalle del ajuste'
+                text: 'No se pudo cargar el detalle del ajuste',
+                confirmButtonColor: '#8B7355'
             });
+            modal.hide();
         });
 }
 
 function editarAjuste(ajusteId) {
-    console.log('Editando ajuste ID:', ajusteId, 'Tipo:', typeof ajusteId);
+    const modalElement = document.getElementById('detalleModal');
+    const modalContent = document.getElementById('detalleContent');
     const url = '/inventario/ajustes/' + ajusteId + '/editar/';
-    console.log('URL:', url);
+    
+    // Reset loading state
+    modalContent.innerHTML = `
+        <div class="text-center py-5" style="background: white; border-radius: 16px;">
+            <div class="spinner-border text-secondary" role="status"></div>
+            <p class="mt-2 text-muted small">Cargando formulario...</p>
+        </div>`;
+    
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
     
     fetch(url)
         .then(response => response.text())
         .then(html => {
-            document.getElementById('detalleContent').innerHTML = html;
-            const modal = new bootstrap.Modal(document.getElementById('detalleModal'));
-            modal.show();
-            
+            modalContent.innerHTML = html;
             // Ejecutar scripts del modal
-            const scripts = document.getElementById('detalleContent').querySelectorAll('script');
+            const scripts = modalContent.querySelectorAll('script');
             scripts.forEach(script => {
                 const newScript = document.createElement('script');
                 if (script.src) {
@@ -284,8 +430,53 @@ function editarAjuste(ajusteId) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: 'No se pudo cargar el formulario de edición'
+                text: 'No se pudo cargar el formulario de edición',
+                confirmButtonColor: '#8B7355'
             });
+            modal.hide();
+        });
+}
+
+function crearAjuste() {
+    const modalElement = document.getElementById('detalleModal');
+    const modalContent = document.getElementById('detalleContent');
+    const url = '{% url "inventario:ajuste_create_simple" %}';
+    
+    // Reset loading state
+    modalContent.innerHTML = `
+        <div class="text-center py-5" style="background: white; border-radius: 16px;">
+            <div class="spinner-border text-secondary" role="status"></div>
+            <p class="mt-2 text-muted small">Cargando formulario...</p>
+        </div>`;
+    
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+    
+    fetch(url)
+        .then(response => response.text())
+        .then(html => {
+            modalContent.innerHTML = html;
+            // Ejecutar scripts del modal
+            const scripts = modalContent.querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                if (script.src) {
+                    newScript.src = script.src;
+                } else {
+                    newScript.textContent = script.textContent;
+                }
+                document.body.appendChild(newScript);
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo cargar el formulario',
+                confirmButtonColor: '#8B7355'
+            });
+            modal.hide();
         });
 }
 </script>

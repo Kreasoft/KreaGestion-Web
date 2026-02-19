@@ -95,12 +95,14 @@ class ItemOrdenCompraForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Hacer impuesto_porcentaje opcional
+        # Hacer campos opcionales para permitir filas vacías (que tienen impuesto hidden)
+        # La validación real se hace en clean()
         self.fields['impuesto_porcentaje'].required = False
-        
-        # Hacer artículo opcional en el formulario base, pero validaremos en clean()
-        # Esto permite que el formset ignore items sin artículo
         self.fields['articulo'].required = False
+        self.fields['cantidad_solicitada'].required = False
+        self.fields['precio_unitario'].required = False
+        self.fields['descuento_porcentaje'].required = False
+        self.fields['fecha_entrega_item'].required = False
         
         # Filtrar artículos por empresa - esto se hará en la vista
         # La empresa se pasará a través del contexto del template

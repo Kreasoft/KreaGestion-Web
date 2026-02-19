@@ -5,29 +5,126 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Estilos Piedra y Variables */
+    :root {
+        --color-piedra-primario: #8B7355;
+        --color-piedra-secundario: #6F5B44;
+        --color-piedra-claro: #E8DCC8;
+        --color-piedra-fondo: #FAFAF8;
+        --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --color-piedra-texto: #5D4037;
+        --color-piedra-borde: #D4C4A8;
+    }
+
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+
+    .card-piedra {
+        border: 2px solid #E8DCC8; 
+        border-radius: 15px; 
+        overflow: hidden; 
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        background: white;
+    }
+
+    .table-piedra {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .table-piedra thead th {
+        background: #FDFCFB;
+        border-bottom: 2px solid #E8DCC8;
+        color: #8B7355;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        padding: 12px 15px;
+    }
+
+    .table-piedra tbody tr {
+        height: 32px;
+        transition: all 0.2s ease;
+    }
+
+    .table-piedra tbody tr:nth-of-type(odd) {
+        background-color: rgba(245, 241, 232, 0.3);
+    }
+
+    .table-piedra tbody tr:nth-of-type(even) {
+        background-color: white;
+    }
+
+    .table-piedra tbody tr:hover {
+        background-color: #F5F1E8 !important;
+    }
+
+    .table-piedra tbody td {
+        padding: 5px 15px;
+        border-bottom: 1px solid #F5F1E8;
+        vertical-align: middle;
+        font-size: 0.85rem;
+        color: #4A5568;
+    }
+    
+    .btn-action-piedra {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border: 1px solid #D4C4A8;
+        border-radius: 4px;
+        color: #8B7355;
+        font-size: 0.7rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .btn-action-piedra:hover {
+        background: #8B7355;
+        color: white !important;
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-lg" style="border: none; border-radius: 15px; overflow: hidden;">
+            <div class="card card-piedra">
                 <!-- Header -->
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; padding: 15px 20px; font-family: 'Poppins', sans-serif;">
+                <!-- Header con Estilo Piedra Premium -->
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
                     <div class="row align-items-center">
                         <div class="col-md-8">
                             <div class="d-flex align-items-center">
-                                <i class="fas fa-user me-3" style="font-size: 1.8rem; color: #F4E4BC;"></i>
+                                <i class="fas fa-user-circle me-3" style="font-size: 2.2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
                                 <div>
-                                    <h4 class="mb-1" style="font-weight: 600; font-size: 1.4rem; font-family: 'Poppins', sans-serif;">{{ cliente.nombre }}</h4>
-                                    <small style="font-size: 0.9rem; opacity: 0.9; font-family: 'Poppins', sans-serif;">{{ cliente.get_rut_formateado }} - {{ cliente.get_tipo_cliente_display }}</small>
+                                    <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
+                                        {{ cliente.nombre }}
+                                    </h2>
+                                    <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                                        {{ cliente.get_rut_formateado }} - <span class="fw-bold">{{ cliente.get_tipo_cliente_display }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-4 text-end">
-                            <a href="{% url 'clientes:cliente_list' %}" class="btn btn-light btn-sm me-2" style="font-family: 'Poppins', sans-serif;">
-                                <i class="fas fa-arrow-left me-2"></i>Volver
+                            <a href="{% url 'clientes:cliente_list' %}" class="btn btn-sm me-2" style="background: white; border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                                <i class="fas fa-arrow-left me-1"></i>Volver
                             </a>
-                            <a href="{% url 'clientes:cliente_update' cliente.pk %}" class="btn btn-warning btn-sm" style="font-family: 'Poppins', sans-serif;">
-                                <i class="fas fa-edit me-2"></i>Editar
+                            <a href="{% url 'clientes:cliente_update' cliente.pk %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                                <i class="fas fa-edit me-1"></i>Editar
                             </a>
                         </div>
                     </div>
@@ -35,6 +132,7 @@
 
                 <!-- Contenido con pestañas -->
                 <div class="card-body p-0">
+                    <!-- Pestañas -->
                     <!-- Pestañas -->
                     <ul class="nav nav-tabs" id="clienteDetailTabs" role="tablist" style="border-bottom: 2px solid #e9ecef; margin: 0; font-family: 'Poppins', sans-serif;">
                         <li class="nav-item" role="presentation">
@@ -105,13 +203,27 @@
                                                 </div>
                                             </div>
                                             
-                                            <div class="info-item">
-                                                <div class="info-label">
-                                                    <i class="fas fa-id-card"></i>
-                                                    <span>RUT</span>
-                                                </div>
-                                                <div class="info-value">{{ cliente.get_rut_formateado }}</div>
-                                            </div>
+                                             <div class="info-item">
+                                                 <div class="info-label">
+                                                     <i class="fas fa-id-card"></i>
+                                                     <span>RUT</span>
+                                                 </div>
+                                                 <div class="info-value">{{ cliente.get_rut_formateado }}</div>
+                                             </div>
+
+                                             <div class="info-item">
+                                                 <div class="info-label">
+                                                     <i class="fas fa-user-tie"></i>
+                                                     <span>Vendedor</span>
+                                                 </div>
+                                                 <div class="info-value">
+                                                     {% if cliente.vendedor %}
+                                                         <span class="fw-bold" style="color: #8B7355;">{{ cliente.vendedor.nombre }}</span>
+                                                     {% else %}
+                                                         <span class="text-muted italic">Sin vendedor asignado</span>
+                                                     {% endif %}
+                                                 </div>
+                                             </div>
                                             
                                             {% if cliente.giro %}
                                             <div class="info-item">
@@ -429,14 +541,14 @@
 
 <style>
 .nav-tabs .nav-link.active {
-    background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%) !important;
+    background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%) !important;
     color: white !important;
     border-bottom: 2px solid #8B7355 !important;
 }
 
 .nav-tabs .nav-link:hover {
     background-color: #f8f9fa !important;
-    color: #6B8E23 !important;
+    color: #8B7355 !important;
 }
 
 /* Cards de Información */

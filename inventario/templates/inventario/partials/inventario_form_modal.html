@@ -1,90 +1,131 @@
 {% load widget_tweaks %}
 
-<form id="inventarioFormModal" action="{{ action_url }}" method="post" class="p-3">
+<form id="inventarioFormModal" action="{{ action_url }}" method="post" class="p-4" style="background-color: #FAFAF8;">
   {% csrf_token %}
 
   {% if form.non_field_errors %}
-    <div class="alert alert-danger">
+    <div class="alert alert-danger" style="border-radius: 8px; font-size: 0.9rem;">
       {% for error in form.non_field_errors %}
         {{ error }}
       {% endfor %}
     </div>
   {% endif %}
 
-  <div class="row">
-    <div class="col-md-6 mb-3">
-      <label class="form-label fw-bold">Tipo de Movimiento *</label>
-      {% render_field form.tipo_movimiento class="form-select" id="id_tipo_movimiento_modal" %}
-      {% for error in form.tipo_movimiento.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+  <div class="row g-3">
+    <!-- Tipo de Movimiento -->
+    <div class="col-md-6">
+      <label class="form-label" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">Tipo de Movimiento <span class="text-danger">*</span></label>
+      {% render_field form.tipo_movimiento class="form-select" id="id_tipo_movimiento_modal" style="border-radius: 8px; border: 1px solid #D4C4A8; height: 38px;" %}
+      {% for error in form.tipo_movimiento.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
     </div>
-    <div class="col-md-6 mb-3">
-      <label class="form-label fw-bold">Artículo *</label>
-      {% render_field form.articulo class="form-select" %}
-      {% for error in form.articulo.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+
+    <!-- Artículo -->
+    <div class="col-md-6">
+      <label class="form-label" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">Artículo <span class="text-danger">*</span></label>
+      {% render_field form.articulo class="form-select select-terroso" style="border-radius: 8px; border: 1px solid #D4C4A8; height: 38px;" %}
+      {% for error in form.articulo.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+    </div>
+
+    <!-- Bodega Origen -->
+    <div class="col-md-6" id="bodega_origen_wrapper_modal" style="display: none;">
+      <label class="form-label" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">Bodega Origen <span class="text-danger">*</span></label>
+      {% render_field form.bodega_origen class="form-select" style="border-radius: 8px; border: 1px solid #D4C4A8; height: 38px;" %}
+      {% for error in form.bodega_origen.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+    </div>
+
+    <!-- Bodega Destino -->
+    <div class="col-md-6" id="bodega_destino_wrapper_modal" style="display: none;">
+      <label class="form-label" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">Bodega Destino <span class="text-danger">*</span></label>
+      {% render_field form.bodega_destino class="form-select" style="border-radius: 8px; border: 1px solid #D4C4A8; height: 38px;" %}
+      {% for error in form.bodega_destino.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+    </div>
+
+    <!-- Cantidad -->
+    <div class="col-md-6">
+      <label class="form-label" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">Cantidad <span class="text-danger">*</span></label>
+      {% render_field form.cantidad class="form-control" style="border-radius: 8px; border: 1px solid #D4C4A8; height: 38px;" %}
+      {% for error in form.cantidad.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+    </div>
+
+    <!-- Precio Unitario -->
+    <div class="col-md-6">
+      <label class="form-label" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">Precio Unitario</label>
+      {% render_field form.precio_unitario class="form-control" style="border-radius: 8px; border: 1px solid #D4C4A8; height: 38px;" %}
+      {% for error in form.precio_unitario.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+    </div>
+
+    <!-- Descripción / Motivo -->
+    <div class="col-12">
+      <label class="form-label" style="color: #6F5B44; font-weight: 600; font-size: 0.85rem;">Descripción / Motivo</label>
+      {% render_field form.descripcion class="form-control" rows="3" style="border-radius: 8px; border: 1px solid #D4C4A8;" %}
+      {% for error in form.descripcion.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-6 mb-3" id="bodega_origen_wrapper_modal" style="display: none;">
-      <label class="form-label fw-bold">Bodega Origen *</label>
-      {% render_field form.bodega_origen class="form-select" %}
-      {% for error in form.bodega_origen.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-    </div>
-    <div class="col-md-6 mb-3" id="bodega_destino_wrapper_modal" style="display: none;">
-      <label class="form-label fw-bold">Bodega Destino *</label>
-      {% render_field form.bodega_destino class="form-select" %}
-      {% for error in form.bodega_destino.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="col-md-6 mb-3">
-      <label class="form-label fw-bold">Cantidad *</label>
-      {% render_field form.cantidad class="form-control" %}
-      {% for error in form.cantidad.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-    </div>
-    <div class="col-md-6 mb-3">
-      <label class="form-label fw-bold">Precio Unitario</label>
-      {% render_field form.precio_unitario class="form-control" %}
-      {% for error in form.precio_unitario.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-    </div>
-  </div>
-
-  <div class="mb-3">
-    <label class="form-label fw-bold">Descripción / Motivo</label>
-    {% render_field form.descripcion class="form-control" rows="2" %}
-    {% for error in form.descripcion.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-  </div>
-
-  <div class="d-flex justify-content-between mt-4">
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-    <button type="submit" class="btn btn-primary">{{ submit_text|default:"Guardar" }}</button>
+  <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top" style="border-color: #E8DCC8 !important;">
+    <button type="button" class="btn" data-bs-dismiss="modal" style="background: #F5F1E8; color: #8B7355; border: 1px solid #D4C4A8; font-weight: 500; padding: 8px 16px; border-radius: 8px;">
+        <i class="fas fa-times me-1"></i> Cancelar
+    </button>
+    <button type="submit" class="btn" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; font-weight: 500; padding: 8px 24px; border-radius: 8px; box-shadow: 0 4px 6px rgba(139,115,85,0.2);">
+        <i class="fas fa-save me-1"></i> {{ submit_text|default:"Guardar" }}
+    </button>
   </div>
 </form>
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const tipoMovimientoSelect = document.getElementById('id_tipo_movimiento_modal');
+    // Si el elemento no existe (porque quizás se cargó mal), salir
+    if (!tipoMovimientoSelect) return;
+
     const bodegaOrigenWrapper = document.getElementById('bodega_origen_wrapper_modal');
     const bodegaDestinoWrapper = document.getElementById('bodega_destino_wrapper_modal');
 
     function toggleBodegaFields() {
       const tipo = tipoMovimientoSelect.value;
+      if (!tipo) return;
+
       bodegaOrigenWrapper.style.display = 'none';
       bodegaDestinoWrapper.style.display = 'none';
+      
+      // Aseguramos que los inputs requeridos se limpien o ajusten según lógica de backend
+      // Pero aquí solo controlamos visibilidad
+      
+      const tipoLower = tipo.toLowerCase();
 
-      if (tipo === 'entrada') {
-        bodegaDestinoWrapper.style.display = 'block';
-      } else if (tipo === 'salida') {
-        bodegaOrigenWrapper.style.display = 'block';
-      } else if (tipo === 'transferencia') {
-        bodegaOrigenWrapper.style.display = 'block';
-        bodegaDestinoWrapper.style.display = 'block';
+      if (tipoLower === 'entrada' || tipo === '1') { // Ajustar según valores reales (ID o código)
+         // Asumimos código string 'entrada', 'salida', etc.
+         if (tipo.includes('entrada')) bodegaDestinoWrapper.style.display = 'block';
+         else if (tipo.includes('salida')) bodegaOrigenWrapper.style.display = 'block';
+         else if (tipo.includes('transferencia')) {
+           bodegaOrigenWrapper.style.display = 'block';
+           bodegaDestinoWrapper.style.display = 'block';
+         }
+      } else {
+         // Fallback a lógica original más simple si los valores son strings directos
+          if (tipo === 'entrada') {
+            bodegaDestinoWrapper.style.display = 'block';
+          } else if (tipo === 'salida') {
+            bodegaOrigenWrapper.style.display = 'block';
+          } else if (tipo === 'transferencia') {
+            bodegaOrigenWrapper.style.display = 'block';
+            bodegaDestinoWrapper.style.display = 'block';
+          }
       }
     }
 
     tipoMovimientoSelect.addEventListener('change', toggleBodegaFields);
     // Ejecutar al inicio por si hay un valor preseleccionado
     toggleBodegaFields();
+    
+    // Inicializar Select2 si está disponible y los elementos tienen la clase
+    if (window.jQuery && $.fn.select2) {
+        $('.select-terroso').select2({
+            theme: 'default',
+            width: '100%',
+            dropdownParent: $('#modalInventarioForm'), // Asegura que el dropdown funcione en el modal
+            placeholder: 'Seleccione un artículo'
+        });
+    }
   });
 </script>

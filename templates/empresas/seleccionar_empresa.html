@@ -2,208 +2,335 @@
 
 {% block title %}Seleccionar Empresa - GestionCloud{% endblock %}
 
-{% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-lg">
-                <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-exchange-alt fa-2x text-white me-3"></i>
-                            <div>
-                                <h4 class="mb-0 text-white">Seleccionar Empresa</h4>
-                                <small class="text-white-50">Cambie la empresa activa del sistema</small>
-                            </div>
-                        </div>
-                        <a href="{% url 'empresas:home' %}" class="btn btn-terroso-outline-light">
-                            <i class="fas fa-arrow-left me-2"></i>Volver
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body p-4">
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
+{% block body_class %}hide-top-bar{% endblock %}
 
-                    <form method="post">
-                        {% csrf_token %}
-                        
-                        {% if empresas %}
-                            <div class="mb-4">
-                                <h5 class="mb-3" style="color: #6F5B44;">
-                                    <i class="fas fa-building me-2" style="color: #8B7355;"></i>Empresas Disponibles
-                                </h5>
-                                
-                                {% for empresa in empresas %}
-                                    <div class="card mb-3 empresa-card {% if empresa_actual and empresa.id == empresa_actual.id %}empresa-activa{% endif %}">
-                                        <div class="card-body">
-                                            <div class="form-check">
-                                                <input class="form-check-input empresa-radio" type="radio" name="empresa_id" 
-                                                       value="{{ empresa.id }}" id="empresa_{{ empresa.id }}"
-                                                       {% if empresa_actual and empresa.id == empresa_actual.id %}checked{% endif %}>
-                                                <label class="form-check-label w-100" for="empresa_{{ empresa.id }}">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <div>
-                                                            <h6 class="mb-1" style="color: #6F5B44;">
-                                                                <i class="fas fa-building me-2" style="color: #8B7355;"></i>
-                                                                {{ empresa.nombre }}
-                                                            </h6>
-                                                            <p class="mb-1 text-muted">
-                                                                <i class="fas fa-id-card me-2" style="color: #A0826D;"></i>
-                                                                RUT: {{ empresa.rut }}
-                                                            </p>
-                                                            {% if empresa.direccion %}
-                                                                <p class="mb-0 text-muted small">
-                                                                    <i class="fas fa-map-marker-alt me-2" style="color: #A0826D;"></i>
-                                                                    {{ empresa.direccion }}
-                                                                </p>
-                                                            {% endif %}
-                                                        </div>
-                                                        {% if empresa_actual and empresa.id == empresa_actual.id %}
-                                                            <span class="badge badge-terroso">
-                                                                <i class="fas fa-check me-1"></i>Activa
-                                                            </span>
-                                                        {% endif %}
-                                                    </div>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                            
-                            <div class="d-flex justify-content-end gap-3">
-                                <a href="{% url 'empresas:home' %}" class="btn btn-terroso-outline">
-                                    <i class="fas fa-times me-2"></i>Cancelar
-                                </a>
-                                <button type="submit" class="btn btn-terroso">
-                                    <i class="fas fa-check me-2"></i>Seleccionar Empresa
-                                </button>
-                            </div>
-                        {% else %}
-                            <div class="text-center py-5">
-                                <i class="fas fa-building fa-4x text-muted mb-3"></i>
-                                <h5 class="text-muted">No hay empresas disponibles</h5>
-                                <p class="text-muted">No se encontraron empresas en el sistema.</p>
-                                <a href="{% url 'empresas:empresa_create' %}" class="btn btn-terroso">
-                                    <i class="fas fa-plus me-2"></i>Crear Primera Empresa
-                                </a>
-                            </div>
-                        {% endif %}
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
+{% block extra_css %}
 <style>
-    /* Estilos Terrosos */
-    .btn-terroso {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        border: none;
-        color: white;
-        font-weight: 600;
-        padding: 10px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 15px rgba(111, 91, 68, 0.3);
-        transition: all 0.3s ease;
+    /* VARIABLES ESTILO STONE PREMIUM */
+    :root {
+        --stone-primary: #C2B7AE;
+        --stone-secondary: #AAA098;
+        --stone-light: #F2EFE9;
+        --stone-bg: #FCFBF9;
+        --stone-gradient: linear-gradient(135deg, #F8F8F8 0%, #EEEEEE 100%);
+        --stone-text: #6B6560;
+        --stone-card-bg: #FFFFFF;
+        --stone-success: #556B2F;
+        --stone-danger: #e53935;
+        --stone-warning: #FB8C00;
+        --stone-info: #039BE5;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1.25rem 2rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
     }
     
-    .btn-terroso:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(111, 91, 68, 0.4);
-        color: white;
-        background: linear-gradient(135deg, #6F5B44 0%, #8B7355 100%);
+    .header-icon-box {
+        width: 52px; height: 52px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 14px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text h1 span { font-weight: 700; }
+    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* ACTION BUTTONS */
+    .btn-action-secondary {
+        background: white; border: 1px solid var(--stone-light); color: var(--stone-text);
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-action-secondary:hover { background: var(--stone-bg); transform: translateY(-1px); }
+
+    /* ESTILOS EMPRESA */
+    .empresa-card-container {
+        position: relative;
+        cursor: pointer;
     }
     
-    .btn-terroso-outline {
-        background: transparent;
-        border: 2px solid #8B7355;
-        color: #8B7355;
-        font-weight: 500;
-        padding: 8px 18px;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-terroso-outline:hover {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-        border-color: #8B7355;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
-    }
-    
-    .btn-terroso-outline-light {
-        background: transparent;
-        border: 2px solid rgba(255, 255, 255, 0.5);
-        color: white;
-        font-weight: 500;
-        padding: 8px 18px;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-terroso-outline-light:hover {
-        background: rgba(255, 255, 255, 0.2);
-        border-color: white;
-        color: white;
-        transform: translateY(-2px);
-    }
-    
-    .badge-terroso {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-weight: 500;
-        box-shadow: 0 2px 8px rgba(111, 91, 68, 0.3);
-    }
-    
-    /* Tarjetas de empresa */
     .empresa-card {
-        transition: all 0.3s ease;
-        border: 2px solid #E8DCC8;
-        border-radius: 8px;
-        background: white;
+        background: #FFFFFF;
+        border: 1px solid var(--stone-light);
+        border-radius: 12px;
+        padding: 1.25rem;
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
     }
     
     .empresa-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
-        border-color: #D4C4A8;
+        box-shadow: 0 8px 15px rgba(170, 160, 152, 0.15);
+        border-color: var(--stone-primary);
     }
     
-    .empresa-card.empresa-activa {
-        border-color: #8B7355 !important;
-        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
-        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.2);
+    .empresa-check-wrapper {
+        position: relative;
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
     }
     
-    .empresa-radio:checked + .form-check-label .empresa-card {
-        border-color: #8B7355;
-        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+    .empresa-radio {
+        opacity: 0;
+        position: absolute;
+        width: 100%; height: 100%;
+        cursor: pointer;
+        z-index: 2;
     }
     
-    .form-check-input.empresa-radio {
-        border-color: #8B7355;
+    .custom-radio {
+        width: 24px; height: 24px;
+        border: 2px solid var(--stone-secondary);
+        border-radius: 50%;
+        position: absolute;
+        top: 0; left: 0;
+        transition: all 0.2s;
+        display: flex; align-items: center; justify-content: center;
     }
     
-    .form-check-input.empresa-radio:checked {
-        background-color: #8B7355;
-        border-color: #8B7355;
+    .custom-radio::after {
+        content: '';
+        width: 12px; height: 12px;
+        background: var(--stone-primary);
+        border-radius: 50%;
+        transform: scale(0);
+        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     
-    .form-check-input.empresa-radio:focus {
-        border-color: #8B7355;
-        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
+    .empresa-radio:checked + .custom-radio {
+        border-color: var(--stone-primary);
+        box-shadow: 0 0 0 4px rgba(194, 183, 174, 0.2);
     }
+    
+    .empresa-radio:checked + .custom-radio::after {
+        transform: scale(1);
+    }
+    
+    .empresa-radio:checked ~ .empresa-content {
+        /* Styles for checked state if needed */
+    }
+    
+    /* Highlight the whole card on check */
+    .empresa-card:has(.empresa-radio:checked) {
+        border-color: var(--stone-primary);
+        background: linear-gradient(135deg, #FCFBF9 0%, #F5F1E8 100%);
+        box-shadow: 0 4px 12px rgba(170, 160, 152, 0.2);
+    }
+
+    .empresa-icon {
+        width: 50px; height: 50px;
+        background: var(--stone-light);
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        color: var(--stone-secondary);
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+    
+    .empresa-info h5 {
+        color: var(--stone-text);
+        font-weight: 600;
+        margin: 0 0 0.25rem 0;
+        font-size: 1.1rem;
+    }
+    
+    .empresa-info p {
+        color: #8D8176;
+        margin: 0;
+        font-size: 0.9rem;
+    }
+    
+    .active-badge {
+        background: var(--stone-success);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: auto;
+        display: flex; align-items: center; gap: 0.25rem;
+    }
+
+    /* BUTTONS */
+    .btn-stone-primary {
+        background: linear-gradient(135deg, #C2B7AE 0%, #AAA098 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        box-shadow: 0 4px 6px rgba(170, 160, 152, 0.2);
+        display: inline-flex; align-items: center; gap: 0.5rem;
+    }
+    .btn-stone-primary:hover {
+        background: linear-gradient(135deg, #CFC5BC 0%, #B8AEA6 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(170, 160, 152, 0.25);
+        color: white;
+    }
+    
+    .btn-stone-secondary {
+        background: white;
+        border: 1px solid var(--stone-light);
+        color: var(--stone-text);
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+    }
+    .btn-stone-secondary:hover {
+        background: var(--stone-bg);
+        border-color: var(--stone-primary);
+        color: var(--stone-primary);
+    }
+
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- Header Premium -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Seleccionar <span>Empresa</span></h1>
+                    <p>Cambie la empresa activa para operar en el sistema</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'empresas:home' %}" class="btn-action-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver al Inicio
+                </a>
+            </div>
+        </div>
+
+        <div class="card-body p-4 pt-3">
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-4" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" id="form-empresa">
+                {% csrf_token %}
+                
+                {% if empresas %}
+                    <h5 class="mb-4" style="color: var(--stone-text); font-weight: 600; border-bottom: 2px solid var(--stone-light); padding-bottom: 0.75rem;">
+                        <i class="fas fa-building me-2" style="color: var(--stone-primary);"></i>Empresas Disponibles
+                    </h5>
+                    
+                    <div class="d-flex flex-column gap-3 mb-5">
+                        {% for empresa in empresas %}
+                            <label class="empresa-card-container">
+                                <div class="empresa-card">
+                                    <div class="empresa-check-wrapper">
+                                        <input class="empresa-radio" type="radio" name="empresa_id" 
+                                               value="{{ empresa.id }}" id="empresa_{{ empresa.id }}"
+                                               {% if empresa_actual and empresa.id == empresa_actual.id %}checked{% endif %}>
+                                        <span class="custom-radio"></span>
+                                    </div>
+                                    
+                                    <div class="empresa-icon">
+                                        <i class="fas fa-city"></i>
+                                    </div>
+                                    
+                                    <div class="empresa-info">
+                                        <h5>{{ empresa.nombre }}</h5>
+                                        <p><i class="fas fa-id-card me-1 opacity-50"></i> RUT: {{ empresa.rut }}</p>
+                                        {% if empresa.direccion %}
+                                            <p class="small mt-1"><i class="fas fa-map-marker-alt me-1 opacity-50"></i> {{ empresa.direccion }}</p>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if empresa_actual and empresa.id == empresa_actual.id %}
+                                        <div class="active-badge">
+                                            <i class="fas fa-check-circle"></i> Activa
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="{% url 'empresas:home' %}" class="btn-stone-secondary">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn-stone-primary">
+                            <i class="fas fa-check"></i> Activar Empresa
+                        </button>
+                    </div>
+
+                {% else %}
+                    <div class="text-center py-5">
+                        <div style="width: 80px; height: 80px; background: var(--stone-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+                            <i class="fas fa-building fa-3x" style="color: var(--stone-secondary); opacity: 0.5;"></i>
+                        </div>
+                        <h5 style="color: var(--stone-text);">No hay empresas disponibles</h5>
+                        <p class="text-muted mb-4">No se encontraron empresas registradas en el sistema.</p>
+                        <a href="{% url 'empresas:empresa_create' %}" class="btn-stone-primary">
+                            <i class="fas fa-plus"></i> Crear Primera Empresa
+                        </a>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Script opcional para mejorar interacción si es necesario
+    document.querySelectorAll('.empresa-card-container').forEach(card => {
+        card.addEventListener('click', function(e) {
+            // El input radio dentro maneja el estado, pero podemos añadir lógica extra aquí
+        });
+    });
+</script>
 {% endblock %}
