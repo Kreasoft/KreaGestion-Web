@@ -344,12 +344,15 @@
         <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             🖨️ Imprimir
         </button>
-        <a href="javascript:history.back()" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
+        <button onclick="cerrarVentana()" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
             ← Volver
-        </a>
+        </button>
     </div>
 
     <script>
+      // Hacer cerrarVentana global para el botón
+      let cerrarVentana;
+
       (function() {
         try {
           const params = new URLSearchParams(window.location.search);
@@ -362,18 +365,23 @@
           console.log('[VALE AUTO] Parámetros:', { auto, autoClose, autoCloseDelay, returnUrl });
 
           // Función para cerrar o volver
-          function cerrarVentana() {
-            // Si es un popup, cerrarlo
-            if (window.opener) {
-              console.log('[VALE AUTO] Cerrando popup...');
-              try { window.close(); } catch(e) {}
+          cerrarVentana = function() {
+            // Si hay return_url, ir ahí (decodificando) - Máxima prioridad
+            if (returnUrl) {
+              console.log('[VALE AUTO] Volviendo a return_url:', decodeURIComponent(returnUrl));
+              window.location.href = decodeURIComponent(returnUrl);
               return;
             }
-            
-            // PRIORIDAD: Si hay return_url, ir ahí (decodificando)
-            if (returnUrl) {
-              console.log('[VALE AUTO] Volviendo a:', decodeURIComponent(returnUrl));
-              window.location.href = decodeURIComponent(returnUrl);
+
+            // Si es un popup o fue abierto en nueva pestaña y no hay historial
+            if (window.opener || window.history.length <= 1) {
+              console.log('[VALE AUTO] Cerrando ventana/pestaña...');
+              // Si no puede cerrarse (no fue abierta por script), ir al listado
+              setTimeout(() => {
+                  console.log('[VALE AUTO] Fallback al listado de vales...');
+                  window.location.href = "{% url 'ventas:vale_list' %}";
+              }, 200);
+              try { window.close(); } catch(e) { console.log(e); }
               return;
             }
             

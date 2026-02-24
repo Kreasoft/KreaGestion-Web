@@ -365,13 +365,23 @@
                                     </a>
                                     {% endif %}
 
-                                    {# Imprimir #}
-                                    <button onclick="window.open('{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}', '_blank'); window.print();"
-                                        class="btn-action-piedra" title="Imprimir PDF Local">
-                                        <i class="fas fa-print"></i>
-                                    </button>
-                                </div>
-                            </td>
+                                    {# Regenerar XML (Boletas y Guías sin XML o con error) #}
+                                    {% if dte.tipo_dte == '39' or dte.tipo_dte == '52' %}
+                                    {% if dte.estado_sii != 'aceptado' and dte.estado_sii != 'rechazado' and dte.estado_sii != 'anulado' %}
+                                    <a href="{% url 'facturacion_electronica:regenerar_xml_dte' dte.pk %}"
+                                        class="btn-action-piedra" title="Regenerar XML (si está vacío o con error)">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% endif %}
+
+                                     {# Imprimir #}
+                                     <a href="{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}?auto=1"
+                                        class="btn-action-piedra" target="_blank" title="Imprimir DTE">
+                                         <i class="fas fa-print"></i>
+                                     </a>
+                                 </div>
+                             </td>
                         </tr>
                         {% empty %}
                         <tr>

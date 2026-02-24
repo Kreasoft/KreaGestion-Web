@@ -141,6 +141,10 @@ def transferencia_create(request):
                 messages.error(request, 'Debe agregar al menos un artículo a la transferencia.')
                 return render(request, 'inventario/transferencia_form.html', {
                     'form': form,
+                    'articulos': Articulo.objects.filter(empresa=request.empresa, activo=True),
+                    'bodegas': Bodega.objects.filter(empresa=request.empresa, activa=True),
+                    'transferencia_edit': transferencia_edit,
+                    'articulos_edit': '[]',
                     'titulo': 'Nueva Transferencia de Inventario'
                 })
             
@@ -153,8 +157,11 @@ def transferencia_create(request):
                     messages.error(request, '❌ ERROR: La bodega de origen y destino no pueden ser la misma. Una transferencia debe ser entre bodegas diferentes.')
                     return render(request, 'inventario/transferencia_form.html', {
                         'form': form,
-                        'titulo': 'Nueva Transferencia de Inventario',
-                        'transferencia_edit': transferencia_edit
+                        'articulos': Articulo.objects.filter(empresa=request.empresa, activo=True),
+                        'bodegas': Bodega.objects.filter(empresa=request.empresa, activa=True),
+                        'transferencia_edit': transferencia_edit,
+                        'articulos_edit': json.dumps(articulos),
+                        'titulo': 'Nueva Transferencia de Inventario'
                     })
                 
                 # VALIDACIÓN: Fecha obligatoria
@@ -163,8 +170,11 @@ def transferencia_create(request):
                     messages.error(request, '❌ ERROR: Debe especificar una fecha de transferencia válida.')
                     return render(request, 'inventario/transferencia_form.html', {
                         'form': form,
-                        'titulo': 'Nueva Transferencia de Inventario',
-                        'transferencia_edit': transferencia_edit
+                        'articulos': Articulo.objects.filter(empresa=request.empresa, activo=True),
+                        'bodegas': Bodega.objects.filter(empresa=request.empresa, activa=True),
+                        'transferencia_edit': transferencia_edit,
+                        'articulos_edit': json.dumps(articulos),
+                        'titulo': 'Nueva Transferencia de Inventario'
                     })
                 
                 with transaction.atomic():
@@ -331,6 +341,7 @@ def transferencia_create(request):
             messages.error(request, 'Error al procesar los artículos.')
         except Exception as e:
             messages.error(request, f'Error al crear la transferencia: {str(e)}')
+        # Al haber error no se hace return; se preservan datos del formulario más abajo
     else:
         if transferencia_edit:
             # Cargar datos de la transferencia a editar
@@ -345,9 +356,9 @@ def transferencia_create(request):
     articulos = Articulo.objects.filter(empresa=request.empresa, activo=True)
     bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
     
-    # Preparar datos de artículos si es edición
+    # Preparar datos de artículos: en edición desde la transferencia; en POST con error preservar lo enviado
     articulos_edit = []
-    if transferencia_edit:
+    if transferencia_edit and request.method != 'POST':
         for detalle in transferencia_edit.detalles.all():
             articulos_edit.append({
                 'articulo_id': detalle.articulo.id,
@@ -356,6 +367,12 @@ def transferencia_create(request):
                 'cantidad': float(detalle.cantidad),
                 'precio_venta': float(detalle.precio_unitario)
             })
+    elif request.method == 'POST':
+        articulos_data = request.POST.get('articulos_json', '[]')
+        try:
+            articulos_edit = json.loads(articulos_data)
+        except json.JSONDecodeError:
+            articulos_edit = []
     
     context = {
         'form': form,
@@ -471,12 +488,20 @@ def transferencia_cancelar(request, pk):
 @login_required
 @requiere_empresa
 def api_stock_disponible(request):
-    """API para obtener el stock disponible de un artículo en una bodega"""
+    """API para obtener el stock disponible de un artículo en una bodega.
+    Acepta cantidad_ya_en_lista (opcional) para descontar lo ya agregado a la transferencia del mismo artículo.
+    """
     articulo_id = clean_id(request.GET.get('articulo_id'))
     bodega_id = clean_id(request.GET.get('bodega_id'))
+    cantidad_ya_en_lista = request.GET.get('cantidad_ya_en_lista', '0')
     
     if not articulo_id or not bodega_id:
         return JsonResponse({'error': 'Parámetros faltantes'}, status=400)
+    
+    try:
+        cantidad_reservada = Decimal(str(cantidad_ya_en_lista))
+    except (ValueError, TypeError):
+        cantidad_reservada = Decimal('0')
     
     try:
         stock = Stock.objects.get(
@@ -484,14 +509,16 @@ def api_stock_disponible(request):
             bodega_id=bodega_id,
             articulo_id=articulo_id
         )
-        
+        disponible = max(Decimal('0'), stock.cantidad - cantidad_reservada)
         return JsonResponse({
-            'stock_disponible': float(stock.cantidad),
+            'stock_disponible': float(disponible),
+            'stock_en_bodega': float(stock.cantidad),
             'precio_promedio': float(stock.precio_promedio)
         })
     except Stock.DoesNotExist:
         return JsonResponse({
             'stock_disponible': 0,
+            'stock_en_bodega': 0,
             'precio_promedio': 0
         })
 
@@ -611,6 +638,9 @@ def transferencia_generar_guia(request, pk):
                         self.cliente = None
                         self.tipo_documento = '52'
                         self.fecha_emision = timezone.now().date()
+                        # IndTraslado obligatorio para guías: 5 = Traslado interno (transferencias entre sucursales)
+                        self.tipo_traslado = '5'
+                        self.tipo_despacho = '5'
                         # Receptor (es la misma empresa para traslado interno)
                         self.rut_receptor = transferencia.empresa.rut
                         self.razon_social_receptor = transferencia.empresa.nombre
@@ -649,7 +679,7 @@ def transferencia_generar_guia(request, pk):
                         from facturacion_electronica.dtebox_service import DTEBoxService
                         dtebox = DTEBoxService(request.empresa)
                         print(f"Solicitando timbre a DTEBox para Guía {folio}...")
-                        res_dtebox = dtebox.timbrar_dte(xml_firmado)
+                        res_dtebox = dtebox.timbrar_dte(xml_firmado, '52')
                         if res_dtebox['success'] and res_dtebox.get('ted'):
                             ted_xml = res_dtebox['ted']
                             print("✅ Timbre obtenido exitosamente desde DTEBox")

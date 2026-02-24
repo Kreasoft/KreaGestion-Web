@@ -393,18 +393,77 @@ document.addEventListener('DOMContentLoaded', function() {
     const fInput = document.getElementById('{{ form.fecha_transferencia.id_for_label }}');
     if(fInput) fInput.addEventListener('change', validarDatosBasicosParaAgregar);
     
+    // Cantidad ya agregada en la lista para el mismo artículo (para validar contra stock)
+    function cantidadYaEnLista(articuloId) {
+        return articulos
+            .filter(a => String(a.articulo_id) === String(articuloId))
+            .reduce((sum, a) => sum + (parseFloat(a.cantidad) || 0), 0);
+    }
+
     // Select2 Change Event
     articuloSelectJquery.on('change', function() {
-        // Disparar evento nativo si es necesario o manejar lógica aquí
         verificarStock();
+        validarCantidadEnTiempoReal();
     });
+
+    // Validación en tiempo real al cambiar la cantidad (no borrar nada, solo informar)
+    function validarCantidadEnTiempoReal() {
+        const articuloId = articuloSelectJquery.val();
+        const bodegaId = bodegaOrigenSelect.value;
+        const cantidad = parseFloat(cantidadInput.value) || 0;
+        
+        if (!articuloId || !bodegaId) {
+            stockInfo.classList.add('d-none');
+            return;
+        }
+        
+        const yaEnLista = cantidadYaEnLista(articuloId);
+        const url = `{% url 'inventario:api_stock_disponible' %}?articulo_id=${articuloId}&bodega_id=${bodegaId}&cantidad_ya_en_lista=${yaEnLista}`;
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const stockDisponible = data.stock_disponible;
+                stockInfo.classList.remove('d-none');
+                
+                if (stockDisponible <= 0) {
+                    stockInfo.classList.remove('alert-warning', 'alert-success');
+                    stockInfo.classList.add('alert-danger');
+                    stockInfoText.innerHTML = '<strong>Sin stock disponible</strong> en la bodega origen. No puede agregar este artículo.';
+                    return;
+                }
+                
+                if (cantidad <= 0) {
+                    stockInfo.classList.remove('alert-danger', 'alert-success');
+                    stockInfo.classList.add('alert-warning');
+                    stockInfoText.innerHTML = `Stock disponible en origen: <strong>${stockDisponible}</strong> unidades. Ingrese la cantidad a transferir.`;
+                    return;
+                }
+                
+                if (cantidad > stockDisponible) {
+                    stockInfo.classList.remove('alert-warning', 'alert-success');
+                    stockInfo.classList.add('alert-danger');
+                    stockInfoText.innerHTML = `La cantidad ingresada (<strong>${cantidad}</strong>) supera el stock disponible (<strong>${stockDisponible}</strong> unidades). Corrija la cantidad antes de agregar.`;
+                } else {
+                    stockInfo.classList.remove('alert-danger');
+                    stockInfo.classList.add('alert-warning');
+                    stockInfoText.innerHTML = `Stock disponible en origen: <strong>${stockDisponible}</strong> unidades. Cantidad ingresada: ${cantidad}.`;
+                }
+            })
+            .catch(() => { stockInfo.classList.add('d-none'); });
+    }
+
+    cantidadInput.addEventListener('input', validarCantidadEnTiempoReal);
+    cantidadInput.addEventListener('change', validarCantidadEnTiempoReal);
 
     function verificarStock() {
         const articuloId = articuloSelectJquery.val();
         const bodegaId = bodegaOrigenSelect.value;
+        const yaEnLista = articuloId ? cantidadYaEnLista(articuloId) : 0;
         
         if (articuloId && bodegaId) {
-            fetch(`{% url 'inventario:api_stock_disponible' %}?articulo_id=${articuloId}&bodega_id=${bodegaId}`)
+            const url = `{% url 'inventario:api_stock_disponible' %}?articulo_id=${articuloId}&bodega_id=${bodegaId}&cantidad_ya_en_lista=${yaEnLista}`;
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     const stockDisponible = data.stock_disponible;
@@ -417,8 +476,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         stockInfo.classList.remove('alert-warning');
                         stockInfo.classList.add('alert-danger');
-                        stockInfoText.innerHTML = `<strong>Sin stock disponible</strong> en la bodega origen`;
+                        stockInfoText.innerHTML = '<strong>Sin stock disponible</strong> en la bodega origen';
                     }
+                    validarCantidadEnTiempoReal();
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -431,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     validarDatosBasicosParaAgregar(); // Init
 
-    // Agregar Artículo
+    // Agregar Artículo (con validación inmediata de stock; no se borra nada si hay error)
     agregarBtn.addEventListener('click', function() {
         const origenId = bodegaOrigenSelect.value;
         const destinoId = bodegaDestinoSelect.value;
@@ -440,7 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
              return;
         }
 
-        const articuloId = articuloSelectJquery.val(); // Usar jquery para obtener valor select2
+        const articuloId = articuloSelectJquery.val();
         const cantidad = parseFloat(cantidadInput.value);
         
         if (!articuloId) {
@@ -448,40 +508,64 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         if (!cantidad || cantidad <= 0) {
-            Swal.fire({ icon: 'warning', text: 'Ingrese una cantidad válida', confirmButtonColor: '#8B7355' });
+            Swal.fire({ icon: 'warning', text: 'Ingrese una cantidad válida mayor a cero', confirmButtonColor: '#8B7355' });
             return;
         }
+
+        // Validar stock disponible ANTES de agregar (considerando lo ya en lista)
+        const yaEnLista = cantidadYaEnLista(articuloId);
+        const urlStock = `{% url 'inventario:api_stock_disponible' %}?articulo_id=${articuloId}&bodega_id=${origenId}&cantidad_ya_en_lista=${yaEnLista}`;
         
-        // Obtener datos del option seleccionado
-        const option = articuloSelect.options[articuloSelect.selectedIndex];
-        // Nota: Con Select2, el selectedIndex del DOM original a veces no se actualiza correctamente si no se sincroniza
-        // Mejor buscar el option por value
-        const selOption = Array.from(articuloSelect.options).find(opt => opt.value === articuloId);
-        
-        const nombre = selOption ? selOption.dataset.nombre : '';
-        const codigo = selOption ? selOption.dataset.codigo : '';
-        const precio = parseFloat(selOption ? selOption.dataset.precio : 0);
-        
-        // Check duplicados
-        if (articulos.find(a => a.articulo_id === articuloId)) {
-            Swal.fire({ icon: 'info', text: 'El artículo ya está en la lista', confirmButtonColor: '#8B7355' });
-            return;
-        }
-        
-        articulos.push({
-            articulo_id: articuloId,
-            nombre: nombre,
-            codigo: codigo,
-            cantidad: cantidad,
-            precio_venta: precio
-        });
-        
-        renderArticulos();
-        
-        // Reset inputs
-        articuloSelectJquery.val('').trigger('change');
-        cantidadInput.value = '';
-        stockInfo.classList.add('d-none');
+        fetch(urlStock)
+            .then(response => response.json())
+            .then(data => {
+                const stockDisponible = parseFloat(data.stock_disponible) || 0;
+                
+                if (cantidad > stockDisponible) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Cantidad no disponible',
+                        html: 'La cantidad solicitada (<strong>' + cantidad + '</strong>) supera el stock disponible en bodega origen (<strong>' + stockDisponible + '</strong> unidades).<br><br>Corrija la cantidad e intente de nuevo.',
+                        confirmButtonColor: '#8B7355'
+                    });
+                    // No agregar, no borrar artículo ni cantidad para que el usuario pueda corregir
+                    validarCantidadEnTiempoReal();
+                    return;
+                }
+
+                const selOption = Array.from(articuloSelect.options).find(opt => opt.value === articuloId);
+                const nombre = selOption ? selOption.dataset.nombre : '';
+                const codigo = selOption ? selOption.dataset.codigo : '';
+                const precio = parseFloat(selOption ? selOption.dataset.precio : 0);
+                
+                if (articulos.find(a => String(a.articulo_id) === String(articuloId))) {
+                    Swal.fire({ icon: 'info', text: 'El artículo ya está en la lista. Puede editarlo eliminándolo y volviendo a agregar con la cantidad correcta.', confirmButtonColor: '#8B7355' });
+                    return;
+                }
+                
+                articulos.push({
+                    articulo_id: articuloId,
+                    nombre: nombre,
+                    codigo: codigo,
+                    cantidad: cantidad,
+                    precio_venta: precio
+                });
+                
+                renderArticulos();
+                
+                articuloSelectJquery.val('').trigger('change');
+                cantidadInput.value = '';
+                stockInfo.classList.add('d-none');
+            })
+            .catch(err => {
+                console.error('Error validando stock:', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de validación',
+                    text: 'No se pudo verificar el stock. Intente de nuevo.',
+                    confirmButtonColor: '#8B7355'
+                });
+            });
     });
 
     function renderArticulos() {

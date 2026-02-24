@@ -22,31 +22,32 @@ def listar_cafs(request):
     estado = request.GET.get('estado')
     mostrar_ocultos = request.GET.get('mostrar_ocultos') == '1'
     
-    # Query base
-    cafs = ArchivoCAF.objects.filter(empresa=empresa)
+    # Query base (sin filtrar ocultos inicialmente para clasificarlos)
+    cafs_base = ArchivoCAF.objects.filter(empresa=empresa)
     
     # Aplicar filtros
     if sucursal_id:
-        cafs = cafs.filter(sucursal_id=sucursal_id)
+        cafs_base = cafs_base.filter(sucursal_id=sucursal_id)
     
     if tipo_documento:
-        cafs = cafs.filter(tipo_documento=tipo_documento)
+        cafs_base = cafs_base.filter(tipo_documento=tipo_documento)
     
     if estado:
-        cafs = cafs.filter(estado=estado)
+        cafs_base = cafs_base.filter(estado=estado)
     
-    if not mostrar_ocultos:
-        cafs = cafs.filter(oculto=False)
+    # Ordenar y seleccionar relacionados
+    cafs_base = cafs_base.select_related('sucursal', 'usuario_carga').order_by('-fecha_carga')
     
-    # Ordenar
-    cafs = cafs.select_related('sucursal', 'usuario_carga').order_by('-fecha_carga')
+    # Clasificar para las pestañas
+    cafs_vigentes = cafs_base.filter(estado='activo', oculto=False)
+    cafs_historico = cafs_base.filter(Q(estado__in=['agotado', 'vencido']) | Q(oculto=True))
     
     # Estadísticas
     stats = {
-        'total': cafs.count(),
-        'activos': cafs.filter(estado='activo').count(),
-        'agotados': cafs.filter(estado='agotado').count(),
-        'vencidos': cafs.filter(estado='vencido').count(),
+        'total': cafs_base.count(),
+        'activos': cafs_base.filter(estado='activo').count(),
+        'agotados': cafs_base.filter(estado='agotado').count(),
+        'vencidos': cafs_base.filter(estado='vencido').count(),
         'ocultos': ArchivoCAF.objects.filter(empresa=empresa, oculto=True).count(),
     }
     
@@ -54,7 +55,8 @@ def listar_cafs(request):
     sucursales = Sucursal.objects.filter(empresa=empresa)
     
     context = {
-        'cafs': cafs,
+        'cafs_vigentes': cafs_vigentes,
+        'cafs_historico': cafs_historico,
         'stats': stats,
         'sucursales': sucursales,
         'tipo_documento_choices': ArchivoCAF.TIPO_DOCUMENTO_CHOICES,

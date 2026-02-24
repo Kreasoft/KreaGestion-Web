@@ -5,8 +5,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.conf import settings
 from .models import DocumentoTributarioElectronico, ArchivoCAF, EnvioDTE
-# from .dte_generator import DTEXMLGenerator  # Reemplazado por dte_gdexpress
-from dte_gdexpress import GeneradorFactura, GeneradorBoleta, GeneradorGuia, GeneradorNotaCredito, GeneradorNotaDebito, ClienteGDExpress, GestorCAF
+from .dte_generator import DTEXMLGenerator  # Usar para boletas
+from dte_gdexpress import GeneradorFactura, GeneradorGuia, GeneradorNotaCredito, GeneradorNotaDebito, ClienteGDExpress, GestorCAF
 from .firma_electronica import FirmadorDTE
 # from .cliente_sii import ClienteSII  # Reemplazado por ClienteGDExpress
 from .services import FolioService
@@ -59,54 +59,90 @@ class DTEService:
 
                 print(f"Folio asignado: {folio}")
 
-                # 2. Generar XML del DTE usando dte_gdexpress
-                print(f"\nPaso 2: Generando XML del DTE (dte_gdexpress)")
+                # 2. Generar XML del DTE
+                print(f"\nPaso 2: Generando XML del DTE")
                 
-                # Preparar items para el generador
-                items_dte = []
-                for item in venta.ventadetalle_set.all():
-                    items_dte.append({
-                        'nombre': item.articulo.nombre if item.articulo else item.descripcion,
-                        'cantidad': float(item.cantidad),
-                        'precio': float(item.precio_unitario),
-                        'exento': False,  # Asumimos afecto por defecto, ajustar si hay lógica de exentos
-                        'unidad': item.articulo.unidad_medida.simbolo if (item.articulo and item.articulo.unidad_medida) else '',
-                    })
-                
-                # Seleccionar generador según tipo
-                if tipo_dte == '33':
-                    GeneratorClass = GeneradorFactura
-                elif tipo_dte == '39':
-                    GeneratorClass = GeneradorBoleta
-                elif tipo_dte == '52':
-                    GeneratorClass = GeneradorGuia
+                # Para boletas (39) y guías (52), usar DTEXMLGenerator con formato compatible DTEBox
+                if tipo_dte in ['39', '52']:
+                    print(f"[DTE] Usando DTEXMLGenerator para tipo {tipo_dte}")
+                    
+                    # Crear objeto DTE temporal para el generador
+                    from facturacion_electronica.models import DocumentoTributarioElectronico
+                    dte_temp = DocumentoTributarioElectronico(
+                        empresa=self.empresa,
+                        tipo_dte=tipo_dte,
+                        folio=folio,
+                        fecha_emision=venta.fecha,
+                        rut_emisor=self.empresa.rut,
+                        razon_social_emisor=self.empresa.razon_social_sii or self.empresa.razon_social,
+                        giro_emisor=self.empresa.giro_sii or self.empresa.giro,
+                        direccion_emisor=self.empresa.direccion_casa_matriz or self.empresa.direccion,
+                        comuna_emisor=self.empresa.comuna_casa_matriz or self.empresa.comuna,
+                        rut_receptor=venta.cliente.rut if venta.cliente else '66666666-6',
+                        razon_social_receptor=venta.cliente.nombre if venta.cliente else 'Cliente Genérico',
+                        direccion_receptor=venta.cliente.direccion if venta.cliente else '',
+                        comuna_receptor=venta.cliente.comuna if venta.cliente else '',
+                        # Para guías (52), NO derivar tipo_traslado desde tipo_despacho.
+                        # Se determinará en el generador; por defecto '1' (Venta) si no está definido explícitamente.
+                        tipo_traslado=None if tipo_dte == '52' else None,
+                        monto_neto=int(venta.neto),
+                        monto_iva=int(venta.iva),
+                        monto_total=int(venta.total),
+                    )
+                    dte_temp.venta = venta  # Asociar venta
+                    
+                    # Generar XML con DTEXMLGenerator (usamos generar_xml para obtener XML limpio sin TED)
+                    generator = DTEXMLGenerator(self.empresa, dte_temp, tipo_dte, folio, caf)
+                    xml_sin_firmar = generator.generar_xml()
+                    
                 else:
-                    raise ValueError(f"Tipo DTE {tipo_dte} no soportado por dte_gdexpress integration")
-                
-                # Instanciar generador
-                # Datos del receptor
-                rut_receptor = venta.cliente.rut if venta.cliente else '66666666-6'
-                razon_receptor = venta.cliente.nombre if venta.cliente else 'Cliente Genérico'
-                direccion_receptor = venta.cliente.direccion if venta.cliente else 'Sin Dirección'
-                comuna_receptor = venta.cliente.comuna if venta.cliente else 'Santiago'
-                
-                generator = GeneratorClass(
-                    folio=folio,
-                    fecha=venta.fecha.strftime('%Y-%m-%d'),
-                    rut_emisor=self.empresa.rut,
-                    razon_social_emisor=self.empresa.razon_social_sii or self.empresa.razon_social,
-                    giro_emisor=self.empresa.giro_sii or self.empresa.giro,
-                    direccion_emisor=self.empresa.direccion_casa_matriz or self.empresa.direccion,
-                    comuna_emisor=self.empresa.comuna_casa_matriz or self.empresa.comuna,
-                    rut_receptor=rut_receptor,
-                    razon_social_receptor=razon_receptor,
-                    direccion_receptor=direccion_receptor,
-                    comuna_receptor=comuna_receptor,
-                    items=items_dte,
-                    forma_pago='1' if not hasattr(venta, 'forma_pago') else ('2' if getattr(venta.forma_pago, 'es_credito', False) else '1')
-                )
-                
-                xml_sin_firmar = generator.generar_xml()
+                    # Para otros tipos, usar dte_gdexpress
+                    print(f"[DTE] Usando dte_gdexpress para tipo {tipo_dte}")
+                    
+                    # Preparar items para el generador
+                    items_dte = []
+                    for item in venta.ventadetalle_set.all():
+                        items_dte.append({
+                            'nombre': item.articulo.nombre if item.articulo else item.descripcion,
+                            'cantidad': float(item.cantidad),
+                            'precio': float(item.precio_unitario),
+                            'exento': False,
+                            'unidad': item.articulo.unidad_medida.simbolo if (item.articulo and item.articulo.unidad_medida) else '',
+                        })
+                    
+                    # Seleccionar generador según tipo
+                    if tipo_dte == '33':
+                        GeneratorClass = GeneradorFactura
+                    elif tipo_dte == '52':
+                        # Este caso ahora se maneja arriba con DTEXMLGenerator, 
+                        # pero dejamos el placeholder por si acaso
+                        GeneratorClass = GeneradorGuia
+                    else:
+                        raise ValueError(f"Tipo DTE {tipo_dte} no soportado")
+                    
+                    # Instanciar generador
+                    rut_receptor = venta.cliente.rut if venta.cliente else '66666666-6'
+                    razon_receptor = venta.cliente.nombre if venta.cliente else 'Cliente Genérico'
+                    direccion_receptor = venta.cliente.direccion if venta.cliente else 'Sin Dirección'
+                    comuna_receptor = venta.cliente.comuna if venta.cliente else 'Santiago'
+                    
+                    generator = GeneratorClass(
+                        folio=folio,
+                        fecha=venta.fecha.strftime('%Y-%m-%d'),
+                        rut_emisor=self.empresa.rut,
+                        razon_social_emisor=self.empresa.razon_social_sii or self.empresa.razon_social,
+                        giro_emisor=self.empresa.giro_sii or self.empresa.giro,
+                        direccion_emisor=self.empresa.direccion_casa_matriz or self.empresa.direccion,
+                        comuna_emisor=self.empresa.comuna_casa_matriz or self.empresa.comuna,
+                        rut_receptor=rut_receptor,
+                        razon_social_receptor=razon_receptor,
+                        direccion_receptor=direccion_receptor,
+                        comuna_receptor=comuna_receptor,
+                        items=items_dte,
+                        forma_pago='1' if not hasattr(venta, 'forma_pago') else ('2' if getattr(venta.forma_pago, 'es_credito', False) else '1')
+                    )
+                    
+                    xml_sin_firmar = generator.generar_xml()
 
                 print(f"XML generado ({len(xml_sin_firmar)} bytes)")
 
@@ -160,55 +196,60 @@ class DTEService:
         """
         try:
             with transaction.atomic():
-                # 1. Generar XML del DTE (dte_gdexpress)
-                if not dte.venta:
-                    raise NotImplementedError("Solo se soporta regenerar DTE desde Venta por ahora (dte_gdexpress)")
-                
                 venta = dte.venta
-                items_dte = []
-                for item in venta.ventadetalle_set.all():
-                    items_dte.append({
-                        'nombre': item.articulo.nombre if item.articulo else item.descripcion,
-                        'cantidad': float(item.cantidad),
-                        'precio': float(item.precio_unitario),
-                        'exento': False,
-                        'unidad': item.articulo.unidad_medida.simbolo if (item.articulo and item.articulo.unidad_medida) else '',
-                    })
+                if not venta:
+                    raise NotImplementedError("Solo se soporta regenerar DTE desde Venta")
                 
-                # Instanciar generador
-                if dte.tipo_dte == '33':
-                    GeneratorClass = GeneradorFactura
-                elif dte.tipo_dte == '39':
-                    GeneratorClass = GeneradorBoleta
+                # Para boletas (39) y guías (52), usar DTEXMLGenerator
+                if dte.tipo_dte in ['39', '52']:
+                    print(f"[DTE] Regenerando documento {dte.tipo_dte} folio {dte.folio} con DTEXMLGenerator")
+                    
+                    # El DTE ya existe, usarlo directamente
+                    generator = DTEXMLGenerator(self.empresa, dte, dte.tipo_dte, dte.folio, dte.caf_utilizado)
+                    xml_sin_firmar = generator.generar_xml()
+                    
                 else:
-                    raise ValueError(f"Tipo DTE {dte.tipo_dte} no soportado en regeneración")
+                    # Para otros tipos, usar dte_gdexpress
+                    print(f"[DTE] Regenerando DTE tipo {dte.tipo_dte} con dte_gdexpress")
+                    
+                    items_dte = []
+                    for item in venta.ventadetalle_set.all():
+                        items_dte.append({
+                            'nombre': item.articulo.nombre if item.articulo else item.descripcion,
+                            'cantidad': float(item.cantidad),
+                            'precio': float(item.precio_unitario),
+                            'exento': False,
+                            'unidad': item.articulo.unidad_medida.simbolo if (item.articulo and item.articulo.unidad_medida) else '',
+                        })
+                    
+                    if dte.tipo_dte == '33':
+                        GeneratorClass = GeneradorFactura
+                    else:
+                        raise ValueError(f"Tipo DTE {dte.tipo_dte} no soportado en regeneración")
 
-                generator = GeneratorClass(
-                    folio=dte.folio,
-                    fecha=dte.fecha_emision.strftime('%Y-%m-%d'),
-                    rut_emisor=dte.rut_emisor,
-                    razon_social_emisor=dte.razon_social_emisor,
-                    giro_emisor=dte.giro_emisor,
-                    direccion_emisor=dte.direccion_emisor,
-                    comuna_emisor=dte.comuna_emisor,
-                    rut_receptor=dte.rut_receptor,
-                    razon_social_receptor=dte.razon_social_receptor,
-                    direccion_receptor=dte.direccion_receptor,
-                    comuna_receptor=dte.comuna_receptor,
-                    items=items_dte,
-                    forma_pago='1' # Asumimos contado por defecto en regeneración
-                )
-                
-                xml_sin_firmar = generator.generar_xml()
+                    generator = GeneratorClass(
+                        folio=dte.folio,
+                        fecha=dte.fecha_emision.strftime('%Y-%m-%d'),
+                        rut_emisor=dte.rut_emisor,
+                        razon_social_emisor=dte.razon_social_emisor,
+                        giro_emisor=dte.giro_emisor,
+                        direccion_emisor=dte.direccion_emisor,
+                        comuna_emisor=dte.comuna_emisor,
+                        rut_receptor=dte.rut_receptor,
+                        razon_social_receptor=dte.razon_social_receptor,
+                        direccion_receptor=dte.direccion_receptor,
+                        comuna_receptor=dte.comuna_receptor,
+                        items=items_dte,
+                        forma_pago='1'
+                    )
+                    
+                    xml_sin_firmar = generator.generar_xml()
 
                 # 2. Firmar el XML
                 firmador = self._obtener_firmador()
                 xml_firmado = firmador.firmar_xml(xml_sin_firmar)
 
-                # 3. Generar TED (Timbre Electrónico)
-                # Reutilizamos la lógica existente que usa firmador.generar_ted
-                # Pero necesitamos los objetos originales o construir diccionarios.
-                # _generar_ted_desde_dte espera (dte, firmador)
+                # 3. Generar TED
                 ted_xml = self._generar_ted_desde_dte(dte, firmador)
 
                 # 4. Generar datos para PDF417
@@ -437,11 +478,29 @@ class DTEService:
             if not getattr(self.empresa, 'dtebox_habilitado', False):
                  raise ValueError(f"La empresa {self.empresa.nombre} no tiene habilitado DTEBox.")
             
+            # Validación previa para guías: asegurar GiroRecep y XML actualizado
+            if dte.tipo_dte == '52':
+                giro_recep = getattr(dte, 'giro_receptor', '') or ''
+                if not giro_recep:
+                    try:
+                        # Intentar completar giro desde la venta/cliente y regenerar XML completo
+                        if dte.venta and dte.venta.cliente and getattr(dte.venta.cliente, 'giro', None):
+                            dte.giro_receptor = dte.venta.cliente.giro
+                        else:
+                            dte.giro_receptor = 'SIN GIRO'
+                        dte.save(update_fields=['giro_receptor'])
+                        self.procesar_dte_existente(dte)
+                        dte.refresh_from_db()
+                        print(f"[PRE-ENVÍO] GiroRecep asegurado para guía {dte.folio}: {dte.giro_receptor}")
+                    except Exception as _:
+                        pass
+            
             from .dtebox_service import DTEBoxService
             dtebox = DTEBoxService(self.empresa)
             
-            # En DTEBox, timbrar_dte es equivalente a enviar (usa SendDocumentAsXML)
-            resultado = dtebox.timbrar_dte(dte.xml_firmado)
+            # En algunos boxes, se espera XML firmado. Probar con xml_firmado prioritario.
+            xml_para_enviar = (dte.xml_firmado or '').strip() or (dte.xml_dte or '').strip()
+            resultado = dtebox.timbrar_dte(xml_para_enviar, dte.tipo_dte)
 
             if resultado['success']:
                 # El track_id en DTEBox viene dentro del XML de respuesta o es el ID del proceso
@@ -484,6 +543,82 @@ class DTEService:
                 }
             else:
                 error_msg = resultado.get('error', 'Error desconocido en DTEBox API')
+                # Fallback 1: Intentar envío con ClienteGDExpress (mismo comportamiento que KreaDTE-Cloud)
+                try:
+                    from dte_gdexpress import ClienteGDExpress
+                    cliente = ClienteGDExpress(
+                        api_key=self.empresa.dtebox_auth_key,
+                        ambiente='CERTIFICACION' if (self.empresa.dtebox_ambiente or 'T') == 'T' else 'PRODUCCION',
+                        url_servicio=self.empresa.dtebox_url
+                    )
+                    resultado2 = cliente.enviar_dte(
+                        xml_firmado=xml_para_enviar,
+                        resolucion_numero=self.empresa.resolucion_numero or 0,
+                        resolucion_fecha=(self.empresa.resolucion_fecha.strftime('%Y-%m-%d') if self.empresa.resolucion_fecha else '2014-08-22')
+                    )
+                    if resultado2.get('success'):
+                        track_id = resultado2.get('track_id', 'DTEBOX-' + str(dte.folio))
+                        with transaction.atomic():
+                            dte.estado_sii = 'enviado'
+                            dte.track_id = track_id
+                            dte.fecha_envio_sii = timezone.now()
+                            dte.respuesta_sii = resultado2.get('xml_respuesta', '')
+                            if resultado2.get('ted'):
+                                dte.timbre_electronico = resultado2.get('ted')
+                                from .firma_electronica import FirmadorDTE
+                                firmador = self._obtener_firmador()
+                                dte.datos_pdf417 = firmador.generar_datos_pdf417(dte.timbre_electronico)
+                                from .pdf417_generator import PDF417Generator
+                                PDF417Generator.guardar_pdf417_en_dte(dte)
+                            dte.save()
+                        return {
+                            'success': True,
+                            'track_id': track_id,
+                            'xml_respuesta': resultado2.get('xml_respuesta')
+                        }
+                except Exception:
+                    pass
+                
+                # Fallback 2: Envío directo al SII con SetDTE (certificación)
+                try:
+                    from .cliente_sii import ClienteSII
+                    cliente_sii = ClienteSII(ambiente=self.empresa.ambiente_sii or 'certificacion')
+                    firmador = self._obtener_firmador()
+                    
+                    # Obtener semilla y token
+                    semilla = cliente_sii.obtener_semilla()
+                    token = cliente_sii.obtener_token(semilla, firmador)
+                    
+                    # Construir carátula y SetDTE con un solo documento
+                    caratula = {
+                        'rut_emisor': self.empresa.rut,
+                        'rut_envia': self.empresa.rut,
+                        'rut_receptor': '60803000-K',
+                        'fecha_resolucion': (self.empresa.resolucion_fecha.strftime('%Y-%m-%d') if self.empresa.resolucion_fecha else '2014-08-22'),
+                        'numero_resolucion': int(self.empresa.resolucion_numero or 0),
+                    }
+                    set_xml = cliente_sii.crear_set_dte([xml_para_enviar], caratula)
+                    
+                    # Enviar al SII
+                    respuesta_sii = cliente_sii.enviar_dte(
+                        xml_envio=set_xml,
+                        token=token,
+                        rut_emisor=self.empresa.rut,
+                        rut_envia=self.empresa.rut
+                    )
+                    
+                    track_id = respuesta_sii.get('track_id')
+                    if track_id:
+                        with transaction.atomic():
+                            dte.estado_sii = 'enviado'
+                            dte.track_id = track_id
+                            dte.fecha_envio_sii = timezone.now()
+                            dte.respuesta_sii = respuesta_sii.get('respuesta_completa', '')
+                            dte.save()
+                        return {'success': True, 'track_id': track_id}
+                except Exception as e_sii:
+                    pass
+                
                 raise Exception(f"Error DTEBox: {error_msg}")
             
         except Exception as e:
@@ -608,9 +743,12 @@ class DTEService:
             
             # Parsear
             if isinstance(content, str):
+                # Si es string, lxml prefiere bytes si hay declaración de encoding
                 content = content.encode('ISO-8859-1')
             
-            root = etree.fromstring(content)
+            # Usar un parser que ignore errores de encoding si es necesario o especificarlo
+            parser = etree.XMLParser(encoding='ISO-8859-1', recover=True)
+            root = etree.fromstring(content, parser=parser)
             
             # Buscar RSAPK
             rsapk = root.find('.//RSAPK')
@@ -855,3 +993,34 @@ class DTEService:
             estado_sii='generado',
         )
         return dte
+
+    def _generar_ted_desde_dte(self, dte, firmador):
+        """Genera el TED para un DTE ya existente"""
+        # Preparar datos del DTE
+        dte_data = {
+            'rut_emisor': dte.rut_emisor,
+            'tipo_dte': dte.tipo_dte,
+            'folio': dte.folio,
+            'fecha_emision': dte.fecha_emision.strftime('%Y-%m-%d'),
+            'rut_receptor': dte.rut_receptor,
+            'razon_social_receptor': dte.razon_social_receptor,
+            'monto_total': int(dte.monto_total),
+            'item_1': 'Documento Tributario Electrónico',
+        }
+        
+        # Preparar datos del CAF
+        datos_caf = self._parsear_datos_caf(dte.caf_utilizado)
+        
+        caf_data = {
+            'rut_emisor': dte.caf_utilizado.empresa.rut,
+            'razon_social': dte.caf_utilizado.empresa.razon_social_sii or dte.caf_utilizado.empresa.razon_social,
+            'tipo_documento': dte.caf_utilizado.tipo_documento,
+            'folio_desde': dte.caf_utilizado.folio_desde,
+            'folio_hasta': dte.caf_utilizado.folio_hasta,
+            'fecha_autorizacion': dte.caf_utilizado.fecha_autorizacion.strftime('%Y-%m-%d'),
+            'modulo': datos_caf['M'],
+            'exponente': datos_caf['E'],
+            'firma': dte.caf_utilizado.firma_electronica,
+        }
+        
+        return firmador.generar_ted(dte_data, caf_data)

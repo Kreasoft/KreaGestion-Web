@@ -699,28 +699,47 @@
         const urlParams = new URLSearchParams(window.location.search);
         const autoPrint = urlParams.get('auto');
         const autoClose = urlParams.get('autoclose');
-        const autoCloseDelay = parseInt(urlParams.get('autoclose_delay')) || 3000;
+        const autoCloseDelay = parseInt(urlParams.get('autoclose_delay')) || 2500;
         const returnUrl = urlParams.get('return_url');
 
         console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl });
 
         function safeCloseWindow() {
-            console.log('[DTE AUTO] Cerrando ventana...');
+            // Notificar al padre si existe
+            try {
+                if (window.opener && window.opener !== window && !window.opener.closed) {
+                    window.opener.postMessage({ kind: 'print_done', dte_id: '{{ dte.id }}' }, window.location.origin);
+                }
+            } catch (e) { console.log('No se pudo notificar al padre:', e); }
 
+            console.log('[DTE AUTO] Intentando salir de la vista...');
+
+            // PRIORIDAD 1: Si hay return_url
             if (returnUrl) {
-                console.log('[DTE AUTO] Volviendo a:', returnUrl);
-                window.location.href = decodeURIComponent(returnUrl);
+                const target = decodeURIComponent(returnUrl);
+                console.log('[DTE AUTO] Redirigiendo a return_url:', target);
+                window.location.href = target;
                 return;
             }
 
-            // Fallback inteligente
-            const referrer = document.referrer;
-            if (referrer && (referrer.includes('/caja/') || referrer.includes('/pos/'))) {
-                window.location.href = referrer;
-            } else {
-                // Default a caja si no hay otra info
-                window.location.href = "{% url 'caja:procesar_venta_buscar' %}";
+            // PRIORIDAD 2: Si es un popup o pestaña nueva sin historial
+            if (window.opener || window.history.length <= 1) {
+                console.log('[DTE AUTO] Cerrando ventana...');
+                setTimeout(() => {
+                    window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
+                }, 500);
+                try { window.close(); } catch(e) { console.log(e); }
+                return;
             }
+
+            // PRIORIDAD 3: Historial normal
+            window.history.back();
+            
+            setTimeout(() => {
+                if (!document.hidden) {
+                    window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
+                }
+            }, 1000);
         }
 
         // Auto-ejecución
@@ -731,27 +750,12 @@
                     window.print();
 
                     if (autoClose === '1') {
-                        console.log('[DTE AUTO] Cierre programado en ' + autoCloseDelay + 'ms');
-
-                        // Mostrar cuenta regresiva visualmente si es posible (opcional)
-                        const btnCerrar = document.getElementById('btn-cerrar');
-                        if (btnCerrar) {
-                            let counter = autoCloseDelay / 1000;
-                            const originalText = btnCerrar.innerText;
-                            const interval = setInterval(() => {
-                                btnCerrar.innerText = `Cerrando en ${counter}...`;
-                                counter--;
-                                if (counter < 0) clearInterval(interval);
-                            }, 1000);
-                        }
-
                         setTimeout(safeCloseWindow, autoCloseDelay);
                     }
-                }, 1000); // 1 seg para asegurar carga de estilos/imagenes
+                }, 1000);
             });
         }
     </script>
-
 </body>
 
 </html>

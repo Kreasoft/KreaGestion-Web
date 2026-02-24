@@ -106,6 +106,12 @@ class ArchivoCAF(models.Model):
     
     # DATOS DEL CAF
     fecha_autorizacion = models.DateField(verbose_name="Fecha de Autorización")
+    fecha_vencimiento = models.DateField(
+        null=True, 
+        blank=True, 
+        verbose_name="Fecha de Vencimiento",
+        help_text="Fecha en que vence el CAF (por defecto 6 meses desde autorización)"
+    )
     firma_electronica = models.TextField(verbose_name="Firma Electrónica (FRMA)")
     
     # CONTROL DE USO
@@ -244,7 +250,13 @@ class ArchivoCAF(models.Model):
     
     def save(self, *args, **kwargs):
         """Override save para ejecutar validaciones antes de guardar"""
-        # Ejecutar validaciones solo si es un CAF nuevo o si cambió el contenido
+        from datetime import timedelta
+        
+        # 1. Calcular fecha de vencimiento por defecto si no existe
+        if self.fecha_autorizacion and not self.fecha_vencimiento:
+            self.fecha_vencimiento = self.fecha_autorizacion + timedelta(days=180)
+
+        # 2. Ejecutar validaciones solo si es un CAF nuevo o si cambió el contenido
         if not self.pk or 'contenido_caf' in kwargs.get('update_fields', []):
             es_valido, mensaje_error = self.validar_caf_unico()
             if not es_valido:
@@ -278,41 +290,33 @@ class ArchivoCAF(models.Model):
     
     def esta_vigente(self):
         """
-        Verifica si el CAF está vigente (dentro de los 6 meses desde la autorización)
-        Los CAF del SII tienen vigencia de 6 meses desde la fecha de autorización
+        Verifica si el CAF está vigente usando el campo fecha_vencimiento
         """
-        from datetime import date, timedelta
+        from datetime import date
         
-        if not self.fecha_autorizacion:
+        if not self.fecha_vencimiento:
             return False
         
-        fecha_vencimiento = self.fecha_autorizacion + timedelta(days=180)
         # Usar date.today() para comparar fechas 'naive' y evitar problemas de zona horaria
-        return date.today() <= fecha_vencimiento
+        return date.today() <= self.fecha_vencimiento
     
     def dias_para_vencer(self):
         """Retorna la cantidad de días que faltan para que venza el CAF"""
-        from datetime import date, timedelta
+        from datetime import date
         
-        if not self.fecha_autorizacion:
+        if not self.fecha_vencimiento:
             return 0
         
-        fecha_vencimiento = self.fecha_autorizacion + timedelta(days=180)
-        hoy = date.today() # Usar fecha local para evitar problemas de zona horaria
+        hoy = date.today()
         
-        if hoy > fecha_vencimiento:
+        if hoy > self.fecha_vencimiento:
             return 0  # Ya venció
         
-        return (fecha_vencimiento - hoy).days
+        return (self.fecha_vencimiento - hoy).days
     
-    def fecha_vencimiento(self):
-        """Retorna la fecha de vencimiento del CAF"""
-        from datetime import timedelta
-        
-        if not self.fecha_autorizacion:
-            return None
-        
-        return self.fecha_autorizacion + timedelta(days=180)
+    def get_fecha_vencimiento(self):
+        """Retorna la fecha de vencimiento del CAF (alias para el campo)"""
+        return self.fecha_vencimiento
     
     def verificar_vencimiento(self):
         """

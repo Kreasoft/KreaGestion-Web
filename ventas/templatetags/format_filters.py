@@ -2,7 +2,7 @@
 Filtros personalizados para formateo de números y montos
 """
 from django import template
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 register = template.Library()
 
@@ -27,7 +27,7 @@ def format_miles(value):
         formatted = "{:,}".format(num).replace(',', '.')
         
         return formatted
-    except (ValueError, TypeError, Decimal.InvalidOperation):
+    except (ValueError, TypeError, InvalidOperation):
         return value
 
 

@@ -61,6 +61,33 @@
             border-right: 1px solid #E9ECEF;
         }
 
+        /* Wrapper interno del sidebar para el scroll */
+        .sidebar-scroll-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+            scrollbar-width: thin;
+            scrollbar-color: #D4C4A8 #F5F1E8;
+        }
+
+        .sidebar-scroll-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar-scroll-wrapper::-webkit-scrollbar-track {
+            background: #F5F1E8;
+            border-radius: 10px;
+        }
+
+        .sidebar-scroll-wrapper::-webkit-scrollbar-thumb {
+            background: #D4C4A8;
+            border-radius: 10px;
+        }
+
+        .sidebar-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #C8B89A;
+        }
+
         .sidebar::after {
             content: '';
             position: fixed;
@@ -158,6 +185,11 @@
 
         .sidebar-nav {
             padding: 0.5rem 0;
+        }
+
+        /* Eliminar scroll del sidebar directamente (el scroll va en el wrapper) */
+        .sidebar::-webkit-scrollbar {
+            display: none;
         }
 
         /* Footer Principal */
@@ -326,31 +358,7 @@
             display: none;
         }
 
-        /* Scrollbar personalizada para el sidebar */
-        .sidebar::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .sidebar::-webkit-scrollbar-track {
-            background: #F5F1E8;
-            border-radius: 10px;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb {
-            background: #D4C4A8;
-            border-radius: 10px;
-            transition: background 0.3s ease;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb:hover {
-            background: #C8B89A;
-        }
-
-        /* Para Firefox */
-        .sidebar {
-            scrollbar-width: thin;
-            scrollbar-color: #D4C4A8 #F5F1E8;
-        }
+        /* Scrollbar personalizada para el sidebar (ver .sidebar-scroll-wrapper arriba) */
 
         /* Main Content */
         .main-content {
@@ -983,6 +991,7 @@
             </div>
         </div>
 
+        <div class="sidebar-scroll-wrapper">
         <div class="sidebar-nav">
             <!-- Dashboard -->
             <div class="nav-item">
@@ -1117,12 +1126,12 @@
                         {% if perms.ventas.view_notacredito or user.is_superuser %}
                         <a href="{% url 'ventas:notacredito_list' %}"
                             class="nav-link submenu-link {% if 'notas-credito' in request.path %}active{% endif %}">
-                            <i class="fas fa-file-excel me-2" style="color: #A0826D;"></i>
+                            <i class="fas fa-file-invoice-dollar me-2" style="color: #A0826D;"></i>
                             <span>Notas de Crédito</span>
                         </a>
                         {% endif %}
-                        {% if perms.facturacion_electronica.view_documentotributarioelectronico or user.is_superuser %}
-                        <a href="{% url 'facturacion_electronica:dte_list' %}?tipo=56"
+                        {% if perms.ventas.view_notadebito or user.is_superuser %}
+                        <a href="{% url 'ventas:notadebito_list' %}"
                             class="nav-link submenu-link {% if 'notas-debito' in request.path %}active{% endif %}">
                             <i class="fas fa-file-invoice-dollar me-2" style="color: #A0826D;"></i>
                             <span>Notas de Débito</span>
@@ -1175,6 +1184,13 @@
                             <span>Estaciones de Trabajo</span>
                         </a>
                         {% endif %}
+
+                        <div class="submenu-separator"></div>
+                        <a href="{% url 'facturacion_electronica:listar_cafs' %}"
+                            class="nav-link submenu-link {% if 'caf' in request.path %}active{% endif %}">
+                            <i class="fas fa-key me-2" style="color: #CD853F;"></i>
+                            <span>Control de Folios CAF</span>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -1645,6 +1661,7 @@
             </div>
             {% endif %}
 
+        </div>
         </div>
     </nav>
 

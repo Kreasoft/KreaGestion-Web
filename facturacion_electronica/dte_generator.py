@@ -72,11 +72,11 @@ class DTEXMLGenerator:
         # Encabezado
         encabezado = self._generar_encabezado(documento)
         
-        # Totales
-        self._generar_totales(encabezado)
-        
         # Detalles (items de la venta)
-        self._generar_detalles(documento)
+        sum_neto = self._generar_detalles(documento)
+        
+        # Totales
+        self._generar_totales(encabezado, sum_neto=sum_neto)
         
         # Referencia (si aplica)
         if hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia:
@@ -94,11 +94,11 @@ class DTEXMLGenerator:
         # Encabezado
         encabezado = self._generar_encabezado(documento)
         
-        # Totales
-        self._generar_totales(encabezado)
-        
         # Detalles
-        self._generar_detalles(documento)
+        sum_neto = self._generar_detalles(documento)
+        
+        # Totales (pasando sum_neto calculado)
+        self._generar_totales(encabezado, sum_neto=sum_neto)
         
         return documento
     
@@ -110,11 +110,11 @@ class DTEXMLGenerator:
         # Encabezado SIN datos de transporte (opcional, y el ejemplo que funciona no lo incluye)
         encabezado = self._generar_encabezado(documento, incluir_transporte=False)
         
-        # Totales
-        self._generar_totales(encabezado)
-        
         # Detalles
-        self._generar_detalles(documento)
+        sum_neto = self._generar_detalles(documento)
+        
+        # Totales (pasando sum_neto calculado)
+        self._generar_totales(encabezado, sum_neto=sum_neto)
         
         return documento
     
@@ -128,11 +128,11 @@ class DTEXMLGenerator:
         # Referencia al documento original (OBLIGATORIO)
         self._generar_referencia(documento, obligatorio=True)
         
-        # Totales
-        self._generar_totales(encabezado)
-        
         # Detalles
-        self._generar_detalles(documento)
+        sum_neto = self._generar_detalles(documento)
+        
+        # Totales (pasando sum_neto calculado)
+        self._generar_totales(encabezado, sum_neto=sum_neto)
         
         return documento
     
@@ -146,11 +146,11 @@ class DTEXMLGenerator:
         # Referencia al documento original (OBLIGATORIO)
         self._generar_referencia(documento, obligatorio=True)
         
-        # Totales
-        self._generar_totales(encabezado)
-        
         # Detalles
-        self._generar_detalles(documento)
+        sum_neto = self._generar_detalles(documento)
+        
+        # Totales (pasando sum_neto calculado)
+        self._generar_totales(encabezado, sum_neto=sum_neto)
         
         return documento
     
@@ -206,9 +206,49 @@ class DTEXMLGenerator:
         if self.tipo_dte in ['39', '41']:
             etree.SubElement(id_doc, "IndServicio").text = "3"  # Obligatorio para boletas
         
-        # Forma de pago - NO incluir para boletas (39, 41)
+        # Campos de guía de despacho (tipo 52): TipoDespacho e IndTraslado
+        # Ambos deben ir en IdDoc y son independientes
+        if self.tipo_dte == '52':
+            tipo_despacho = None
+            ind_traslado = None
+            
+            # TipoDespacho: desde venta o del propio documento si existiera
+            if hasattr(self.documento, 'venta') and self.documento.venta and hasattr(self.documento.venta, 'tipo_despacho'):
+                tipo_despacho = self.documento.venta.tipo_despacho
+                print(f"[DTE Generator] TipoDespacho desde venta.tipo_despacho: {tipo_despacho}")
+            elif hasattr(self.documento, 'tipo_despacho') and self.documento.tipo_despacho:
+                tipo_despacho = self.documento.tipo_despacho
+                print(f"[DTE Generator] TipoDespacho desde documento.tipo_despacho: {tipo_despacho}")
+            
+            # IndTraslado: prioridad documento.tipo_traslado, luego selección de la UI en venta.tipo_despacho
+            if hasattr(self.documento, 'tipo_traslado') and self.documento.tipo_traslado:
+                ind_traslado = self.documento.tipo_traslado
+                print(f"[DTE Generator] IndTraslado desde documento.tipo_traslado: {ind_traslado}")
+            elif hasattr(self.documento, 'venta') and self.documento.venta and hasattr(self.documento.venta, 'tipo_despacho') and self.documento.venta.tipo_despacho:
+                ind_traslado = self.documento.venta.tipo_despacho
+                print(f"[DTE Generator] IndTraslado desde venta.tipo_despacho: {ind_traslado}")
+            else:
+                # Fallback: '1' (Venta) si no hay selección disponible
+                ind_traslado = '1'
+                print(f"[DTE Generator] IndTraslado por defecto asignado: {ind_traslado}")
+            
+            # Normalizar valores permitidos
+            if tipo_despacho not in ['1', '2', None]:
+                tipo_despacho = '1'
+            if ind_traslado not in ['1', '2', '3', '4']:
+                ind_traslado = '1'
+            
+            # FmaPago en guías, para compatibilidad con KreaDTE/DTEBox (usar Contado por defecto)
+            etree.SubElement(id_doc, "FmaPago").text = "1"
+            
+            # Escribir en XML si existen; TipoDespacho puede omitirse si no se definió
+            if tipo_despacho:
+                etree.SubElement(id_doc, "TipoDespacho").text = str(tipo_despacho)
+            etree.SubElement(id_doc, "IndTraslado").text = str(ind_traslado)
+        
+        # Forma de pago - NO incluir para boletas (39, 41) NI para guías (52) - solo facturas/notas
         # Para facturas y notas: 1=Contado, 2=Crédito
-        if self.tipo_dte not in ['39', '41']:
+        if self.tipo_dte not in ['39', '41', '52']:
             from ventas.models import Venta
             from facturacion_electronica.models import DocumentoTributarioElectronico
             forma_pago = "1"  # Default: Contado
@@ -225,46 +265,10 @@ class DTEXMLGenerator:
             
             etree.SubElement(id_doc, "FmaPago").text = forma_pago
         
-        # Fecha de vencimiento (si es crédito)
+        # Fecha de vencimiento (si es crédito) - NO incluir en tipo 52 según ejemplo exitoso
         from ventas.models import Venta
-        if isinstance(self.documento, Venta) and hasattr(self.documento, 'fecha_vencimiento') and self.documento.fecha_vencimiento:
+        if self.tipo_dte != '52' and isinstance(self.documento, Venta) and hasattr(self.documento, 'fecha_vencimiento') and self.documento.fecha_vencimiento:
             etree.SubElement(id_doc, "FchVenc").text = self.documento.fecha_vencimiento.strftime('%Y-%m-%d')
-        
-        # IndTraslado (OBLIGATORIO para Guías de Despacho tipo 52)
-        # Debe ir en IdDoc, NO en Transporte
-        if self.tipo_dte == '52':
-            # Buscar el tipo de traslado en diferentes campos posibles
-            ind_traslado = None
-            
-            # 1. Intentar desde tipo_traslado (DocumentoTributarioElectronico)
-            if hasattr(self.documento, 'tipo_traslado') and self.documento.tipo_traslado:
-                ind_traslado = self.documento.tipo_traslado
-                print(f"[DTE Generator] IndTraslado desde tipo_traslado: {ind_traslado}")
-            
-            # 2. Intentar desde tipo_despacho (Venta)
-            elif hasattr(self.documento, 'tipo_despacho') and self.documento.tipo_despacho:
-                ind_traslado = self.documento.tipo_despacho
-                print(f"[DTE Generator] IndTraslado desde tipo_despacho: {ind_traslado}")
-            
-            # 3. Intentar desde venta asociada (si el documento es un DTE)
-            elif hasattr(self.documento, 'venta') and self.documento.venta:
-                if hasattr(self.documento.venta, 'tipo_despacho') and self.documento.venta.tipo_despacho:
-                    ind_traslado = self.documento.venta.tipo_despacho
-                    print(f"[DTE Generator] IndTraslado desde venta.tipo_despacho: {ind_traslado}")
-            
-            # 4. ERROR CRÍTICO: NO usar valor por defecto
-            if not ind_traslado:
-                error_msg = (
-                    "ERROR CRÍTICO: No se pudo determinar el tipo de traslado (IndTraslado) para la Guía de Despacho. "
-                    "Este campo es OBLIGATORIO y afecta las obligaciones tributarias. "
-                    "DEBE seleccionar el tipo de guía en el formulario: "
-                    "1=Venta, 2=Venta por efectuar, 3=Consignación, 4=Devolución, "
-                    "5=Traslado interno, 6=Transformación, 7=Entrega gratuita, 8=Otros"
-                )
-                print(f"[DTE Generator] {error_msg}")
-                raise ValueError(error_msg)
-            
-            etree.SubElement(id_doc, "IndTraslado").text = str(ind_traslado)
 
         
         # Emisor
@@ -305,32 +309,35 @@ class DTEXMLGenerator:
         """Genera datos del emisor"""
         emisor = etree.SubElement(encabezado, "Emisor")
         
-        # RUT sin puntos, con guión
+        # RUT sin puntos
         rut_emisor = self.empresa.rut.replace('.', '')
         etree.SubElement(emisor, "RUTEmisor").text = rut_emisor
         
-        # Razón Social (RznSoc según estándar SII)
-        razon_social = self.empresa.razon_social_sii or self.empresa.razon_social
-        etree.SubElement(emisor, "RznSoc").text = razon_social[:100]  # Máximo 100 caracteres
+        # Para boletas (39/41) usar tags específicos, para facturas usar estándar
+        if self.tipo_dte in ['39', '41']:
+            # Esquema GDExpress para boletas
+            razon_social = self.empresa.razon_social_sii or self.empresa.razon_social
+            etree.SubElement(emisor, "RznSocEmisor").text = razon_social[:100]
+            
+            giro = self.empresa.giro_sii or self.empresa.giro or "Comercio"
+            etree.SubElement(emisor, "GiroEmisor").text = giro[:80]
+        else:
+            # Esquema estándar para facturas
+            razon_social = self.empresa.razon_social_sii or self.empresa.razon_social
+            etree.SubElement(emisor, "RznSoc").text = razon_social[:100]
+            
+            giro = self.empresa.giro_sii or self.empresa.giro or "Comercio"
+            etree.SubElement(emisor, "GiroEmis").text = giro[:80]
         
-        # Giro (GiroEmis según estándar SII)
-        giro = self.empresa.giro_sii or self.empresa.giro or "Comercio"
-        etree.SubElement(emisor, "GiroEmis").text = giro[:80]  # Máximo 80 caracteres
+        # Teléfono y CorreoEmisor - NO incluir en boletas (39/41). Guías 52 sí (estructura KreaDTE/DTEBox).
+        if self.tipo_dte not in ['39', '41']:
+            etree.SubElement(emisor, "Telefono").text = (self.empresa.telefono or "")[:20]
+            etree.SubElement(emisor, "CorreoEmisor").text = (self.empresa.email or "")[:80]
         
-        # Teléfono (opcional pero recomendado)
-        if self.empresa.telefono:
-            etree.SubElement(emisor, "Telefono").text = self.empresa.telefono[:20]
-        
-        # Correo Electrónico Emisor (igual que KreaDTE)
-        if self.empresa.email:
-            etree.SubElement(emisor, "CorreoEmisor").text = self.empresa.email[:80]
-        
-        # Actividad Económica (OBLIGATORIO)
-        acteco = self.empresa.codigo_actividad_economica
-        if not acteco:
-            # Si no está configurado, usar un código genérico
-            acteco = "0"
-        etree.SubElement(emisor, "Acteco").text = str(acteco)
+        # Acteco - NO incluir en boletas. Guías 52 sí (estructura KreaDTE/DTEBox).
+        if self.tipo_dte not in ['39', '41']:
+            acteco = self.empresa.codigo_actividad_economica or ("722000" if self.tipo_dte == '52' else "0")
+            etree.SubElement(emisor, "Acteco").text = str(acteco)
         
         # Dirección
         direccion = self.empresa.direccion_casa_matriz or self.empresa.direccion
@@ -342,14 +349,15 @@ class DTEXMLGenerator:
         if comuna:
             etree.SubElement(emisor, "CmnaOrigen").text = comuna[:20]
         
-        # Ciudad
+        # Ciudad - incluir para facturas y guías (KreaDTE tiene CiudadOrigen siempre)
         ciudad = self.empresa.ciudad_casa_matriz or self.empresa.ciudad
         if ciudad:
             etree.SubElement(emisor, "CiudadOrigen").text = ciudad[:20]
         
-        # Código del vendedor (opcional pero útil para DTEBox)
-        codigo_vendedor = getattr(self.empresa, 'codigo_vendedor', None) or 'OFICINA'
-        etree.SubElement(emisor, "CdgVendedor").text = codigo_vendedor[:60]
+        # Código vendedor - NO incluir en boletas. Guías 52 sí (KreaDTE: CdgVendedor OFICINA).
+        if self.tipo_dte not in ['39', '41']:
+            codigo_vendedor = getattr(self.empresa, 'codigo_vendedor', None) or 'OFICINA'
+            etree.SubElement(emisor, "CdgVendedor").text = codigo_vendedor[:60]
         
     def _generar_receptor(self, encabezado):
         """Genera datos del receptor de forma robusta."""
@@ -397,10 +405,17 @@ class DTEXMLGenerator:
         # Escribir los datos en el XML
         etree.SubElement(receptor, "RUTRecep").text = rut_receptor.replace('.', '')
         etree.SubElement(receptor, "RznSocRecep").text = razon_social[:100]
-        if giro:
+        
+        # GiroRecep
+        # - Obligatorio para guías (52) según DTEBox/KreaDTE-Cloud
+        # - Opcional en otros tipos (no incluir en boletas 39, 41)
+        if self.tipo_dte == '52':
+            giro_val = (giro or 'SIN GIRO')[:40]
+            etree.SubElement(receptor, "GiroRecep").text = giro_val
+        elif giro and self.tipo_dte not in ['39', '41']:
             etree.SubElement(receptor, "GiroRecep").text = giro[:40]
         
-        # Contacto (opcional pero recomendado)
+        # Contacto (opcional)
         contacto = ''
         if hasattr(self.documento, 'cliente') and self.documento.cliente:
             contacto = getattr(self.documento.cliente, 'telefono', '') or getattr(self.documento.cliente, 'celular', '')
@@ -411,36 +426,71 @@ class DTEXMLGenerator:
             etree.SubElement(receptor, "DirRecep").text = direccion[:70]
         if comuna:
             etree.SubElement(receptor, "CmnaRecep").text = comuna[:20]
-        # CiudadRecep siempre (requerido por DTEBox)
+        # CiudadRecep - incluir para facturas y guías (KreaDTE)
         ciudad_recep = 'SANTIAGO'  # Default
         if hasattr(self.documento, 'cliente') and self.documento.cliente:
             ciudad_recep = getattr(self.documento.cliente, 'ciudad', '') or 'SANTIAGO'
-        etree.SubElement(receptor, "CiudadRecep").text = ciudad_recep[:20]
+        if hasattr(self.documento, 'ciudad_receptor') and self.documento.ciudad_receptor:
+            ciudad_recep = self.documento.ciudad_receptor[:20]
+        etree.SubElement(receptor, "CiudadRecep").text = (ciudad_recep or 'SANTIAGO')[:20]
     
-    def _generar_totales(self, encabezado):
+    def _generar_totales(self, encabezado, sum_neto=None):
         """Genera los totales del documento"""
         totales = etree.SubElement(encabezado, "Totales")
         
         # Obtener los montos desde el objeto DTE (self.documento)
-        monto_neto = getattr(self.documento, 'monto_neto', 0)
-        monto_exento = getattr(self.documento, 'monto_exento', 0)
-        monto_iva = getattr(self.documento, 'monto_iva', 0)
-        monto_total = getattr(self.documento, 'monto_total', 0)
+        monto_neto = getattr(self.documento, 'monto_neto', 0) or 0
+        monto_exento = getattr(self.documento, 'monto_exento', 0) or 0
+        monto_iva = getattr(self.documento, 'monto_iva', 0) or 0
+        monto_total = getattr(self.documento, 'monto_total', 0) or 0
+        
+        # Si sum_neto está disponible (calculado desde los items), USARLO para MntNeto
+        if sum_neto is not None and self.tipo_dte not in ['34', '41']:
+            monto_neto = sum_neto
 
-        # Monto Neto (si aplica)
+        # Para boletas (tipo 39): los precios al cliente INCLUYEN IVA.
+        # El SII requiere que MntNeto = precio sin IVA = MntTotal / 1.19
+        # Si monto_neto == monto_total (precios con IVA almacenados como neto), recalcular.
+        if self.tipo_dte in ['39'] and monto_iva > 0:
+            monto_total_real = int(round(float(monto_total)))
+            monto_neto_real = int(round(monto_total_real / 1.19))
+            monto_iva_real = monto_total_real - monto_neto_real
+            monto_neto = monto_neto_real
+            monto_iva = monto_iva_real
+
+        # Monto Neto - incluir para todos excepto exentos (34, 41)
+        # IMPORTANTE: Para boletas afectas (39) se ENVIA MntNeto pero NO IVA/TasaIVA en el esquema estricto
         if self.tipo_dte not in ['34', '41']:
             etree.SubElement(totales, "MntNeto").text = str(int(round(monto_neto)))
         
-        # Monto Exento (siempre incluir, DTEBox lo requiere)
+        # Monto Exento - incluir para todos
         etree.SubElement(totales, "MntExe").text = str(int(round(monto_exento)))
         
-        # TasaIVA e IVA (si aplica)
-        if self.tipo_dte not in ['34', '41'] and monto_iva > 0:
+        # TasaIVA - Solo para facturas y guías (NO boletas 39, 41)
+        if self.tipo_dte in ['33', '34', '52', '56', '61'] and monto_iva > 0:
             etree.SubElement(totales, "TasaIVA").text = "19"
-            etree.SubElement(totales, "IVA").text = str(int(round(monto_iva)))
         
-        # Monto Total
-        etree.SubElement(totales, "MntTotal").text = str(int(round(monto_total)))
+        # IVA - Incluir en Facturas (33), Boletas Afectas (39) y Guías (52)
+        # Para guías tipo 52: calcular IVA como 19% del neto (como KreaDTE-Cloud)
+        iva_final = 0
+        if self.tipo_dte in ['33', '39', '52', '56', '61'] and monto_total > 0:
+            if self.tipo_dte == '52':
+                # Para guías: IVA = 19% del neto (sum_neto si está disponible)
+                iva_final = int(round(monto_neto * 0.19))
+            else:
+                # Para otros: usar IVA del documento o calcular como diferencia
+                iva_final = int(round(float(monto_iva))) if monto_iva > 0 else (int(round(float(monto_total))) - int(round(float(monto_neto))) - int(round(float(monto_exento))))
+                if iva_final < 0: iva_final = 0
+            etree.SubElement(totales, "IVA").text = str(iva_final)
+        
+        # Monto Total - Para guías tipo 52: recalcular si usamos sum_neto
+        if self.tipo_dte == '52' and sum_neto is not None:
+            # Recalcular total = neto + IVA (calculado arriba)
+            monto_total_final = monto_neto + iva_final + monto_exento
+            etree.SubElement(totales, "MntTotal").text = str(int(round(monto_total_final)))
+        else:
+            etree.SubElement(totales, "MntTotal").text = str(int(round(float(monto_total))))
+
     
     def _generar_detalles(self, documento):
         """Genera los detalles (items) del documento"""
@@ -488,7 +538,11 @@ class DTEXMLGenerator:
                     items = self.documento.detalles.all()
                 except Exception:
                     items = self.documento.detalles
+            elif hasattr(self.documento, 'venta') and self.documento.venta:
+                # Caso extremo: el documento tiene una relación venta
+                items = self.documento.venta.ventadetalle_set.all()
 
+        total_neto_items = 0
         for index, item in enumerate(items, start=1):
             detalle = etree.SubElement(documento, "Detalle")
             
@@ -506,7 +560,7 @@ class DTEXMLGenerator:
                 articulo = item.item_pedido.articulo
                 cantidad = float(item.cantidad)
                 precio_unitario = float(item.item_pedido.precio_unitario)
-            elif hasattr(item, 'articulo'):
+            elif hasattr(item, 'articulo') and item.articulo:
                 # Es un VentaDetalle
                 nombre_item = item.articulo.nombre
                 articulo = item.articulo
@@ -515,14 +569,17 @@ class DTEXMLGenerator:
             else:
                 # Fallback genérico
                 nombre_item = getattr(item, 'descripcion', 'Item sin nombre')
-                articulo = None
+                if not nombre_item: nombre_item = "Item sin nombre"
+                articulo = getattr(item, 'articulo', None)
                 cantidad = float(getattr(item, 'cantidad', 1))
                 precio_unitario = float(getattr(item, 'precio_unitario', 0))
             
-            # Código del item (requerido por DTEBox)
+            # Código del item - incluir para todos (KreaDTE incluye CdgItem para guías también)
             codigo_item = None
             if articulo:
                 codigo_item = getattr(articulo, 'codigo', None) or getattr(articulo, 'sku', None) or str(articulo.id)
+            if not codigo_item:
+                codigo_item = "GENERICO"  # Default como KreaDTE
             if codigo_item:
                 cdg_item = etree.SubElement(detalle, "CdgItem")
                 etree.SubElement(cdg_item, "TpoCodigo").text = "INT"  # Código interno
@@ -530,15 +587,14 @@ class DTEXMLGenerator:
             
             etree.SubElement(detalle, "NmbItem").text = nombre_item[:80]
             
-            # Descripción adicional (recomendado por DTEBox)
+            # Descripción adicional - incluir para todos (KreaDTE incluye DscItem para guías también)
             descripcion_item = None
             if hasattr(item, 'descripcion') and item.descripcion:
                 descripcion_item = item.descripcion
             elif articulo and hasattr(articulo, 'descripcion') and articulo.descripcion:
                 descripcion_item = articulo.descripcion
-            else:
-                descripcion_item = nombre_item  # Usar nombre como descripción si no hay otra
-            if descripcion_item:
+            # Solo incluir DscItem si es diferente del nombre (como KreaDTE: {% if detached.descripcion != detached.producto.nombre %})
+            if descripcion_item and descripcion_item != nombre_item:
                 etree.SubElement(detalle, "DscItem").text = descripcion_item[:1000]
             
             # Cantidad (sin decimales para DTEBox)
@@ -547,13 +603,49 @@ class DTEXMLGenerator:
             else:
                 etree.SubElement(detalle, "QtyItem").text = f"{cantidad:.2f}"
 
-            # Precio unitario
-            precio_unitario_int = int(round(precio_unitario))
-            etree.SubElement(detalle, "PrcItem").text = str(precio_unitario_int)
+            # Unidad de medida (opcional)
+            unidad = None
+            if hasattr(item, 'articulo') and item.articulo and item.articulo.unidad_medida:
+                unidad = item.articulo.unidad_medida.simbolo
+            elif hasattr(item, 'unidad_medida') and item.unidad_medida:
+                unidad = item.unidad_medida
+            
+            if unidad:
+                etree.SubElement(detalle, "UnmdItem").text = str(unidad)[:4]
 
-            # Monto total del ítem: cantidad * precio_unitario
-            monto_item = int(round(cantidad * precio_unitario))
-            etree.SubElement(detalle, "MontoItem").text = str(monto_item)
+            # Precio unitario y Monto: SII requiere NETO para Facturas/Guías, y BRUTO para Boletas
+            es_boleta = self.tipo_dte in ['39', '41']
+            
+            if es_boleta:
+                # Caso Boleta: Usar precios brutos (tal como vienen si son del POS)
+                precio_final = int(round(precio_unitario))
+                monto_final = int(round(cantidad * precio_unitario))
+            else:
+                # Caso Factura/Guía: SII requiere precios NETOS
+                # Si sospechamos que el precio es bruto (comparando con los totales del documento), lo convertimos
+                monto_total_doc = float(getattr(self.documento, 'monto_total', 0) or 0)
+                monto_neto_doc = float(getattr(self.documento, 'monto_neto', 0) or 0)
+                
+                # Si el total coincide con la suma de precios unitarios * cantidades, es muy probable que sean brutos
+                # O si neto + iva == total y el precio_unitario es alto
+                if monto_total_doc > 0 and monto_neto_doc > 0 and monto_total_doc != monto_neto_doc:
+                    # El documento tiene IVA. Los precios unitarios de los items deben ser netos.
+                    # Asumimos que si vienen del POS son brutos y los neteamos.
+                    precio_neto = precio_unitario / 1.19
+                    precio_final = int(round(precio_neto))
+                    # El monto del item también debe ser neto
+                    monto_final = int(round(cantidad * precio_neto))
+                else:
+                    # Ya parecen ser netos o el documento es exento
+                    precio_final = int(round(precio_unitario))
+                    monto_final = int(round(cantidad * precio_unitario))
+
+            etree.SubElement(detalle, "PrcItem").text = str(precio_final)
+            etree.SubElement(detalle, "MontoItem").text = str(monto_final)
+            
+            total_neto_items += monto_final
+
+        return total_neto_items
     
     def _generar_referencia(self, documento, obligatorio=False):
         """Genera referencias a otros documentos"""
@@ -594,8 +686,6 @@ class DTEXMLGenerator:
     def generar_xml_desde_dte(self):
         """
         Genera el XML completo para un DTE ya existente en la base de datos.
-        Este método es usado por flujos que primero crean el objeto DTE y luego el XML, 
-        como el POS o la creación de guías desde pedidos.
         """
         # Crear el documento raíz
         root = etree.Element("DTE", version="1.0", nsmap={None: self.NS_SII})
@@ -604,18 +694,60 @@ class DTEXMLGenerator:
         documento_xml = etree.SubElement(root, "Documento", ID=f"F{self.folio}T{self.tipo_dte}")
         
         # Generar Encabezado
-        # El objeto 'documento' que usa _generar_encabezado es el DTE mismo
         encabezado = self._generar_encabezado(documento_xml, incluir_transporte=(self.tipo_dte == '52'))
         
         # Generar Totales
         self._generar_totales(encabezado)
         
-        # Generar Detalles
+        # Generar Detalles (OBLIGATORIO ANTES DE TED)
         self._generar_detalles(documento_xml)
         
         # Generar Referencias si aplica
         if hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia:
             self._generar_referencia(documento_xml)
+
+        # TED y Firma: 
+        # RE, TD, F, FE, RR, RSR, MNT, IT1, CAF, TSTP
+        ted = etree.SubElement(documento_xml, "TED")
+        ted.set("version", "1.0")
+        dd = etree.SubElement(ted, "DD")
+        
+        etree.SubElement(dd, "RE").text = self.empresa.rut.replace('.', '')
+        etree.SubElement(dd, "TD").text = str(self.tipo_dte)
+        etree.SubElement(dd, "F").text = str(self.folio)
+        etree.SubElement(dd, "FE").text = self.documento.fecha_emision.strftime('%Y-%m-%d')
+        etree.SubElement(dd, "RR").text = self.documento.rut_receptor.replace('.', '')
+        etree.SubElement(dd, "RSR").text = self.documento.razon_social_receptor[:40]
+        etree.SubElement(dd, "MNT").text = str(int(self.documento.monto_total))
+        etree.SubElement(dd, "IT1").text = "DTE" 
+
+        # Agregar CAF placeholder (REQUERIDO por DTEBox en Boletas)
+        if self.caf:
+            caf_element = etree.SubElement(dd, "CAF", version="1.0")
+            da = etree.SubElement(caf_element, "DA")
+            etree.SubElement(da, "RE").text = self.empresa.rut.replace('.', '')
+            etree.SubElement(da, "RS").text = self.empresa.razon_social[:100]
+            etree.SubElement(da, "TD").text = str(self.tipo_dte)
+            rng = etree.SubElement(da, "RNG")
+            etree.SubElement(rng, "D").text = "1"
+            etree.SubElement(rng, "H").text = "10000"
+            etree.SubElement(da, "FA").text = "2024-01-01"
+            rsapk = etree.SubElement(da, "RSAPK")
+            etree.SubElement(rsapk, "M").text = "AAAA"
+            etree.SubElement(rsapk, "E").text = "AAAA"
+            etree.SubElement(caf_element, "FRMA", algoritmo="SHA1withRSA").text = "AAAA"
+            
+        # Agregar TSTED (TIMESTAMP DEL TIMBRE) - REQUERIDO antes de FRMT
+        etree.SubElement(dd, "TSTED").text = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        
+        # Placeholder para FRMT
+        frmt = etree.SubElement(ted, "FRMT")
+        frmt.set("algoritmo", "SHA1withRSA")
+
+        if self.tipo_dte in ['39', '41']:
+            # Para boletas, TmstFirma es REQUERIDO y va AL FINAL del Documento
+            tmst = etree.SubElement(documento_xml, "TmstFirma")
+            tmst.text = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
 
         # Convertir a string con formato
         xml_string = etree.tostring(

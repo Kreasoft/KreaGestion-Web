@@ -52,6 +52,30 @@
                             {% endif %}
                         </div>
 
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.fecha_autorizacion.id_for_label }}" class="form-label">
+                                    {{ form.fecha_autorizacion.label }}
+                                </label>
+                                {{ form.fecha_autorizacion }}
+                                <small class="form-text text-muted">Extraída del XML, se puede ajustar si es necesario.</small>
+                                {% if form.fecha_autorizacion.errors %}
+                                <div class="text-danger">{{ form.fecha_autorizacion.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.fecha_vencimiento.id_for_label }}" class="form-label">
+                                    {{ form.fecha_vencimiento.label }}
+                                </label>
+                                {{ form.fecha_vencimiento }}
+                                <small class="form-text text-muted">Por defecto 6 meses desde autorización.</small>
+                                {% if form.fecha_vencimiento.errors %}
+                                <div class="text-danger">{{ form.fecha_vencimiento.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label for="{{ form.archivo_xml.id_for_label }}" class="form-label">
                                 {{ form.archivo_xml.label }}
@@ -69,13 +93,34 @@
                         <div class="alert alert-info">
                             <h6><i class="fas fa-info-circle"></i> Instrucciones:</h6>
                             <ol class="mb-0">
-                                <li>Seleccione la sucursal a la que pertenecerá este CAF</li>
-                                <li>Seleccione el tipo de documento</li>
-                                <li>Seleccione el archivo XML descargado del SII</li>
-                                <li>El sistema extraerá automáticamente el rango de folios y la fecha de autorización
-                                </li>
+                                <li>Seleccione la sucursal y el tipo de documento.</li>
+                                <li>Cargue el archivo XML descargado del SII.</li>
+                                <li>El sistema extraerá automáticamente los datos, pero usted puede ajustar las fechas manualmente si lo requiere.</li>
+                                <li>La <strong>Fecha de Vencimiento</strong> se calcula automáticamente a 6 meses desde la autorización.</li>
                             </ol>
                         </div>
+
+                        <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const fechaAutInput = document.getElementById('{{ form.fecha_autorizacion.id_for_label }}');
+                            const fechaVencInput = document.getElementById('{{ form.fecha_vencimiento.id_for_label }}');
+
+                            fechaAutInput.addEventListener('change', function() {
+                                if (this.value) {
+                                    const date = new Date(this.value);
+                                    // Sumar 6 meses (aprox 180 días)
+                                    date.setMonth(date.getMonth() + 6);
+                                    
+                                    // Formato YYYY-MM-DD
+                                    const y = date.getFullYear();
+                                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                                    const d = String(date.getDate()).padStart(2, '0');
+                                    
+                                    fechaVencInput.value = `${y}-${m}-${d}`;
+                                }
+                            });
+                        });
+                        </script>
 
                         <div class="d-flex justify-content-between">
                             <a href="{% url 'facturacion_electronica:listar_cafs' %}" class="btn btn-secondary">

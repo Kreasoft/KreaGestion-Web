@@ -38,26 +38,33 @@ def procesar_venta_caja(request, ticket_id):
     empresa = request.empresa
     ticket = get_object_or_404(Venta, pk=ticket_id, empresa=empresa, tipo_documento='ticket')
     
+    # Determinar URL de retorno (de donde vino el usuario)
+    next_url = request.GET.get('next') or request.POST.get('next') or reverse('caja:procesar_venta_buscar')
+    # Seguridad: solo permitir URLs relativas (que comiencen con /)
+    if not next_url.startswith('/'):
+        next_url = reverse('caja:procesar_venta_buscar')
+    
     print("=" * 80)
     print(f"[CAJA] Procesando ticket ID: {ticket_id}")
     print(f"  Tipo planeado: {ticket.tipo_documento_planeado}")
     print(f"  Cliente: {ticket.cliente}")
     print(f"  Total: ${ticket.total}")
+    print(f"  next_url: {next_url}")
     print("=" * 80)
     
     # Validar que no sea Cotización o Vale no facturable
     if ticket.tipo_documento in ['cotizacion', 'vale_no_facturable']:
         messages.error(request, 'Los tickets de tipo Cotización y Vale no son facturables.')
-        return redirect('caja:apertura_list')
+        return redirect(next_url)
     
     # Verificar que el ticket no esté ya procesado
     if VentaProcesada.objects.filter(venta_preventa=ticket).exists():
         messages.warning(request, 'Este ticket ya ha sido procesado.')
-        return redirect('caja:apertura_list')
+        return redirect(next_url)
     
     if ticket.facturado:
         messages.warning(request, 'Este ticket ya ha sido facturado.')
-        return redirect('caja:apertura_list')
+        return redirect(next_url)
     
     # Obtener apertura activa
     apertura_activa = None
@@ -99,6 +106,7 @@ def procesar_venta_caja(request, ticket_id):
             'mostrar_modal_apertura': mostrar_modal_apertura,
             'form_apertura': form_apertura,
             'origen': 'caja',  # Identificador explícito
+            'next_url': next_url,
         }
         
         return render(request, 'caja/procesar_venta.html', context)
@@ -152,6 +160,7 @@ def procesar_venta_caja(request, ticket_id):
                 'mostrar_modal_apertura': mostrar_modal_apertura,
                 'form_apertura': form_apertura,
                 'origen': 'caja',
+                'next_url': next_url,
             }
             return render(request, 'caja/procesar_venta.html', context)
         
@@ -169,6 +178,7 @@ def procesar_venta_caja(request, ticket_id):
                 'mostrar_modal_apertura': mostrar_modal_apertura,
                 'form_apertura': form_apertura,
                 'origen': 'caja',
+                'next_url': next_url,
             }
             return render(request, 'caja/procesar_venta.html', context)
     
@@ -279,21 +289,16 @@ def procesar_venta_caja(request, ticket_id):
                 from django.urls import reverse as django_reverse
                 dte_url = django_reverse('facturacion_electronica:ver_factura_electronica', kwargs={'dte_id': dte.pk})
                 
-                # Determinar URL de retorno: si el ticket tiene estacion_trabajo, volver al POS
-                if ticket.estacion_trabajo:
-                    return_url = django_reverse('ventas:pos_view')
-                else:
-                    return_url = django_reverse('caja:procesar_venta_buscar')
-                
+                # Determinar URL de retorno final
                 # auto=1: imprime automáticamente
                 # autoclose=1: cierra y vuelve después de imprimir
                 # autoclose_delay=1000: espera 1 segundo después de imprimir antes de volver
                 from urllib.parse import quote
-                return redirect(f"{dte_url}?auto=1&autoclose=1&autoclose_delay=1000&return_url={quote(return_url, safe='')}")
+                return redirect(f"{dte_url}?auto=1&autoclose=1&autoclose_delay=1000&return_url={quote(next_url, safe='')}")
             else:
-                # Si no hay DTE, imprimir como vale y volver a búsqueda
+                # Si no hay DTE, volver al origen
                 messages.warning(request, 'Documento procesado pero no se generó DTE.')
-                return redirect('caja:procesar_venta_buscar')
+                return redirect(next_url)
     
     except Exception as e:
         print(f"[CAJA] ERROR: {str(e)}")
@@ -308,6 +313,7 @@ def procesar_venta_caja(request, ticket_id):
             'mostrar_modal_apertura': mostrar_modal_apertura,
             'form_apertura': form_apertura,
             'origen': 'caja',
+            'next_url': next_url,
         }
         return render(request, 'caja/procesar_venta.html', context)
 

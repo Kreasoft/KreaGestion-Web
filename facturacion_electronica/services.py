@@ -51,59 +51,52 @@ class FolioService:
 
         # Modo normal: consumir folios reales
         with transaction.atomic():
-            # Usar el método del modelo para obtener CAF activo
-            caf = ArchivoCAF.obtener_caf_activo(empresa, sucursal, tipo_documento)
-            
-            if caf is None:
-                print(f"[ERROR] No hay CAFs activos para tipo documento {tipo_documento} en sucursal {sucursal.nombre}")
-                print(f"        Solución: Cargar un CAF del SII para esta sucursal")
-                return None, None
-            
-            # VERIFICAR VIGENCIA DEL CAF (6 meses desde autorización)
-            if not caf.esta_vigente():
-                print(f"[ERROR] CAF vencido: {caf.tipo_documento} ({caf.folio_desde}-{caf.folio_hasta})")
-                print(f"        Autorizado el {caf.fecha_autorizacion}, venció hace {(timezone.now().date() - caf.fecha_vencimiento()).days} días")
-                caf.estado = 'vencido'
-                caf.save()
-                
-                # Intentar obtener el siguiente CAF activo
+            # Intentar encontrar un CAF que tenga folios disponibles
+            while True:
+                # Usar el método del modelo para obtener CAF activo
                 caf = ArchivoCAF.obtener_caf_activo(empresa, sucursal, tipo_documento)
+                
                 if caf is None:
-                    print(f"[ERROR] No hay más CAFs vigentes disponibles")
+                    print(f"[ERROR] No hay CAFs activos para tipo documento {tipo_documento} en sucursal {sucursal.nombre}")
                     return None, None
-            
-            # Verificar folios disponibles
-            if caf.folios_disponibles() > 0:
+                
+                # VERIFICAR VIGENCIA DEL CAF (6 meses desde autorización)
+                if not caf.esta_vigente():
+                    print(f"[ERROR] CAF vencido: {caf.tipo_documento} ({caf.folio_desde}-{caf.folio_hasta})")
+                    caf.estado = 'vencido'
+                    caf.save()
+                    continue # Buscar el siguiente CAF
+                
                 # Calcular el siguiente folio
                 siguiente_folio = caf.folio_actual + 1
                 
-                # *** VALIDACIÓN CRÍTICA: Verificar que el folio esté dentro del rango del CAF ***
-                if siguiente_folio < caf.folio_desde or siguiente_folio > caf.folio_hasta:
-                    print(f"[ERROR CRÍTICO] El folio {siguiente_folio} está FUERA del rango del CAF ({caf.folio_desde}-{caf.folio_hasta})")
-                    print(f"               CAF mal configurado. folio_actual={caf.folio_actual}")
-                    print(f"               Solución: Verificar configuración del CAF o resetear folios")
-                    return None, None
-                
-                # Incrementar el folio actual
-                caf.folio_actual = siguiente_folio
-                caf.folios_utilizados += 1
-
-                folio = siguiente_folio
-
-                # Verificar si se agotaron los folios
-                if caf.folios_disponibles() == 0:
+                # Verificar si el folio está dentro del rango
+                if siguiente_folio > caf.folio_hasta:
+                    print(f"[INFO] CAF ID {caf.id} llegó a su límite ({caf.folio_hasta}). Marcando como agotado.")
                     caf.estado = 'agotado'
                     caf.fecha_agotamiento = timezone.now()
-                    print(f"[INFO] CAF agotado: {caf.tipo_documento} ({caf.folio_desde}-{caf.folio_hasta})")
+                    caf.save()
+                    continue # Buscar el siguiente CAF
+                
+                if siguiente_folio < caf.folio_desde:
+                    # Caso raro: folio_actual es menor que folio_desde - 1
+                    # Ajustamos al inicio del rango
+                    siguiente_folio = caf.folio_desde
+                
+                # Todo OK con este CAF: Incrementar y guardar
+                caf.folio_actual = siguiente_folio
+                caf.folios_utilizados = caf.folio_actual - caf.folio_desde + 1
+
+                # Verificar si se agotó con este último folio
+                if caf.folio_actual >= caf.folio_hasta:
+                    caf.estado = 'agotado'
+                    caf.fecha_agotamiento = timezone.now()
+                    print(f"[INFO] CAF agotado con el último folio: {caf.id} ({caf.folio_desde}-{caf.folio_hasta})")
 
                 caf.save()
-
-                print(f"[OK] Folio asignado: {folio} (CAF: {caf.folio_desde}-{caf.folio_hasta}, ID: {caf.id}) - Sucursal: {sucursal.nombre}")
-                return folio, caf
-            
-            # El CAF no tiene folios disponibles
-            print(f"[ERROR] CAF sin folios disponibles para tipo documento {tipo_documento} en sucursal {sucursal.nombre}")
-            return None, None
+                
+                print(f"[OK] Folio asignado: {siguiente_folio} (CAF ID: {caf.id}, Rango: {caf.folio_desde}-{caf.folio_hasta})")
+                return siguiente_folio, caf
 
     @staticmethod
     def _obtener_folio_modo_prueba(empresa, tipo_documento):

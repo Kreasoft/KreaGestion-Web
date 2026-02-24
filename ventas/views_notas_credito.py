@@ -165,10 +165,16 @@ def notacredito_create(request):
         if venta_id:
             try:
                 venta = Venta.objects.get(pk=venta_id, empresa=request.empresa)
+                # Mapear tipo de documento a código SII
+                tipo_sii = '33' if venta.tipo_documento == 'factura' else '39' if venta.tipo_documento == 'boleta' else '52' if venta.tipo_documento == 'guia' else ''
+                
                 form.initial = {
                     'cliente': venta.cliente,
                     'vendedor': venta.vendedor,
                     'bodega': venta.bodega,
+                    'tipo_doc_afectado': tipo_sii,
+                    'numero_doc_afectado': venta.numero_venta,
+                    'fecha_doc_afectado': venta.fecha,
                 }
             except Venta.DoesNotExist:
                 pass
@@ -228,11 +234,12 @@ def ajax_buscar_documento_afectado(request):
             '33': 'factura',
             '39': 'boleta',
             '52': 'guia',
+            '56': 'nota_debito',
             '61': 'nota_credito'
         }
 
         # Buscar documento según el tipo
-        if tipo_doc in ['33', '39', '52']:  # Documentos electrónicos
+        if tipo_doc in ['33', '39', '52', '56', '61']:  # Documentos electrónicos
             try:
                 documento = DocumentoTributarioElectronico.objects.get(
                     empresa=request.empresa,

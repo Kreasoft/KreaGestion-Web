@@ -38,11 +38,14 @@ urlpatterns = [
     path('dte/<int:dte_id>/consultar-estado/', views_dte.consultar_estado_dte, name='consultar_estado_dte'),
     path('dte/<int:dte_id>/ver-factura/', views_dte.ver_factura_electronica, name='ver_factura_electronica'),
     path('nota-credito/<int:notacredito_id>/ver/', views_dte.ver_notacredito_electronica, name='ver_notacredito_electronica'),
+    path('nota-debito/<int:notadebito_id>/ver/', views_dte.ver_notadebito_electronica, name='ver_notadebito_electronica'),
     
     # DTEBox - Prueba
     path('dte/<int:dte_id>/probar-dtebox/', views_dte.probar_dtebox, name='probar_dtebox'),
     path('dtebox/probar-xml-ejemplo/', views_dte.probar_dtebox_xml_ejemplo, name='probar_dtebox_xml_ejemplo'),
     path('dte/<int:dte_id>/descargar-pdf-gdexpress/', views_dte.descargar_pdf_gdexpress, name='descargar_pdf_gdexpress'),
+    path('dte/<int:dte_id>/regenerar-xml/', views_dte.regenerar_xml_dte, name='regenerar_xml_dte'),
+    path('dte/<int:dte_id>/enviar-gdexpress/', views_dte.enviar_gdexpress_directo, name='enviar_gdexpress_directo'),
     
     # Monitor de envíos
     path('monitor/', views_monitor.monitor_envios, name='monitor_envios'),

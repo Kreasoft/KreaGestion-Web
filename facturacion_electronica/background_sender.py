@@ -99,17 +99,20 @@ class BackgroundDTESender:
         from .models import DocumentoTributarioElectronico
         from empresas.models import Empresa
         
-        max_intentos = 3
+        max_intentos = 6
         
         try:
             # Obtener DTE y Empresa (nueva conexión DB por thread)
             dte = DocumentoTributarioElectronico.objects.select_related('empresa').get(id=dte_id)
             empresa = Empresa.objects.get(id=empresa_id)
             
-            # Verificar que tenga XML firmado
-            if not dte.xml_firmado:
-                logger.error(f"DTE {dte_id} no tiene XML firmado")
-                self._marcar_error(dte, "XML no firmado")
+            # XML para enviar: según GDExpress, por POST se envía XML SIN firmar (xml_dte). Si no hay, usar xml_firmado.
+            xml_dte = (dte.xml_dte or '').strip()
+            xml_firmado = (dte.xml_firmado or '').strip()
+            xml_para_enviar = xml_dte if xml_dte else xml_firmado
+            if not xml_para_enviar:
+                logger.error(f"DTE {dte_id} no tiene XML (ni xml_dte ni xml_firmado)")
+                self._marcar_error(dte, "XML del documento vacío. Regenera el XML desde el detalle del DTE.")
                 return
             
             # Actualizar estado a "enviando"
@@ -119,20 +122,10 @@ class BackgroundDTESender:
             
             logger.info(f"[Thread {threading.current_thread().name}] Enviando DTE {dte.folio} (intento {intentos + 1}/{max_intentos})")
             
-            # GUÍAS (tipo 52) con TED del CAF no necesitan DTEBox
-            if dte.tipo_dte == '52' and dte.timbre_electronico:
-                logger.info(f"[OK] Guía {dte.folio} ya tiene TED del CAF, marcando como enviada directamente")
-                with transaction.atomic():
-                    dte.fecha_envio_sii = timezone.now()
-                    dte.estado_sii = 'enviado'
-                    dte.error_envio = ''
-                    dte.save(update_fields=['fecha_envio_sii', 'estado_sii', 'error_envio'])
-                self.stats['total_enviados'] += 1
-                return
-            
-            # Enviar a DTEBox (solo para Facturas/Boletas o guías sin TED)
+            # Todas las guías y DTEs se envían a DTEBox/GDExpress. Solo "enviado" si DTEBox responde OK.
+            # Enviar a DTEBox por POST: XML sin firmar (xml_dte) según GDExpress
             dtebox = DTEBoxService(empresa)
-            resultado = dtebox.timbrar_dte(dte.xml_firmado)
+            resultado = dtebox.timbrar_dte(xml_para_enviar, dte.tipo_dte)
             
             if resultado['success']:
                 # Éxito: guardar TED y actualizar estado
@@ -152,9 +145,10 @@ class BackgroundDTESender:
                 logger.warning(f"[ERROR] DTE {dte.folio}: {error_msg}")
                 
                 if intentos < max_intentos - 1:
-                    # Reintentar después de un delay
-                    logger.info(f"Reintentando DTE {dte.folio} en 5 segundos...")
-                    time.sleep(5)
+                    delays = [5, 30, 120, 300, 900, 1800]
+                    delay = delays[intentos] if intentos < len(delays) else 1800
+                    logger.info(f"Reintentando DTE {dte.folio} en {delay} segundos...")
+                    time.sleep(delay)
                     self.enviar_dte(dte_id, empresa_id, intentos + 1)
                 else:
                     # Máximo de intentos alcanzado
@@ -169,7 +163,9 @@ class BackgroundDTESender:
             
             # Si hay intentos disponibles, reintentar
             if intentos < max_intentos - 1:
-                time.sleep(5)
+                delays = [5, 30, 120, 300, 900, 1800]
+                delay = delays[intentos] if intentos < len(delays) else 1800
+                time.sleep(delay)
                 self.enviar_dte(dte_id, empresa_id, intentos + 1)
             else:
                 try:
@@ -286,5 +282,4 @@ def get_background_sender():
                 _sender_instance = BackgroundDTESender()
     
     return _sender_instance
-
 

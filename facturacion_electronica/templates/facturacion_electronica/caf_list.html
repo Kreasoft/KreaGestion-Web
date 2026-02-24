@@ -112,86 +112,170 @@
                         </div>
                     </div>
 
-                    <!-- Tabla -->
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0 table-compact">
-                            <thead>
-                                <tr>
-                                    <th style="width: 15%;">Sucursal</th>
-                                    <th style="width: 15%;">Tipo Documento</th>
-                                    <th style="width: 15%;">Rango</th>
-                                    <th style="width: 12%;">Folios</th>
-                                    <th style="width: 10%; text-align: center;">Estado</th>
-                                    <th style="width: 8%; text-align: center;">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for caf in cafs %}
-                                <tr style="border-bottom: 1px solid #F5F1E8;">
-                                    <td style="font-size: 0.75rem;">
-                                        <div class="fw-semibold" style="color: #8B7355;">{{ caf.sucursal.nombre|default:"Sin Sucursal" }}</div>
-                                    </td>
-                                    <td style="font-size: 0.7rem;">
-                                        <span class="badge" style="background: #17a2b8; font-size: 0.65rem;">{{ caf.tipo_nombre }}</span>
-                                    </td>
-                                    <td style="font-size: 0.75rem;">
-                                        <strong style="color: #6F5B44;">{{ caf.folio_desde }} - {{ caf.folio_hasta }}</strong>
-                                    </td>
-                                    <td style="font-size: 0.7rem;">
-                                        <div class="text-muted">{{ caf.folios_utilizados }} / {{ caf.cantidad_folios }}</div>
-                                        <small class="text-success" style="font-size: 0.65rem;">Próximo: {{ caf.folio_actual|add:1 }}</small>
-                                    </td>
-                                    <td style="font-size: 0.7rem; text-align: center;">
-                                        {% if caf.estado == 'activo' %}
-                                            <span class="badge bg-success" style="font-size: 0.65rem;">Activo</span>
-                                        {% elif caf.estado == 'agotado' %}
-                                            <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Agotado</span>
-                                        {% elif caf.estado == 'vencido' %}
-                                            <span class="badge bg-danger" style="font-size: 0.65rem;">Vencido</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary" style="font-size: 0.65rem;">{{ caf.estado_nombre }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td style="text-align: center;">
-                                        {% if caf.oculto %}
-                                            <a href="{% url 'facturacion_electronica:mostrar_caf' caf.id %}" class="btn btn-sm btn-outline-success" title="Mostrar" style="padding:2px 6px; font-size:0.7rem; border-color:#28a745;">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                        {% else %}
-                                            <button onclick="confirmarOcultar({% url 'facturacion_electronica:ocultar_caf' caf.id %})" class="btn btn-sm btn-outline-secondary" title="Ocultar" style="padding:2px 6px; font-size:0.7rem; border-color:#D4C4A8;">
-                                                <i class="fas fa-eye-slash"></i>
-                                            </button>
-                                        {% endif %}
-                                        
-                                        <button onclick="abrirModalAjustarFolio({{ caf.id }}, '{{ caf.tipo_nombre }}', {{ caf.folio_desde }}, {{ caf.folio_hasta }}, {{ caf.folio_actual }}, {{ caf.folios_utilizados }}, {{ caf.cantidad_folios }})" class="btn btn-sm btn-outline-primary" title="Ajustar Folio" style="padding:2px 6px; font-size:0.7rem; border-color:#17a2b8;">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        
-                                        {% if caf.folios_utilizados == 0 %}
-                                            <button onclick="confirmarEliminar({{ caf.id }}, '{{ caf.tipo_nombre }}', '{{ caf.folio_desde }}-{{ caf.folio_hasta }}')" class="btn btn-sm btn-outline-danger" title="Eliminar" style="padding:2px 6px; font-size:0.7rem;">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        {% else %}
-                                            <button class="btn btn-sm btn-outline-secondary" title="No se puede eliminar (tiene folios usados)" style="padding:2px 6px; font-size:0.7rem; border-color:#D4C4A8;" disabled>
-                                                <i class="fas fa-lock"></i>
-                                            </button>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center py-5">
-                                        <i class="fas fa-file-invoice fa-3x mb-3" style="color: #D4C4A8;"></i>
-                                        <h6 style="color: #8B7355;">No hay CAFs cargados</h6>
-                                        <p style="color: #6c757d; font-size: 0.85rem;">Comienza cargando tu primer CAF del SII</p>
-                                        <button class="btn btn-sm" style="background: #8B7355; color: white;" data-bs-toggle="modal" data-bs-target="#modalCargarCAF">
-                                            <i class="fas fa-upload me-2"></i>Cargar CAF
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <!-- Pestañas -->
+                    <ul class="nav nav-tabs mb-4 px-2" id="cafTabs" role="tablist" style="border-bottom: 2px solid #E8DCC8;">
+                        <li class="nav-item">
+                            <button class="nav-link active fw-bold" id="vigentes-tab" data-bs-toggle="tab" data-bs-target="#vigentes" type="button" role="tab" style="color: #6F5B44; border-radius: 10px 10px 0 0; border: 1px solid transparent; margin-bottom: -2px;">
+                                <i class="fas fa-check-circle me-1"></i> Vigentes
+                                <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ cafs_vigentes.count }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold" id="historico-tab" data-bs-toggle="tab" data-bs-target="#historico" type="button" role="tab" style="color: #6F5B44; border-radius: 10px 10px 0 0; border: 1px solid transparent; margin-bottom: -2px;">
+                                <i class="fas fa-history me-1"></i> Histórico / Usados
+                                <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">{{ cafs_historico.count }}</span>
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="cafTabsContent">
+                        <!-- Pestaña Vigentes -->
+                        <div class="tab-pane fade show active" id="vigentes" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 table-compact">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 15%;">Sucursal</th>
+                                            <th style="width: 15%;">Tipo Documento</th>
+                                            <th style="width: 15%;">Rango</th>
+                                            <th style="width: 15%;">Folios</th>
+                                            <th style="width: 15%;">Vigencia (Inicio - Fin)</th>
+                                            <th style="width: 10%; text-align: center;">Estado</th>
+                                            <th style="width: 8%; text-align: center;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for caf in cafs_vigentes %}
+                                        <tr style="border-bottom: 1px solid #F5F1E8;">
+                                            <td style="font-size: 0.75rem;">
+                                                <div class="fw-semibold" style="color: #8B7355;">{{ caf.sucursal.nombre|default:"Sin Sucursal" }}</div>
+                                            </td>
+                                            <td style="font-size: 0.7rem;">
+                                                <span class="badge" style="background: #17a2b8; font-size: 0.65rem;">{{ caf.tipo_nombre }}</span>
+                                            </td>
+                                            <td style="font-size: 0.75rem;">
+                                                <strong style="color: #6F5B44;">{{ caf.folio_desde }} - {{ caf.folio_hasta }}</strong>
+                                            </td>
+                                            <td style="font-size: 0.7rem;">
+                                                <div class="text-muted">{{ caf.folios_utilizados }} / {{ caf.cantidad_folios }}</div>
+                                                <small class="text-success" style="font-size: 0.65rem;">Próximo: {{ caf.folio_actual|add:1 }}</small>
+                                            </td>
+                                            <td style="font-size: 0.7rem;">
+                                                <span class="text-muted" title="Fecha Autorización">{{ caf.fecha_autorizacion|date:"d/m/Y"|default:"---" }}</span>
+                                                <i class="fas fa-arrow-right mx-1" style="font-size: 0.6rem; color: #D4C4A8;"></i>
+                                                {% with dias=caf.dias_para_vencer %}
+                                                    <span class="fw-bold {% if dias <= 15 %}text-danger{% elif dias <= 30 %}text-warning{% else %}text-muted{% endif %}" title="Fecha Vencimiento">
+                                                        {{ caf.fecha_vencimiento|date:"d/m/Y"|default:"---" }}
+                                                    </span>
+                                                    {% if dias <= 30 %}
+                                                        <span class="badge {% if dias <= 15 %}bg-danger{% else %}bg-warning text-dark{% endif %} ms-1" style="font-size: 0.6rem; padding: 1px 4px;">
+                                                            {% if dias == 0 %}!{% else %}{{ dias }}d{% endif %}
+                                                        </span>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </td>
+                                            <td style="font-size: 0.7rem; text-align: center;">
+                                                <span class="badge bg-success" style="font-size: 0.65rem;">Activo</span>
+                                            </td>
+                                            <td style="text-align: center;">
+                                                <button onclick="confirmarOcultar({% url 'facturacion_electronica:ocultar_caf' caf.id %})" class="btn btn-sm btn-outline-secondary" title="Mover a Historial" style="padding:2px 6px; font-size:0.7rem; border-color:#D4C4A8;">
+                                                    <i class="fas fa-eye-slash"></i>
+                                                </button>
+                                                
+                                                <button onclick="abrirModalAjustarFolio({{ caf.id }}, '{{ caf.tipo_nombre }}', {{ caf.folio_desde }}, {{ caf.folio_hasta }}, {{ caf.folio_actual }}, {{ caf.folios_utilizados }}, {{ caf.cantidad_folios }})" class="btn btn-sm btn-outline-primary" title="Ajustar Folio" style="padding:2px 6px; font-size:0.7rem; border-color:#17a2b8;">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                
+                                                {% if caf.folios_utilizados == 0 %}
+                                                    <button onclick="confirmarEliminar({{ caf.id }}, '{{ caf.tipo_nombre }}', '{{ caf.folio_desde }}-{{ caf.folio_hasta }}')" class="btn btn-sm btn-outline-danger" title="Eliminar" style="padding:2px 6px; font-size:0.7rem;">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-5">
+                                                <i class="fas fa-check-circle fa-3x mb-3" style="color: #D1E7DD;"></i>
+                                                <h6 style="color: #198754;">No hay CAFs vigentes activos</h6>
+                                                <p style="color: #6c757d; font-size: 0.85rem;">Carga un nuevo CAF para empezar a emitir documentos</p>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Histórico -->
+                        <div class="tab-pane fade" id="historico" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 table-compact">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 15%;">Sucursal</th>
+                                            <th style="width: 15%;">Tipo Documento</th>
+                                            <th style="width: 15%;">Rango</th>
+                                            <th style="width: 15%;">Folios</th>
+                                            <th style="width: 15%;">Vigencia (Inicio - Fin)</th>
+                                            <th style="width: 10%; text-align: center;">Estado</th>
+                                            <th style="width: 8%; text-align: center;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for caf in cafs_historico %}
+                                        <tr style="border-bottom: 1px solid #F5F1E8; opacity: 0.8;">
+                                            <td style="font-size: 0.75rem;">
+                                                <div class="fw-semibold" style="color: #8B7355;">{{ caf.sucursal.nombre|default:"Sin Sucursal" }}</div>
+                                            </td>
+                                            <td style="font-size: 0.7rem;">
+                                                <span class="badge" style="background: #6c757d; font-size: 0.65rem;">{{ caf.tipo_nombre }}</span>
+                                            </td>
+                                            <td style="font-size: 0.75rem;">
+                                                <span class="text-muted">{{ caf.folio_desde }} - {{ caf.folio_hasta }}</span>
+                                            </td>
+                                            <td style="font-size: 0.7rem;">
+                                                <div class="text-muted">{{ caf.folios_utilizados }} / {{ caf.cantidad_folios }}</div>
+                                            </td>
+                                            <td style="font-size: 0.7rem;">
+                                                <span class="text-muted">{{ caf.fecha_autorizacion|date:"d/m/Y"|default:"---" }}</span>
+                                                <i class="fas fa-arrow-right mx-1" style="font-size: 0.6rem; color: #D4C4A8;"></i>
+                                                <span class="text-muted">{{ caf.fecha_vencimiento|date:"d/m/Y"|default:"---" }}</span>
+                                            </td>
+                                            <td style="font-size: 0.7rem; text-align: center;">
+                                                {% if caf.oculto %}
+                                                    <span class="badge bg-secondary" style="font-size: 0.65rem;"><i class="fas fa-eye-slash me-1"></i>Oculto</span>
+                                                {% elif caf.estado == 'agotado' %}
+                                                    <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Agotado</span>
+                                                {% elif caf.estado == 'vencido' %}
+                                                    <span class="badge bg-danger" style="font-size: 0.65rem;">Vencido</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="text-align: center;">
+                                                {% if caf.oculto %}
+                                                    <a href="{% url 'facturacion_electronica:mostrar_caf' caf.id %}" class="btn btn-sm btn-outline-success" title="Mover a Vigentes" style="padding:2px 6px; font-size:0.7rem;">
+                                                        <i class="fas fa-arrow-up"></i>
+                                                    </a>
+                                                {% endif %}
+                                                
+                                                <button onclick="abrirModalAjustarFolio({{ caf.id }}, '{{ caf.tipo_nombre }}', {{ caf.folio_desde }}, {{ caf.folio_hasta }}, {{ caf.folio_actual }}, {{ caf.folios_utilizados }}, {{ caf.cantidad_folios }})" class="btn btn-sm btn-outline-secondary" title="Ver/Ajustar" style="padding:2px 6px; font-size:0.7rem;">
+                                                    <i class="fas fa-search"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-5">
+                                                <i class="fas fa-history fa-3x mb-3" style="color: #E8DCC8;"></i>
+                                                <h6 style="color: #8B7355;">No hay registros en el historial</h6>
+                                                <p style="color: #6c757d; font-size: 0.85rem;">Aquí aparecerán los CAFs agotados o que decidas ocultar</p>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

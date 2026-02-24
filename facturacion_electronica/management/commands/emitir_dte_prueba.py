@@ -141,9 +141,16 @@ class Command(BaseCommand):
             service = DTEService(empresa)
             self.stdout.write("Generando DTE (Boleta)...")
             
-            # Usamos tipo 39 (Boleta)
-            dte = service.generar_dte_desde_venta(venta, tipo_dte='39')
-            self.stdout.write(self.style.SUCCESS(f"DTE Generado: Folio {dte.folio}, ID {dte.id}"))
+            # Usamos tipo 33 (Factura) forzada a folio 72
+            dte = service.generar_dte_desde_venta(venta, tipo_dte='33')
+            dte.folio = 72
+            dte.save()
+            self.stdout.write(self.style.SUCCESS(f"DTE Generado Forzado: Folio {dte.folio}, ID {dte.id}"))
+            
+            # Guardar XML para inspección
+            with open('ultimo_dte_prueba.xml', 'w', encoding='ISO-8859-1') as f:
+                f.write(dte.xml_firmado)
+            self.stdout.write(f"XML guardado en ultimo_dte_prueba.xml para inspección")
             
             # 11. Enviar al SII
             self.stdout.write("Enviando al SII (GDExpress)...")

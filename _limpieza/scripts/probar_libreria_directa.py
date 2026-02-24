@@ -14,7 +14,11 @@ from empresas.models import Empresa
 from libreria_dte_gdexpress.dte_gdexpress.gdexpress.cliente import ClienteGDExpress
 
 # Obtener DTE y empresa
-dte = DocumentoTributarioElectronico.objects.get(id=58)
+# Tomar último DTE pendiente o con error, priorizando guías 52
+try:
+    dte = DocumentoTributarioElectronico.objects.filter(estado_sii__in=['generado','error_envio']).order_by('-id').first()
+except Exception:
+    dte = DocumentoTributarioElectronico.objects.order_by('-id').first()
 empresa = Empresa.objects.first()
 
 print("=" * 80)

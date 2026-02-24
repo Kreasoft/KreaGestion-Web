@@ -5,6 +5,7 @@ from django.urls import path
 from django.shortcuts import render, redirect
 from . import views
 from . import views_notas_credito
+from . import views_notas_debito
 from . import api_views
 from . import views_pos_procesar
 
@@ -89,7 +90,7 @@ urlpatterns = [
     path('dashboard-premium/', lambda request: render(request, 'ventas/dashboard_premium.html'), name='dashboard_premium'),
     
     # Libro de Ventas
-    path('libro-ventas/', lambda request: redirect('facturacion_electronica:dte_list', permanent=True), name='libro_ventas'),
+    path('libro-ventas/', views.libro_ventas, name='libro_ventas'),
     
     # Precios Especiales Clientes
     path('precios-clientes/', views.precio_cliente_list, name='precio_cliente_list'),
@@ -109,6 +110,12 @@ urlpatterns = [
     path('notas-credito/crear/', views_notas_credito.notacredito_create, name='notacredito_create'),
     path('notas-credito/<int:pk>/', views_notas_credito.notacredito_detail, name='notacredito_detail'),
     path('notas-credito/<int:pk>/imprimir/', views_notas_credito.notacredito_print, name='notacredito_print'),
+    
+    # Notas de Débito
+    path('notas-debito/', views_notas_debito.notadebito_list, name='notadebito_list'),
+    path('notas-debito/crear/', views_notas_debito.notadebito_create, name='notadebito_create'),
+    path('notas-debito/<int:pk>/', views_notas_debito.notadebito_detail, name='notadebito_detail'),
+    path('notas-debito/<int:pk>/imprimir/', views_notas_debito.notadebito_print, name='notadebito_print'),
     
     # API AJAX para cargar items de venta
     path('ajax/cargar-items-venta/', views_notas_credito.ajax_cargar_items_venta, name='ajax_cargar_items_venta'),

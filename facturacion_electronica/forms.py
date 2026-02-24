@@ -13,11 +13,13 @@ class CargarCAFForm(forms.ModelForm):
     
     class Meta:
         model = ArchivoCAF
-        fields = ['sucursal', 'tipo_documento', 'archivo_xml']
+        fields = ['sucursal', 'tipo_documento', 'archivo_xml', 'fecha_autorizacion', 'fecha_vencimiento']
         widgets = {
             'sucursal': forms.Select(attrs={'class': 'form-select'}),
             'tipo_documento': forms.Select(attrs={'class': 'form-select'}),
             'archivo_xml': forms.FileInput(attrs={'class': 'form-control', 'accept': '.xml'}),
+            'fecha_autorizacion': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha_vencimiento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -35,6 +37,12 @@ class CargarCAFForm(forms.ModelForm):
         self.fields['sucursal'].label = 'Sucursal'
         self.fields['tipo_documento'].label = 'Tipo de Documento'
         self.fields['archivo_xml'].label = 'Archivo XML del CAF'
+        
+        # Hacer las fechas opcionales para que se tomen del XML si no se ingresan
+        self.fields['fecha_autorizacion'].required = False
+        self.fields['fecha_vencimiento'].required = False
+        self.fields['fecha_autorizacion'].label = "Fecha de Autorización"
+        self.fields['fecha_vencimiento'].label = "Fecha de Vencimiento"
         
         # Help texts
         self.fields['sucursal'].help_text = 'Sucursal a la que pertenecerá este CAF'
@@ -158,10 +166,11 @@ class CargarCAFForm(forms.ModelForm):
         """Guarda el CAF con los datos extraídos del XML"""
         instance = super().save(commit=False)
         
-        # Asignar datos extraídos del XML
+        # Asignar datos extraídos del XML (solo si no se ingresaron manualmente)
         if hasattr(self, 'caf_data'):
             for key, value in self.caf_data.items():
-                setattr(instance, key, value)
+                if not getattr(instance, key, None):
+                    setattr(instance, key, value)
         
         if commit:
             instance.save()

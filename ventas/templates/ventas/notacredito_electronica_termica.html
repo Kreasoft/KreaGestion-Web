@@ -67,25 +67,25 @@
 
         /* Cuadro del Documento */
         .document-box {
-            border: 2px solid #c00;
+            border: 2px solid #8B7355;
             padding: 2mm;
             text-align: center;
             margin: 3mm 0;
-            background: #ffe6e6;
+            background: #FAF8F3;
         }
 
         .document-type {
             font-size: 10pt;
             font-weight: bold;
             margin-bottom: 1mm;
-            color: #c00;
+            color: #8B7355;
         }
 
         .document-folio {
             font-size: 12pt;
             font-weight: bold;
             margin-bottom: 1mm;
-            color: #c00;
+            color: #8B7355;
         }
 
         .document-fecha {
@@ -189,7 +189,7 @@
             font-weight: bold;
             margin-top: 2mm;
             padding: 2mm 0;
-            color: #c00;
+            color: #8B7355;
         }
 
         /* Timbre */
@@ -378,46 +378,75 @@
 
     <!-- Botones de acción (solo en pantalla) -->
     <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
-        <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            🖨️ Imprimir
+        <button onclick="window.print()" style="padding: 6px 20px; font-size: 10pt; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; border-radius: 6px; cursor: pointer; margin: 4px; font-weight: 600; box-shadow: 0 2px 6px rgba(139, 115, 85, 0.2);">
+            <i class="fas fa-print me-1"></i> Imprimir
         </button>
-        <a href="javascript:history.back()" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
-            ← Volver
+        <a href="javascript:history.back()" style="display: inline-block; padding: 6px 20px; font-size: 10pt; background: #FAF8F3; color: #8B7355; border: 1.5px solid #8B7355; border-radius: 6px; cursor: pointer; margin: 4px; text-decoration: none; font-weight: 600;">
+            <i class="fas fa-arrow-left me-1"></i> Volver
         </a>
     </div>
 
     <script>
-      (function() {
-        try {
-          const params = new URLSearchParams(window.location.search);
-          const auto = params.get('auto');
-          const nombreImpresora = "{{ nombre_impresora|default:'' }}";
+        // Parámetros URL globales
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoPrint = urlParams.get('auto');
+        const autoClose = urlParams.get('autoclose');
+        const autoCloseDelay = parseInt(urlParams.get('autoclose_delay')) || 2000;
+        const returnUrl = urlParams.get('return_url');
 
-          if (auto === '1') {
-            setTimeout(() => { 
-              try { 
-                if (nombreImpresora) {
-                  console.log('[PRINT] Impresora configurada:', nombreImpresora);
+        console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl });
+
+        function safeCloseWindow() {
+            // Notificar al padre si existe
+            try {
+                if (window.opener && window.opener !== window && !window.opener.closed) {
+                    window.opener.postMessage({ kind: 'print_done', dte_id: '{{ dte.id }}' }, window.location.origin);
                 }
-                window.print(); 
-              } catch(e) {} 
-            }, 150);
-            
-            if ('onafterprint' in window) {
-              window.addEventListener('afterprint', () => setTimeout(() => {
-                // Solo cerrar si la ventana fue abierta por el script
-                if (window.opener && window.opener !== window) {
-                  try { window.close(); } catch(e) {}
-                }
-              }, 100));
+            } catch (e) { console.log('No se pudo notificar al padre:', e); }
+
+            console.log('[DTE AUTO] Intentando salir de la vista...');
+
+            // PRIORIDAD 1: Si hay return_url
+            if (returnUrl) {
+                const target = decodeURIComponent(returnUrl);
+                console.log('[DTE AUTO] Redirigiendo a return_url:', target);
+                window.location.href = target;
+                return;
             }
-          }
-        } catch (e) {
-          // noop
-        }
-      })();
-    </script>
 
+            // PRIORIDAD 2: Si es un popup o pestaña nueva sin historial
+            if (window.opener || window.history.length <= 1) {
+                console.log('[DTE AUTO] Cerrando ventana...');
+                setTimeout(() => {
+                    window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
+                }, 500);
+                try { window.close(); } catch(e) { console.log(e); }
+                return;
+            }
+
+            // PRIORIDAD 3: Historial normal
+            window.history.back();
+            
+            setTimeout(() => {
+                if (!document.hidden) {
+                    window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
+                }
+            }, 1000);
+        }
+
+        // Auto-ejecución
+        if (autoPrint === '1') {
+            window.addEventListener('load', function () {
+                console.log('[DTE AUTO] Iniciando impresión automática...');
+                setTimeout(function () {
+                    window.print();
+
+                    if (autoClose === '1') {
+                        setTimeout(safeCloseWindow, autoCloseDelay);
+                    }
+                }, 800);
+            });
+        }
+    </script>
 </body>
 </html>
-

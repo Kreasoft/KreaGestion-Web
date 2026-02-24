@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db import transaction, IntegrityError, models
+from django.urls import reverse
 from django.utils import timezone
 from decimal import Decimal
 from datetime import datetime
@@ -648,34 +649,33 @@ def procesar_venta(request, ticket_id):
     empresa = request.empresa
     ticket = get_object_or_404(Venta, pk=ticket_id, empresa=empresa, tipo_documento='ticket')
     
+    # Determinar URL de retorno (de donde vino el usuario)
+    next_url = request.GET.get('next') or request.POST.get('next') or reverse('caja:procesar_venta_buscar')
+    # Seguridad: solo permitir URLs relativas (que comiencen con /)
+    if not next_url.startswith('/'):
+        next_url = reverse('caja:procesar_venta_buscar')
+    
     # DEBUG: Verificar sesión al inicio
     print("=" * 80)
     print(f"[CAJA PROCESAR_VENTA] INICIO - Ticket ID: {ticket_id}")
     print(f"  Método: {request.method}")
-    print(f"  pos_estacion_id en sesión: {request.session.get('pos_estacion_id', 'NO DEFINIDO')}")
-    print(f"  pos_enviar_sii_directo en sesión: {request.session.get('pos_enviar_sii_directo', 'NO DEFINIDO')}")
-    print(f"  pos_cierre_directo en sesión: {request.session.get('pos_cierre_directo', 'NO DEFINIDO')}")
+    print(f"  next_url: {next_url}")
     print("=" * 80)
     
     # Validar que no sea Cotización o Vale no facturable
     if ticket.tipo_documento in ['cotizacion', 'vale_no_facturable']:
         messages.error(request, 'Los tickets de tipo Cotización y Vale no son facturables.')
-        return redirect('caja:apertura_list')
+        return redirect(next_url)
     
     # Verificar que el ticket no esté ya procesado
     if VentaProcesada.objects.filter(venta_preventa=ticket).exists():
         messages.warning(request, 'Este ticket ya ha sido procesado.')
-        return redirect('caja:apertura_list')
+        return redirect(next_url)
     
-    # CRÍTICO: Verificar también si el ticket ya fue facturado (para vales del POS)
-    # Cuando se procesa un vale desde el POS, se marca como facturado=True pero NO se crea VentaProcesada
+    # CRÍTICO: Verificar también si el ticket ya fue facturado
     if ticket.facturado:
         messages.warning(request, 'Este ticket ya ha sido facturado. No se puede procesar nuevamente.')
-        # Redirigir al POS si es un vale del POS, o a caja si es otro tipo
-        if ticket.estacion_trabajo and ticket.tipo_documento == 'vale':
-            return redirect('ventas:pos_view')
-        else:
-            return redirect('caja:apertura_list')
+        return redirect(next_url)
     
     # Obtener apertura activa
     apertura_activa = None
@@ -1100,11 +1100,7 @@ def procesar_venta(request, ticket_id):
                             ticket.facturado = True
                             ticket.save()
                             print(f"✅ Ticket ID {ticket.id} marcado como facturado para prevenir futuros intentos")
-                            # Redirigir según origen
-                            if ticket.estacion_trabajo:
-                                return redirect('ventas:pos_view')
-                            else:
-                                return redirect('caja:procesar_venta_buscar')
+                            return redirect(next_url)
                         
                         # Usar la primera forma de pago como principal (solo si NO es guía y hay formas de pago)
                         primera_forma_pago = None
@@ -1657,16 +1653,17 @@ def procesar_venta(request, ticket_id):
                         # Determinar la URL de retorno según el origen REAL (no el del ticket)
                         # Usar la variable es_modulo_caja que ya calculamos correctamente
                         if es_modulo_caja:
-                            # Procesando desde CAJA → Volver a buscar venta
-                            return_url = reverse('caja:procesar_venta_buscar')
-                            print(f"[OK] ✅ DTE GENERADO desde CAJA - Redirigiendo con retorno a caja")
+                            # Procesando desde CAJA → Usar next_url
+                            return_url = next_url
+                            print(f"[OK] ✅ DTE GENERADO desde CAJA - Redirigiendo con retorno a: {return_url}")
                         else:
                             # Procesando desde POS → Volver al POS
                             return_url = reverse('ventas:pos_view')
                             print(f"[OK] ✅ DTE GENERADO desde POS - Redirigiendo con retorno al POS")
                         
+                        from urllib.parse import quote as url_quote
                         doc_url = reverse('facturacion_electronica:ver_factura_electronica', args=[dte_para_mostrar.pk])
-                        doc_url += f"?auto=1&from_caja=1&return_url={return_url}"
+                        doc_url += f"?auto=1&from_caja=1&return_url={url_quote(return_url, safe='')}"
                         print(f"     DTE ID: {dte_para_mostrar.pk}")
                         print(f"     Folio: {dte_para_mostrar.folio}")
                         print(f"     Tipo: {dte_para_mostrar.get_tipo_dte_display()}")
@@ -1713,13 +1710,8 @@ def procesar_venta(request, ticket_id):
                             f'Si necesita generar un nuevo documento, cree un nuevo ticket desde el POS.'
                         )
                         
-                        # Redirigir según origen
-                        if ticket.estacion_trabajo:
-                            print(f"   → Redirigiendo al POS")
-                            return redirect('ventas:pos_view')
-                        else:
-                            print(f"   → Redirigiendo a buscar venta")
-                            return redirect('caja:procesar_venta_buscar')
+                        # Redirigir según next_url
+                        return redirect(next_url)
                     else:
                         # Otro tipo de IntegrityError - reportar como error técnico
                         print(f"   ❌ IntegrityError NO relacionado con numero_venta")
@@ -1728,7 +1720,7 @@ def procesar_venta(request, ticket_id):
                             f'Error técnico al procesar el ticket: {error_msg}. '
                             f'Por favor, contacte al administrador del sistema.'
                         )
-                        return redirect('caja:procesar_venta_buscar')
+                        return redirect(next_url)
                 
                 except Exception as e:
                     print(f"[ERROR] ERROR en intento {reintento + 1}: {type(e).__name__}: {str(e)}")
@@ -1869,6 +1861,7 @@ def procesar_venta(request, ticket_id):
         'cierre_directo_flag': cierre_directo_flag,
         'enviar_sii_directo_flag': enviar_sii_directo_flag,
         'es_pos_vale': es_pos_vale,  # Para saber si debe auto-redirigir al POS después de imprimir
+        'next_url': next_url,
     }
     
     return render(request, 'caja/procesar_venta.html', context)

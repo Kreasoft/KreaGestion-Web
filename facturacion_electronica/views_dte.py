@@ -242,9 +242,21 @@ def ver_factura_electronica(request, dte_id):
                 self.observaciones = getattr(orden_despacho, 'observaciones', '')
         
         venta = VentaWrapper(orden_despacho, dte)
-    elif venta and (not venta.cliente or not venta.cliente.nombre):
-        # Si la venta existe pero no tiene cliente o el cliente no tiene nombre, usar DTE como fallback
-        venta.cliente = ClienteWrapper(dte)
+
+    # Determinar el objeto cliente a mostrar en el template (sin tocar el FK real de venta)
+    # Si venta es un wrapper (VentaWrapper) ya tiene self.cliente como ClienteWrapper o real.
+    # Si venta es un Venta ORM real, usar su cliente real o crear un wrapper solo para display.
+    if venta and not isinstance(venta, Venta):
+        # Es un VentaWrapper: su .cliente ya puede ser ClienteWrapper o real
+        cliente_display = getattr(venta, 'cliente', None)
+    elif venta and isinstance(venta, Venta):
+        # Es una instancia ORM real: usar cliente real si tiene nombre, sino ClienteWrapper
+        if venta.cliente and venta.cliente.nombre:
+            cliente_display = venta.cliente
+        else:
+            cliente_display = ClienteWrapper(dte)
+    else:
+        cliente_display = ClienteWrapper(dte)
 
     # Obtener detalles del documento
     detalles = []
@@ -441,6 +453,7 @@ def ver_factura_electronica(request, dte_id):
     context = {
         'dte': dte,
         'venta': venta,
+        'cliente_display': cliente_display,
         'detalles': detalles,
         'empresa': empresa,
         'nombre_impresora': nombre_impresora,  # Nombre de impresora física
@@ -477,15 +490,49 @@ def ver_notacredito_electronica(request, notacredito_id):
         template = 'ventas/notacredito_electronica_html.html'
         print(f"[PRINT] Nota Credito -> Formato LASER A4")
     
-    if nombre_impresora:
-        print(f"[PRINT] Impresora fisica configurada: {nombre_impresora}")
-    
     context = {
-        'dte': dte,
         'nota': nota,
+        'dte': dte,
         'detalles': detalles,
         'empresa': empresa,
-        'nombre_impresora': nombre_impresora,
+    }
+    
+    return render(request, template, context)
+
+
+@login_required
+@requiere_empresa
+def ver_notadebito_electronica(request, notadebito_id):
+    """
+    Muestra la Nota de Débito electrónica con el timbre
+    """
+    from ventas.models import NotaDebito
+    nota = get_object_or_404(NotaDebito, pk=notadebito_id, empresa=request.empresa)
+    
+    # Obtener el DTE asociado
+    dte = nota.dte
+
+    # Obtener detalles
+    detalles = nota.items.all()
+    
+    # Obtener configuración de impresora
+    empresa = request.empresa
+    tipo_impresora = getattr(empresa, 'impresora_nota_debito', 'laser')
+    
+    # Seleccionar template según configuración
+    if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
+        template = 'ventas/notadebito_electronica_termica.html'
+        print(f"[PRINT] Nota Debito -> Formato TERMICO 80mm")
+    else:
+        # Por ahora usamos el listado si no hay template laser específico o reusamos lógica
+        template = 'ventas/notadebito_electronica_termica.html' # Ajustar si existe html
+        print(f"[PRINT] Nota Debito -> Formato TERMICO (fallback)")
+    
+    context = {
+        'nota': nota,
+        'dte': dte,
+        'detalles': detalles,
+        'empresa': empresa,
     }
     
     return render(request, template, context)
@@ -943,3 +990,174 @@ def descargar_pdf_gdexpress(request, dte_id):
         import traceback
         traceback.print_exc()
         return redirect('facturacion_electronica:dte_list')
+
+
+@login_required
+@requiere_empresa
+def regenerar_xml_dte(request, dte_id):
+    """
+    Regenera el XML de un DTE existente. Soporta Boletas (39) y Guías de Despacho (52) asociadas a transferencia.
+    """
+    from decimal import Decimal
+    dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
+
+    if dte.tipo_dte == '39':
+        try:
+            dte.estado_sii = 'generado'
+            dte.error_envio = ''
+            dte.track_id = ''
+            dte.save()
+            dte_service = DTEService(request.empresa)
+            dte_service.procesar_dte_existente(dte)
+            messages.success(request, f'XML de la Boleta folio {dte.folio} regenerado correctamente.')
+        except Exception as e:
+            messages.error(request, f'Error al regenerar XML: {str(e)}')
+            import traceback
+            traceback.print_exc()
+        return redirect('facturacion_electronica:dte_list')
+
+    if dte.tipo_dte == '52':
+        transferencia = getattr(dte, 'transferencias', None)
+        if transferencia:
+            transferencia = transferencia.first()
+        if not transferencia:
+            messages.error(request, 'Esta guía no está asociada a una transferencia. No se puede regenerar el XML.')
+            return redirect('facturacion_electronica:dte_list')
+        try:
+            from facturacion_electronica.dte_generator import DTEXMLGenerator
+            from facturacion_electronica.firma_electronica import FirmadorDTE
+            from facturacion_electronica.pdf417_generator import PDF417Generator
+
+            detalles = transferencia.detalles.all()
+            subtotal = sum(detalle.total for detalle in detalles)
+            iva = subtotal * Decimal('0.19')
+            total = subtotal + iva
+
+            class TransferenciaWrapper:
+                def __init__(self, transferencia, subtotal, iva, total, tipo_traslado='5'):
+                    self.empresa = transferencia.empresa
+                    self.cliente = None
+                    self.tipo_documento = '52'
+                    self.fecha_emision = timezone.now().date()
+                    self.tipo_traslado = tipo_traslado
+                    self.tipo_despacho = tipo_traslado
+                    self.rut_receptor = transferencia.empresa.rut
+                    self.razon_social_receptor = transferencia.empresa.nombre
+                    self.giro_receptor = transferencia.empresa.giro
+                    self.direccion_receptor = transferencia.empresa.direccion
+                    self.comuna_receptor = transferencia.empresa.comuna
+                    self.ciudad_receptor = transferencia.empresa.ciudad
+                    self.monto_neto = subtotal
+                    self.monto_exento = Decimal('0')
+                    self.monto_iva = iva
+                    self.monto_total = total
+                    self.descuento = Decimal('0')
+                    self.items = transferencia.detalles
+
+            tipo_traslado = (dte.tipo_traslado or '5').strip() or '5'
+            venta_wrapper = TransferenciaWrapper(transferencia, subtotal, iva, total, tipo_traslado=tipo_traslado)
+            generator = DTEXMLGenerator(request.empresa, venta_wrapper, '52', dte.folio, dte.caf_utilizado)
+            xml_sin_firmar = generator.generar_xml()
+
+            firmador = FirmadorDTE(
+                request.empresa.certificado_digital.path,
+                request.empresa.password_certificado
+            )
+            xml_firmado = firmador.firmar_xml(xml_sin_firmar)
+
+            ted_xml = None
+            if getattr(request.empresa, 'dtebox_habilitado', False):
+                try:
+                    from facturacion_electronica.dtebox_service import DTEBoxService
+                    dtebox = DTEBoxService(request.empresa)
+                    res_dtebox = dtebox.timbrar_dte(xml_firmado, '52')
+                    if res_dtebox.get('success') and res_dtebox.get('ted'):
+                        ted_xml = res_dtebox['ted']
+                except Exception:
+                    pass
+            if not ted_xml:
+                dte_service = DTEService(request.empresa)
+                datos_caf = {}
+                try:
+                    datos_parsed = dte_service._parsear_datos_caf(dte.caf_utilizado)
+                    datos_caf = {'modulo': datos_parsed.get('M', ''), 'exponente': datos_parsed.get('E', '')}
+                except Exception:
+                    datos_caf = {'modulo': 'ERROR', 'exponente': 'ERROR'}
+                caf = dte.caf_utilizado
+                dte_data = {
+                    'rut_emisor': request.empresa.rut,
+                    'tipo_dte': '52',
+                    'folio': dte.folio,
+                    'fecha_emision': (dte.fecha_emision or timezone.now().date()).strftime('%Y-%m-%d'),
+                    'rut_receptor': request.empresa.rut,
+                    'razon_social_receptor': request.empresa.nombre,
+                    'monto_total': int(total),
+                    'item_1': 'Guía de Despacho Electrónica',
+                }
+                caf_data = {
+                    'rut_emisor': request.empresa.rut,
+                    'razon_social': request.empresa.razon_social_sii or request.empresa.razon_social,
+                    'tipo_documento': '52',
+                    'folio_desde': caf.folio_desde,
+                    'folio_hasta': caf.folio_hasta,
+                    'fecha_autorizacion': caf.fecha_autorizacion.strftime('%Y-%m-%d'),
+                    'modulo': datos_caf.get('modulo', ''),
+                    'exponente': datos_caf.get('exponente', ''),
+                    'firma': caf.firma_electronica,
+                }
+                ted_xml = firmador.generar_ted(dte_data, caf_data)
+
+            pdf417_data = firmador.generar_datos_pdf417(ted_xml)
+            dte.xml_dte = xml_sin_firmar
+            dte.xml_firmado = xml_firmado
+            dte.timbre_electronico = ted_xml
+            dte.datos_pdf417 = pdf417_data
+            dte.estado_sii = 'generado'
+            dte.error_envio = ''
+            dte.track_id = ''
+            dte.save()
+            PDF417Generator.guardar_pdf417_en_dte(dte)
+            messages.success(request, f'XML de la Guía folio {dte.folio} regenerado correctamente. Ya puede enviarla al SII.')
+        except Exception as e:
+            messages.error(request, f'Error al regenerar XML de la guía: {str(e)}')
+            import traceback
+            traceback.print_exc()
+        return redirect('facturacion_electronica:dte_list')
+
+    messages.error(request, 'Solo se puede regenerar XML de Boletas (39) o Guías de Despacho (52) asociadas a una transferencia.')
+    return redirect('facturacion_electronica:dte_list')
+
+
+@login_required
+@requiere_empresa
+def enviar_gdexpress_directo(request, dte_id):
+    """
+    Envía un DTE directamente a GDExpress/DTEBox
+    """
+    from .dtebox_service import DTEBoxService
+    
+    dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
+    
+    try:
+        service = DTEBoxService(request.empresa)
+        resultado = service.timbrar_dte(dte.xml_firmado, dte.tipo_dte)
+        
+        if resultado.get('success'):
+            dte.timbre_electronico = resultado.get('ted', '')
+            dte.track_id = resultado.get('track_id', f'DTEBOX-{dte.folio}')
+            dte.estado_sii = 'enviado'
+            dte.error_envio = ''
+            dte.save()
+            messages.success(request, f'Folio {dte.folio} enviado a GDExpress - Track: {dte.track_id}')
+        else:
+            error = resultado.get('error', 'Error desconocido')
+            dte.error_envio = error
+            dte.save()
+            messages.error(request, f'Error enviando folio {dte.folio}: {error[:100]}')
+            
+    except Exception as e:
+        messages.error(request, f'Error: {str(e)}')
+        import traceback
+        traceback.print_exc()
+    
+    return redirect('facturacion_electronica:dte_list')

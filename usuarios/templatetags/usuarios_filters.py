@@ -1,0 +1,31 @@
+"""
+Filtros de format_miles para la app usuarios.
+Definición local para evitar conflicto de nombre con ventas.templatetags.format_filters
+"""
+from django import template
+from decimal import Decimal, InvalidOperation, DecimalException
+
+register = template.Library()
+
+
+@register.filter(name='format_miles')
+def format_miles(value):
+    try:
+        if isinstance(value, str):
+            value = value.replace(',', '').replace('.', '')
+        num = Decimal(str(value))
+        num = int(round(num))
+        formatted = "{:,}".format(num).replace(',', '.')
+        return formatted
+    except (ValueError, TypeError, InvalidOperation, DecimalException):
+        return value
+
+
+@register.filter(name='format_precio')
+def format_precio(value):
+    return format_miles(value)
+
+
+@register.filter(name='format_moneda')
+def format_moneda(value):
+    return f"${format_miles(value)}"

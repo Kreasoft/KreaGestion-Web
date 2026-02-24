@@ -4124,12 +4124,17 @@ def vale_list(request):
     fecha_hasta_datetime = timezone.make_aware(datetime.combine(fecha_hasta, datetime.max.time()))
     fecha_desde_datetime = timezone.make_aware(datetime.combine(fecha_desde, datetime.min.time()))
     
-    # Solo documentos de tipo 'vale' (Vale Interno) - Solo mostrar los PROCESADOS
+    # Documentos de tipo Vale Interno - Mostrar los PROCESADOS
+    # Caso 1: tipo_documento='vale' (guardados directamente como vale)
+    # Caso 2: tipo_documento='ticket' con tipo_documento_planeado='vale' y facturado=True
+    #         (tickets procesados en caja que eran vales internos)
     vales = Venta.objects.filter(
         empresa=request.empresa,
-        tipo_documento='vale',
         fecha_creacion__gte=fecha_desde_datetime,
         fecha_creacion__lte=fecha_hasta_datetime
+    ).filter(
+        Q(tipo_documento='vale') |
+        Q(tipo_documento='ticket', tipo_documento_planeado='vale', facturado=True)
     ).select_related('cliente', 'vendedor').order_by('-fecha_creacion')
     
     # Calcular totales
@@ -4271,17 +4276,20 @@ def libro_ventas(request):
     search = request.GET.get('search', '')
     
     # Consulta base: ventas confirmadas SIN DTE asociado
-    # (para evitar duplicación: si una venta tiene DTE, se muestra solo el DTE)
+    # (Excluimos todas las ventas del POS que no han sido convertidas a DTE para que el Libro de Ventas sea oficial)
     ventas = Venta.objects.filter(
         empresa=request.empresa,
         estado='confirmada',
-        dte__isnull=True  # SOLO ventas sin DTE (vales, cotizaciones, etc.)
+        dte__isnull=True
+    ).exclude(
+        Q(numero_venta__icontains='test') | 
+        Q(tipo_documento__in=['vale', 'cotizacion', 'ticket', 'boleta', 'factura', 'guia'])
     ).select_related('cliente', 'vendedor', 'forma_pago', 'estacion_trabajo')
     
     # Consulta DTEs (Documentos Tributarios Electrónicos)
     dtes = DocumentoTributarioElectronico.objects.filter(
         empresa=request.empresa
-    ).select_related('caf_utilizado', 'usuario_creacion', 'venta').prefetch_related('usuario_creacion', 'notas_credito')
+    ).exclude(folio__icontains='test').select_related('caf_utilizado', 'usuario_creacion', 'venta').prefetch_related('usuario_creacion', 'notas_credito')
     
     # Aplicar filtros de fecha
     try:
@@ -4449,9 +4457,6 @@ def libro_ventas(request):
         '52': 'Guía de Despacho Electrónica (52)',
         '56': 'Nota de Débito Electrónica (56)',
         '61': 'Nota de Crédito Electrónica (61)',
-        # Tipos POS sin equivalente DTE
-        'cotizacion': 'Cotización',
-        'vale': 'Vale',
     }
     
     context = {

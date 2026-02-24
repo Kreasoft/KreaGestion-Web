@@ -359,12 +359,14 @@ class TransferenciaInventarioForm(forms.ModelForm):
             self.fields['bodega_destino'].queryset = Bodega.objects.filter(
                 empresa=self.empresa, activa=True
             )
-        # Inicializar fecha en modo edición para widget datetime-local
-        if getattr(self, 'instance', None) and getattr(self.instance, 'fecha_transferencia', None):
+        # Inicializar fecha: en edición usar la de la transferencia; en nueva transferencia usar fecha y hora actual
+        if getattr(self, 'instance', None) and getattr(self.instance, 'pk', None) and getattr(self.instance, 'fecha_transferencia', None):
             try:
                 self.fields['fecha_transferencia'].initial = self.instance.fecha_transferencia.strftime('%Y-%m-%dT%H:%M')
             except Exception:
                 self.fields['fecha_transferencia'].initial = timezone.now().strftime('%Y-%m-%dT%H:%M')
+        else:
+            self.fields['fecha_transferencia'].initial = timezone.now().strftime('%Y-%m-%dT%H:%M')
     
     def clean(self):
         cleaned_data = super().clean()

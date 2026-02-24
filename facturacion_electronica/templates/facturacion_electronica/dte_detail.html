@@ -1,170 +1,279 @@
 {% extends 'base.html' %}
+{% load static %}
+{% load format_filters %}
 
-{% block title %}Detalle DTE - {{ dte.folio }}{% endblock %}
+{% block title %}Detalle DTE - {{ dte.folio }} - {{ dte.get_tipo_dte_display }}{% endblock %}
 
-{% block content %}
-<div class="container mt-4">
+{% block body_class %}hide-top-bar{% endblock %}
 
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h2>
-                <i class="fas fa-file-alt"></i> Detalle del DTE
-                {% if dte.tipo_dte == '33' %}<span class="badge bg-success">FAC</span>
-                {% elif dte.tipo_dte == '39' %}<span class="badge bg-primary">BOL</span>
-                {% elif dte.tipo_dte == '52' %}<span class="badge bg-info">GUI</span>
-                {% elif dte.tipo_dte == '61' %}<span class="badge bg-warning text-dark">NCR</span>
-                {% elif dte.tipo_dte == '56' %}<span class="badge bg-danger">NDB</span>
-                {% endif %}
-            </h2>
-            <p class="text-muted">{{ dte.get_tipo_documento_display }} - Folio: {{ dte.folio }}</p>
-        </div>
-        <div class="col-md-4 text-end">
-            <a href="{% url 'facturacion_electronica:dte_list' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Volver
-            </a>
-        </div>
-    </div>
+{% block extra_css %}
+<style>
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+    }
 
-    <div class="card">
-        <div class="card-body">
-            <h5>Información del Documento</h5>
-            <table class="table">
-                <tr>
-                    <th style="width: 30%;">Tipo de Documento:</th>
-                    <td>{{ dte.get_tipo_documento_display }}</td>
-                </tr>
-                <tr>
-                    <th>Folio:</th>
-                    <td><strong>{{ dte.folio }}</strong></td>
-                </tr>
-                <tr>
-                    <th>Fecha Emisión:</th>
-                    <td>{{ dte.fecha_emision|date:"d/m/Y" }}</td>
-                </tr>
-                <tr>
-                    <th>Cliente:</th>
-                    <td>{{ dte.razon_social_receptor }} ({{ dte.rut_receptor }})</td>
-                </tr>
-                <tr>
-                    <th>Monto Neto:</th>
-                    <td>${{ dte.monto_neto|floatformat:0 }}</td>
-                </tr>
-                <tr>
-                    <th>Monto IVA:</th>
-                    <td>${{ dte.monto_iva|floatformat:0 }}</td>
-                </tr>
-                <tr>
-                    <th>Monto Total:</th>
-                    <td><strong>${{ dte.monto_total|floatformat:0 }}</strong></td>
-                </tr>
-                <tr>
-                    <th>Estado SII:</th>
-                    <td>
-                        {% if dte.estado_sii == 'aceptado' %}
-                        <span class="badge bg-success">Aceptado</span>
-                        {% elif dte.estado_sii == 'rechazado' %}
-                        <span class="badge bg-danger">Rechazado</span>
-                        {% elif dte.estado_sii == 'pendiente' %}
-                        <span class="badge bg-warning">Pendiente</span>
-                        {% else %}
-                        <span class="badge bg-secondary">{{ dte.estado_sii }}</span>
-                        {% endif %}
-                    </td>
-                </tr>
-            </table>
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
 
-            {% if dte.venta %}
-            <hr>
-            <h5>Venta Asociada</h5>
-            <p>
-                <a href="{% url 'ventas:venta_html' dte.venta.pk %}" class="btn btn-sm btn-info">
-                    Ver Venta #{{ dte.venta.numero_venta }}
-                </a>
-            </p>
-            {% endif %}
-        </div>
-    </div>
+    /* CARD PRINCIPAL */
+    .single-card-container {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
 
-</div>
+    /* HEADER PREMIUM */
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon-box {
+        width: 48px; height: 48px; 
+        background: rgba(255, 255, 255, 0.8); 
+        backdrop-filter: blur(4px);
+        border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.25rem;
+    }
+
+    .header-text h1 {
+        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+    }
+    .header-text p {
+        color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
+    }
+
+    .btn-back { background: rgba(255,255,255,0.6); border: 1px solid #D4C4A8; color: var(--stone-secondary); transition: all 0.2s; text-decoration: none; }
+    .btn-back:hover { background: white; color: var(--stone-primary); }
+
+    .btn-action-primary { background: var(--stone-primary); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+    .btn-action-primary:hover { background: var(--stone-secondary); color: white; }
+
+    .btn-action-outline { border: 1px solid var(--stone-primary); color: var(--stone-primary); background: transparent; border-radius: 8px; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+    .btn-action-outline:hover { background: var(--stone-primary); color: white; }
+
+    /* INFO CARDS */
+    .stone-card-info {
+        background: white; border: 1px solid #E8DCC8; border-radius: 12px; height: 100%; overflow: hidden;
+    }
+    .stone-card-header {
+        background: #FAFAF8; border-bottom: 1px solid #E8DCC8; padding: 0.75rem 1rem;
+        font-size: 0.8rem; font-weight: 700; color: #8B7355; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .stone-card-body { padding: 1.25rem; }
+
+    .label-stone { font-size: 0.75rem; color: #8B7355; font-weight: 600; text-transform: uppercase; margin-bottom: 0.2rem; display: block; }
+    .value-stone { font-size: 0.95rem; color: #2D3748; font-weight: 500; }
+
+    .badge-status {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    /* Ocultar top-bar original */
+    .top-bar { display: none !important; }
+    .main-content { margin-top: 0 !important; }
+</style>
 {% endblock %}
 
-{% block extra_js %}
+{% block content %}
+<div class="container-fluid">
+    <div class="single-card-container">
+        <!-- HEADER -->
+        <div class="stone-header-premium">
+            <div class="d-flex align-items-center gap-3">
+                <div class="header-icon-box">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Detalle del <span class="fw-bold">{{ dte.get_tipo_documento_display }}</span></h1>
+                    <p>Folio Electrónico N° {{ dte.folio }} | SII: {{ dte.get_estado_sii_display }}</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'facturacion_electronica:dte_list' %}" class="btn btn-back btn-sm fw-bold px-3 py-2">
+                    <i class="fas fa-arrow-left me-2"></i> Volver
+                </a>
+                
+                {% if dte.estado_sii != 'aceptado' and dte.estado_sii != 'rechazado' and dte.estado_sii != 'anulado' %}
+                <a href="{% url 'facturacion_electronica:enviar_dte' dte.pk %}" class="btn btn-action-outline btn-sm fw-bold px-3 py-2">
+                    <i class="fas fa-paper-plane me-2"></i> Enviar al SII
+                </a>
+                {% endif %}
+
+                <a href="{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}?auto=1" class="btn btn-action-primary btn-sm fw-bold px-3 py-2" target="_blank">
+                    <i class="fas fa-print me-2"></i> Imprimir
+                </a>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            
+            <div class="row g-4 mb-4">
+                <!-- Info del Documento -->
+                <div class="col-md-6">
+                    <div class="stone-card-info">
+                        <div class="stone-card-header">
+                            <i class="fas fa-info-circle me-2"></i>Información del DTE
+                        </div>
+                        <div class="stone-card-body">
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <span class="label-stone">Folio</span>
+                                    <div class="value-stone fw-bold">{{ dte.folio }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <span class="label-stone">Fecha Emisión</span>
+                                    <div class="value-stone">{{ dte.fecha_emision|date:"d/m/Y" }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <span class="label-stone">Estado SII</span>
+                                    <div>
+                                        {% if dte.estado_sii == 'aceptado' %}
+                                        <span class="badge badge-status bg-success">Aceptado</span>
+                                        {% elif dte.estado_sii == 'rechazado' %}
+                                        <span class="badge badge-status bg-danger">Rechazado</span>
+                                        {% elif dte.estado_sii == 'pendiente' %}
+                                        <span class="badge badge-status bg-warning text-dark">Pendiente</span>
+                                        {% else %}
+                                        <span class="badge badge-status bg-secondary">{{ dte.get_estado_sii_display }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <span class="label-stone">Track ID</span>
+                                    <div class="value-stone">{{ dte.track_id|default:"-" }}</div>
+                                </div>
+                                <div class="col-12">
+                                    <span class="label-stone">Venta Asociada</span>
+                                    <div class="value-stone">
+                                        {% if dte.venta %}
+                                        <a href="{% url 'ventas:venta_html' dte.venta.pk %}" class="text-decoration-none" style="color: var(--stone-primary);">
+                                            Venta #{{ dte.venta.numero_venta }} <i class="fas fa-external-link-alt ms-1 small"></i>
+                                        </a>
+                                        {% else %}
+                                        Sin venta directa
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info del Receptor -->
+                <div class="col-md-6">
+                    <div class="stone-card-info">
+                        <div class="stone-card-header">
+                            <i class="fas fa-user me-2"></i>Datos del Receptor
+                        </div>
+                        <div class="stone-card-body">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <span class="label-stone">Razón Social</span>
+                                    <div class="value-stone fw-bold">{{ dte.razon_social_receptor }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <span class="label-stone">RUT</span>
+                                    <div class="value-stone">{{ dte.rut_receptor }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <span class="label-stone">Giro</span>
+                                    <div class="value-stone">{{ dte.giro_receptor|default:"-" }}</div>
+                                </div>
+                                <div class="col-12">
+                                    <span class="label-stone">Dirección</span>
+                                    <div class="value-stone">{{ dte.direccion_receptor }} {{ dte.comuna_receptor }} {{ dte.ciudad_receptor }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Totales -->
+                <div class="col-md-12">
+                     <div class="stone-card-info">
+                        <div class="stone-card-header">
+                            <i class="fas fa-calculator me-2"></i>Resumen de Montos
+                        </div>
+                        <div class="stone-card-body">
+                            <div class="row align-items-center text-center">
+                                <div class="col-md-3 border-end">
+                                    <span class="label-stone">Neto</span>
+                                    <div class="value-stone h5 mb-0">${{ dte.monto_neto|floatformat:0 }}</div>
+                                </div>
+                                <div class="col-md-3 border-end">
+                                    <span class="label-stone">Exento</span>
+                                    <div class="value-stone h5 mb-0">${{ dte.monto_exento|floatformat:0 }}</div>
+                                </div>
+                                <div class="col-md-3 border-end">
+                                    <span class="label-stone">IVA (19%)</span>
+                                    <div class="value-stone h5 mb-0">${{ dte.monto_iva|floatformat:0 }}</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <span class="label-stone">TOTAL</span>
+                                    <div class="value-stone h4 mb-0 fw-bold" style="color: var(--stone-secondary);">${{ dte.monto_total|floatformat:0 }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timbre Electrónico (Debugging/Verification) -->
+                {% if dte.timbre_pdf417 %}
+                <div class="col-md-12">
+                    <div class="stone-card-info">
+                        <div class="stone-card-header">
+                            <i class="fas fa-qrcode me-2"></i>Timbre Electrónico SII
+                        </div>
+                        <div class="stone-card-body text-center">
+                            <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre Electrónico" style="max-width: 250px; border: 1px solid #eee; padding: 10px; border-radius: 8px;">
+                            <div class="mt-2 small text-muted">Datos TED: {{ dte.timbre_electronico|truncatechars:50 }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if dte.glosa_sii %}
+            <div class="alert alert-info">
+                <i class="fas fa-comment-alt me-2"></i><strong>Respuesta SII:</strong> {{ dte.glosa_sii }}
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
 <script>
-    // Obtener parámetros de la URL
+    // Mantener compatibilidad con auto-print
     const urlParams = new URLSearchParams(window.location.search);
     const autoPrint = urlParams.get('auto');
-    const autoClose = urlParams.get('autoclose');
-    const autoCloseDelay = parseInt(urlParams.get('autoclose_delay')) || 3000;
-    const returnUrl = urlParams.get('return_url');
-
-    console.log('[DTE AUTO] Parámetros detectados:', {
-        autoPrint: autoPrint,
-        autoClose: autoClose,
-        autoCloseDelay: autoCloseDelay,
-        returnUrl: returnUrl
-    });
-
-    // Función para volver a la URL de retorno o cerrar ventana
-    function volverAlOrigen() {
-        // Si es una ventana popup (abierta con window.open), cerrarla
-        if (window.opener) {
-            console.log('[DTE AUTO] Es un popup - Cerrando ventana...');
-            window.close();
-        } else if (returnUrl) {
-            // Si es la ventana principal, redirigir
-            console.log('[DTE AUTO] Volviendo a:', returnUrl);
-            window.location.href = returnUrl;
-        } else {
-            console.log('[DTE AUTO] No hay URL de retorno, volviendo atrás');
-            window.history.back();
-        }
-    }
-
-    // Si auto=1, imprimir automáticamente al cargar
+    
     if (autoPrint === '1') {
-        console.log('[DTE AUTO] Imprimiendo automáticamente...');
-
-        // Esperar un momento para que la página cargue completamente
-        setTimeout(function () {
-            window.print();
-            console.log('[DTE AUTO] Impresión Iniciada');
-
-            // Si autoclose=1, cerrar después de imprimir
-            if (autoClose === '1') {
-                console.log('[DTE AUTO] Programando cierre automático en', autoCloseDelay, 'ms');
-
-                // Mostrar contador regresivo
-                let countDown = Math.floor(autoCloseDelay / 1000);
-                const interval = setInterval(() => {
-                    countDown--;
-                    if (countDown <= 0) {
-                        clearInterval(interval);
-                    }
-                    console.log('[DTE AUTO] Volviendo en', countDown, 'segundos...');
-                }, 1000);
-
-                // Volver después del delay
-                setTimeout(volverAlOrigen, autoCloseDelay);
-            }
-        }, 1000);
+        window.location.href = "{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}?auto=1";
     }
-
-    // Detectar cuando se cierra el diálogo de impresión
-    window.onafterprint = function () {
-        console.log('[DTE AUTO] Diálogo de impresión cerrado');
-
-        // Si está configurado autoclose, ya se programó el cierre
-        // Este es solo un log para debugging
-        if (autoClose === '1') {
-            console.log('[DTE AUTO] Esperando', autoCloseDelay, 'ms antes de volver...');
-        }
-    };
-
-    // Detectar si el usuario cancela la impresión (opcional)
-    let beforePrintFired = false;
-    window.onbeforeprint = function () {
-        beforePrintFired = true;
-        console.log('[DTE AUTO] Iniciando impresión...');
-    };
 </script>
 {% endblock %}
