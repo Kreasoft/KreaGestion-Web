@@ -277,15 +277,39 @@ class FacturacionElectronicaForm(forms.ModelForm):
             if cert_file:
                 try:
                     from facturacion_electronica.firma_electronica import FirmadorDTE
-                    # Si es un archivo subido, usar path; si es un archivo existente, usar name
-                    if hasattr(cert_file, 'path'):
+                    import tempfile
+                    import os
+                    
+                    # Si es un archivo subido recientemente (InMemoryUploadedFile o TemporaryUploadedFile),
+                    # necesitamos manejarlo de forma diferente
+                    if hasattr(cert_file, 'temporary_file_path'):
+                        # Archivo temporal de TemporaryUploadedFile
+                        cert_path = cert_file.temporary_file_path()
+                        FirmadorDTE(cert_path, password or '')
+                    elif hasattr(cert_file, 'path'):
+                        # Archivo ya guardado en disco
                         cert_path = cert_file.path
-                    elif hasattr(cert_file, 'name'):
-                        cert_path = cert_file.name
+                        FirmadorDTE(cert_path, password or '')
+                    elif hasattr(cert_file, 'read'):
+                        # InMemoryUploadedFile - leer contenido y crear archivo temporal
+                        cert_content = cert_file.read()
+                        cert_file.seek(0)  # Resetear el puntero para que pueda ser leído de nuevo
+                        
+                        # Crear archivo temporal
+                        with tempfile.NamedTemporaryFile(delete=False, suffix='.pfx') as tmp_file:
+                            tmp_file.write(cert_content)
+                            tmp_path = tmp_file.name
+                        
+                        try:
+                            FirmadorDTE(tmp_path, password or '')
+                        finally:
+                            # Limpiar archivo temporal
+                            if os.path.exists(tmp_path):
+                                os.unlink(tmp_path)
                     else:
                         cert_path = str(cert_file)
+                        FirmadorDTE(cert_path, password or '')
                     
-                    FirmadorDTE(cert_path, password or '')
                 except ValueError as e:
                     raise ValidationError({
                         'certificado_digital': f'Certificado digital inválido o contraseña incorrecta: {e}'

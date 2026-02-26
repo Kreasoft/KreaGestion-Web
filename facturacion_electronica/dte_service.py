@@ -37,13 +37,14 @@ class DTEService:
         
         print(f"DTEService inicializado para: {empresa.nombre}")
     
-    def generar_dte_desde_venta(self, venta, tipo_dte='39'):
+    def generar_dte_desde_venta(self, venta, tipo_dte='39', **transport_data):
         """
         Genera un DTE completo desde una venta
         
         Args:
             venta: Instancia de Venta
             tipo_dte: Código del tipo de DTE (33, 39, etc.)
+            **transport_data: Datos opcionales de transporte (patente_transporte, rut_transportista, nombre_chofer)
             
         Returns:
             DocumentoTributarioElectronico: DTE generado y firmado
@@ -62,8 +63,8 @@ class DTEService:
                 # 2. Generar XML del DTE
                 print(f"\nPaso 2: Generando XML del DTE")
                 
-                # Para boletas (39) y guías (52), usar DTEXMLGenerator con formato compatible DTEBox
-                if tipo_dte in ['39', '52']:
+                # Para boletas (39), guías (52) y facturas (33), usar DTEXMLGenerator con formato compatible DTEBox
+                if tipo_dte in ['33', '39', '52']:
                     print(f"[DTE] Usando DTEXMLGenerator para tipo {tipo_dte}")
                     
                     # Crear objeto DTE temporal para el generador
@@ -82,12 +83,17 @@ class DTEService:
                         razon_social_receptor=venta.cliente.nombre if venta.cliente else 'Cliente Genérico',
                         direccion_receptor=venta.cliente.direccion if venta.cliente else '',
                         comuna_receptor=venta.cliente.comuna if venta.cliente else '',
+                        giro_receptor=venta.cliente.giro if (venta.cliente and venta.cliente.giro) else 'PARTICULAR',
                         # Para guías (52), NO derivar tipo_traslado desde tipo_despacho.
                         # Se determinará en el generador; por defecto '1' (Venta) si no está definido explícitamente.
                         tipo_traslado=None if tipo_dte == '52' else None,
                         monto_neto=int(venta.neto),
                         monto_iva=int(venta.iva),
                         monto_total=int(venta.total),
+                        # Agregar datos de transporte al temporal
+                        patente_transporte=transport_data.get('patente_transporte'),
+                        rut_transportista=transport_data.get('rut_transportista'),
+                        nombre_chofer=transport_data.get('nombre_chofer'),
                     )
                     dte_temp.venta = venta  # Asociar venta
                     
@@ -173,7 +179,8 @@ class DTEService:
                     xml_sin_firmar=xml_sin_firmar,
                     xml_firmado=xml_firmado,
                     ted_xml=ted_xml,
-                    pdf417_data=pdf417_data
+                    pdf417_data=pdf417_data,
+                    **transport_data
                 )
 
                 print(f"DTE guardado - ID: {dte.id}")
@@ -200,8 +207,8 @@ class DTEService:
                 if not venta:
                     raise NotImplementedError("Solo se soporta regenerar DTE desde Venta")
                 
-                # Para boletas (39) y guías (52), usar DTEXMLGenerator
-                if dte.tipo_dte in ['39', '52']:
+                # Para boletas (39), guías (52) y facturas (33), usar DTEXMLGenerator
+                if dte.tipo_dte in ['33', '39', '52']:
                     print(f"[DTE] Regenerando documento {dte.tipo_dte} folio {dte.folio} con DTEXMLGenerator")
                     
                     # El DTE ya existe, usarlo directamente
@@ -495,134 +502,14 @@ class DTEService:
                     except Exception as _:
                         pass
             
-            from .dtebox_service import DTEBoxService
-            dtebox = DTEBoxService(self.empresa)
-            
-            # En algunos boxes, se espera XML firmado. Probar con xml_firmado prioritario.
+            # Preparar XML para envío
             xml_para_enviar = (dte.xml_firmado or '').strip() or (dte.xml_dte or '').strip()
-            resultado = dtebox.timbrar_dte(xml_para_enviar, dte.tipo_dte)
-
-            if resultado['success']:
-                # El track_id en DTEBox viene dentro del XML de respuesta o es el ID del proceso
-                # Intentar extraer track_id del XML de respuesta
-                track_id = 'DTEBOX-' + str(dte.folio)
-                try:
-                    import xml.etree.ElementTree as ET
-                    resp_xml = resultado.get('xml_respuesta', '')
-                    if resp_xml:
-                        root = ET.fromstring(resp_xml)
-                        track_node = root.find('.//TrackId')
-                        if track_node is not None and track_node.text:
-                            track_id = track_node.text
-                except:
-                    pass
-
-                print(f"DTE enviado exitosamente via DTEBox API - Track ID: {track_id}")
-                
-                with transaction.atomic():
-                    dte.estado_sii = 'enviado'
-                    dte.track_id = track_id
-                    dte.fecha_envio_sii = timezone.now()
-                    dte.respuesta_sii = resultado.get('xml_respuesta', '')
-                    # Actualizar el timbre si DTEBox devolvió uno nuevo/mejorado
-                    if resultado.get('ted'):
-                        dte.timbre_electronico = resultado.get('ted')
-                        # Regenerar PDF417
-                        from .firma_electronica import FirmadorDTE
-                        firmador = self._obtener_firmador()
-                        dte.datos_pdf417 = firmador.generar_datos_pdf417(dte.timbre_electronico)
-                        from .pdf417_generator import PDF417Generator
-                        PDF417Generator.guardar_pdf417_en_dte(dte)
-                    
-                    dte.save()
-                
-                return {
-                    'success': True,
-                    'track_id': track_id,
-                    'xml_respuesta': resultado.get('xml_respuesta')
-                }
-            else:
-                error_msg = resultado.get('error', 'Error desconocido en DTEBox API')
-                # Fallback 1: Intentar envío con ClienteGDExpress (mismo comportamiento que KreaDTE-Cloud)
-                try:
-                    from dte_gdexpress import ClienteGDExpress
-                    cliente = ClienteGDExpress(
-                        api_key=self.empresa.dtebox_auth_key,
-                        ambiente='CERTIFICACION' if (self.empresa.dtebox_ambiente or 'T') == 'T' else 'PRODUCCION',
-                        url_servicio=self.empresa.dtebox_url
-                    )
-                    resultado2 = cliente.enviar_dte(
-                        xml_firmado=xml_para_enviar,
-                        resolucion_numero=self.empresa.resolucion_numero or 0,
-                        resolucion_fecha=(self.empresa.resolucion_fecha.strftime('%Y-%m-%d') if self.empresa.resolucion_fecha else '2014-08-22')
-                    )
-                    if resultado2.get('success'):
-                        track_id = resultado2.get('track_id', 'DTEBOX-' + str(dte.folio))
-                        with transaction.atomic():
-                            dte.estado_sii = 'enviado'
-                            dte.track_id = track_id
-                            dte.fecha_envio_sii = timezone.now()
-                            dte.respuesta_sii = resultado2.get('xml_respuesta', '')
-                            if resultado2.get('ted'):
-                                dte.timbre_electronico = resultado2.get('ted')
-                                from .firma_electronica import FirmadorDTE
-                                firmador = self._obtener_firmador()
-                                dte.datos_pdf417 = firmador.generar_datos_pdf417(dte.timbre_electronico)
-                                from .pdf417_generator import PDF417Generator
-                                PDF417Generator.guardar_pdf417_en_dte(dte)
-                            dte.save()
-                        return {
-                            'success': True,
-                            'track_id': track_id,
-                            'xml_respuesta': resultado2.get('xml_respuesta')
-                        }
-                except Exception:
-                    pass
-                
-                # Fallback 2: Envío directo al SII con SetDTE (certificación)
-                try:
-                    from .cliente_sii import ClienteSII
-                    cliente_sii = ClienteSII(ambiente=self.empresa.ambiente_sii or 'certificacion')
-                    firmador = self._obtener_firmador()
-                    
-                    # Obtener semilla y token
-                    semilla = cliente_sii.obtener_semilla()
-                    token = cliente_sii.obtener_token(semilla, firmador)
-                    
-                    # Construir carátula y SetDTE con un solo documento
-                    caratula = {
-                        'rut_emisor': self.empresa.rut,
-                        'rut_envia': self.empresa.rut,
-                        'rut_receptor': '60803000-K',
-                        'fecha_resolucion': (self.empresa.resolucion_fecha.strftime('%Y-%m-%d') if self.empresa.resolucion_fecha else '2014-08-22'),
-                        'numero_resolucion': int(self.empresa.resolucion_numero or 0),
-                    }
-                    set_xml = cliente_sii.crear_set_dte([xml_para_enviar], caratula)
-                    
-                    # Enviar al SII
-                    respuesta_sii = cliente_sii.enviar_dte(
-                        xml_envio=set_xml,
-                        token=token,
-                        rut_emisor=self.empresa.rut,
-                        rut_envia=self.empresa.rut
-                    )
-                    
-                    track_id = respuesta_sii.get('track_id')
-                    if track_id:
-                        with transaction.atomic():
-                            dte.estado_sii = 'enviado'
-                            dte.track_id = track_id
-                            dte.fecha_envio_sii = timezone.now()
-                            dte.respuesta_sii = respuesta_sii.get('respuesta_completa', '')
-                            dte.save()
-                        return {'success': True, 'track_id': track_id}
-                except Exception as e_sii:
-                    pass
-                
-                raise Exception(f"Error DTEBox: {error_msg}")
             
+            print(f"[ENVÍO] Tipo {dte.tipo_dte} - Usando DTEBox")
+            return self._enviar_dtebox(dte, xml_para_enviar)
+                
         except Exception as e:
-            print(f"Error al enviar DTE a GDExpress: {str(e)}")
+            print(f"Error al enviar DTE: {str(e)}")
 
             # Actualizar estado del DTE (solo si NO está en modo prueba)
             modo_reutilizacion = getattr(self.empresa, 'modo_reutilizacion_folios', False)
@@ -635,6 +522,98 @@ class DTEService:
                     dte.save()
             
             raise
+    
+    def _enviar_dtebox(self, dte, xml_para_enviar):
+        """Envía DTE usando DTEBox (para boletas y guías)"""
+        from .dtebox_service import DTEBoxService
+        dtebox = DTEBoxService(self.empresa)
+        
+        resultado = dtebox.timbrar_dte(xml_para_enviar, dte.tipo_dte)
+
+        if resultado['success']:
+            # El track_id en DTEBox viene dentro del XML de respuesta o es el ID del proceso
+            # Intentar extraer track_id del XML de respuesta
+            track_id = 'DTEBOX-' + str(dte.folio)
+            try:
+                import xml.etree.ElementTree as ET
+                resp_xml = resultado.get('xml_respuesta', '')
+                if resp_xml:
+                    root = ET.fromstring(resp_xml)
+                    track_node = root.find('.//TrackId')
+                    if track_node is not None and track_node.text:
+                        track_id = track_node.text
+            except:
+                pass
+
+            print(f"DTE enviado exitosamente via DTEBox API - Track ID: {track_id}")
+            
+            with transaction.atomic():
+                dte.estado_sii = 'enviado'
+                dte.track_id = track_id
+                dte.fecha_envio_sii = timezone.now()
+                dte.respuesta_sii = resultado.get('xml_respuesta', '')
+                # Actualizar el timbre si DTEBox devolvió uno nuevo/mejorado
+                if resultado.get('ted'):
+                    dte.timbre_electronico = resultado.get('ted')
+                    # Regenerar PDF417
+                    from .firma_electronica import FirmadorDTE
+                    firmador = self._obtener_firmador()
+                    dte.datos_pdf417 = firmador.generar_datos_pdf417(dte.timbre_electronico)
+                    from .pdf417_generator import PDF417Generator
+                    PDF417Generator.guardar_pdf417_en_dte(dte)
+                
+                dte.save()
+            
+            return {
+                'success': True,
+                'track_id': track_id,
+                'xml_respuesta': resultado.get('xml_respuesta')
+            }
+        else:
+            error_msg = resultado.get('error', 'Error desconocido en DTEBox API')
+            raise Exception(f"Error DTEBox: {error_msg}")
+    
+    def _enviar_sii_directo(self, dte, xml_para_enviar):
+        """Envía DTE directamente al SII (para facturas tipo 33)"""
+        from .cliente_sii import ClienteSII
+        cliente_sii = ClienteSII(ambiente=self.empresa.ambiente_sii or 'certificacion')
+        firmador = self._obtener_firmador()
+        
+        # Obtener semilla y token
+        semilla = cliente_sii.obtener_semilla()
+        token = cliente_sii.obtener_token(semilla, firmador)
+        
+        # Construir carátula y SetDTE con un solo documento
+        caratula = {
+            'rut_emisor': self.empresa.rut,
+            'rut_envia': self.empresa.rut,
+            'rut_receptor': '60803000-K',
+            'fecha_resolucion': (self.empresa.resolucion_fecha.strftime('%Y-%m-%d') if self.empresa.resolucion_fecha else '2014-08-22'),
+            'numero_resolucion': int(self.empresa.resolucion_numero or 0),
+        }
+        set_xml = cliente_sii.crear_set_dte([xml_para_enviar], caratula)
+        
+        # Enviar al SII
+        respuesta_sii = cliente_sii.enviar_dte(
+            xml_envio=set_xml,
+            token=token,
+            rut_emisor=self.empresa.rut,
+            rut_envia=self.empresa.rut
+        )
+        
+        track_id = respuesta_sii.get('track_id')
+        if track_id:
+            with transaction.atomic():
+                dte.estado_sii = 'enviado'
+                dte.track_id = track_id
+                dte.fecha_envio_sii = timezone.now()
+                dte.respuesta_sii = respuesta_sii.get('respuesta_completa', '')
+                dte.save()
+            
+            print(f"✅ Factura enviada exitosamente al SII - Track ID: {track_id}")
+            return {'success': True, 'track_id': track_id}
+        else:
+            raise Exception("No se recibió Track ID del SII")
     
     def consultar_estado_dte(self, dte):
         """
@@ -806,7 +785,7 @@ class DTEService:
         return firmador.generar_ted(dte_data, caf_data)
     
     def _crear_registro_dte(self, venta, tipo_dte, folio, caf, xml_sin_firmar, 
-                           xml_firmado, ted_xml, pdf417_data):
+                           xml_firmado, ted_xml, pdf417_data, **transport_data):
         """Crea el registro del DTE en la base de datos"""
         
         # Datos del receptor
@@ -868,9 +847,14 @@ class DTEService:
             # DEBUG
             # print(f"DEBUG: [DTE SERVICE] Creando DTE Tipo {tipo_dte}. Venta Tipo Despacho: {venta.tipo_despacho}")
             tipo_traslado=venta.tipo_despacho if tipo_dte == '52' else None,
+
+            # Campos de transporte (Opcionales)
+            patente_transporte=transport_data.get('patente_transporte'),
+            rut_transportista=transport_data.get('rut_transportista'),
+            nombre_chofer=transport_data.get('nombre_chofer'),
             
             # Montos
-            monto_neto=venta.subtotal,
+            monto_neto=venta.neto,
             monto_iva=venta.iva,
             monto_total=venta.total,
             

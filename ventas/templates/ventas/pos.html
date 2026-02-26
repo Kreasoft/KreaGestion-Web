@@ -3202,10 +3202,12 @@
                         console.log('[CRITICAL DEBUG] tipoDocumento:', tipoDocumento);
                         console.log('[CRITICAL DEBUG] ¿Es guía?:', tipoDocumento === 'guia');
 
-                        // CRÍTICO: Todo lo que sale del POS hacia preventa (excepto cotización) 
-                        // debe ser tipo 'ticket'. El destino real va en tipo_documento_planeado.
+                        // CRÍTICO: El tipo_documento enviado al servidor determina el flujo de procesamiento
+                        // cotizacion -> se queda como borrador
+                        // vale -> se procesa en caja y descuenta stock inmediatamente
+                        // factura/boleta/guia/ticket -> se crea un ticket (preventa) para la caja
                         const datosRetorno = {
-                            tipo_documento: (tipoDocumento === 'cotizacion') ? 'cotizacion' : 'ticket',
+                            tipo_documento: (tipoDocumento === 'cotizacion' || tipoDocumento === 'vale') ? tipoDocumento : 'ticket',
                             tipo_documento_original: tipoDocumento, // Mantener por referencia
                             rut_cliente: rutCliente,
                             cliente_id: window.clienteSeleccionado.id,
@@ -4389,37 +4391,85 @@
                                     });
                                 }
                             } else {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: '¡Preventa Procesada!',
-                                    text: `Preventa ${data.tipo_documento} #${data.numero_preventa} generada exitosamente`,
-                                    timer: 3000
-                                }).then(() => {
-                                    // Limpiar carrito y recargar
-                                    cart = [];
-                                    updateCartDisplay();
-                                    updateTotals();
-                                    limpiarClientePOS();
+                                // CASO: TICKET / TICKET FACTURABLE / PREVENTA
+                                // Si hubo cierre directo (se generó DTE), el backend devuelve doc_url
+                                const esCierreDirectoTicket = (
+                                    (data.cierre_directo === true || data.cierre_directo === 'true' || data.cierre_directo === 1) &&
+                                    data.doc_url
+                                );
 
-                                    // Limpiar variables de tipo de documento/vale
-                                    window.tipoDocumentoPlaneadoVale = null;
-                                    window.tipoValeSeleccionado = null;
-                                    window.tipoDespachoVale = null;
+                                if (esCierreDirectoTicket) {
+                                    // CIERRE DIRECTO: Abrir DTE directamente
+                                    const nombreDoc = data.tipo_documento_planeado === 'factura' ? 'Factura' :
+                                                      data.tipo_documento_planeado === 'boleta' ? 'Boleta' :
+                                                      data.tipo_documento_planeado === 'guia' ? 'Guía de Despacho' : 'Documento';
 
-                                    // Actualizar stock después de la venta
-                                    updateStockFromServer();
-
-                                    // Restaurar modo escaneo si estaba activo
-                                    if (wasScanningMode) {
-                                        setTimeout(() => {
-                                            barcodeMode = true;
-                                            const barcodeInput = document.getElementById('barcode-input');
-                                            if (barcodeInput) {
-                                                barcodeInput.focus();
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: '¡Documento Procesado!',
+                                        html: `<strong>${nombreDoc} #${data.numero_venta}</strong><br>procesada automáticamente con cierre directo`,
+                                        timer: 2000,
+                                        showConfirmButton: false
+                                    }).then(() => {
+                                        window.open(data.doc_url, '_blank');
+                                        
+                                        // Limpiar carrito y recargar
+                                        cart = [];
+                                        updateCartDisplay();
+                                        updateTotals();
+                                        limpiarClientePOS();
+                                        window.tipoDocumentoPlaneadoVale = null;
+                                        window.tipoValeSeleccionado = null;
+                                        window.tipoDespachoVale = null;
+                                        updateStockFromServer();
+                                        if (wasScanningMode) {
+                                            setTimeout(() => {
+                                                barcodeMode = true;
+                                                const barcodeInput = document.getElementById('barcode-input');
+                                                if (barcodeInput) barcodeInput.focus();
+                                            }, 2000);
+                                        }
+                                    });
+                                } else {
+                                    // NO CIERRE DIRECTO: Imprimir ticket (vale) para validación en caja
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: '¡Vale Generado!',
+                                        text: `Ticket #${data.numero_preventa} generado para validación en caja`,
+                                        timer: 2000
+                                    }).then(() => {
+                                        // IMPRESION DEL TICKET (Vale facturable)
+                                        const ticketId = data.preventa_id || data.id;
+                                        if (ticketId) {
+                                            if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
+                                                const ticketUrl = `/ventas/vales/${ticketId}/termica/`;
+                                                QZ_Printers.printTicketFromUrl(ticketUrl).catch(err => {
+                                                    console.error("Error QZ, fallback to window.open", err);
+                                                    window.open(`/ventas/vales/${ticketId}/html/`, '_blank');
+                                                });
+                                            } else {
+                                                window.open(`/ventas/vales/${ticketId}/html/`, '_blank');
                                             }
-                                        }, 2000);
-                                    }
-                                });
+                                        }
+
+                                        // Limpiar carrito y recargar
+                                        cart = [];
+                                        updateCartDisplay();
+                                        updateTotals();
+                                        limpiarClientePOS();
+                                        window.tipoDocumentoPlaneadoVale = null;
+                                        window.tipoValeSeleccionado = null;
+                                        window.tipoDespachoVale = null;
+                                        updateStockFromServer();
+                                        if (wasScanningMode) {
+                                            setTimeout(() => {
+                                                barcodeMode = true;
+                                                const barcodeInput = document.getElementById('barcode-input');
+                                                if (barcodeInput) barcodeInput.focus();
+                                            }, 2000);
+                                        }
+                                    });
+                                }
                             }
                         } else {
                             Swal.fire({

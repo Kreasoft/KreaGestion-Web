@@ -107,8 +107,8 @@ class DTEXMLGenerator:
         # IMPORTANTE: Usar formato F{folio}T{tipo_dte} como en el ejemplo que funciona
         documento = etree.SubElement(root, "Documento", ID=f"F{self.folio}T{self.tipo_dte}")
         
-        # Encabezado SIN datos de transporte (opcional, y el ejemplo que funciona no lo incluye)
-        encabezado = self._generar_encabezado(documento, incluir_transporte=False)
+        # Encabezado CON datos de transporte (OBLIGATORIO para Guías tipo 52)
+        encabezado = self._generar_encabezado(documento, incluir_transporte=True)
         
         # Detalles
         sum_neto = self._generar_detalles(documento)
@@ -206,44 +206,42 @@ class DTEXMLGenerator:
         if self.tipo_dte in ['39', '41']:
             etree.SubElement(id_doc, "IndServicio").text = "3"  # Obligatorio para boletas
         
-        # Campos de guía de despacho (tipo 52): TipoDespacho e IndTraslado
-        # Ambos deben ir en IdDoc y son independientes
+        # IndTraslado (OBLIGATORIO para Guías de Despacho tipo 52) - PRIMERO para tipo 52 (como KreaDTE)
+        # Debe ir en IdDoc, NO en Transporte
         if self.tipo_dte == '52':
-            tipo_despacho = None
+            # Buscar el tipo de traslado en diferentes campos posibles
             ind_traslado = None
             
-            # TipoDespacho: desde venta o del propio documento si existiera
-            if hasattr(self.documento, 'venta') and self.documento.venta and hasattr(self.documento.venta, 'tipo_despacho'):
-                tipo_despacho = self.documento.venta.tipo_despacho
-                print(f"[DTE Generator] TipoDespacho desde venta.tipo_despacho: {tipo_despacho}")
-            elif hasattr(self.documento, 'tipo_despacho') and self.documento.tipo_despacho:
-                tipo_despacho = self.documento.tipo_despacho
-                print(f"[DTE Generator] TipoDespacho desde documento.tipo_despacho: {tipo_despacho}")
-            
-            # IndTraslado: prioridad documento.tipo_traslado, luego selección de la UI en venta.tipo_despacho
+            # 1. Intentar desde tipo_traslado (DocumentoTributarioElectronico)
             if hasattr(self.documento, 'tipo_traslado') and self.documento.tipo_traslado:
                 ind_traslado = self.documento.tipo_traslado
-                print(f"[DTE Generator] IndTraslado desde documento.tipo_traslado: {ind_traslado}")
-            elif hasattr(self.documento, 'venta') and self.documento.venta and hasattr(self.documento.venta, 'tipo_despacho') and self.documento.venta.tipo_despacho:
-                ind_traslado = self.documento.venta.tipo_despacho
-                print(f"[DTE Generator] IndTraslado desde venta.tipo_despacho: {ind_traslado}")
-            else:
-                # Fallback: '1' (Venta) si no hay selección disponible
-                ind_traslado = '1'
-                print(f"[DTE Generator] IndTraslado por defecto asignado: {ind_traslado}")
+                print(f"[DTE Generator] IndTraslado desde tipo_traslado: {ind_traslado}")
             
-            # Normalizar valores permitidos
-            if tipo_despacho not in ['1', '2', None]:
-                tipo_despacho = '1'
-            if ind_traslado not in ['1', '2', '3', '4']:
-                ind_traslado = '1'
+            # 2. Intentar desde tipo_despacho (Venta)
+            elif hasattr(self.documento, 'tipo_despacho') and self.documento.tipo_despacho:
+                ind_traslado = self.documento.tipo_despacho
+                print(f"[DTE Generator] IndTraslado desde tipo_despacho: {ind_traslado}")
             
-            # FmaPago en guías, para compatibilidad con KreaDTE/DTEBox (usar Contado por defecto)
-            etree.SubElement(id_doc, "FmaPago").text = "1"
+            # 3. Intentar desde venta asociada (si el documento es un DTE)
+            elif hasattr(self.documento, 'venta') and self.documento.venta:
+                if hasattr(self.documento.venta, 'tipo_despacho') and self.documento.venta.tipo_despacho:
+                    ind_traslado = self.documento.venta.tipo_despacho
+                    print(f"[DTE Generator] IndTraslado desde venta.tipo_despacho: {ind_traslado}")
             
-            # Escribir en XML si existen; TipoDespacho puede omitirse si no se definió
-            if tipo_despacho:
-                etree.SubElement(id_doc, "TipoDespacho").text = str(tipo_despacho)
+            # 4. ERROR CRÍTICO: NO usar valor por defecto
+            if not ind_traslado:
+                error_msg = (
+                    "ERROR CRÍTICO: No se pudo determinar el tipo de traslado (IndTraslado) para la Guía de Despacho. "
+                    "Este campo es OBLIGATORIO y afecta las obligaciones tributarias. "
+                    "DEBE seleccionar el tipo de guía en el formulario: "
+                    "1=Venta, 2=Venta por efectuar, 3=Consignación, 4=Devolución, "
+                    "5=Traslado interno, 6=Transformación, 7=Entrega gratuita, 8=Otros"
+                )
+                print(f"[DTE Generator] {error_msg}")
+                raise ValueError(error_msg)
+            
+            # TipoDespacho e IndTraslado (mismo valor) como en KreaDTE-Cloud para compatibilidad DTEBox
+            etree.SubElement(id_doc, "TipoDespacho").text = str(ind_traslado)
             etree.SubElement(id_doc, "IndTraslado").text = str(ind_traslado)
         
         # Forma de pago - NO incluir para boletas (39, 41) NI para guías (52) - solo facturas/notas
@@ -286,21 +284,51 @@ class DTEXMLGenerator:
     def _generar_transporte(self, encabezado):
         """Genera la sección de Transporte para Guías de Despacho (52).
         Se incluyen los campos mínimos para que el XML sea válido. Si no hay datos
-        de transporte disponibles se agregan valores por defecto.
+        de transporte disponibles se agregan valores del receptor como destino.
         """
         try:
             from lxml import etree
             # Contenedor Transporte
             transporte = etree.SubElement(encabezado, "Transporte")
 
-            # Patente del vehículo (opcional). Si no existe, colocar genérico.
-            patente = getattr(self.documento, 'patente', None) or 'ZZZZ99'
-            etree.SubElement(transporte, "Patente").text = patente
+            # 1. Dirección de Destino (OBLIGATORIO para Guías)
+            # Intentar obtener desde el documento o del receptor
+            direccion = getattr(self.documento, 'direccion_receptor', '')
+            comuna = getattr(self.documento, 'comuna_receptor', '')
+            ciudad = getattr(self.documento, 'ciudad_receptor', 'SANTIAGO')
 
-            # RUT del transportista (opcional).
+            # Si no hay datos en el documento, intentar desde la relación cliente si existe
+            if not direccion and hasattr(self.documento, 'cliente') and self.documento.cliente:
+                direccion = self.documento.cliente.direccion
+                comuna = self.documento.cliente.comuna
+                ciudad = getattr(self.documento.cliente, 'ciudad', 'SANTIAGO')
+
+            etree.SubElement(transporte, "DirDest").text = (direccion or 'DIRECCION DESCONOCIDA')[:70]
+            etree.SubElement(transporte, "CmnaDest").text = (comuna or 'COMUNA DESCONOCIDA')[:20]
+            etree.SubElement(transporte, "CiudadDest").text = (ciudad or 'SANTIAGO')[:20]
+
+            # 2. Patente del vehículo (Opcional)
+            # Intentar desde campo directo, relación vehiculo o default
+            patente = getattr(self.documento, 'patente_transporte', None)
+            if not patente and hasattr(self.documento, 'vehiculo') and self.documento.vehiculo:
+                patente = self.documento.vehiculo.patente
+            
+            if patente:
+                etree.SubElement(transporte, "Patente").text = patente[:8].replace('-', '').upper()
+
+            # 3. RUT del transportista (Opcional)
             rut_transp = getattr(self.documento, 'rut_transportista', None)
             if rut_transp:
-                etree.SubElement(transporte, "RUTTransp").text = rut_transp
+                etree.SubElement(transporte, "RUTTransp").text = rut_transp.replace('.', '')
+
+            # 4. Chofer (Opcional)
+            nombre_chofer = getattr(self.documento, 'nombre_chofer', None)
+            if not nombre_chofer and hasattr(self.documento, 'chofer') and self.documento.chofer:
+                nombre_chofer = self.documento.chofer.nombre
+            
+            if nombre_chofer:
+                etree.SubElement(transporte, "Chofer").text = nombre_chofer[:30]
+
         except Exception as e:
             # No romper el flujo si falla: solo loguear.
             print(f"[WARN] Error al generar seccion Transporte: {e}")
@@ -334,9 +362,8 @@ class DTEXMLGenerator:
             etree.SubElement(emisor, "Telefono").text = (self.empresa.telefono or "")[:20]
             etree.SubElement(emisor, "CorreoEmisor").text = (self.empresa.email or "")[:80]
         
-        # Acteco - NO incluir en boletas. Guías 52 sí (estructura KreaDTE/DTEBox).
         if self.tipo_dte not in ['39', '41']:
-            acteco = self.empresa.codigo_actividad_economica or ("722000" if self.tipo_dte == '52' else "0")
+            acteco = self.empresa.codigo_actividad_economica or "0"
             etree.SubElement(emisor, "Acteco").text = str(acteco)
         
         # Dirección
@@ -406,14 +433,12 @@ class DTEXMLGenerator:
         etree.SubElement(receptor, "RUTRecep").text = rut_receptor.replace('.', '')
         etree.SubElement(receptor, "RznSocRecep").text = razon_social[:100]
         
-        # GiroRecep
-        # - Obligatorio para guías (52) según DTEBox/KreaDTE-Cloud
-        # - Opcional en otros tipos (no incluir en boletas 39, 41)
-        if self.tipo_dte == '52':
-            giro_val = (giro or 'SIN GIRO')[:40]
-            etree.SubElement(receptor, "GiroRecep").text = giro_val
-        elif giro and self.tipo_dte not in ['39', '41']:
-            etree.SubElement(receptor, "GiroRecep").text = giro[:40]
+        # GiroRecep - OBLIGATORIO para facturas y guías según SII y DTEBox
+        if self.tipo_dte not in ['39', '41']:
+            giro_final = (giro or 'PARTICULAR').strip()
+            if not giro_final:
+                giro_final = 'PARTICULAR'
+            etree.SubElement(receptor, "GiroRecep").text = giro_final[:40]
         
         # Contacto (opcional)
         contacto = ''
@@ -483,13 +508,17 @@ class DTEXMLGenerator:
                 if iva_final < 0: iva_final = 0
             etree.SubElement(totales, "IVA").text = str(iva_final)
         
-        # Monto Total - Para guías tipo 52: recalcular si usamos sum_neto
+        # Monto Total - Asegurar consistencia (Suma de Neto + Exento + IVA)
+        # Algunos registros antiguos pueden tener totales inconsistentes que causan 500 en DTEBox
+        monto_total_calculado = int(round(float(monto_neto))) + int(round(float(monto_exento))) + int(round(float(monto_iva)))
+
         if self.tipo_dte == '52' and sum_neto is not None:
-            # Recalcular total = neto + IVA (calculado arriba)
+            # Para guías con sum_neto: usar el cálculo específico de guías
             monto_total_final = monto_neto + iva_final + monto_exento
             etree.SubElement(totales, "MntTotal").text = str(int(round(monto_total_final)))
         else:
-            etree.SubElement(totales, "MntTotal").text = str(int(round(float(monto_total))))
+            # Para todos los demás (especialmente Facturas), usar el total asegurado
+            etree.SubElement(totales, "MntTotal").text = str(monto_total_calculado)
 
     
     def _generar_detalles(self, documento):

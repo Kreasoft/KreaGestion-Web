@@ -3,6 +3,7 @@
 {% block body_class %}hide-top-bar{% endblock %}
 {% load widget_tweaks %}
 {% load articulo_filters %}
+{% load query_tags %}
 
 {% block title %}Lista de Artículos - GestionCloud{% endblock %}
 
@@ -149,6 +150,8 @@
                     <!-- Filtros Compactos Estilo Piedra -->
                     <div class="p-3" style="background: #FAFAF8; border-bottom: 1px solid #E8DCC8;">
                         <form method="get" id="filterForm">
+                            <input type="hidden" name="sort" value="{{ sort|default:'' }}">
+                            <input type="hidden" name="direction" value="{{ direction|default:'' }}">
                             <div class="row g-2 align-items-center">
                                 <div class="col-md-3">
                                     <div class="input-group input-group-sm">
@@ -199,14 +202,38 @@
                         <table class="table-piedra mb-0">
                             <thead>
                                 <tr>
-                                    <th style="width: 25%;">ARTÍCULO / DESCRIPCIÓN</th>
-                                    <th style="width: 12%;">CATEGORÍA</th>
-                                    <th style="width: 10%; text-align: center;">TIPO</th>
-                                    <th style="width: 12%; text-align: center;">CÓD. BARRAS</th>
+                                    <th style="width: 25%;">
+                                        <a href="?{% url_replace_sort 'nombre' %}" style="text-decoration: none; color: inherit;">
+                                            ARTÍCULO / DESCRIPCIÓN {% get_sort_icon 'nombre' %}
+                                        </a>
+                                    </th>
+                                    <th style="width: 12%;">
+                                        <a href="?{% url_replace_sort 'categoria' %}" style="text-decoration: none; color: inherit;">
+                                            CATEGORÍA {% get_sort_icon 'categoria' %}
+                                        </a>
+                                    </th>
+                                    <th style="width: 10%; text-align: center;">
+                                        <a href="?{% url_replace_sort 'tipo' %}" style="text-decoration: none; color: inherit;">
+                                            TIPO {% get_sort_icon 'tipo' %}
+                                        </a>
+                                    </th>
+                                    <th style="width: 12%; text-align: center;">
+                                        <a href="?{% url_replace_sort 'codigo' %}" style="text-decoration: none; color: inherit;">
+                                            CÓD. BARRAS {% get_sort_icon 'codigo' %}
+                                        </a>
+                                    </th>
                                     <th style="width: 10%; text-align: right;">P. COSTO</th>
                                     <th style="width: 10%; text-align: right;">P. NETO</th>
-                                    <th style="width: 10%; text-align: right;">P. FINAL</th>
-                                    <th style="width: 5%; text-align: center;">STOCK</th>
+                                    <th style="width: 10%; text-align: right;">
+                                        <a href="?{% url_replace_sort 'precio' %}" style="text-decoration: none; color: inherit;">
+                                            P. FINAL {% get_sort_icon 'precio' %}
+                                        </a>
+                                    </th>
+                                    <th style="width: 5%; text-align: center;">
+                                        <a href="?{% url_replace_sort 'stock' %}" style="text-decoration: none; color: inherit;">
+                                            STOCK {% get_sort_icon 'stock' %}
+                                        </a>
+                                    </th>
                                     <th style="width: 6%; text-align: center;">ACCIONES</th>
                                 </tr>
                             </thead>
@@ -290,7 +317,7 @@
                         <ul class="pagination pagination-sm justify-content-center mb-0">
                             {% if page_obj.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}" style="color: #8B7355; border-color: #E8DCC8;"><i class="fas fa-chevron-left"></i></a>
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if activo %}&activo={{ activo }}{% endif %}{% if tipo_articulo %}&tipo_articulo={{ tipo_articulo }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if direction %}&direction={{ direction }}{% endif %}" style="color: #8B7355; border-color: #E8DCC8;"><i class="fas fa-chevron-left"></i></a>
                                 </li>
                             {% endif %}
                             
@@ -300,7 +327,7 @@
                             
                             {% if page_obj.has_next %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}" style="color: #8B7355; border-color: #E8DCC8;"><i class="fas fa-chevron-right"></i></a>
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if categoria_id %}&categoria={{ categoria_id }}{% endif %}{% if activo %}&activo={{ activo }}{% endif %}{% if tipo_articulo %}&tipo_articulo={{ tipo_articulo }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if direction %}&direction={{ direction }}{% endif %}" style="color: #8B7355; border-color: #E8DCC8;"><i class="fas fa-chevron-right"></i></a>
                                 </li>
                             {% endif %}
                         </ul>

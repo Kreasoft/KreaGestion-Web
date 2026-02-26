@@ -422,18 +422,6 @@
                 Verifique documento en: www.sii.cl
             </div>
         </div>
-        {% elif dte and dte.datos_pdf417 %}
-        <div class="barcode-section">
-            <div class="barcode-title">TIMBRE ELECTRÓNICO SII</div>
-            <div class="barcode-container">
-                <img src="data:image/png;base64,{{ dte.datos_pdf417 }}" alt="Timbre Electrónico"
-                    style="max-width: 200px; height: auto;">
-            </div>
-            <div style="font-size: 8px; margin-top: 5px;">
-                Folio: {{ dte.folio }} - Res. Ex. SII N° 80 del 22-08-2014<br>
-                Verifique documento en: www.sii.cl
-            </div>
-        </div>
         {% endif %}
 
         <!-- Código de Barras -->
@@ -461,13 +449,21 @@
             <i class="fas fa-print me-2"></i>Imprimir Guía de Despacho
         </button>
         <button
-            onclick="if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) { window.history.back(); } else { window.location.href = '/'; }"
+            onclick="safeCloseWindow()"
             class="btn btn-secondary ms-2">
             <i class="fas fa-arrow-left me-2"></i>Volver
         </button>
     </div>
 
     <script>
+        function safeCloseWindow() {
+            if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
+                window.history.back();
+            } else {
+                window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
+            }
+        }
+
         // Generar código de barras
         document.addEventListener('DOMContentLoaded', function () {
             try {

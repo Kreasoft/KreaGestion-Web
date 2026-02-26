@@ -2092,7 +2092,7 @@ def pos_procesar_preventa(request):
                                 'success': True,
                                 'cierre_directo': True,
                                 'tipo_documento': data['tipo_documento'],  # 'ticket'
-                                'tipo_documento_planeado': tipo_doc_planeado,  # 'factura', 'boleta', 'guia'
+                                'tipo_documento_planeado': tipo_doc_planeado,
                                 'numero_venta': numero_venta_final,
                                 'numero_preventa': proximo_numero,
                                 'doc_url': doc_url,
@@ -2109,7 +2109,7 @@ def pos_procesar_preventa(request):
                             'success': True,
                             'numero_preventa': proximo_numero,
                             'tipo_documento': data['tipo_documento'],
-                            'tipo_documento_planeado': tipo_doc_planeado,
+                            'tipo_documento_planeado': tipo_doc_planeado, # Asegurar que vaya en fallback
                             'preventa_id': preventa.id,
                             'cierre_directo': False,
                             'error_cierre': str(e_cierre_ticket)
@@ -2750,17 +2750,19 @@ def pos_procesar_preventa(request):
                 'success': True,
                 'numero_preventa': proximo_numero,
                 'tipo_documento': data['tipo_documento'],
+                'tipo_documento_planeado': tipo_doc_planeado,  # ← CRÍTICO para el frontend
                 'preventa_id': preventa.id,
                 'ticket_vale_id': ticket_vale_id,
                 'ticket_vale_numero': ticket_vale_numero,
-                'cierre_directo': False,  # EXPLÍCITAMENTE False para modo vale
-                'redirect_url': procesamiento_url  # URL para que el frontend redirija
+                'cierre_directo': False, 
+                'redirect_url': procesamiento_url
             }
             print("=" * 80)
             print("[RETORNO NORMAL] Sin cierre directo - Respuesta JSON:")
             print(f"  cierre_directo: {respuesta_normal.get('cierre_directo')}")
             print(f"  ticket_vale_id: {respuesta_normal.get('ticket_vale_id')}")
             print(f"  tipo_documento: {respuesta_normal.get('tipo_documento')}")
+            print(f"  tipo_documento_planeado: {respuesta_normal.get('tipo_documento_planeado')}")
             print(f"  redirect_url: {procesamiento_url}")
             print("=" * 80)
             return JsonResponse(respuesta_normal)
@@ -4360,13 +4362,30 @@ def libro_ventas(request):
     ventas_list = list(ventas)
     dtes_list = list(dtes)
     
+    # Parámetros de ordenamiento
+    sort = request.GET.get('sort', 'tipo_folio')
+    direction = request.GET.get('direction', 'desc')
+    
     for venta in ventas_list:
         venta.fecha_documento = venta.fecha
         venta.es_dte = False
+        # Mapeo de tipos para ordenamiento consistente
+        tipo_map = {'factura': '33', 'boleta': '39', 'guia': '52', 'nota_credito': '61', 'nota_debito': '56'}
+        venta.sort_tipo = tipo_map.get(venta.tipo_documento, '99')
+        try:
+            import re
+            venta.sort_folio = int(re.sub(r'\D', '', str(venta.numero_venta))) if venta.numero_venta else 0
+        except:
+            venta.sort_folio = 0
     
     for dte in dtes_list:
         dte.fecha_documento = dte.fecha_emision
         dte.es_dte = True
+        dte.sort_tipo = getattr(dte, 'tipo_dte', '99')
+        try:
+            dte.sort_folio = int(dte.folio) if dte.folio else 0
+        except:
+            dte.sort_folio = 0
         # Marcar y ajustar montos para Notas de Crédito (tipo 61) como negativos
         dte.es_nota_credito = (getattr(dte, 'tipo_dte', '') == '61')
         if dte.es_nota_credito:
@@ -4380,10 +4399,29 @@ def libro_ventas(request):
             except Exception:
                 dte.notacredito_id = None
     
+    # Definir la función de clave para ordenamiento
+    def get_sort_key(doc):
+        if sort == 'tipo_folio':
+            return (doc.sort_tipo, doc.sort_folio)
+        elif sort == 'fecha':
+            return doc.fecha_documento
+        elif sort == 'folio':
+            return doc.sort_folio
+        elif sort == 'cliente':
+            if hasattr(doc, 'razon_social_receptor'):
+                return (doc.razon_social_receptor or '').lower()
+            return (doc.cliente.nombre if doc.cliente else '').lower()
+        elif sort == 'total':
+            return getattr(doc, 'monto_total', getattr(doc, 'total', 0))
+        return doc.fecha_documento
+
+    reverse_sort = direction == 'desc'
+    # Si es tipo_folio y asc, normalmente queremos tipo asc y folio asc.
+    
     documentos = sorted(
         chain(ventas_list, dtes_list),
-        key=attrgetter('fecha_documento'),
-        reverse=True
+        key=get_sort_key,
+        reverse=reverse_sort
     )
     
     # Estadísticas del período (solo si hay datos)
@@ -4471,6 +4509,8 @@ def libro_ventas(request):
         'forma_pago_id': forma_pago_id,
         'estado': estado,
         'search': search,
+        'sort': sort,
+        'direction': direction,
         'clientes': clientes,
         'vendedores': vendedores,
         'formas_pago': formas_pago,

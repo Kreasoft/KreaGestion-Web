@@ -85,8 +85,24 @@ def cliente_list(request):
     if vendedor_id:
         clientes = clientes.filter(vendedor_id=vendedor_id)
     
-    # Ordenamiento
-    clientes = clientes.order_by('nombre')
+    # Ordenamiento dinámico
+    sort = request.GET.get('sort', 'nombre')
+    direction = request.GET.get('direction', 'asc')
+    
+    # Validar campos permitidos para ordenar para evitar inyección sospechosa
+    allowed_sort_fields = {
+        'nombre': 'nombre',
+        'rut': 'rut',
+        'tipo_cliente': 'tipo_cliente',
+        'estado': 'estado',
+        'vendedor': 'vendedor__nombre',
+        'limite_credito': 'limite_credito'
+    }
+    
+    sort_field = allowed_sort_fields.get(sort, 'nombre')
+    order_by = sort_field if direction == 'asc' else f'-{sort_field}'
+    
+    clientes = clientes.order_by(order_by)
     
     # Paginación
     paginator = Paginator(clientes, 20)
@@ -99,7 +115,7 @@ def cliente_list(request):
     clientes_contribuyentes = Cliente.objects.filter(empresa=empresa, tipo_cliente='contribuyente').count()
     clientes_consumidor_final = Cliente.objects.filter(empresa=empresa, tipo_cliente='consumidor_final').count()
     
-    # Calcular límite de crédito total
+    # Calcular límite de crédito total (sin filtrar por los filtros de búsqueda si se desea global)
     limite_total = Cliente.objects.filter(empresa=empresa).aggregate(
         total=Sum('limite_credito')
     )['total'] or 0
@@ -109,6 +125,8 @@ def cliente_list(request):
         'search': search,
         'estado': estado,
         'tipo_cliente': tipo_cliente,
+        'sort': sort,
+        'direction': direction,
         'total_clientes': total_clientes,
         'clientes_activos': clientes_activos,
         'clientes_contribuyentes': clientes_contribuyentes,

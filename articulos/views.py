@@ -32,7 +32,26 @@ from core.decorators import requiere_empresa, requiere_permiso
 def articulo_list(request):
     """Lista de artículos"""
     # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
-    articulos = Articulo.objects.filter(empresa=request.empresa).order_by('-fecha_creacion')
+    articulos_base = Articulo.objects.filter(empresa=request.empresa)
+    
+    # Ordenamiento dinámico
+    sort = request.GET.get('sort', 'nombre')
+    direction = request.GET.get('direction', 'asc')
+    
+    allowed_sort_fields = {
+        'nombre': 'nombre',
+        'codigo': 'codigo',
+        'categoria': 'categoria__nombre',
+        'tipo': 'tipo_articulo',
+        'precio': 'precio_final',
+        'stock': 'stock_actual',
+        'fecha': 'fecha_creacion'
+    }
+    
+    sort_field = allowed_sort_fields.get(sort, 'nombre')
+    order_by = sort_field if direction == 'asc' else f'-{sort_field}'
+    
+    articulos = articulos_base.order_by(order_by)
     
     # Filtros
     search = request.GET.get('search', '')
@@ -102,6 +121,8 @@ def articulo_list(request):
         'search': search,
         'categoria_id': categoria_id,
         'tipo_articulo': tipo_articulo,
+        'sort': sort,
+        'direction': direction,
         'total_articulos': total_articulos,
         'articulos_activos': articulos_activos,
         'articulos_inactivos': articulos_inactivos,
@@ -257,7 +278,22 @@ def articulo_delete(request, pk):
 def categoria_list(request):
     """Lista de categorías"""
     # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
-    categorias = CategoriaArticulo.objects.filter(empresa=request.empresa).order_by('nombre')
+    categorias_base = CategoriaArticulo.objects.filter(empresa=request.empresa)
+    
+    # Ordenamiento dinámico
+    sort = request.GET.get('sort', 'nombre')
+    direction = request.GET.get('direction', 'asc')
+    
+    allowed_sort_fields = {
+        'nombre': 'nombre',
+        'activa': 'activa',
+        'iva': 'exenta_iva'
+    }
+    
+    sort_field = allowed_sort_fields.get(sort, 'nombre')
+    order_by = sort_field if direction == 'asc' else f'-{sort_field}'
+    
+    categorias = categorias_base.order_by(order_by)
     
     # Calcular estadísticas
     total_categorias = categorias.count()
@@ -270,6 +306,8 @@ def categoria_list(request):
     
     context = {
         'categorias': categorias,
+        'sort': sort,
+        'direction': direction,
         'total_categorias': total_categorias,
         'categorias_activas': categorias_activas,
         'categorias_con_iva': categorias_con_iva,

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% load articulo_filters %}
+{% load query_tags %}
 
 {% block title %}Lista de Clientes - GestionCloud{% endblock %}
 
@@ -47,6 +48,17 @@
         font-size: 0.7rem;
         letter-spacing: 1px;
         padding: 12px 15px;
+    }
+
+    .table-piedra thead th a {
+        color: inherit;
+        text-decoration: none;
+        display: block;
+        width: 100%;
+    }
+
+    .table-piedra thead th:hover {
+        background: #F5F1E8;
     }
 
     .table-piedra tbody tr {
@@ -180,6 +192,8 @@
 
             <!-- Filtros -->
             <form method="get" class="row g-2 mb-3 align-items-end" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #E8DCC8;">
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <input type="hidden" name="direction" value="{{ direction }}">
                 <div class="col-md-4">
                     <label class="form-label fw-bold" style="font-size: 0.75rem; color: #6F5B44;">
                         <i class="fas fa-search me-1"></i>Buscar
@@ -232,12 +246,36 @@
                 <table class="table-piedra mb-0">
                     <thead>
                         <tr>
-                            <th style="width: 20%;">Cliente</th>
-                            <th style="width: 15%;">RUT</th>
-                            <th style="width: 12%;">Tipo</th>
-                            <th style="width: 10%;">Estado</th>
-                             <th style="width: 15%;">Vendedor</th>
-                             <th style="width: 13%;">Límite Crédito</th>
+                            <th style="width: 20%;">
+                                <a href="?{% url_replace_sort 'nombre' %}" style="text-decoration: none; color: inherit;">
+                                    Cliente {% get_sort_icon 'nombre' %}
+                                </a>
+                            </th>
+                            <th style="width: 15%;">
+                                <a href="?{% url_replace_sort 'rut' %}" style="text-decoration: none; color: inherit;">
+                                    RUT {% get_sort_icon 'rut' %}
+                                </a>
+                            </th>
+                            <th style="width: 12%;">
+                                <a href="?{% url_replace_sort 'tipo_cliente' %}" style="text-decoration: none; color: inherit;">
+                                    Tipo {% get_sort_icon 'tipo_cliente' %}
+                                </a>
+                            </th>
+                            <th style="width: 10%;">
+                                <a href="?{% url_replace_sort 'estado' %}" style="text-decoration: none; color: inherit;">
+                                    Estado {% get_sort_icon 'estado' %}
+                                </a>
+                            </th>
+                            <th style="width: 15%;">
+                                <a href="?{% url_replace_sort 'vendedor' %}" style="text-decoration: none; color: inherit;">
+                                    Vendedor {% get_sort_icon 'vendedor' %}
+                                </a>
+                            </th>
+                            <th style="width: 13%;">
+                                <a href="?{% url_replace_sort 'limite_credito' %}" style="text-decoration: none; color: inherit;">
+                                    Límite Crédito {% get_sort_icon 'limite_credito' %}
+                                </a>
+                            </th>
                             <th style="width: 5%; text-align: center;">Contactos</th>
                             <th style="width: 10%; text-align: center;">Acciones</th>
                         </tr>
@@ -316,10 +354,10 @@
                         <ul class="pagination pagination-sm">
                             {% if page_obj.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}" style="color: #8B7355;">&laquo;</a>
+                                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if direction %}&direction={{ direction }}{% endif %}" style="color: #8B7355;">&laquo;</a>
                                 </li>
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}" style="color: #8B7355;">&lsaquo;</a>
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if direction %}&direction={{ direction }}{% endif %}" style="color: #8B7355;">&lsaquo;</a>
                                 </li>
                             {% endif %}
                             
@@ -329,10 +367,10 @@
                             
                             {% if page_obj.has_next %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}" style="color: #8B7355;">&rsaquo;</a>
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if direction %}&direction={{ direction }}{% endif %}" style="color: #8B7355;">&rsaquo;</a>
                                 </li>
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}" style="color: #8B7355;">&raquo;</a>
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if tipo_cliente %}&tipo_cliente={{ tipo_cliente }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if direction %}&direction={{ direction }}{% endif %}" style="color: #8B7355;">&raquo;</a>
                                 </li>
                             {% endif %}
                         </ul>

@@ -539,6 +539,18 @@ def transferencia_imprimir_guia(request, pk):
     
     dte = transferencia.guia_despacho
     
+    # ASEGURAR TIMBRE PDF417 si falta o es placeholder, pero tenemos el TED
+    # El placeholder tiene un tamaño pequeño (~2KB) comparado con un PDF417 real (>10KB)
+    if dte.timbre_electronico and (not dte.timbre_pdf417 or dte.timbre_pdf417.size < 3000):
+        try:
+            from facturacion_electronica.pdf417_generator import PDF417Generator
+            print(f"[PREVIEW] Regenerando timbre para Guía {dte.folio}")
+            if PDF417Generator.guardar_pdf417_en_dte(dte):
+                dte.refresh_from_db()
+                print(f"[PREVIEW] Timbre regenerado: {dte.timbre_pdf417.url}")
+        except Exception as e_timbre:
+            print(f"[PREVIEW] Error regenerando timbre: {e_timbre}")
+    
     # Obtener detalles de la transferencia
     detalles = transferencia.detalles.all().select_related('articulo', 'articulo__unidad_medida')
     

@@ -229,6 +229,13 @@ def procesar_venta_pos_directo(request, ticket_id):
                         descripcion=f"{ticket.tipo_documento_planeado.title()} #{numero_venta_final}",
                         usuario=request.user
                     )
+                    
+                    # Guardar la primera forma de pago en el ticket (para trazabilidad y DTE)
+                    if not ticket.forma_pago:
+                        ticket.forma_pago = forma_pago
+                        ticket.save()
+                        print(f"[POS DIRECTO] Forma de pago principal asignada al ticket: {forma_pago.nombre}")
+                    
                     print(f"[POS DIRECTO] Movimiento de caja creado: {forma_pago.nombre} - ${fp_data['monto']}")
                 
                 # Recalcular totales de la apertura

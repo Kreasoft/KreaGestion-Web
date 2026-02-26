@@ -112,16 +112,24 @@ class PrecioClienteArticuloForm(forms.ModelForm):
     
     class Meta:
         model = PrecioClienteArticulo
-        fields = ['cliente', 'articulo', 'precio_especial']
+        fields = ['cliente', 'articulo', 'precio_especial', 'descuento_porcentaje', 'fecha_inicio', 'fecha_fin', 'activo']
         widgets = {
             'cliente': forms.Select(attrs={'class': 'form-select'}),
             'articulo': forms.Select(attrs={'class': 'form-select'}),
             'precio_especial': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
+            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '100', 'step': '0.01'}),
+            'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha_fin': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'cliente': 'Cliente',
             'articulo': 'Artículo',
             'precio_especial': 'Precio Especial',
+            'descuento_porcentaje': '% Descuento Adicional',
+            'fecha_inicio': 'Fecha Inicio',
+            'fecha_fin': 'Fecha Fin',
+            'activo': 'Activo',
         }
 
 

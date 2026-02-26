@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load format_filters %}
+{% load query_tags %}
 
 {% block title %}Libro de Ventas - {{ request.empresa.nombre }}{% endblock %}
 
@@ -95,6 +96,13 @@
         color: #5D4037;
         background-color: #FAFAF8;
         transition: all 0.3s ease;
+    }
+
+    /* Resaltar fila seleccionada (anclaje) */
+    tr:target {
+        background-color: rgba(139, 115, 85, 0.15) !important;
+        border-left: 5px solid var(--color-piedra-primario) !important;
+        transition: background-color 0.5s ease;
     }
 
     .form-control-premium:focus, .form-select-premium:focus {
@@ -245,8 +253,8 @@
                                     <i class="fas fa-book text-white" style="font-size: 1.2rem;"></i>
                                 </div>
                                 <div>
-                                    <h2 class="mb-0 fw-bold" style="color: #5D4037; font-size: 1.5rem; letter-spacing: -0.5px;">
-                                        Libro de Ventas
+                                    <h2 class="mb-0 fw-light" style="color: #5D4037; font-size: 1.8rem; letter-spacing: -1px;">
+                                        Libro de <span class="fw-bold">Ventas</span>
                                     </h2>
                                     <div style="color: #8B7355; font-size: 0.9rem;">
                                         Registro fiscal de documentos emitidos
@@ -331,6 +339,8 @@
                     <!-- FILTROS -->
                     <div class="filter-section border-0">
                         <form method="get" action="{% url 'ventas:libro_ventas' %}">
+                            <input type="hidden" name="sort" value="{{ sort|default:'' }}">
+                            <input type="hidden" name="direction" value="{{ direction|default:'' }}">
                             <div class="row g-3">
                                 <div class="col-md-2">
                                     <label class="form-label-premium">
@@ -449,23 +459,43 @@
                             <thead>
                                 <tr>
                                     <th style="width: 2%;">#</th>
-                                    <th style="width: 6%;">Fecha</th>
-                                    <th style="width: 8%;">N° Doc</th>
-                                    <th style="width: 5%;">Tipo</th>
-                                    <th style="width: 18%;">Cliente</th>
+                                    <th style="width: 6%;">
+                                        <a href="?{% url_replace_sort 'fecha' %}" style="text-decoration: none; color: inherit;">
+                                            Fecha {% get_sort_icon 'fecha' %}
+                                        </a>
+                                    </th>
+                                    <th style="width: 8%;">
+                                        <a href="?{% url_replace_sort 'folio' %}" style="text-decoration: none; color: inherit;">
+                                            N° Doc {% get_sort_icon 'folio' %}
+                                        </a>
+                                    </th>
+                                    <th style="width: 5%;">
+                                        <a href="?{% url_replace_sort 'tipo_folio' %}" style="text-decoration: none; color: inherit;">
+                                            Tipo {% get_sort_icon 'tipo_folio' %}
+                                        </a>
+                                    </th>
+                                    <th style="width: 18%;">
+                                        <a href="?{% url_replace_sort 'cliente' %}" style="text-decoration: none; color: inherit;">
+                                            Cliente {% get_sort_icon 'cliente' %}
+                                        </a>
+                                    </th>
                                     <th style="width: 7%;">RUT</th>
                                     <th style="width: 8%;">Vendedor</th>
                                     <th style="width: 7%;">F. Pago</th>
                                     <th class="text-end" style="width: 6%;">Neto</th>
                                     <th class="text-end" style="width: 5%;">IVA</th>
-                                    <th class="text-end" style="width: 6%;">Total</th>
+                                    <th class="text-end" style="width: 6%;">
+                                        <a href="?{% url_replace_sort 'total' %}" style="text-decoration: none; color: inherit;">
+                                            Total {% get_sort_icon 'total' %}
+                                        </a>
+                                    </th>
                                     <th class="text-center" style="width: 6%;">Estado SII</th>
                                     <th class="text-center" style="width: 10%;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for documento in page_obj %}
-                                <tr>
+                                <tr id="row-{{ documento.id }}">
                                     <td class="text-center" style="color: #8B7355; font-weight: 600; font-size: 0.7rem;">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</td>
 
                                     {% if documento.es_dte %}
@@ -578,12 +608,12 @@
                                             </a>
                                             {% endif %}
 
-                                            {# Botón Imprimir PDF local: siempre disponible #}
-                                            <button onclick="window.open('{% url 'facturacion_electronica:ver_factura_electronica' documento.pk %}', '_blank'); window.print();"
-                                                class="btn btn-sm btn-action btn-outline-info"
-                                                title="Imprimir PDF" style="padding: 2px 6px; font-size: 0.65rem;">
-                                                <i class="fas fa-print"></i>
-                                            </button>
+                                             {# Sincronizar y Descargar desde GDExpress (PDF y XML) #}
+                                             <a href="{% url 'facturacion_electronica:descargar_pdf_gdexpress' documento.id %}"
+                                                 class="btn btn-sm btn-action btn-outline-info"
+                                                 title="Traer PDF/XML y sincronizar desde GDExpress" style="padding: 2px 6px; font-size: 0.65rem;">
+                                                 <i class="fas fa-cloud-download-alt"></i>
+                                             </a>
                                         </div>
                                     </td>
                                     {% else %}
@@ -653,14 +683,14 @@
                                 {% if page_obj.has_previous %}
                                 <li class="page-item">
                                     <a class="page-link"
-                                        href="?page=1{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}"
+                                        href="?page=1{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if direction %}&direction={{ direction }}{% endif %}"
                                         style="padding: 4px 8px; font-size: 0.7rem;">
                                         «
                                     </a>
                                 </li>
                                 <li class="page-item">
                                     <a class="page-link"
-                                        href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}"
+                                        href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if direction %}&direction={{ direction }}{% endif %}"
                                         style="padding: 4px 8px; font-size: 0.7rem;">
                                         ‹
                                     </a>
@@ -677,14 +707,14 @@
                                 {% if page_obj.has_next %}
                                 <li class="page-item">
                                     <a class="page-link"
-                                        href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}"
+                                        href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if direction %}&direction={{ direction }}{% endif %}"
                                         style="padding: 4px 8px; font-size: 0.7rem;">
                                         ›
                                     </a>
                                 </li>
                                 <li class="page-item">
                                     <a class="page-link"
-                                        href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}"
+                                        href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if tipo_documento %}&tipo_documento={{ tipo_documento }}{% endif %}{% if cliente_id %}&cliente={{ cliente_id }}{% endif %}{% if vendedor_id %}&vendedor={{ vendedor_id }}{% endif %}{% if forma_pago_id %}&forma_pago={{ forma_pago_id }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if direction %}&direction={{ direction }}{% endif %}"
                                         style="padding: 4px 8px; font-size: 0.7rem;">
                                         »
                                     </a>
@@ -715,5 +745,17 @@
             color: '#5D4037'
         });
     }
+
+    // Scroll suave a la fila si hay un anclaje en la URL
+    window.addEventListener('load', function() {
+        if (window.location.hash) {
+            const target = document.querySelector(window.location.hash);
+            if (target) {
+                setTimeout(function() {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 500);
+            }
+        }
+    });
 </script>
 {% endblock %}

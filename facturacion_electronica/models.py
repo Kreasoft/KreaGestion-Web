@@ -638,6 +638,26 @@ class DocumentoTributarioElectronico(models.Model):
         verbose_name="Tipo de Traslado",
         help_text="Motivo de emisión de la guía (solo para tipo 52)"
     )
+
+    # Campos de transporte para Guías de Despacho (Opcionales)
+    patente_transporte = models.CharField(
+        max_length=10, 
+        blank=True, 
+        null=True, 
+        verbose_name="Patente Vehículo"
+    )
+    rut_transportista = models.CharField(
+        max_length=12, 
+        blank=True, 
+        null=True,
+        verbose_name="RUT Transportista"
+    )
+    nombre_chofer = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True,
+        verbose_name="Nombre Chofer"
+    )
     
     # PDF
     pdf_documento = models.FileField(

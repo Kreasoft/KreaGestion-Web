@@ -234,6 +234,13 @@ def procesar_venta_caja(request, ticket_id):
                         descripcion=f"{ticket.tipo_documento_planeado.title()} #{numero_venta_final}",
                         usuario=request.user
                     )
+
+                    # Guardar la primera forma de pago en el ticket (para trazabilidad y DTE)
+                    if not ticket.forma_pago:
+                        ticket.forma_pago = forma_pago_obj
+                        ticket.save()
+                        print(f"[CAJA] Forma de pago principal asignada al ticket: {forma_pago_obj.nombre}")
+
                     print(f"[CAJA] Movimiento de caja creado: {forma_pago_obj.nombre} - ${fp_data['monto']}")
                 
                 # Recalcular totales de la apertura

@@ -24,21 +24,37 @@ class PDF417Generator:
             bytes: Imagen PNG en bytes
         """
         try:
-            # Codificar el TED en PDF417
-            # El PDF417 usa el TED completo
-            # Usar security_level=2 para datos largos (nivel mínimo recomendado por SII)
-            
-            codes = None
-            # Intentar con varios números de columnas si falla (para DTEs muy largos)
-            # Para 1000+ caracteres, 18-20 columnas es mejor.
-            for cols in [15, 18, 20]:
+            # Detectar si el TED viene en base64 (empieza con <TED -> PFRFRC)
+            # DTEBox y otros servicios suelen entregarlo ya codificado
+            if isinstance(ted_xml, str) and (ted_xml.startswith('PFRFRC') or ted_xml.startswith('PD')):
                 try:
-                    codes = encode(ted_xml, columns=cols, security_level=2)
-                    break
-                except Exception as e_enc:
-                    if cols == 20: # Último intento
-                        raise e_enc
-                    continue
+                    ted_xml = base64.b64decode(ted_xml).decode('ISO-8859-1')
+                    print(f"[PDF417] TED decodificado desde base64 (longitud: {len(ted_xml)})")
+                except:
+                    print("[PDF417] Falló decodificación base64, se usará raw")
+
+            # El SII requiere ISO-8859-1 para el timbre
+            if isinstance(ted_xml, str):
+                data = ted_xml.encode('ISO-8859-1', errors='replace')
+            else:
+                data = ted_xml
+
+            # Codificar el TED en PDF417
+            # Intentar parámetros adaptativos si falla por longitud
+            codes = None
+            # security_level 2 es estándar, pero bajamos a 1 o 0 si el DTE es extremadamente grande
+            # y aumentamos columnas para aprovechar más capacidad (máx 30 columnas)
+            for s_level in [2, 1, 0]:
+                for cols in [15, 18, 20, 25, 30]:
+                    try:
+                        codes = encode(data, columns=cols, security_level=s_level)
+                        if codes: break
+                    except Exception:
+                        continue
+                if codes: break
+            
+            if not codes:
+                raise ValueError("No se pudo encajar la información en el PDF417 ni con parámetros mínimos")
             
             # Renderizar la imagen
             # Aumentamos scale para mejor resolución

@@ -2,6 +2,7 @@
 Vistas para generación y gestión de DTE
 """
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
@@ -42,12 +43,21 @@ def generar_dte_venta(request, venta_id):
     if request.method == 'POST':
         tipo_dte = request.POST.get('tipo_dte', '39')  # Por defecto Boleta
         
+        # Capturar datos de transporte para Guías de Despacho
+        transport_data = {}
+        if tipo_dte == '52':
+            transport_data = {
+                'patente_transporte': request.POST.get('patente_transporte'),
+                'rut_transportista': request.POST.get('rut_transportista'),
+                'nombre_chofer': request.POST.get('nombre_chofer'),
+            }
+        
         try:
             # Inicializar servicio de DTE
             dte_service = DTEService(request.empresa)
             
             # Generar el DTE
-            dte = dte_service.generar_dte_desde_venta(venta, tipo_dte)
+            dte = dte_service.generar_dte_desde_venta(venta, tipo_dte, **transport_data)
             
             messages.success(
                 request,
@@ -176,17 +186,35 @@ def ver_factura_electronica(request, dte_id):
     """
     Muestra la factura electrónica con el timbre
     """
-    dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
+    # Optimizar el query de DTE con select_related y prefetch_related
+    dte = get_object_or_404(
+        DocumentoTributarioElectronico.objects.select_related(
+            'empresa', 'venta', 'caf_utilizado', 'vendedor'
+        ).prefetch_related('orden_despacho'), 
+        pk=dte_id, empresa=request.empresa
+    )
     
+    # ASEGURAR TIMBRE PDF417 si falta o es placeholder, pero tenemos el TED
+    if dte.timbre_electronico and (not dte.timbre_pdf417 or dte.timbre_pdf417.size < 3000):
+        try:
+            from .pdf417_generator import PDF417Generator
+            # Guardar el timbre (esta funcion llama a dte.timbre_pdf417.save que actualiza la DB)
+            if PDF417Generator.guardar_pdf417_en_dte(dte):
+                # Recargar el objeto para tener la URL del archivo
+                dte.refresh_from_db()
+        except Exception as e_timbre:
+            logger.error(f"[PREVIEW] Error regenerando timbre: {e_timbre}")
+
     # Obtener la venta o la orden de despacho asociada con relaciones cargadas
     venta = None
     if dte.venta_id:
-        # Cargar venta con todas las relaciones necesarias
+        # Cargar venta con todas las relaciones necesarias PREFETCHING referencias
         venta = Venta.objects.select_related(
             'cliente', 'vendedor', 'empresa', 'estacion_trabajo', 'forma_pago'
-        ).get(pk=dte.venta_id)
+        ).prefetch_related('referencias').get(pk=dte.venta_id)
     
-    orden_despacho = dte.orden_despacho.first()
+    # Usar el prefetched orden_despacho
+    orden_despacho = dte.orden_despacho.all()[0] if dte.orden_despacho.exists() else None
     documento_origen = venta or orden_despacho
 
     if not documento_origen:
@@ -244,13 +272,9 @@ def ver_factura_electronica(request, dte_id):
         venta = VentaWrapper(orden_despacho, dte)
 
     # Determinar el objeto cliente a mostrar en el template (sin tocar el FK real de venta)
-    # Si venta es un wrapper (VentaWrapper) ya tiene self.cliente como ClienteWrapper o real.
-    # Si venta es un Venta ORM real, usar su cliente real o crear un wrapper solo para display.
     if venta and not isinstance(venta, Venta):
-        # Es un VentaWrapper: su .cliente ya puede ser ClienteWrapper o real
         cliente_display = getattr(venta, 'cliente', None)
     elif venta and isinstance(venta, Venta):
-        # Es una instancia ORM real: usar cliente real si tiene nombre, sino ClienteWrapper
         if venta.cliente and venta.cliente.nombre:
             cliente_display = venta.cliente
         else:
@@ -260,23 +284,15 @@ def ver_factura_electronica(request, dte_id):
 
     # Obtener detalles del documento
     detalles = []
-    print(f"[DEBUG] documento_origen tipo: {type(documento_origen)}")
-    print(f"[DEBUG] documento_origen es Venta: {isinstance(documento_origen, Venta)}")
-    print(f"[DEBUG] documento_origen es OrdenDespacho: {isinstance(documento_origen, OrdenDespacho) if OrdenDespacho else False}")
     
     if isinstance(documento_origen, Venta):
         detalles = list(documento_origen.ventadetalle_set.all().select_related('articulo', 'articulo__unidad_medida'))
-        print(f"[DEBUG] Detalles desde Venta: {len(detalles)}")
     elif OrdenDespacho and isinstance(documento_origen, OrdenDespacho):
-        # Crear wrappers para los detalles de orden de despacho para compatibilidad con el template
         detalles_despacho = documento_origen.items.all().select_related('item_pedido__articulo', 'item_pedido__articulo__unidad_medida')
-        print(f"[DEBUG] Detalles desde OrdenDespacho (raw): {detalles_despacho.count()}")
         
         class DetalleWrapper:
-            """Wrapper para convertir DetalleOrdenDespacho a formato compatible con VentaDetalle"""
             def __init__(self, detalle_despacho):
                 self.detalle_despacho = detalle_despacho
-                # Crear un objeto articulo wrapper
                 class ArticuloWrapper:
                     def __init__(self, articulo):
                         self.codigo = articulo.codigo
@@ -286,169 +302,64 @@ def ver_factura_electronica(request, dte_id):
                 self.articulo = ArticuloWrapper(detalle_despacho.item_pedido.articulo)
                 self.cantidad = detalle_despacho.cantidad
                 self.precio_unitario = detalle_despacho.item_pedido.precio_unitario
-                # Calcular descuento
                 subtotal = float(detalle_despacho.cantidad) * float(detalle_despacho.item_pedido.precio_unitario)
                 descuento_pct = float(detalle_despacho.item_pedido.descuento_porcentaje or 0)
                 self.descuento = subtotal * (descuento_pct / 100)
-                # Precio total después de descuento
                 self.precio_total = subtotal - self.descuento
         
         detalles = [DetalleWrapper(d) for d in detalles_despacho]
-        print(f"[DEBUG] Detalles wrappeados: {len(detalles)}")
-        for i, d in enumerate(detalles):
-            print(f"[DEBUG] Detalle {i+1}: {d.articulo.nombre}, cantidad: {d.cantidad}, precio: {d.precio_unitario}")
-    else:
-        print(f"[DEBUG] documento_origen no es Venta ni OrdenDespacho, tipo: {type(documento_origen)}")
-    
-    print(f"[DEBUG] Total detalles finales: {len(detalles)}")
     
     # Obtener configuración de impresora
     empresa = request.empresa
     nombre_impresora = None
     
-    # Seleccionar template según tipo de DTE Y configuración de impresora
+    # Seleccionar template según tipo de DTE
     if dte.tipo_dte in ['33', '34']:  # Facturas
         tipo_impresora = getattr(empresa, 'impresora_factura', 'laser')
         nombre_impresora = getattr(empresa, 'impresora_factura_nombre', None)
-        
-        if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
-            template = 'ventas/factura_electronica_termica.html'
-        else:
-            template = 'ventas/factura_electronica_html.html'
+        template = 'ventas/factura_electronica_termica.html' if tipo_impresora in ['termica_80', 'termica_58', 'termica'] else 'ventas/factura_electronica_html.html'
     
     elif dte.tipo_dte in ['39', '41']:  # Boletas
         tipo_impresora = getattr(empresa, 'impresora_boleta', 'laser')
         nombre_impresora = getattr(empresa, 'impresora_boleta_nombre', None)
-        
-        if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
-            template = 'ventas/boleta_electronica_termica.html'
-        else:
-            template = 'ventas/factura_electronica_html.html' # Reutiliza el formato A4 de factura
+        template = 'ventas/boleta_electronica_termica.html' if tipo_impresora in ['termica_80', 'termica_58', 'termica'] else 'ventas/factura_electronica_html.html'
     
     elif dte.tipo_dte == '52':  # Guía de Despacho
         tipo_impresora = getattr(empresa, 'impresora_guia', 'laser')
         nombre_impresora = getattr(empresa, 'impresora_guia_nombre', None)
-        
-        if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
-            template = 'inventario/guia_despacho_electronica_termica.html'
-            print(f"[PRINT] Guia Electronica -> Formato TERMICO 80mm")
-        else:
-            template = 'inventario/guia_despacho_electronica_html.html'
-            print(f"[PRINT] Guia Electronica -> Formato LASER A4")
+        template = 'inventario/guia_despacho_electronica_termica.html' if tipo_impresora in ['termica_80', 'termica_58', 'termica'] else 'inventario/guia_despacho_electronica_html.html'
     
     else:
-        # Fallback para otros tipos de DTE
         template = 'ventas/factura_electronica_html.html'
     
-    # Log de impresora física
-    if nombre_impresora:
-        print(f"[PRINT] Impresora fisica configurada: {nombre_impresora}")
-    
-    # Obtener formas de pago múltiples (desde MovimientoCaja)
+    # Obtener formas de pago múltiples
     formas_pago_list = []
     try:
         from caja.models import VentaProcesada, MovimientoCaja
         
-        print(f"[FORMAS PAGO] Buscando para DTE {dte.id} (Folio: {dte.folio})")
-        
-        # MÉTODO 0: Buscar desde DTE directamente (MÁS CONFIABLE)
+        # MÉTODO 0: Buscar desde DTE directamente
         venta_procesada_dte = VentaProcesada.objects.filter(dte_generado=dte).select_related('venta_final').first()
         if venta_procesada_dte and venta_procesada_dte.venta_final:
-            print(f"[FORMAS PAGO] Venta final encontrada: {venta_procesada_dte.venta_final.numero_venta}")
-            # Buscar TODOS los movimientos de caja de esa venta
             movs = MovimientoCaja.objects.filter(
                 venta=venta_procesada_dte.venta_final,
                 tipo__in=['venta', 'ingreso']
             ).select_related('forma_pago')
-            print(f"[FORMAS PAGO] Movimientos encontrados: {movs.count()}")
             for mov in movs:
                 if mov.forma_pago:
                     formas_pago_list.append({
                         'forma_pago': mov.forma_pago.nombre,
                         'monto': abs(float(mov.monto))
                     })
-                    print(f"[FORMAS PAGO] ✅ {mov.forma_pago.nombre}: ${mov.monto}")
         
-        # Solo buscar formas de pago si venta es una instancia real de Venta (no wrapper) Y no se encontraron ya
-        if not formas_pago_list and venta and hasattr(venta, 'id') and isinstance(venta, Venta):
-            # Método 1: Buscar desde VentaProcesada.movimiento_caja (relación directa)
-            venta_procesada = VentaProcesada.objects.filter(venta_final=venta).select_related('movimiento_caja__forma_pago').first()
-            
-            if venta_procesada and venta_procesada.movimiento_caja:
-                mov = venta_procesada.movimiento_caja
-                if mov.forma_pago:
-                    formas_pago_list.append({
-                        'forma_pago': mov.forma_pago.nombre,
-                        'monto': abs(float(mov.monto)) if mov.monto else float(venta.total)
-                    })
-                    print(f"[PRINT] Forma de pago encontrada desde VentaProcesada.movimiento_caja: {mov.forma_pago.nombre}")
-            
-            # Método 2: Buscar directamente en MovimientoCaja por venta
-            if not formas_pago_list:
-                movimientos_directos = MovimientoCaja.objects.filter(
-                    venta=venta,
-                    tipo__in=['venta', 'ingreso']
-                ).select_related('forma_pago')
-                
-                for mov in movimientos_directos:
-                    if mov.forma_pago:
-                        formas_pago_list.append({
-                            'forma_pago': mov.forma_pago.nombre,
-                            'monto': abs(float(mov.monto))
-                        })
-                        print(f"[PRINT] Forma de pago encontrada desde MovimientoCaja directo: {mov.forma_pago.nombre}")
-            
-            # Método 3: Buscar desde VentaProcesada.apertura_caja por descripción
-            if not formas_pago_list and venta_procesada and venta_procesada.apertura_caja:
-                movimientos = MovimientoCaja.objects.filter(
-                    apertura_caja=venta_procesada.apertura_caja,
-                    descripcion__icontains=venta.numero_venta
-                ).select_related('forma_pago')
-                
-                for mov in movimientos:
-                    if mov.forma_pago and mov.tipo in ['venta', 'ingreso']:
-                        formas_pago_list.append({
-                            'forma_pago': mov.forma_pago.nombre,
-                            'monto': abs(float(mov.monto))
-                        })
-                        print(f"[PRINT] Forma de pago encontrada desde MovimientoCaja por descripción: {mov.forma_pago.nombre}")
-            
-            # Método 4: Si no hay formas de pago múltiples pero la venta tiene forma_pago, usarla
-            if not formas_pago_list and venta.forma_pago:
+        # Fallback si no hay formas de pago múltiples
+        if not formas_pago_list and venta and isinstance(venta, Venta):
+            if venta.forma_pago:
                 formas_pago_list.append({
                     'forma_pago': venta.forma_pago.nombre,
                     'monto': float(venta.total)
                 })
-                print(f"[PRINT] Usando forma de pago de la venta: {venta.forma_pago.nombre}")
-            
-            if formas_pago_list:
-                print(f"[PRINT] Formas de pago encontradas: {len(formas_pago_list)}")
-                for fp in formas_pago_list:
-                    print(f"   - {fp['forma_pago']}: ${fp['monto']}")
-            else:
-                print(f"[WARN] No se encontraron formas de pago para venta ID {venta.id}")
     except Exception as e:
-        print(f"[WARN] Error al obtener formas de pago: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
-        # Fallback: si hay venta con forma_pago, usarla
-        if venta and hasattr(venta, 'forma_pago') and venta.forma_pago:
-            formas_pago_list.append({
-                'forma_pago': venta.forma_pago.nombre,
-                'monto': float(getattr(venta, 'total', 0))
-            })
-    
-    # Debug: verificar forma de pago
-    if venta:
-        print(f"[DEBUG] Venta ID: {getattr(venta, 'id', 'N/A')}")
-        print(f"[DEBUG] Venta tiene forma_pago: {hasattr(venta, 'forma_pago')}")
-        if hasattr(venta, 'forma_pago') and venta.forma_pago:
-            print(f"[DEBUG] Forma de pago de venta: {venta.forma_pago.nombre}")
-        else:
-            print(f"[DEBUG] Venta NO tiene forma_pago")
-        print(f"[DEBUG] Formas de pago list: {len(formas_pago_list)}")
-        for fp in formas_pago_list:
-            print(f"[DEBUG]   - {fp['forma_pago']}: ${fp['monto']}")
+        logger.warning(f"Error al obtener formas de pago: {str(e)}")
     
     context = {
         'dte': dte,
@@ -456,8 +367,8 @@ def ver_factura_electronica(request, dte_id):
         'cliente_display': cliente_display,
         'detalles': detalles,
         'empresa': empresa,
-        'nombre_impresora': nombre_impresora,  # Nombre de impresora física
-        'formas_pago_list': formas_pago_list,  # Lista de formas de pago múltiples
+        'nombre_impresora': nombre_impresora,
+        'formas_pago_list': formas_pago_list,
     }
     
     return render(request, template, context)
@@ -542,103 +453,10 @@ def ver_notadebito_electronica(request, notadebito_id):
 @requiere_empresa
 def dte_list(request):
     """
-    Lista de DTEs de la empresa (Libro de Ventas Electrónico)
+    Lista de DTEs de la empresa (REDIRIGIDO AL LIBRO DE VENTAS OFICIAL EN VENTAS)
     """
-    # Fecha por defecto: primer día del año hasta hoy
-    hoy = timezone.now().date()
-    primer_dia_ano = hoy.replace(month=1, day=1)
-    
-    dtes = DocumentoTributarioElectronico.objects.filter(
-        empresa=request.empresa
-    ).select_related('venta__cliente', 'venta__vendedor', 'caf_utilizado').order_by('-fecha_emision', '-folio')
-
-    # Obtener parámetros de filtros
-    search = request.GET.get('search', '')
-    estado = request.GET.get('estado', '')
-    cliente_id = request.GET.get('cliente', '')
-    tipo_dte = request.GET.get('tipo_dte', '')
-    fecha_desde = request.GET.get('fecha_desde', primer_dia_ano.strftime('%Y-%m-%d'))
-    fecha_hasta = request.GET.get('fecha_hasta', hoy.strftime('%Y-%m-%d'))
-
-    # Aplicar filtros
-    if search:
-        dtes = dtes.filter(
-            Q(folio__icontains=search) |
-            Q(razon_social_receptor__icontains=search) |
-            Q(rut_receptor__icontains=search)
-        )
-    
-    if estado:
-        dtes = dtes.filter(estado_sii=estado)
-    
-    if cliente_id:
-        dtes = dtes.filter(venta__cliente_id=cliente_id)
-    
-    if tipo_dte:
-        dtes = dtes.filter(tipo_dte=tipo_dte)
-    
-    # Aplicar filtros de fecha
-    try:
-        fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
-        fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
-        dtes = dtes.filter(fecha_emision__gte=fecha_desde_obj, fecha_emision__lte=fecha_hasta_obj)
-    except (ValueError, TypeError):
-        pass
-
-    # Estadísticas
-    stats = dtes.aggregate(
-        total_documentos=Count('id'),
-        total_neto=Sum('monto_neto'),
-        total_iva=Sum('monto_iva'),
-        total_general=Sum('monto_total')
-    )
-    
-    # Estadísticas por tipo de documento
-    stats_por_tipo = dtes.values('tipo_dte').annotate(
-        cantidad=Count('id'),
-        total=Sum('monto_total')
-    ).order_by('tipo_dte')
-
-    # Opciones para filtros
-    clientes = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')
-    
-    # Tipos de documento DTE
-    tipos_dte_dict = {
-        '33': 'Factura Electrónica (33)',
-        '34': 'Factura Exenta Electrónica (34)',
-        '39': 'Boleta Electrónica (39)',
-        '41': 'Boleta Exenta Electrónica (41)',
-        '52': 'Guía de Despacho Electrónica (52)',
-        '56': 'Nota de Débito Electrónica (56)',
-        '61': 'Nota de Crédito Electrónica (61)',
-    }
-    
-    # Estados SII
-    estados_sii = [
-        ('', 'Todos los estados'),
-        ('aceptado', 'Aceptado'),
-        ('rechazado', 'Rechazado'),
-        ('pendiente', 'Pendiente'),
-        ('anulado', 'Anulado'),
-    ]
-
-    context = {
-        'dtes': dtes,
-        'stats': stats,
-        'stats_por_tipo': stats_por_tipo,
-        'search': search,
-        'estado': estado,
-        'cliente_id': cliente_id,
-        'tipo_dte': tipo_dte,
-        'fecha_desde': fecha_desde,
-        'fecha_hasta': fecha_hasta,
-        'clientes': clientes,
-        'tipos_dte': tipos_dte_dict,
-        'estados_sii': estados_sii,
-        'dtebox_habilitado': request.empresa.dtebox_habilitado if hasattr(request, 'empresa') else False,
-    }
-    
-    return render(request, 'facturacion_electronica/dte_list.html', context)
+    from django.shortcuts import redirect
+    return redirect('ventas:libro_ventas')
 
 
 @login_required
@@ -907,89 +725,111 @@ def probar_dtebox_xml_ejemplo(request):
 @requiere_empresa
 def descargar_pdf_gdexpress(request, dte_id):
     """
-    Descarga el PDF de un DTE desde GDExpress/DTEBox
+    Descarga el PDF de un DTE desde GDExpress/DTEBox (Alias de compatibilidad)
     """
-    from django.http import HttpResponse
+    return sincronizar_con_gdexpress(request, dte_id)
+
+
+@login_required
+@requiere_empresa
+def sincronizar_con_gdexpress(request, dte_id):
+    """
+    Trae PDF y XML desde GDExpress, sincroniza el TED localmente y ofrece descarga del PDF.
+    """
     from .dtebox_service import DTEBoxService
     from .models import DocumentoTributarioElectronico
     from django.contrib import messages
-    from django.shortcuts import redirect
+    from django.shortcuts import redirect, get_object_or_404
+    from django.http import HttpResponse
+    import base64
+    from lxml import etree
     
     try:
         # Obtener el DTE
-        dte = DocumentoTributarioElectronico.objects.get(
-            pk=dte_id,
-            empresa=request.empresa
-        )
+        dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
         
         # Verificar que DTEBox esté habilitado
         if not request.empresa.dtebox_habilitado:
             messages.error(request, 'DTEBox/GDExpress no está habilitado para esta empresa.')
             return redirect('facturacion_electronica:dte_list')
         
-        # Verificar que el documento esté enviado
-        if dte.estado_sii not in ['enviado', 'aceptado']:
-            messages.warning(request, f'El documento folio {dte.folio} no ha sido enviado al SII todavía.')
-            return redirect('facturacion_electronica:dte_list')
-        
-        # Advertencia si el documento está solo "enviado" pero no "aceptado"
-        if dte.estado_sii == 'enviado':
-            messages.info(
-                request, 
-                'Nota: El PDF puede no estar disponible hasta que el SII confirme el documento. '
-                'Si falla, espera a que el estado cambie a "Aceptado" o verifica en el portal de GDExpress.'
-            )
-        
         # Inicializar servicio DTEBox
         dtebox_service = DTEBoxService(request.empresa)
         
-        # Descargar PDF
-        resultado = dtebox_service.descargar_pdf_gdexpress(dte)
+        print(f"[GDExpress] Sincronizando DTE ID {dte.id}, Folio {dte.folio}")
+        sincronizado_xml = False
         
-        if resultado['success']:
-            # Guardar el PDF localmente además de enviarlo al navegador
-            import os
-            from django.conf import settings
+        # 1. Intentar traer XML para sincronizar el Timbre (TED)
+        try:
+            res_xml = dtebox_service.descargar_xml(dte)
+            if res_xml['success']:
+                xml_content = res_xml['xml_content']
+                # Intentar extraer el nodo <TED> para tener el timbre oficial
+                parser = etree.XMLParser(recover=True, encoding='ISO-8859-1')
+                root = etree.fromstring(xml_content.encode('ISO-8859-1'), parser=parser)
+                
+                # Namespace del SII
+                ns = {"sii": "http://www.sii.cl/SiiDte"}
+                
+                # Buscar el TED (Timbre Electrónico DTE)
+                ted_node = root.find(".//sii:TED", namespaces=ns)
+                if ted_node is None:
+                    ted_node = root.find(".//TED")
+                
+                if ted_node is not None:
+                    # Guardar el fragmento XML del TED
+                    dte.timbre_electronico = etree.tostring(ted_node, encoding='unicode')
+                    
+                    # También buscar el TmstFirma si es posible
+                    tmst_node = root.find(".//sii:TmstFirma", namespaces=ns)
+                    if tmst_node is None:
+                        tmst_node = root.find(".//TmstFirma")
+                    
+                    if tmst_node is not None:
+                        dte.tmst_firma = tmst_node.text
+                    
+                    # Guardar cambios
+                    dte.save()
+                    
+                    # Regenerar la imagen PDF417 localmente usando el TED oficial
+                    from .pdf417_generator import PDF417Generator
+                    if PDF417Generator.guardar_pdf417_en_dte(dte):
+                        print(f"[GDExpress] Imagen PDF417 regenerada exitosamente.")
+                    
+                    sincronizado_xml = True
+                    print(f"[GDExpress] Timbre (TED) sincronizado exitosamente.")
+        except Exception as e_xml:
+            print(f"[GDExpress] Error al intentar sincronizar XML: {str(e_xml)}")
+
+        # 2. Descargar el PDF para el usuario
+        resultado_pdf = dtebox_service.descargar_pdf(dte)
+        
+        if resultado_pdf['success']:
+            # Crear respuesta HTTP con el PDF
+            response = HttpResponse(resultado_pdf['pdf_content'], content_type='application/pdf')
+            # Establecer nombre de archivo
+            filename = f"DTE_{dte.tipo_dte}_{dte.folio}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
             
-            # Definir carpeta local para guardar PDFs
-            pdf_folder = os.path.join('C:\\', 'GestionCloud_Documentos', 'PDFs_GDExpress')
+            msg = f'Documento {dte.folio} sincronizado correctamente.'
+            if sincronizado_xml:
+                msg += ' El timbre (TED) ha sido actualizado en el sistema local.'
             
-            # Crear la carpeta si no existe
-            os.makedirs(pdf_folder, exist_ok=True)
-            
-            # Guardar el PDF en el disco local
-            pdf_filename = resultado['filename']
-            pdf_path = os.path.join(pdf_folder, pdf_filename)
-            
-            try:
-                with open(pdf_path, 'wb') as f:
-                    f.write(resultado['pdf_content'])
-                print(f"[PDF] Guardado localmente en: {pdf_path}")
-            except Exception as e:
-                print(f"[PDF] Error al guardar localmente: {e}")
-            
-            # Crear respuesta HTTP con el PDF para descarga en navegador
-            response = HttpResponse(resultado['pdf_content'], content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="{pdf_filename}"'
-            
-            messages.success(
-                request, 
-                f'PDF del folio {dte.folio} descargado exitosamente. '
-                f'Guardado en: {pdf_path}'
-            )
+            messages.success(request, msg)
             return response
         else:
-            messages.error(request, f'Error al descargar PDF: {resultado["error"]}')
-            return redirect('facturacion_electronica:dte_list')
+            if sincronizado_xml:
+                messages.success(request, f'El timbre del folio {dte.folio} fue sincronizado, pero no se pudo recuperar el PDF de GDExpress: {resultado_pdf.get("error")}')
+            else:
+                messages.error(request, f'No se pudo sincronizar el documento {dte.folio}: {resultado_pdf.get("error")}')
             
-    except DocumentoTributarioElectronico.DoesNotExist:
-        messages.error(request, 'Documento no encontrado.')
-        return redirect('facturacion_electronica:dte_list')
+            return redirect(reverse('ventas:libro_ventas') + f'#row-{dte.id}')
+            
     except Exception as e:
-        messages.error(request, f'Error inesperado: {str(e)}')
+        messages.error(request, f'Error durante la sincronización: {str(e)}')
         import traceback
         traceback.print_exc()
-        return redirect('facturacion_electronica:dte_list')
+        return redirect('ventas:libro_ventas')
 
 
 @login_required
@@ -1013,8 +853,7 @@ def regenerar_xml_dte(request, dte_id):
         except Exception as e:
             messages.error(request, f'Error al regenerar XML: {str(e)}')
             import traceback
-            traceback.print_exc()
-        return redirect('facturacion_electronica:dte_list')
+            return redirect(reverse('ventas:libro_ventas') + f'#row-{dte.id}')
 
     if dte.tipo_dte == '52':
         transferencia = getattr(dte, 'transferencias', None)
@@ -1120,12 +959,10 @@ def regenerar_xml_dte(request, dte_id):
             messages.success(request, f'XML de la Guía folio {dte.folio} regenerado correctamente. Ya puede enviarla al SII.')
         except Exception as e:
             messages.error(request, f'Error al regenerar XML de la guía: {str(e)}')
-            import traceback
-            traceback.print_exc()
-        return redirect('facturacion_electronica:dte_list')
+        return redirect(reverse('ventas:libro_ventas') + f'#row-{dte.id}')
 
     messages.error(request, 'Solo se puede regenerar XML de Boletas (39) o Guías de Despacho (52) asociadas a una transferencia.')
-    return redirect('facturacion_electronica:dte_list')
+    return redirect(reverse('ventas:libro_ventas') + f'#row-{dte.id}')
 
 
 @login_required
@@ -1158,6 +995,4 @@ def enviar_gdexpress_directo(request, dte_id):
     except Exception as e:
         messages.error(request, f'Error: {str(e)}')
         import traceback
-        traceback.print_exc()
-    
-    return redirect('facturacion_electronica:dte_list')
+    return redirect(reverse('ventas:libro_ventas') + f'#row-{dte.id}')
