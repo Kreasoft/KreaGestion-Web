@@ -7,6 +7,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import render
 from . import views
+from usuarios.views import CustomLoginView
 
 def dashboard_view(request):
     """Vista del dashboard principal"""
@@ -23,6 +24,7 @@ def paleta_colores_view(request):
 
 urlpatterns = [
 	path('admin/', admin.site.urls),
+	path('accounts/login/', CustomLoginView.as_view(), name='login'),
 	path('accounts/', include('django.contrib.auth.urls')),
 	path('', dashboard_view, name='dashboard'),
 	path('dashboard/', dashboard_view, name='dashboard_alt'),

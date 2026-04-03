@@ -1,3 +1,5 @@
+{% load static %}
+{% load articulo_filters %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -23,19 +25,19 @@
         .header {
             text-align: center;
             border-bottom: 2px solid #000;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
         }
         
         .empresa-nombre {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
         }
         
         .empresa-info {
-            font-size: 11px;
-            margin: 2px 0;
+            font-size: 10px;
+            margin: 1px 0;
         }
         
         .titulo-informe {
@@ -47,50 +49,52 @@
         }
         
         .seccion {
-            margin: 20px 0;
+            margin: 10px 0;
             border: 1px solid #000;
-            padding: 10px;
+            padding: 5px;
         }
         
         .seccion-titulo {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: bold;
             border-bottom: 1px solid #000;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
+            padding-bottom: 2px;
+            margin-bottom: 5px;
         }
         
         .fila {
             display: flex;
             justify-content: space-between;
-            padding: 3px 0;
+            padding: 1px 0;
         }
         
         .fila-destacada {
             font-weight: bold;
             border-top: 1px solid #000;
             border-bottom: 1px solid #000;
-            padding: 5px 0;
-            margin: 5px 0;
+            padding: 2px 0;
+            margin: 2px 0;
         }
         
         .tabla {
             width: 100%;
             border-collapse: collapse;
-            margin: 10px 0;
+            margin: 5px 0;
         }
         
         .tabla th {
             background-color: #f0f0f0;
             border: 1px solid #000;
-            padding: 5px;
+            padding: 3px;
             text-align: left;
             font-weight: bold;
+            font-size: 10px;
         }
         
         .tabla td {
             border: 1px solid #000;
-            padding: 5px;
+            padding: 3px;
+            font-size: 10px;
         }
         
         .tabla-subtotal {
@@ -151,22 +155,38 @@
 </head>
 <body>
     <!-- Botones de acción (no se imprimen) -->
-    <div class="no-imprimir" style="text-align: center; margin-bottom: 20px;">
-        <button onclick="window.print()" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
-            <strong>🖨️ Imprimir</strong>
-        </button>
-        <button onclick="safeCloseWindow()" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
-            <strong>✖️ Cerrar</strong>
-        </button>
+    <div class="no-imprimir" style="background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 25px; display: flex; flex-direction: column; align-items: center; gap: 15px;">
+        <div style="font-weight: bold; color: #333; font-size: 14px;">⚙️ OPCIONES DE IMPRESIÓN</div>
+        
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                <input type="checkbox" id="chk-detalle-ventas" checked onchange="toggleSection('sec-detalle-ventas', this.checked)"> 
+                Mostrar Detalle de Ventas
+            </label>
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                <input type="checkbox" id="chk-movimientos" checked onchange="toggleSection('sec-movimientos', this.checked)"> 
+                Mostrar Movimientos Extra
+            </label>
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                <input type="checkbox" id="chk-observaciones" checked onchange="toggleSection('sec-observaciones', this.checked)"> 
+                Mostrar Observaciones
+            </label>
+        </div>
+
+        <div style="margin-top: 5px;">
+            <button onclick="window.print()" style="padding: 10px 25px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px; font-weight: bold; font-family: inherit;">
+                🖨️ Mandar a Imprimir
+            </button>
+            <button onclick="safeCloseWindow()" style="padding: 10px 20px; background-color: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: inherit;">
+                ✖️ Cerrar
+            </button>
+        </div>
     </div>
 
     <!-- Encabezado -->
     <div class="header">
         <div class="empresa-nombre">{{ empresa.razon_social|upper }}</div>
         <div class="empresa-info">RUT: {{ empresa.rut }}</div>
-        <div class="empresa-info">{{ empresa.direccion }}</div>
-        <div class="empresa-info">{{ empresa.ciudad }}, {{ empresa.region }}</div>
-        <div class="empresa-info">Tel: {{ empresa.telefono }} | Email: {{ empresa.email }}</div>
     </div>
 
     <!-- Título -->
@@ -240,7 +260,7 @@
                 <tr>
                     <td>{{ forma_pago }}</td>
                     <td style="text-align: center;">{{ datos.cantidad }}</td>
-                    <td style="text-align: right;">${{ datos.total|floatformat:0 }}</td>
+                    <td style="text-align: right;">${{ datos.total|format_price }}</td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -251,7 +271,7 @@
                 <tr class="tabla-subtotal">
                     <td>TOTAL VENTAS</td>
                     <td style="text-align: center;">{{ ventas|length }}</td>
-                    <td style="text-align: right;">${{ apertura.total_ventas|floatformat:0 }}</td>
+                    <td style="text-align: right;">${{ apertura.total_ventas|format_price }}</td>
                 </tr>
                 {% endif %}
             </tbody>
@@ -260,7 +280,7 @@
 
     <!-- Detalle de Ventas -->
     {% if ventas %}
-    <div class="seccion">
+    <div class="seccion" id="sec-detalle-ventas">
         <div class="seccion-titulo">📋 DETALLE DE VENTAS</div>
         <table class="tabla">
             <thead>
@@ -293,7 +313,7 @@
                         {% endif %}
                     </td>
                     <td>{{ venta_proc.movimiento_caja.forma_pago.nombre|default:"-" }}</td>
-                    <td style="text-align: right;">${{ venta_proc.venta_final.total|floatformat:0 }}</td>
+                    <td style="text-align: right;">${{ venta_proc.venta_final.total|format_price }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -303,7 +323,7 @@
 
     <!-- Movimientos de Caja -->
     {% if movimientos %}
-    <div class="seccion">
+    <div class="seccion" id="sec-movimientos">
         <div class="seccion-titulo">🔄 MOVIMIENTOS DE CAJA</div>
         <table class="tabla">
             <thead>
@@ -328,20 +348,20 @@
                     <td>{{ mov.descripcion|default:"Sin descripción" }}</td>
                     <td style="text-align: right;">
                         {% if mov.tipo == 'ingreso' %}
-                            +${{ mov.monto|floatformat:0 }}
+                            +${{ mov.monto|format_price }}
                         {% else %}
-                            -${{ mov.monto|floatformat:0 }}
+                            -${{ mov.monto|format_price }}
                         {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
                 <tr class="tabla-subtotal">
                     <td colspan="3">TOTAL INGRESOS EXTRA</td>
-                    <td style="text-align: right;">+${{ ingresos_extra|floatformat:0 }}</td>
+                    <td style="text-align: right;">+${{ ingresos_extra|format_price }}</td>
                 </tr>
                 <tr class="tabla-subtotal">
                     <td colspan="3">TOTAL EGRESOS</td>
-                    <td style="text-align: right;">-${{ egresos_extra|floatformat:0 }}</td>
+                    <td style="text-align: right;">-${{ egresos_extra|format_price }}</td>
                 </tr>
             </tbody>
         </table>
@@ -353,49 +373,59 @@
         <div class="seccion-titulo">💵 RESUMEN FINANCIERO</div>
         <div class="fila">
             <span>Monto Inicial:</span>
-            <span>${{ apertura.monto_inicial|floatformat:0 }}</span>
+            <span>${{ apertura.monto_inicial|format_price }}</span>
         </div>
         <div class="fila">
-            <span>Total Ventas:</span>
-            <span>${{ apertura.total_ventas|floatformat:0 }}</span>
+            <span>Total Ventas (Todo medio pago):</span>
+            <span>${{ apertura.total_ventas|format_price }}</span>
+        </div>
+        <div class="fila">
+            <span>Ventas Efectivo:</span>
+            <span>${{ apertura.total_ventas_efectivo|format_price }}</span>
         </div>
         {% if ingresos_extra > 0 %}
         <div class="fila">
-            <span>Ingresos Extra:</span>
-            <span>+${{ ingresos_extra|floatformat:0 }}</span>
+            <span>Ingresos Manuales (+):</span>
+            <span>+${{ ingresos_extra|format_price }}</span>
         </div>
         {% endif %}
         {% if egresos_extra > 0 %}
         <div class="fila">
-            <span>Egresos:</span>
-            <span>-${{ egresos_extra|floatformat:0 }}</span>
+            <span>Retiros/Gastos (-):</span>
+            <span>-${{ egresos_extra|format_price }}</span>
         </div>
         {% endif %}
         <div class="fila fila-destacada">
-            <span>MONTO ESPERADO EN CAJA:</span>
-            <span>${{ apertura.monto_final|floatformat:0 }}</span>
+            <span>EFECTIVO ESPERADO EN CAJA:</span>
+            <span>${{ apertura.monto_final|format_price }}</span>
         </div>
         
-        {% if apertura.estado == 'cerrada' and diferencia_caja != 0 %}
-        <div class="alerta-diferencia">
-            ⚠️ DIFERENCIA DE CAJA: ${{ diferencia_caja|floatformat:0 }}
-            {% if diferencia_caja > 0 %}
-                (SOBRA)
-            {% else %}
-                (FALTA)
+        {% if apertura.estado == 'cerrada' %}
+            <div class="fila">
+                <span>Efectivo Contado Real:</span>
+                <span>${{ apertura.monto_contado|format_price }}</span>
+            </div>
+            {% if diferencia_caja != 0 %}
+            <div class="alerta-diferencia">
+                ⚠️ DIFERENCIA DE CAJA: ${{ diferencia_caja|format_price }}
+                {% if diferencia_caja > 0 %}
+                    (SOBRANTE)
+                {% else %}
+                    (FALTANTE)
+                {% endif %}
+            </div>
             {% endif %}
-        </div>
         {% endif %}
     </div>
 
     <!-- Observaciones -->
-    {% if apertura.observaciones or apertura.observaciones_cierre %}
-    <div class="seccion">
+    {% if apertura.observaciones_apertura or apertura.observaciones_cierre %}
+    <div class="seccion" id="sec-observaciones">
         <div class="seccion-titulo">📝 OBSERVACIONES</div>
-        {% if apertura.observaciones %}
+        {% if apertura.observaciones_apertura %}
         <div style="margin-bottom: 10px;">
             <strong>Apertura:</strong><br>
-            {{ apertura.observaciones|linebreaks }}
+            {{ apertura.observaciones_apertura|linebreaks }}
         </div>
         {% endif %}
         {% if apertura.observaciones_cierre %}
@@ -431,6 +461,13 @@
     </div>
 
     <script>
+        function toggleSection(id, show) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.style.display = show ? 'block' : 'none';
+            }
+        }
+
         function safeCloseWindow() {
             // Intentar cerrar la ventana
             try {

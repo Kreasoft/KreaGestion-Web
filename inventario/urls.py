@@ -57,6 +57,7 @@ urlpatterns = [
     path('ajustes/<int:pk>/editar/', views_ajustes_simple.ajuste_edit_simple, name='ajuste_edit_simple'),
     path('ajustes/<int:pk>/eliminar/', views_ajustes_simple.ajuste_delete_simple, name='ajuste_delete_simple'),
     path('api/articulos-ajuste/', views_ajustes_simple.api_articulos_ajuste_simple, name='api_articulos_ajuste'),
+    path('ajuste/<int:pk>/imprimir/', views_ajustes_simple.ajuste_imprimir, name='ajuste_imprimir'),
 ]
 
 

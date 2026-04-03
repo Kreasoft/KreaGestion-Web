@@ -189,6 +189,10 @@ class ItemOrdenCompra(models.Model):
     
     def save(self, *args, **kwargs):
         """Calcula automáticamente los totales al guardar"""
+        # Failsafe para asegurar que el impuesto nunca sea nulo en la BD
+        if self.impuesto_porcentaje is None:
+            self.impuesto_porcentaje = 19
+            
         self.subtotal = self.cantidad_solicitada * self.precio_unitario
         self.descuento_monto = round(self.subtotal * (self.descuento_porcentaje / 100))
         self.impuesto_monto = round((self.subtotal - self.descuento_monto) * (self.impuesto_porcentaje / 100))

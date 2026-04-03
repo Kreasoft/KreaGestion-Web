@@ -114,7 +114,7 @@
         }
 
         .sidebar.collapsed::after {
-            width: 70px;
+            width: 0;
         }
 
         .sidebar>* {
@@ -123,7 +123,8 @@
         }
 
         .sidebar.collapsed {
-            width: 70px;
+            width: 0;
+            border-right-width: 0;
         }
 
         .sidebar-header {
@@ -140,6 +141,7 @@
             transition: all 0.3s ease;
             width: 100%;
             overflow: visible !important;
+            white-space: nowrap;
         }
 
         .logo-container svg {
@@ -369,7 +371,7 @@
         }
 
         .main-content.expanded {
-            margin-left: 70px;
+            margin-left: 0;
         }
 
         /* Top Bar */
@@ -972,6 +974,34 @@
                 max-width: 100%;
                 font-size: 0.65rem;
             }
+        }
+
+        /* Floating Sidebar Toggle Button */
+        .floating-sidebar-toggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
+            color: #6F5B44;
+            border: 2px solid rgba(111, 91, 68, 0.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            cursor: pointer;
+            z-index: 9999;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .floating-sidebar-toggle:hover {
+            transform: scale(1.1) translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            color: #5D4037;
+            border-color: rgba(111, 91, 68, 0.4);
         }
     </style>
     {% block extra_head %}{% endblock %}
@@ -1702,6 +1732,8 @@
                                     </div>
                                 </a>
 
+                                {% block topbar_empresa_extra %}{% endblock %}
+
                                 <!-- Separador vertical -->
                                 <div class="empresa-separador" style="position: relative; z-index: 1;"></div>
                                 {% endif %}
@@ -1845,6 +1877,7 @@
         });
 
         // Toggle sidebar mobile
+
         document.getElementById('toggleSidebarMobile').addEventListener('click', function () {
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('mainContent');
@@ -2245,6 +2278,44 @@
         function hideLoading() {
             Swal.close();
         }
+    </script>
+    
+    <!-- Floating Sidebar Toggle Button -->
+    <button class="floating-sidebar-toggle" id="floatingSidebarToggle" title="Ocultar/Mostrar Menú">
+        <i class="fas fa-expand-arrows-alt"></i>
+    </button>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const floatingBtn = document.getElementById('floatingSidebarToggle');
+            if (floatingBtn) {
+                floatingBtn.addEventListener('click', function () {
+                    const sidebar = document.getElementById('sidebar');
+                    const mainContent = document.getElementById('mainContent');
+                    if (sidebar && mainContent) {
+                        sidebar.classList.toggle('collapsed');
+                        mainContent.classList.toggle('expanded');
+                        
+                        // Rotar ícono según estado
+                        const icon = this.querySelector('i');
+                        if (sidebar.classList.contains('collapsed')) {
+                            icon.classList.remove('fa-expand-arrows-alt');
+                            icon.classList.add('fa-bars');
+                        } else {
+                            icon.classList.remove('fa-bars');
+                            icon.classList.add('fa-expand-arrows-alt');
+                        }
+                    }
+                });
+                
+                // Set initial icon state based on sidebar state
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar && sidebar.classList.contains('collapsed')) {
+                    const icon = floatingBtn.querySelector('i');
+                    icon.classList.remove('fa-expand-arrows-alt');
+                    icon.classList.add('fa-bars');
+                }
+            }
+        });
     </script>
 </body>
 

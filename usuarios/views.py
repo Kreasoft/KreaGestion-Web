@@ -8,9 +8,26 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST, require_http_methods
 from .models import PerfilUsuario
-from .forms import UsuarioCreateForm, UsuarioUpdateForm, GrupoForm
+from .forms import UsuarioCreateForm, UsuarioUpdateForm, GrupoForm, EmailOrUsernameAuthenticationForm
 from empresas.models import Empresa
 from core.decorators import requiere_empresa, requiere_permiso
+from django.contrib.auth.views import LoginView
+
+
+class CustomLoginView(LoginView):
+    """Vista de login personalizada que maneja 'Recordarme'"""
+    template_name = 'registration/login.html'
+    authentication_form = EmailOrUsernameAuthenticationForm
+
+    def form_valid(self, form):
+        remember_me = self.request.POST.get('remember_me')
+        if not remember_me:
+            # Si no marcó "Recordarme", la sesión expira al cerrar el navegador (0 = expiry at browser close)
+            self.request.session.set_expiry(0)
+        else:
+            # Si marcó "Recordarme", se usa SESSION_COOKIE_AGE definido en settings
+            self.request.session.set_expiry(None)
+        return super().form_valid(form)
 
 
 def obtener_empresa_usuario(request):

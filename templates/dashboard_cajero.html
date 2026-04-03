@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% load static %}
+{% load format_filters %}
+
+{% block body_class %}show-top-bar{% endblock %}
+{% block title %}Dashboard Cajero - GestionCloud{% endblock %}
+
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    /* Estilos basados en la Paleta Terrosa Premium del sistema */
+    :root {
+        --color-piedra-primario: #8B7355;
+        --color-piedra-secundario: #A0826D;
+        --color-piedra-claro: #F5F1E8;
+        --color-piedra-oscuro: #6F5B44;
+        --color-dorado-suave: #D4A574;
+    }
+    
+    .cajero-card {
+        border-radius: 16px;
+        border: none;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .cajero-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(139, 115, 85, 0.15) !important;
+    }
+    
+    .stat-title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-weight: 700;
+        opacity: 0.8;
+    }
+    .stat-value {
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        letter-spacing: -1px;
+    }
+    
+    .bg-gradient-terroso {
+        background: linear-gradient(135deg, var(--color-piedra-primario) 0%, var(--color-piedra-secundario) 100%);
+        color: white;
+    }
+    
+    .bg-gradient-dorado {
+        background: linear-gradient(135deg, var(--color-dorado-suave) 0%, #B8956A 100%);
+        color: white;
+    }
+    
+    .table-modern {
+        font-family: 'Poppins', sans-serif;
+    }
+    .table-modern thead th {
+        background-color: var(--color-piedra-claro);
+        color: var(--color-piedra-oscuro);
+        font-weight: 600;
+        border-bottom: 2px solid #E8DCC8;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+    .table-modern tbody td {
+        vertical-align: middle;
+        color: #4A4A4A;
+        border-bottom: 1px solid #F5F1E8;
+    }
+    
+    .badge-status {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+    .badge-status-venta { background-color: #E8F5E9; color: #2E7D32; }
+    .badge-status-devolucion { background-color: #FFEBEE; color: #C62828; }
+    
+    .metodos-pago-box {
+        background-color: #FAFAFA;
+        border: 1px solid #E8DCC8;
+        border-radius: 12px;
+        padding: 15px;
+    }
+    .metodo-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px dashed #E8DCC8;
+    }
+    .metodo-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-6 mb-3 mb-md-0">
+            <h1 class="h3 mb-1 text-gray-800" style="font-family: 'Poppins', sans-serif; font-weight: 700; color: var(--color-piedra-oscuro) !important;">
+                <i class="fas fa-cash-register me-2" style="color: var(--color-dorado-suave);"></i> Dashboard de Caja
+            </h1>
+            <p class="text-muted mb-0">Turno administrado por <strong>{{ request.user.perfil.nombre_completo|default:request.user.username }}</strong></p>
+        </div>
+        <div class="col-md-6 text-md-end">
+            <a href="{% url 'caja:procesar_venta_buscar' %}" class="btn btn-lg shadow-sm" style="border-radius: 10px; font-weight: 600; background-color: var(--color-piedra-primario); color: white; border: none;">
+                <i class="fas fa-cash-register me-1"></i> Cobrar Tickets (Caja)
+            </a>
+        </div>
+    </div>
+
+    {% if apertura_activa %}
+        <div class="alert alert-success shadow-sm mb-4 d-flex align-items-center" style="background-color: var(--color-piedra-claro); border-color: #E8DCC8; color: var(--color-piedra-oscuro); border-radius: 12px;">
+            <i class="fas fa-check-circle fs-3 me-3" style="color: var(--color-dorado-suave);"></i>
+            <div class="w-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Caja Abierta: {{ apertura_activa.caja.nombre }}</strong><br>
+                        <span class="small"><i class="fas fa-calendar-alt me-1"></i> Aperturada el <strong>{{ apertura_activa.fecha_apertura|date:"d/m/Y" }}</strong> a las <strong>{{ apertura_activa.fecha_apertura|time:"H:i" }}</strong></span>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge border text-dark" style="background: rgba(255,255,255,0.5); border-color: var(--color-piedra-primario) !important;">
+                            <i class="fas fa-store me-1"></i> {{ apertura_activa.caja.sucursal.nombre }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs Terrosos -->
+        <div class="row mb-4">
+            <!-- Total Recaudado -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card cajero-card shadow-sm h-100 bg-gradient-terroso">
+                    <div class="card-body p-4 position-relative overflow-hidden">
+                        <div class="position-absolute" style="right: -10px; top: -10px; font-size: 120px; opacity: 0.1;">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-title mb-1 text-white">Ingresos del Turno</div>
+                        <div class="stat-value mb-2 text-white">${{ total_recaudado|format_miles }}</div>
+                        <div class="d-flex align-items-center" style="font-size: 0.85rem; font-weight: 500; opacity: 0.9;">
+                            <i class="fas fa-info-circle me-1"></i> Suma de todas las ventas cobradas
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Efectivo Total Estimado en Caja -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card cajero-card shadow-sm h-100 bg-gradient-dorado">
+                    <div class="card-body p-4 position-relative overflow-hidden">
+                        <div class="position-absolute" style="right: -10px; top: -10px; font-size: 120px; opacity: 0.1;">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="stat-title mb-1 text-white">Efectivo en Caja</div>
+                        <div class="stat-value mb-2 text-white">${{ apertura_activa.monto_final|format_miles }}</div>
+                        <div class="d-flex align-items-center" style="font-size: 0.85rem; font-weight: 500; opacity: 0.9;">
+                            <i class="fas fa-arrow-up me-1"></i> Incluye monto inicial de ${{ apertura_activa.monto_inicial|format_miles }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desglose de Medios de Pago -->
+            <div class="col-xl-4 col-md-12 mb-4">
+                <div class="card cajero-card shadow-sm h-100 bg-white" style="border: 1px solid #E8DCC8;">
+                    <div class="card-body p-4 position-relative">
+                        <div class="stat-title text-muted mb-3" style="color: var(--color-piedra-primario) !important;">Desglose de Formas de Pago</div>
+                        <div class="metodos-pago-box">
+                            <div class="metodo-item">
+                                <span><i class="fas fa-money-bill-wave text-success me-2"></i> Efectivo</span>
+                                <span class="fw-bold">${{ apertura_activa.total_ventas_efectivo|format_miles }}</span>
+                            </div>
+                            <div class="metodo-item">
+                                <span><i class="fas fa-credit-card text-primary me-2"></i> Tarjetas</span>
+                                <span class="fw-bold">${{ apertura_activa.total_ventas_tarjeta|format_miles }}</span>
+                            </div>
+                            <div class="metodo-item">
+                                <span><i class="fas fa-exchange-alt text-info me-2"></i> Transferencias</span>
+                                <span class="fw-bold">${{ apertura_activa.total_ventas_transferencia|format_miles }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial Movimientos -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm cajero-card border-0" style="border: 1px solid #E8DCC8 !important;">
+                    <div class="card-header py-3 bg-white" style="border-bottom: 2px solid #E8DCC8; border-radius: 16px 16px 0 0;">
+                        <h6 class="m-0 font-weight-bold" style="color: var(--color-piedra-oscuro); font-family: 'Poppins', sans-serif;">
+                            <i class="fas fa-list-ul me-2"></i> Últimos Movimientos
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-modern table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-4">Fecha / Hora</th>
+                                        <th>Tipo</th>
+                                        <th>Montos Pagados</th>
+                                        <th>Medio de Pago</th>
+                                        <th>Documento</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mov in ultimos_movimientos %}
+                                    <tr>
+                                        <td class="ps-4 fw-bold text-muted" style="font-size: 0.8rem;">
+                                            {{ mov.fecha|date:"d/m/Y" }}<br>
+                                            <span class="text-dark">{{ mov.fecha|time:"H:i" }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge-status {% if mov.tipo == 'venta' %}badge-status-venta{% else %}badge-status-devolucion{% endif %}">
+                                                {{ mov.get_tipo_display }}
+                                            </span>
+                                        </td>
+                                        <td class="fw-bold fs-6">
+                                            {% if mov.tipo == 'devolucion' %}
+                                                <span class="text-danger">-${{ mov.monto|format_miles }}</span>
+                                            {% else %}
+                                                <span class="text-success">+${{ mov.monto|format_miles }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if mov.forma_pago %}
+                                                {{ mov.forma_pago.nombre }}
+                                            {% else %}
+                                                <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if mov.venta %}
+                                                <a href="{% url 'ventas:venta_html' mov.venta.id %}" target="_blank" class="text-decoration-none fw-bold" style="color: var(--color-piedra-primario);">
+                                                    <i class="fas fa-file-alt me-1"></i> {{ mov.venta.get_tipo_documento_display }} {{ mov.venta.numero_venta }}
+                                                </a>
+                                            {% else %}
+                                                <span class="text-muted">{{ mov.descripcion|default:"Caja" }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5">
+                                            <div style="font-size: 3rem; opacity: 0.2; color: var(--color-piedra-primario); margin-bottom: 15px;">
+                                                <i class="fas fa-receipt"></i>
+                                            </div>
+                                            <p class="text-muted mb-0">No hay movimientos registrados en este turno aún.</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- Sin caja abierta -->
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-8 text-center">
+                <div class="card shadow-sm border-0 bg-white" style="border-radius: 20px; overflow: hidden;">
+                    <div class="card-body p-5">
+                        <div class="mb-4" style="font-size: 5rem; color: #E8DCC8;">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <h2 class="fw-bold mb-3" style="color: var(--color-piedra-oscuro); font-family: 'Poppins', sans-serif;">Tu Caja está Cerrada</h2>
+                        <p class="text-muted mb-5 fs-5">No tienes ninguna caja aperturada en este momento. Abre un turno para comenzar a gestionar los cobros.</p>
+                        
+                        <a href="{% url 'ventas:pos_seleccion' %}" class="btn btn-lg px-5 shadow" style="background-color: var(--color-piedra-primario); color: white; border-radius: 50px; font-weight: 600;">
+                            <i class="fas fa-key me-2"></i> Abrir Turno en Caja (POS)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

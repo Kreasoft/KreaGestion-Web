@@ -27,9 +27,13 @@ class OrdenDespachoForm(forms.ModelForm):
         fields = [
             'orden_pedido', 'fecha_despacho', 'fecha_entrega_estimada',
             'estado', 'chofer', 'vehiculo', 'transportista_externo',
-            'tipo_documento', 'direccion_entrega', 'observaciones'
+            'tipo_documento', 'direccion_entrega', 'observaciones', 'tipo_traslado'
         ]
         widgets = {
+            'tipo_traslado': forms.Select(attrs={
+                'class': 'form-select form-select-sm',
+                'id': 'id_tipo_traslado'
+            }),
             'orden_pedido': forms.Select(attrs={
                 'class': 'form-select form-select-sm',
                 'id': 'id_orden_pedido',
@@ -84,7 +88,20 @@ class OrdenDespachoForm(forms.ModelForm):
             self.fields['tipo_documento'].widget = forms.HiddenInput()
 
         if empresa:
-            self.fields['orden_pedido'].queryset = OrdenPedido.objects.filter(empresa=empresa, estado__in=['confirmada', 'en_proceso']).select_related('cliente')
+            # Filtrar solo pedidos que tengan saldo pendiente real
+            from django.db.models import Sum, F, Q, Count, Subquery, OuterRef
+            
+            # Subconsulta para identificar pedidos que ya están totalmente despachados o completados
+            self.fields['orden_pedido'].queryset = OrdenPedido.objects.filter(
+                empresa=empresa, 
+                estado__in=['confirmada', 'en_proceso', 'preparando_despacho']
+            ).alias(
+                cant_total=Sum('items__cantidad'),
+                cant_despachada=Sum('items__despachos__cantidad')
+            ).filter(
+                # Mostrar solo donde la cantidad despachada sea nula o menor a la solicitada
+                Q(cant_despachada__isnull=True) | Q(cant_despachada__lt=F('cant_total'))
+            ).select_related('cliente').order_by('-fecha_creacion')
             from .models_transporte import Chofer, Vehiculo
             self.fields['chofer'].queryset = Chofer.objects.filter(empresa=empresa, activo=True).order_by('nombre')
             self.fields['vehiculo'].queryset = Vehiculo.objects.filter(empresa=empresa, activo=True).order_by('patente')

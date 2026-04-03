@@ -49,13 +49,6 @@ def caja_create(request):
         if form.is_valid():
             caja = form.save(commit=False)
             caja.empresa = request.empresa
-            
-            # Asignar automáticamente la primera sucursal disponible
-            from empresas.models import Sucursal
-            primera_sucursal = Sucursal.objects.filter(empresa=request.empresa).first()
-            if primera_sucursal:
-                caja.sucursal = primera_sucursal
-            
             caja.save()
             messages.success(request, f'Caja "{caja.nombre}" creada exitosamente.')
             return redirect('caja:caja_list')
@@ -114,10 +107,13 @@ def apertura_list(request):
         aperturas = aperturas.filter(estado=estado)
     
     # Obtener cajas disponibles para abrir
-    cajas_disponibles = Caja.objects.filter(
-        empresa=request.empresa,
-        activo=True
-    ).exclude(
+    # Si es cajero, solo mostrar cajas de su sucursal
+    cajas_base = Caja.objects.filter(empresa=request.empresa, activo=True)
+    
+    if request.user.perfil.tipo_usuario == 'cajero' and request.user.perfil.sucursal:
+        cajas_base = cajas_base.filter(sucursal=request.user.perfil.sucursal)
+    
+    cajas_disponibles = cajas_base.exclude(
         id__in=AperturaCaja.objects.filter(estado='abierta').values_list('caja_id', flat=True)
     )
     
@@ -253,10 +249,28 @@ def apertura_detail(request, pk):
     # Debug simplificado (sin usar métodos de queryset después de slice)
     print(f"[DEBUG APERTURA_DETAIL] Tickets pendientes cargados (máximo 500)")
     
+    # Agrupar ventas por cada forma de pago específica para el detalle dinámico
+    ventas_procesadas = VentaProcesada.objects.filter(
+        apertura_caja=apertura,
+        venta_final__tipo_documento__in=['boleta', 'factura', 'vale', 'ticket']
+    ).select_related('venta_final', 'movimiento_caja__forma_pago')
+
+    ventas_por_forma_pago = {}
+    for venta_proc in ventas_procesadas:
+        fp = venta_proc.venta_final.forma_pago
+        nombre_fp = fp.nombre if fp else "Sin forma de pago"
+        if nombre_fp not in ventas_por_forma_pago:
+            ventas_por_forma_pago[nombre_fp] = {'total': Decimal('0.00'), 'cantidad': 0}
+        ventas_por_forma_pago[nombre_fp]['total'] += venta_proc.venta_final.total if venta_proc.venta_final else Decimal('0.00')
+        ventas_por_forma_pago[nombre_fp]['cantidad'] += 1
+
+    print(f"[DEBUG APERTURA_DETAIL] Tickets pendientes cargados (máximo 500)")
+    
     context = {
         'apertura': apertura,
         'movimientos': movimientos,
         'tickets_pendientes': tickets_pendientes,
+        'ventas_por_forma_pago': ventas_por_forma_pago,
     }
     return render(request, 'caja/apertura_detail.html', context)
 
@@ -291,6 +305,24 @@ def apertura_cerrar(request, pk):
         apertura.calcular_totales()
         form = CierreCajaForm(initial={'monto_contado': apertura.monto_final})
     
+    # Obtener ventas procesadas durante esta apertura para el desglose detallado
+    ventas = VentaProcesada.objects.filter(
+        apertura_caja=apertura,
+        venta_final__tipo_documento__in=['boleta', 'factura', 'vale']
+    ).select_related('venta_final', 'movimiento_caja__forma_pago')
+
+    # Agrupar ventas por cada forma de pago específica (SOURCE: Documento)
+    ventas_por_forma_pago = {}
+    for venta_proc in ventas:
+        fp = venta_proc.venta_final.forma_pago
+        nombre_fp = fp.nombre if fp else "Sin forma de pago"
+            
+        if nombre_fp not in ventas_por_forma_pago:
+            ventas_por_forma_pago[nombre_fp] = {'total': Decimal('0.00'), 'cantidad': 0}
+        
+        ventas_por_forma_pago[nombre_fp]['total'] += venta_proc.venta_final.total if venta_proc.venta_final else Decimal('0.00')
+        ventas_por_forma_pago[nombre_fp]['cantidad'] += 1
+
     # Obtener movimientos manuales (ingresos/egresos) - siempre, incluso en POST
     movimientos_manuales = MovimientoCaja.objects.filter(
         apertura_caja=apertura,
@@ -308,6 +340,7 @@ def apertura_cerrar(request, pk):
         'movimientos_manuales': movimientos_manuales,
         'total_ingresos': total_ingresos,
         'total_egresos': total_egresos,
+        'ventas_por_forma_pago': ventas_por_forma_pago,
     }
     return render(request, 'caja/apertura_cerrar.html', context)
 
@@ -330,39 +363,29 @@ def apertura_imprimir(request, pk):
     apertura.calcular_totales()
     
     # Obtener ventas procesadas durante esta apertura
-    # Solo incluir: boletas, facturas, notas de crédito y débito
-    # Excluir: vales facturables, guías y cotizaciones
+    # Unificado con la lógica de cierre: Incluir boletas, facturas, vales y tickets
     ventas = VentaProcesada.objects.filter(
         apertura_caja=apertura,
-        venta_final__tipo_documento__in=['boleta', 'factura']
-    ).exclude(
-        venta_final__tipo_documento__in=['vale', 'guia', 'cotizacion']
+        venta_final__tipo_documento__in=['boleta', 'factura', 'vale', 'ticket']
     ).select_related('venta_preventa', 'venta_final', 'usuario_proceso').order_by('fecha_proceso')
     
-    # Agrupar ventas por forma de pago
+    # Agrupar ventas por forma de pago (SOURCE OF TRUTH: El documento final)
     ventas_por_forma_pago = {}
     for venta_proc in ventas:
         venta_final = venta_proc.venta_final
+        fp = venta_final.forma_pago
         
-        #movimiento = venta_proc.movimiento_caja
-
-        mov = venta_proc.movimiento_caja
-
-        if mov and mov.forma_pago:
-            forma_pago_nombre = mov.forma_pago.nombre
-        elif mov:
-            forma_pago_nombre = 'Movimiento sin forma de pago'
-        else:
-            forma_pago_nombre = 'Sin movimiento de caja'
-        if forma_pago_nombre not in ventas_por_forma_pago:
-            ventas_por_forma_pago[forma_pago_nombre] = {
+        nombre_fp = fp.nombre if fp else "Sin forma de pago"
+        
+        if nombre_fp not in ventas_por_forma_pago:
+            ventas_por_forma_pago[nombre_fp] = {
                 'ventas': [],
                 'total': Decimal('0.00'),
                 'cantidad': 0
             }
-        ventas_por_forma_pago[forma_pago_nombre]['ventas'].append(venta_proc)
-        ventas_por_forma_pago[forma_pago_nombre]['total'] += venta_final.total if venta_final else Decimal('0.00')
-        ventas_por_forma_pago[forma_pago_nombre]['cantidad'] += 1
+        ventas_por_forma_pago[nombre_fp]['ventas'].append(venta_proc)
+        ventas_por_forma_pago[nombre_fp]['total'] += venta_final.total if venta_final else Decimal('0.00')
+        ventas_por_forma_pago[nombre_fp]['cantidad'] += 1
     
     # Obtener movimientos de caja (ingresos/egresos manuales y devoluciones)
     movimientos = MovimientoCaja.objects.filter(

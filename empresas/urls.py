@@ -35,4 +35,8 @@ urlpatterns = [
 	# Seleccionar empresa (solo superusuarios)
 	path('seleccionar-empresa/', views.seleccionar_empresa, name='seleccionar_empresa'),
 	path('editar-empresa-activa/', views.editar_empresa_activa, name='editar_empresa_activa'),
+	# SaaS y Planes
+	path('suspendida/', views.empresa_suspendida, name='empresa_suspendida'),
+	path('seleccionar-plan/<int:plan_id>/', views.seleccionar_plan, name='seleccionar_plan'),
+	path('empresas/<int:pk>/suspender/', views.empresa_toggle_status, name='empresa_toggle_status'),
 ]

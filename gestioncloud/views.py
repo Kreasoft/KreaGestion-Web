@@ -16,6 +16,17 @@ from datetime import datetime, timedelta
 def dashboard(request):
     """Dashboard principal con estadísticas reales filtradas por sucursal"""
     
+    # --- Ruteo por tipo de usuario ---
+    try:
+        tipo_usuario = request.user.perfil.tipo_usuario
+    except:
+        tipo_usuario = 'administrador'
+        
+    if tipo_usuario == 'vendedor':
+        return dashboard_vendedor(request)
+    elif tipo_usuario == 'cajero':
+        return dashboard_cajero(request)
+    
     # Obtener todas las sucursales de la empresa
     sucursales = Sucursal.objects.filter(empresa=request.empresa, estado='activa').order_by('nombre')
     
@@ -229,3 +240,83 @@ def dashboard(request):
         pass
 
     return render(request, 'dashboard.html', context)
+
+@login_required
+@requiere_empresa
+def dashboard_vendedor(request):
+    """Dashboard simplificado para vendedores"""
+    from django.utils import timezone
+    from django.db.models import Sum
+    from ventas.models import Venta
+    
+    hoy = timezone.now().date()
+    inicio_mes = hoy.replace(day=1)
+    
+    # Ventas del usuario actual
+    ventas_usuario = Venta.objects.filter(
+        empresa=request.empresa,
+        usuario_creacion=request.user,
+        estado__in=['confirmada', 'borrador']
+    )
+    
+    # Ventas de hoy
+    ventas_hoy = ventas_usuario.filter(fecha=hoy)
+    total_ventas_hoy = ventas_hoy.aggregate(suma=Sum('total'))['suma'] or 0
+    cantidad_ventas_hoy = ventas_hoy.count()
+    
+    # Ventas del mes
+    ventas_mes_qs = ventas_usuario.filter(fecha__gte=inicio_mes)
+    total_ventas_mes = ventas_mes_qs.aggregate(suma=Sum('total'))['suma'] or 0
+    cantidad_ventas_mes = ventas_mes_qs.count()
+    
+    # Últimas 10 ventas para mostrar en tabla
+    ultimas_ventas = ventas_usuario.order_by('-fecha_creacion')[:10]
+    
+    context = {
+        'total_ventas_hoy': total_ventas_hoy,
+        'cantidad_ventas_hoy': cantidad_ventas_hoy,
+        'total_ventas_mes': total_ventas_mes,
+        'cantidad_ventas_mes': cantidad_ventas_mes,
+        'ultimas_ventas': ultimas_ventas,
+    }
+    return render(request, 'dashboard_vendedor.html', context)
+
+@login_required
+@requiere_empresa
+def dashboard_cajero(request):
+    """Dashboard simplificado para cajeros"""
+    from caja.models import AperturaCaja, MovimientoCaja
+    from decimal import Decimal
+    
+    # Buscar si tiene una caja abierta
+    apertura_activa = AperturaCaja.objects.filter(
+        caja__empresa=request.empresa, 
+        usuario_apertura=request.user, 
+        estado='abierta'
+    ).first()
+    
+    ultimos_movimientos = []
+    total_recaudado = Decimal('0.00')
+    
+    if apertura_activa:
+        # Recalcular para asegurar tener la información fresca
+        apertura_activa.calcular_totales()
+        
+        # Sumamos los valores recibidos físicamente o digitalmente (ignoramos crédito)
+        total_recaudado = (
+            apertura_activa.total_ventas_efectivo + 
+            apertura_activa.total_ventas_tarjeta + 
+            apertura_activa.total_ventas_transferencia + 
+            apertura_activa.total_ventas_cheque
+        )
+        
+        ultimos_movimientos = MovimientoCaja.objects.filter(
+            apertura_caja=apertura_activa
+        ).order_by('-fecha')[:10]
+        
+    context = {
+        'apertura_activa': apertura_activa,
+        'total_recaudado': total_recaudado,
+        'ultimos_movimientos': ultimos_movimientos,
+    }
+    return render(request, 'dashboard_cajero.html', context)

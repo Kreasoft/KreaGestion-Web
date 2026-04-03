@@ -1,6 +1,47 @@
 from django.utils.deprecation import MiddlewareMixin
+from django.shortcuts import redirect
 from .models import Sucursal
+from django.contrib import messages
+from django.urls import reverse
 
+class EmpresaEstadoMiddleware(MiddlewareMixin):
+    """
+    Middleware para verificar el estado de la empresa (SaaS).
+    Si la empresa está suspendida (por falta de pago), impide el acceso a vistas operativas.
+    """
+    
+    def process_request(self, request):
+        # 1. Ignorar si no ha iniciado sesión o no tiene empresa activa
+        if not request.user.is_authenticated or not hasattr(request, 'empresa') or not request.empresa:
+            return
+            
+        # 2. El Administrador Global (Django Admin) siempre debe tener acceso
+        if request.path.startswith('/admin/'):
+            return
+            
+        # 3. Lista de URLs que siempre deben funcionar (mantenimiento y login)
+        # Usamos nombres parciales y rutas para mayor seguridad
+        path = request.path
+        whitelist = [
+            '/accounts/logout/', 
+            '/accounts/login/', 
+            '/empresas/suspendida/', 
+            '/empresas/seleccionar-plan/',
+            '/empresas/seleccionar-empresa/',
+        ]
+        
+        for item in whitelist:
+            if item in path:
+                return
+
+        # 4. Verificar estado de la empresa
+        if request.empresa.estado == 'suspendida':
+            # Solo permitir ver la página de suspensión
+            # Evitamos que superusuarios sean bloqueados SI están en el dashboard principal de admin
+            # Pero los bloqueamos en el POS/Ventas para que puedan PROBAR la función
+            if not request.user.is_superuser or '/admin/' not in path:
+                 if '/empresas/suspendida/' not in path:
+                    return redirect('empresas:empresa_suspendida')
 
 class SucursalMiddleware(MiddlewareMixin):
     """

@@ -81,6 +81,8 @@ class DocumentoCompraForm(forms.ModelForm):
 class ItemDocumentoCompraForm(forms.ModelForm):
     """Formulario limpio y simple para items de documento de compra"""
     
+    impuesto_porcentaje = forms.IntegerField(initial=19, widget=forms.HiddenInput(), required=False)
+    
     class Meta:
         model = ItemDocumentoCompra
         fields = [
@@ -92,7 +94,6 @@ class ItemDocumentoCompraForm(forms.ModelForm):
             'cantidad': forms.NumberInput(attrs={'class': 'form-control form-control-sm cantidad-input', 'min': '1', 'value': '1'}),
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control form-control-sm precio-input', 'min': '0', 'placeholder': 'Precio sin decimales'}),
             'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm descuento-input', 'min': '0', 'max': '100', 'value': '0'}),
-            'impuesto_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm impuesto-input', 'min': '0', 'value': '19'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -101,6 +102,13 @@ class ItemDocumentoCompraForm(forms.ModelForm):
         # Campos opcionales
         self.fields['impuesto_porcentaje'].required = False
         self.fields['descuento_porcentaje'].required = False
+    
+    def clean_impuesto_porcentaje(self):
+        """Asegurar que el impuesto nunca sea nulo para evitar errores de BD"""
+        impuesto = self.cleaned_data.get('impuesto_porcentaje')
+        if impuesto is None or impuesto == '':
+            return 19
+        return impuesto
         
         # Obtener empresa del documento padre si existe
         empresa = None

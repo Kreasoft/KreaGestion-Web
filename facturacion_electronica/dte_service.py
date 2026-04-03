@@ -51,9 +51,10 @@ class DTEService:
         """
         try:
             with transaction.atomic():
-                # 1. Obtener folio
-                print(f"\nPaso 1: Obteniendo folio para tipo {tipo_dte}")
-                folio, caf = FolioService.obtener_siguiente_folio(self.empresa, tipo_dte)
+                # 1. Obtener folio - IMPORTANTE: Usar la sucursal de la venta para picking de CAF
+                sucursal_venta = getattr(venta, 'sucursal', None)
+                print(f"\nPaso 1: Obteniendo folio para tipo {tipo_dte} en sucursal {sucursal_venta}")
+                folio, caf = FolioService.obtener_siguiente_folio(self.empresa, tipo_dte, sucursal=sucursal_venta)
 
                 if folio is None:
                     raise ValueError(f"No hay folios disponibles para tipo de documento {tipo_dte}")
@@ -80,7 +81,7 @@ class DTEService:
                         direccion_emisor=self.empresa.direccion_casa_matriz or self.empresa.direccion,
                         comuna_emisor=self.empresa.comuna_casa_matriz or self.empresa.comuna,
                         rut_receptor=venta.cliente.rut if venta.cliente else '66666666-6',
-                        razon_social_receptor=venta.cliente.nombre if venta.cliente else 'Cliente Genérico',
+                        razon_social_receptor=venta.get_cliente_nombre() if hasattr(venta, 'get_cliente_nombre') else (venta.cliente.nombre if venta.cliente else 'Cliente Genérico'),
                         direccion_receptor=venta.cliente.direccion if venta.cliente else '',
                         comuna_receptor=venta.cliente.comuna if venta.cliente else '',
                         giro_receptor=venta.cliente.giro if (venta.cliente and venta.cliente.giro) else 'PARTICULAR',
@@ -128,7 +129,7 @@ class DTEService:
                     
                     # Instanciar generador
                     rut_receptor = venta.cliente.rut if venta.cliente else '66666666-6'
-                    razon_receptor = venta.cliente.nombre if venta.cliente else 'Cliente Genérico'
+                    razon_receptor = venta.get_cliente_nombre() if hasattr(venta, 'get_cliente_nombre') else (venta.cliente.nombre if venta.cliente else 'Cliente Genérico')
                     direccion_receptor = venta.cliente.direccion if venta.cliente else 'Sin Dirección'
                     comuna_receptor = venta.cliente.comuna if venta.cliente else 'Santiago'
                     
@@ -679,14 +680,16 @@ class DTEService:
     def _generar_ted(self, venta, tipo_dte, folio, caf, firmador):
         """Genera el TED (Timbre Electrónico Digital)"""
         # Preparar datos del DTE
+        # IMPORTANTE: dte_data['fecha_emision'] debe ser string YYYY-MM-DD
+        # Usamos venta.fecha que ya viene actualizada con la fecha de la apertura de caja
         dte_data = {
             'rut_emisor': self.empresa.rut,
             'tipo_dte': tipo_dte,
             'folio': folio,
             'fecha_emision': venta.fecha.strftime('%Y-%m-%d'),
             'rut_receptor': venta.cliente.rut if venta.cliente else '66666666-6',
-            'razon_social_receptor': (venta.cliente.nombre if venta.cliente 
-                                     else 'Cliente Genérico'),
+            'razon_social_receptor': (venta.get_cliente_nombre() if hasattr(venta, 'get_cliente_nombre') 
+                                     else (venta.cliente.nombre if venta.cliente else 'Cliente Genérico')),
             'monto_total': venta.total,
             'item_1': 'Documento Tributario Electrónico',
         }
@@ -791,14 +794,14 @@ class DTEService:
         # Datos del receptor
         if venta.cliente:
             rut_receptor = venta.cliente.rut
-            razon_social_receptor = venta.cliente.nombre
+            razon_social_receptor = venta.get_cliente_nombre() if hasattr(venta, 'get_cliente_nombre') else (venta.cliente.nombre if venta.cliente else 'Cliente Genérico')
             direccion_receptor = venta.cliente.direccion or ''
             comuna_receptor = venta.cliente.comuna or ''
             giro_receptor = getattr(venta.cliente, 'giro', '') or ''
             ciudad_receptor = getattr(venta.cliente, 'ciudad', '') or ''
         else:
             rut_receptor = '66666666-6'
-            razon_social_receptor = 'Cliente Genérico'
+            razon_social_receptor = venta.get_cliente_nombre() if hasattr(venta, 'get_cliente_nombre') else 'Cliente Genérico'
             direccion_receptor = ''
             comuna_receptor = ''
             giro_receptor = ''
@@ -825,7 +828,7 @@ class DTEService:
             caf_utilizado=caf,
             tipo_dte=tipo_dte,
             folio=folio,
-            fecha_emision=venta.fecha,
+            fecha_emision=venta.fecha,  # Usar venta.fecha (ya actualizada)
             usuario_creacion=venta.usuario_creacion if venta.usuario_creacion else None,
             
             # Emisor

@@ -36,8 +36,12 @@ def orden_despacho_list(request):
     ).prefetch_related('items')
     
     # Aplicar filtros
-    if estado:
-        ordenes = ordenes.filter(estado=estado)
+    if 'estado' in request.GET:
+        if estado:
+            ordenes = ordenes.filter(estado=estado)
+    else:
+        # Por defecto al entrar a la página: solo lo pendiente de preparación
+        ordenes = ordenes.filter(estado__in=['pendiente', 'en_preparacion'])
     
     if pedido_id:
         ordenes = ordenes.filter(orden_pedido_id=pedido_id)

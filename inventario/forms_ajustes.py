@@ -1,47 +1,8 @@
 from django import forms
 from django.forms import inlineformset_factory
 from .models_ajustes import AjusteStock, DetalleAjuste
-from .models_correlativos import CorrelativoEmpresa
 from bodegas.models import Bodega
 from articulos.models import Articulo
-
-
-class CorrelativoForm(forms.ModelForm):
-    """Formulario para configurar correlativos de empresa"""
-    
-    class Meta:
-        model = CorrelativoEmpresa
-        fields = ['tipo_documento', 'prefijo', 'numero_actual', 'formato', 'activo']
-        widgets = {
-            'tipo_documento': forms.Select(attrs={
-                'class': 'form-control',
-                'readonly': True
-            }),
-            'prefijo': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ej: AJ, VE, CO'
-            }),
-            'numero_actual': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '0',
-                'placeholder': '0'
-            }),
-            'formato': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': '{prefijo}-{numero:04d}'
-            }),
-            'activo': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            })
-        }
-    
-    def __init__(self, *args, **kwargs):
-        self.empresa = kwargs.pop('empresa', None)
-        super().__init__(*args, **kwargs)
-        
-        if self.instance.pk:
-            self.fields['tipo_documento'].widget.attrs['readonly'] = True
-            self.fields['tipo_documento'].widget.attrs['class'] += ' bg-light'
 
 
 class AjusteStockForm(forms.ModelForm):

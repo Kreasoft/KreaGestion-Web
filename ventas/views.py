@@ -1466,9 +1466,9 @@ def pos_procesar_preventa(request):
                 chofer = Chofer.objects.get(id=chofer_id, empresa=request.empresa)
             
             # Generar número de preventa único
-            # IMPORTANTE: Los vales usan SOLO el correlativo de ticket de la estación (independiente de folios CAF)
-            # Las facturas/boletas/guías usan números temporales que se reemplazan por folios CAF al procesar
-            if data['tipo_documento'] in ['vale', 'ticket']:
+            # IMPORTANTE: Los vales y documentos iniciales del POS usan SOLO el correlativo de ticket de la estación (independiente de folios CAF)
+            # Las facturas/boletas/guías oficiales usan folios CAF que se asignan al procesar (cierre directo o posterior en caja)
+            if data['tipo_documento'] in ['vale', 'ticket', 'boleta', 'factura', 'guia', 'cotizacion']:
                 # Para vales y tickets: usar correlativo de ticket de la estación
                 # CRÍTICO: Usar bloqueo select_for_update para evitar condiciones de carrera
                 from django.db import transaction
@@ -1619,9 +1619,12 @@ def pos_procesar_preventa(request):
             
             # FORZAR tipo_despacho si es guía
             tipo_despacho_final = data.get('tipo_despacho')
-            if data.get('tipo_documento') == 'guia' and not tipo_despacho_final:
-                print("[ERROR CRÍTICO] Guía sin tipo_despacho - ESTO NO DEBERÍA PASAR")
-                tipo_despacho_final = None  # Forzar NULL para que falle después
+            if (data.get('tipo_documento') == 'guia' or tipo_doc_planeado == 'guia') and not tipo_despacho_final:
+                print("[ERROR] Guía de despacho sin tipo de traslado (tipo_despacho)")
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Debe seleccionar un Motivo de Traslado para la Guía de Despacho.'
+                }, status=400)
 
             # El estado depende de si es algo que ya está "listo" (ticket/vale) o borrador
             # NOTA: Los vales internos también se quedan como pendientes (facturado=False)
@@ -2174,11 +2177,13 @@ def pos_procesar_preventa(request):
                 else:
                     print("[WARN] VALE INTERNO: No hay caja abierta para procesar el vale inmediatamente")
             
-            # Si el documento es factura, boleta o guía, generar también un ticket facturable
-            ticket_vale_id = None
-            ticket_vale_numero = None
-            if data['tipo_documento'] in ['factura', 'boleta', 'guia']:
-                print(f"DEBUG - Generando ticket facturable para {data['tipo_documento']}...")
+            # El documento para impresión y procesamiento es la preventa misma
+            # Se desactiva la clonación de tickets para prevenir duplicados en caja
+            ticket_vale = preventa
+            ticket_vale_id = preventa.id
+            ticket_vale_numero = preventa.numero_venta
+
+            if False: # Bloque desactivado: data['tipo_documento'] in ['factura', 'boleta', 'guia']:
                 
                 # Generar número de ticket usando SOLO el correlativo de ticket de la estación
                 # Este correlativo es independiente de los folios CAF de facturas/boletas/guías
@@ -2480,7 +2485,7 @@ def pos_procesar_preventa(request):
                                     from facturacion_electronica.dte_service import DTEService
                                     from facturacion_electronica.models import DocumentoTributarioElectronico, ArchivoCAF
                                     
-                                    print(f"[CIERRE DIRECTO] Verificando si ya existe DTE para ticket {ticket_vale.id}...")
+                                    print(f"[CIERRE DIRECTO] Verificando si ya existe DTE para preventa {preventa.id}...")
                                     
                                     # Mapear tipo de documento a código SII
                                     tipo_dte_map = {
@@ -2516,7 +2521,7 @@ def pos_procesar_preventa(request):
                                     # Buscar por VentaProcesada asociada al ticket
                                     from caja.models import VentaProcesada as VentaProcesadaCheck
                                     venta_proc_existente = VentaProcesadaCheck.objects.filter(
-                                        venta_preventa=ticket_vale,
+                                        venta_preventa=preventa,
                                         dte_generado__isnull=False
                                     ).first()
                                     
@@ -2526,26 +2531,26 @@ def pos_procesar_preventa(request):
                                         numero_venta_final = f"{dte.folio:06d}"
                                         print(f"[OK] CIERRE DIRECTO: DTE ya existe - Folio {dte.folio} (reutilizando)")
                                         
-                                        # Actualizar el número de venta del ticket_vale
-                                        ticket_vale.numero_venta = numero_venta_final
-                                        ticket_vale.tipo_documento = data['tipo_documento']
-                                        ticket_vale.estado = 'confirmada'
-                                        ticket_vale.facturado = True  # ← Marcar como facturado
-                                        ticket_vale.save()
+                                        # Actualizar el número de venta de preventa
+                                        preventa.numero_venta = numero_venta_final
+                                        preventa.tipo_documento = data['tipo_documento']
+                                        preventa.estado = 'confirmada'
+                                        preventa.facturado = True  # ← Marcar como facturado
+                                        preventa.save()
                                     else:
                                         # No existe DTE, generar uno nuevo
                                         print(f"[CIERRE DIRECTO] Generando DTE nuevo para obtener folio...")
                                         
                                         # Preparar venta temporal para generar DTE
-                                        ticket_vale.numero_venta = numero_venta_temp
-                                        ticket_vale.tipo_documento = data['tipo_documento']
-                                        ticket_vale.estado = 'confirmada'
-                                        ticket_vale.facturado = True  # ← Marcar como facturado
-                                        ticket_vale.save()
+                                        preventa.numero_venta = numero_venta_temp
+                                        preventa.tipo_documento = data['tipo_documento']
+                                        preventa.estado = 'confirmada'
+                                        preventa.facturado = True  # ← Marcar como facturado
+                                        preventa.save()
                                         
                                         # Generar DTE
                                         dte_service = DTEService(request.empresa)
-                                        dte = dte_service.generar_dte_desde_venta(ticket_vale, tipo_dte_codigo)
+                                        dte = dte_service.generar_dte_desde_venta(preventa, tipo_dte_codigo)
                                         
                                         if dte:
                                             # Usar el folio del DTE como número de venta final
@@ -2553,9 +2558,9 @@ def pos_procesar_preventa(request):
                                             print(f"[OK] CIERRE DIRECTO: DTE generado - Folio {dte.folio}")
                                             print(f"[OK] CIERRE DIRECTO: Número de venta final actualizado a: {numero_venta_final}")
                                             
-                                            # Actualizar el número de venta del ticket_vale con el folio
-                                            ticket_vale.numero_venta = numero_venta_final
-                                            ticket_vale.save()
+                                            # Actualizar el número de venta del preventa con el folio
+                                            preventa.numero_venta = numero_venta_final
+                                            preventa.save()
                                         
                                 except Exception as e_dte:
                                     print(f"[ERROR] CIERRE DIRECTO: Error al generar DTE: {e_dte}")
@@ -2574,23 +2579,23 @@ def pos_procesar_preventa(request):
                                 # Crear venta final definitiva solo si no existe
                                 venta_final = Venta.objects.create(
                                     empresa=request.empresa,
-                                    sucursal=ticket_vale.sucursal,  # Usar sucursal del ticket
+                                    sucursal=preventa.sucursal,  # Usar sucursal del ticket
                                     tipo_documento=tipo_doc_planeado,
                                     numero_venta=numero_venta_final,
                                     cliente=cliente,
-                                    vendedor=ticket_vale.vendedor,
+                                    vendedor=preventa.vendedor,
                                     estado='confirmada',
-                                    subtotal=ticket_vale.subtotal,
-                                    descuento=ticket_vale.descuento,
-                                    neto=ticket_vale.neto,
-                                    iva=ticket_vale.iva,
-                                    total=ticket_vale.total,
+                                    subtotal=preventa.subtotal,
+                                    descuento=preventa.descuento,
+                                    neto=preventa.neto,
+                                    iva=preventa.iva,
+                                    total=preventa.total,
                                     fecha=timezone.now().date(),
                                     usuario_creacion=request.user
                                 )
                                 
                                 # Copiar detalles del ticket a la venta final
-                                for detalle in ticket_vale.ventadetalle_set.all():
+                                for detalle in preventa.ventadetalle_set.all():
                                     VentaDetalle.objects.create(
                                         venta=venta_final,
                                         articulo=detalle.articulo,
@@ -4285,7 +4290,7 @@ def libro_ventas(request):
         dte__isnull=True
     ).exclude(
         Q(numero_venta__icontains='test') | 
-        Q(tipo_documento__in=['vale', 'cotizacion', 'ticket', 'boleta', 'factura', 'guia'])
+        Q(tipo_documento='cotizacion')
     ).select_related('cliente', 'vendedor', 'forma_pago', 'estacion_trabajo')
     
     # Consulta DTEs (Documentos Tributarios Electrónicos)
@@ -4836,19 +4841,25 @@ def mobile_api_sync(request):
         articulos_data = []
         for art in articulos:
             try:
-                # Limpiar strings de precios que puedan tener separadores de miles o comas
+                # Limpiar strings de precios de manera robusta
                 def clean_price(val):
                     if not val: return Decimal('0')
-                    # Eliminar puntos de miles y reemplazar coma decimal por punto
-                    s_val = str(val).replace('.', '').replace(',', '.')
-                    return Decimal(s_val)
+                    s_val = str(val).strip()
+                    # Si tiene coma, es formato chileno (1.234,56)
+                    if ',' in s_val:
+                        s_val = s_val.replace('.', '').replace(',', '.')
+                    # Si no tiene coma, el punto ya es el decimal o no hay.
+                    try:
+                        return Decimal(s_val)
+                    except:
+                        return Decimal('0')
 
                 p_final = clean_price(art.precio_final)
                 p_venta = clean_price(art.precio_venta)
                 
-                # Si el precio final es 0, intentamos calcularlo
+                # Si el precio final es 0, usamos el de venta directamente
                 if p_final == 0:
-                    p_final = p_venta * Decimal('1.19') # Estimación IVA
+                    p_final = p_venta
                 
                 articulos_data.append({
                     'id': art.id,
@@ -4997,8 +5008,14 @@ def mobile_api_save_client(request):
             return JsonResponse({'success': False, 'error': 'Nombre y RUT son obligatorios'}, status=400)
             
         # Verificar si ya existe
-        if Cliente.objects.filter(empresa=request.empresa, rut=rut).exists():
-            return JsonResponse({'success': False, 'error': f'Ya existe un cliente con el RUT {rut}'}, status=400)
+        cliente_existente = Cliente.objects.filter(empresa=request.empresa, rut=rut).first()
+        if cliente_existente:
+            return JsonResponse({
+                'success': True,
+                'cliente_id': cliente_existente.id,
+                'nombre': cliente_existente.nombre,
+                'message': 'El cliente ya existía en el sistema.'
+            })
             
         # Crear cliente
         cliente = Cliente.objects.create(
@@ -5043,6 +5060,7 @@ def mobile_api_save_sale(request):
         forma_pago_id = data.get('forma_pago_id')
         tipo_documento_solicitado = data.get('tipo_documento', 'boleta') # boleta, factura, cotizacion
         total_movil = Decimal(str(data.get('total', 0)))
+        fecha_movil = data.get('fecha') # Fecha enviada desde el móvil
         device_id = data.get('deviceId') # ID del dispositivo que envía la venta
         
         # 0. Verificar si el dispositivo está autorizado
@@ -5055,9 +5073,63 @@ def mobile_api_save_sale(request):
             }, status=403)
         
         # 1. Buscar objetos relacionados
-        cliente = get_object_or_404(Cliente, id=cliente_id, empresa=request.empresa) if cliente_id else None
-        vendedor = get_object_or_404(Vendedor, id=vendedor_id, empresa=request.empresa) if vendedor_id else None
-        forma_pago = get_object_or_404(FormaPago, id=forma_pago_id, empresa=request.empresa) if forma_pago_id else None
+        cliente = None
+        if cliente_id:
+            try:
+                # Si el ID es numérico, buscar por ID
+                if str(cliente_id).isdigit():
+                    cliente = Cliente.objects.filter(id=cliente_id, empresa=request.empresa).first()
+            except:
+                pass
+        
+        # Fallback: Buscar por RUT si aún no tenemos cliente
+        cliente_rut = data.get('cliente_rut')
+        cliente_nombre_movil = data.get('cliente_nombre', '').strip()
+        
+        if not cliente and cliente_rut:
+            try:
+                # Normalizar RUT (quitar puntos, guiones y espacios)
+                rut_busqueda = cliente_rut.replace('.', '').replace('-', '').replace(' ', '').upper()
+                
+                # Búsqueda optimizada: Primero exacta
+                cliente = Cliente.objects.filter(rut=cliente_rut, empresa=request.empresa).first()
+                
+                if not cliente:
+                    # Búsqueda manual tolerante a formatos
+                    cands = Cliente.objects.filter(empresa=request.empresa).exclude(rut__isnull=True)
+                    for cand in cands:
+                        if cand.rut.replace('.', '').replace('-', '').replace(' ', '').upper() == rut_busqueda:
+                            cliente = cand
+                            break
+                
+                # ULTIMO RECURSO: ¡CREAR EL CLIENTE SI NO EXISTE!
+                if not cliente and cliente_nombre_movil and len(rut_busqueda) > 5:
+                    try:
+                        cliente = Cliente.objects.create(
+                            empresa=request.empresa,
+                            nombre=cliente_nombre_movil,
+                            rut=cliente_rut, # Usar el RUT enviado tal cual
+                            vendedor=vendedor,
+                            estado='activo',
+                            giro='CLIENTE MOVIL'
+                        )
+                        print(f"[DEBUG-SAVE-SALE] Cliente Autocreado por Fallback: {cliente.nombre} (ID: {cliente.id})")
+                    except Exception as e_create:
+                        print(f"[DEBUG-SAVE-SALE] Error autocreando cliente: {e_create}")
+
+            except Exception as e_rut:
+                print(f"[DEBUG-SAVE-SALE] Error en fallback de RUT: {e_rut}")
+
+        if cliente_id and not cliente:
+             print(f"[ERROR-SAVE-SALE] Se envió ClienteID {cliente_id} (RUT: {cliente_rut}) pero NO SE ENCONTRÓ en DB.")
+
+        vendedor = None
+        if vendedor_id and str(vendedor_id).isdigit():
+            vendedor = Vendedor.objects.filter(id=vendedor_id, empresa=request.empresa).first()
+            
+        forma_pago = None
+        if forma_pago_id and str(forma_pago_id).isdigit():
+            forma_pago = FormaPago.objects.filter(id=forma_pago_id, empresa=request.empresa).first()
         
         # 2. Generar correlativo temporal de preventa
         from .models import EstacionTrabajo
@@ -5073,10 +5145,26 @@ def mobile_api_save_sale(request):
         numero_vale = f"M{numero_ticket:05d}"
         
         # 3. Crear la Venta (como VALE / PREVENTA)
+        # Intentar usar la fecha del móvil si es válida, sino usar hoy
+        fecha_final = timezone.now().date()
+        if fecha_movil:
+            try:
+                # El móvil envía ISO string completo o solo fecha
+                from django.utils.dateparse import parse_datetime, parse_date
+                parsed_dt = parse_datetime(fecha_movil)
+                if parsed_dt:
+                    fecha_final = parsed_dt.date()
+                else:
+                    parsed_d = parse_date(fecha_movil)
+                    if parsed_d:
+                        fecha_final = parsed_d
+            except:
+                pass
+
         venta = Venta.objects.create(
             empresa=request.empresa,
             numero_venta=numero_vale,
-            fecha=timezone.now().date(),
+            fecha=fecha_final,
             cliente=cliente,
             vendedor=vendedor,
             forma_pago=forma_pago,
@@ -5087,7 +5175,7 @@ def mobile_api_save_sale(request):
             estado='confirmada',
             facturado=False,
             usuario_creacion=request.user,
-            observaciones=f"[MOVIL] Venta Mobile - Doc Solicitado: {tipo_documento_solicitado}"
+            observaciones=data.get('observaciones', f"[MOVIL] Doc Solicitado: {tipo_documento_solicitado}")
         )
         
         # 4. Crear Detalles
@@ -5140,20 +5228,26 @@ def mobile_api_sales_history(request):
         date_fin = parse_date(fecha_fin) if fecha_fin else hoy
         
         # Filtrar ventas de la empresa y del vendedor
-        ventas = Venta.objects.filter(
+        ventas_qs = Venta.objects.filter(
             empresa=request.empresa,
             vendedor_id=vendedor_id,
             fecha__range=[date_inicio, date_fin]
-        ).select_related('cliente').order_by('-fecha_creacion', '-id')
+        ).select_related('cliente')
+        
+        print(f"[DEBUG-MOBILE-HISTORY] Vendedor: {vendedor_id}, Rango: {date_inicio} - {date_fin}, Encontradas: {ventas_qs.count()}")
+        
+        ventas = ventas_qs.order_by('-fecha_creacion', '-id')[:200]
         
         ventas_data = []
         for v in ventas:
+            cliente_name = v.get_cliente_nombre()
+                    
             ventas_data.append({
                 'id': v.id,
                 'numero': v.numero_venta,
                 'fecha': v.fecha_creacion.isoformat(),
                 'total': int(v.total),
-                'cliente': v.cliente.nombre if v.cliente else 'Sin cliente',
+                'cliente': cliente_name,
                 'tipo_doc': v.tipo_documento_planeado or v.tipo_documento,
                 'estado': v.estado
             })
@@ -5162,6 +5256,7 @@ def mobile_api_sales_history(request):
             'success': True,
             'ventas': ventas_data,
             'count': len(ventas_data),
+            'vendedor_id': vendedor_id,
             'periodo': {
                 'inicio': date_inicio.isoformat(),
                 'fin': date_fin.isoformat()

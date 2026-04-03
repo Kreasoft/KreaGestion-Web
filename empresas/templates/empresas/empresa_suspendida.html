@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --stone-50: #fafaf9;
+        --stone-100: #f5f5f4;
+        --stone-200: #e7e5e4;
+        --stone-300: #d6d3d1;
+        --stone-400: #a8a29e;
+        --stone-500: #78716c;
+        --stone-600: #57534e;
+        --stone-700: #44403c;
+        --stone-800: #292524;
+        --stone-900: #1c1917;
+        --danger-soft: #fef2f2;
+        --danger-border: #fecaca;
+        --danger-text: #991b1b;
+    }
+
+    body {
+        background-color: var(--stone-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+    }
+
+    .suspension-container {
+        max-width: 900px;
+        width: 100%;
+        padding: 2rem;
+    }
+
+    .suspension-card {
+        background: white;
+        border-radius: 24px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        border: 1px solid var(--stone-200);
+    }
+
+    .alert-banner {
+        background-color: var(--danger-soft);
+        border-bottom: 1px solid var(--danger-border);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .alert-icon {
+        width: 48px;
+        height: 48px;
+        background-color: white;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--danger-text);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-body {
+        padding: 3rem;
+        text-align: center;
+    }
+
+    .company-name {
+        font-size: 1.25rem;
+        color: var(--stone-500);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .main-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--stone-900);
+        letter-spacing: -0.025em;
+        margin-bottom: 1.5rem;
+    }
+
+    .description {
+        font-size: 1.125rem;
+        color: var(--stone-600);
+        line-height: 1.75;
+        max-width: 600px;
+        margin: 0 auto 3rem;
+    }
+
+    .plans-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .plan-card {
+        padding: 2.5rem;
+        border-radius: 28px;
+        border: 2px solid var(--stone-200);
+        background: white;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .plan-card:hover {
+        border-color: var(--stone-300);
+        transform: translateY(-8px);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+        background-color: var(--stone-50);
+    }
+
+    .plan-card.active {
+        border-color: var(--stone-800);
+        background: linear-gradient(135deg, white 0%, var(--stone-50) 100%);
+    }
+
+    .plan-name {
+        font-weight: 800;
+        font-size: 1.5rem;
+        color: var(--stone-800);
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.01em;
+    }
+
+    .plan-price {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: var(--stone-900);
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: baseline;
+        gap: 0.25rem;
+    }
+
+    .plan-price .currency {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--stone-400);
+        align-self: flex-start;
+        margin-top: 0.5rem;
+    }
+
+    .plan-price .period {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--stone-500);
+        margin-left: 0.25rem;
+    }
+
+    .plan-features {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 2.5rem 0;
+        font-size: 0.95rem;
+        color: var(--stone-600);
+        flex-grow: 1;
+    }
+
+    .plan-features li {
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.5rem 0;
+    }
+
+    .plan-features i {
+        font-size: 1rem;
+        color: var(--stone-400);
+    }
+
+    .plan-card:hover .plan-features i {
+        color: var(--stone-800);
+    }
+
+    .btn-select {
+        width: 100%;
+        padding: 1.125rem;
+        border-radius: 16px;
+        font-weight: 700;
+        font-size: 1rem;
+        border: none;
+        background-color: var(--stone-800);
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-select:hover {
+        background-color: var(--stone-900);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        transform: scale(1.02);
+    }
+
+    .footer-actions {
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--stone-200);
+    }
+
+    .btn-logout {
+        color: var(--stone-500);
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="suspension-container">
+    <div class="suspension-card">
+        <div class="alert-banner">
+            <div class="alert-icon">
+                <i class="fas fa-exclamation-triangle fa-lg"></i>
+            </div>
+            <div>
+                <h4 class="mb-0" style="color: var(--danger-text); font-weight: 700;">Servicio Suspendido</h4>
+                <p class="mb-0 text-muted small">Su cuenta requiere atención inmediata por falta de pago o fin de período.</p>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <div class="company-name">{{ empresa.nombre }}</div>
+            <h1 class="main-title">Tu acceso se encuentra restringido</h1>
+            
+            {% if es_admin %}
+                <p class="description">
+                    Lamentamos los inconvenientes. Para reactivar su servicio de inmediato, por favor seleccione uno de los planes disponibles a continuación y proceda con el pago.
+                </p>
+
+                <div class="plans-grid">
+                    {% for plan in planes %}
+                    <div class="plan-card">
+                        <div class="plan-name">{{ plan.nombre }}</div>
+                        <div class="plan-price">
+                            <span class="currency">$</span>
+                            {{ plan.precio_mensual|floatformat:0|intcomma }}
+                            <span class="period">/ mes</span>
+                        </div>
+                        
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check-circle text-success"></i> Hasta {{ plan.max_usuarios }} usuarios</li>
+                            <li><i class="fas fa-check-circle text-success"></i> {{ plan.max_sucursales }} sucursales</li>
+                            <li><i class="fas fa-check-circle text-success"></i> {{ plan.max_documentos_mes }} DTEs mensuales</li>
+                            {% if plan.incluye_produccion %}
+                                <li><i class="fas fa-check-circle text-success"></i> Módulo Producción</li>
+                            {% endif %}
+                        </ul>
+
+                        <form action="{% url 'empresas:seleccionar_plan' plan.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-select">Activar Ahora</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="description">
+                    El administrador de la cuenta debe regularizar la situación de pago para restablecer el acceso a los módulos operativos. Por favor, contacte con su supervisor.
+                </p>
+                
+                <div class="alert alert-info py-4 rounded-4 border-0">
+                    <i class="fas fa-clock me-2"></i> Sus datos se encuentran seguros y se reactivarán automáticamente al confirmar el pago.
+                </div>
+            {% endif %}
+
+            <div class="footer-actions">
+                <a href="{% url 'logout' %}" class="btn-logout">
+                    <i class="fas fa-sign-out-alt me-1"></i> Cerrar Sesión y volver después
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

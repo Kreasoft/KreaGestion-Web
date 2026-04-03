@@ -159,163 +159,133 @@
             <!-- STATS -->
 
 
-            <div class="single-card-container">
-                <!-- HEADER -->
-                <div class="stone-header-premium">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="header-icon-box">
-                            <i class="fas fa-adjust"></i>
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; margin-top: 20px;">
+                <!-- HEADER PREMIUM -->
+                <div class="card-header stats-card-piedra" style="border: none; padding: 20px 30px; border-radius: 15px 15px 0 0; position: relative; border-bottom: 3px solid var(--color-piedra-borde) !important;">
+                    <div class="d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
+                        <div class="d-flex align-items-center">
+                            <!-- Icono Grande Frontal -->
+                            <div class="me-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; background: rgba(255,255,255,0.15); border-radius: 15px; border: 1px solid rgba(255,255,255,0.2);">
+                                <i class="fas fa-sliders-h" style="font-size: 3.5rem; color: var(--color-piedra-texto); opacity: 0.95;"></i>
+                            </div>
+                            
+                            <div>
+                                <h2 class="mb-0" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif; line-height: 1.1;">
+                                    <span style="font-weight: 300;">Gestión de</span> 
+                                    <span style="font-weight: 700;">Ajustes de Inventario</span>
+                                    <span style="font-weight: 300; font-size: 1.5rem; margin-left: 10px; opacity: 0.7;">#{{ total_ajustes|default:"0" }}</span>
+                                </h2>
+                                <p class="mb-0 mt-1" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif; font-size: 0.95rem; opacity: 0.85; font-weight: 500;">
+                                    Control de entradas, salidas y correcciones manuales de stock
+                                </p>
+                            </div>
                         </div>
-                        <div class="header-text">
-                            <h1>Ajustes de <span class="fw-bold">Stock</span></h1>
-                            <p>Control de entradas y salidas de inventario</p>
+                        
+                        <div>
+                            <button type="button" class="btn btn-sm px-4 fw-bold shadow-sm" onclick="crearAjuste()" style="background: linear-gradient(135deg, #A68B6D 0%, #8B7355 100%); color: white; border-radius: 20px; border: none; height: 42px; display: flex; align-items: center; transition: all 0.3s ease;">
+                                <i class="fas fa-plus me-2"></i> NUEVO AJUSTE MASIVO
+                            </button>
                         </div>
-                    </div>
-                    <div>
-                        <button type="button" class="header-btn btn-action-primary" onclick="crearAjuste()">
-                            <i class="fas fa-plus me-2"></i> Nuevo Ajuste
-                        </button>
                     </div>
                 </div>
 
                 <!-- BODY -->
                 <div class="card-body p-4">
 
-                    <!-- STATS -->
+                    <!-- STATS CARDS -->
                     <div class="row g-3 mb-4">
                         <div class="col-md-3">
                             <div class="stat-card stat-card-1 p-3">
                                 <div class="stat-value">{{ total_ajustes|default:0 }}</div>
                                 <div class="stat-label">Total Ajustes</div>
-                                <i class="fas fa-adjust stat-icon"></i>
+                                <i class="fas fa-file-invoice stat-icon"></i>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="stat-card stat-card-2 p-3">
                                 <div class="stat-value">{{ ajustes_entrada|default:0 }}</div>
-                                <div class="stat-label">Entradas</div>
-                                <i class="fas fa-arrow-up stat-icon"></i>
+                                <div class="stat-label">Folios Entrada</div>
+                                <i class="fas fa-arrow-up stat-icon text-success" style="opacity: 0.1;"></i>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="stat-card stat-card-3 p-3">
                                 <div class="stat-value">{{ ajustes_salida|default:0 }}</div>
-                                <div class="stat-label">Salidas</div>
-                                <i class="fas fa-arrow-down stat-icon"></i>
+                                <div class="stat-label">Folios Salida</div>
+                                <i class="fas fa-arrow-down stat-icon text-danger" style="opacity: 0.1;"></i>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="stat-card stat-card-4 p-3">
                                 <div class="stat-value">{{ total_ajustes|default:0 }}</div>
                                 <div class="stat-label">Este Mes</div>
-                                <i class="fas fa-calendar stat-icon"></i>
+                                <i class="fas fa-calendar-check stat-icon"></i>
                             </div>
                         </div>
                     </div>
                     
                     <!-- FILTROS -->
-                     <div class="stone-filter-box">
-                        <form method="get" class="row g-3 align-items-end">
-                            <div class="col-md-3">
-                                <label class="form-label small fw-bold text-muted mb-1">Bodega</label>
-                                <select name="bodega" class="form-select-stone">
-                                    <option value="">Todas las bodegas</option>
-                                    {% for bod in bodegas %}
-                                    <option value="{{ bod.id }}" {% if request.GET.bodega == bod.id|stringformat:"s" %}selected{% endif %}>
-                                        {{ bod.nombre }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted mb-1">Fecha Desde</label>
-                                <input type="date" name="fecha_desde" class="form-control-stone" value="{{ request.GET.fecha_desde }}">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted mb-1">Fecha Hasta</label>
-                                <input type="date" name="fecha_hasta" class="form-control-stone" value="{{ request.GET.fecha_hasta }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label small fw-bold text-muted mb-1">Tipo de Ajuste</label>
-                                <select name="tipo" class="form-select-stone">
-                                    <option value="">Todos los tipos</option>
-                                    <option value="entrada" {% if request.GET.tipo == 'entrada' %}selected{% endif %}>Entradas</option>
-                                    <option value="salida" {% if request.GET.tipo == 'salida' %}selected{% endif %}>Salidas</option>
-                                </select>
-                            </div>
-                             <div class="col-md-3">
-                                <div class="d-flex gap-2">
-                                     <button type="submit" class="header-btn btn-action-primary w-100 justify-content-center">
-                                        <i class="fas fa-filter me-2"></i> Filtrar
-                                    </button>
-                                    <a href="{% url 'inventario:ajustes_list' %}" class="header-btn btn-limpiar w-100 justify-content-center">
-                                        <i class="fas fa-times me-2"></i> Limpiar
-                                    </a>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+                    {% include "inventario/includes/ajustes_filtros.html" %}
 
                     <!-- TABLA -->
                     <div class="table-responsive">
                         <table class="table-piedra">
                             <thead>
                                 <tr>
-                                    <th>Fecha</th>
-                                    <th>Folio</th>
-                                    <th>Tipo</th>
-                                    <th>Artículo</th>
+                                    <th style="width: 120px;">Fecha</th>
+                                    <th style="width: 140px;">Número Folio</th>
+                                    <th style="width: 100px;">Tipo</th>
                                     <th>Bodega</th>
-                                    <th class="text-end">Cantidad</th>
-                                    <th>Descripción</th>
-                                    <th>Usuario</th>
+                                    <th class="text-center" style="width: 100px;">Artículos</th>
+                                    <th>Motivo / Descripción</th>
                                     <th class="text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for ajuste in ajustes %}
                                 <tr>
-                                    <td>{{ ajuste.fecha_movimiento|date:"d/m/y H:i" }}</td>
-                                    <td><strong style="color: var(--stone-primary);">{{ ajuste.numero_folio|default:"-" }}</strong></td>
+                                    <td class="fw-bold">{{ ajuste.fecha_ajuste|date:"d/m/Y" }}</td>
                                     <td>
-                                        {% if ajuste.cantidad > 0 %}
-                                            <span class="badge-stone bg-entrada">ENT</span>
+                                        <span class="badge bg-light text-dark border px-2 py-1" style="font-family: monospace; font-size: 0.9rem;">
+                                            {{ ajuste.numero_folio }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if ajuste.tipo_ajuste == 'entrada' %}
+                                            <span class="badge-stone bg-entrada"><i class="fas fa-plus-circle me-1"></i>ENTRADA</span>
                                         {% else %}
-                                            <span class="badge-stone bg-salida">SAL</span>
+                                            <span class="badge-stone bg-salida"><i class="fas fa-minus-circle me-1"></i>SALIDA</span>
                                         {% endif %}
                                     </td>
-                                    <td>
-                                        <div class="text-truncate" style="max-width: 200px;" title="{{ ajuste.articulo.nombre }}">
-                                            {{ ajuste.articulo.nombre }}
-                                        </div>
-                                    </td>
-                                    <td>{{ ajuste.bodega_destino.nombre|default:"-" }}</td>
-                                    <td class="text-end fw-bold {% if ajuste.cantidad > 0 %}text-success{% else %}text-danger{% endif %}">
-                                        {% if ajuste.cantidad > 0 %}+{% endif %}{{ ajuste.cantidad|format_miles }}
+                                    <td><i class="fas fa-warehouse me-1 text-muted"></i> {{ ajuste.bodega.nombre }}</td>
+                                    <td class="text-center">
+                                        <span class="badge rounded-pill bg-secondary px-3">{{ ajuste.detalles.count }}</span>
                                     </td>
                                     <td>
-                                        <div class="text-truncate" style="max-width: 150px;">
-                                            {{ ajuste.descripcion|default:"-" }}
+                                        <div class="text-truncate" style="max-width: 250px;" title="{{ ajuste.descripcion }}">
+                                            {{ ajuste.descripcion|default:"Sin descripción" }}
                                         </div>
                                     </td>
-                                    <td><small class="text-muted">{{ ajuste.creado_por.username|default:"-" }}</small></td>
                                     <td class="text-center">
                                         <div class="d-flex justify-content-center gap-1">
-                                            <button type="button" class="btn-icon-stone btn-ver" data-id="{{ ajuste.id|stringformat:'d' }}" title="Ver Detalle">
+                                            <button type="button" class="btn-icon-stone btn-ver" data-id="{{ ajuste.id }}" data-bs-toggle="tooltip" title="Ver Detalle Completo">
                                                 <i class="fas fa-eye"></i>
                                             </button>
-                                            <button type="button" class="btn-icon-stone btn-editar" data-id="{{ ajuste.id|stringformat:'d' }}" title="Editar">
+                                            <button type="button" class="btn-icon-stone btn-editar" data-id="{{ ajuste.id }}" data-bs-toggle="tooltip" title="Editar Ajuste">
                                                 <i class="fas fa-edit"></i>
                                             </button>
+                                            <a href="{% url 'inventario:ajuste_delete_simple' ajuste.id %}" class="btn-icon-stone text-danger" onclick="return confirm('¿Está seguro de eliminar este ajuste? Esta acción revertirá el stock de todos los artículos incluidos.')" title="Eliminar y Revertir">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
                                         </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="9" class="text-center py-5">
+                                    <td colspan="7" class="text-center py-5">
                                         <div class="d-flex flex-column align-items-center opacity-50">
                                             <i class="fas fa-inbox fa-3x mb-3 text-muted"></i>
-                                            <h6 class="fw-bold text-muted">No hay ajustes registrados</h6>
+                                            <h6 class="fw-bold text-muted">No se encontraron folios de ajuste registrados</h6>
                                         </div>
                                     </td>
                                 </tr>
@@ -331,7 +301,7 @@
 
 <!-- Modal para detalle con fondo transparente para dejar que el partial cargue su header -->
 <div class="modal fade" id="detalleModal">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <!-- Contenido transparente -->
         <div class="modal-content shadow-lg border-0" id="detalleContent" style="background: transparent; border-radius: 16px;">
             <!-- El contenido se cargará aquí -->
@@ -480,5 +450,6 @@ function crearAjuste() {
             modal.hide();
         });
 }
+
 </script>
 {% endblock %}

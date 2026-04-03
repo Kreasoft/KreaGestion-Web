@@ -9,6 +9,16 @@
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
+    /* VARIABLES ESTILO PIEDRA */
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #FDFCFB 0%, #F5F1E8 100%);
+        --stone-text: #5D4037;
+    }
+
     /* Altura para campos de cabecera */
     .header-field, .select2-container--default .select2-selection--single {
         height: 35px !important;
@@ -32,6 +42,47 @@
         font-size: 1rem;
         padding-left: 0.5em;
     }
+
+    /* Piedra Pastel (Soft UI) */
+    .card-stats-pastel-piedra {
+        background: var(--stone-gradient) !important;
+        border: 1px solid var(--stone-light) !important;
+        box-shadow: 0 5px 15px rgba(139, 115, 85, 0.05) !important;
+    }
+
+    .label-piedra {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--stone-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+        display: block;
+    }
+
+    .info-box-piedra {
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 8px;
+        padding: 12px;
+        height: 100%;
+        transition: all 0.2s;
+    }
+
+    .info-box-piedra:hover {
+        border-color: var(--stone-primary);
+        box-shadow: 0 4px 8px rgba(139, 115, 85, 0.1);
+    }
+
+    .doc-option-card:hover {
+        background: rgba(139, 115, 85, 0.1) !important;
+    }
+
+    .doc-option-card.selected {
+        background: white !important;
+        border: 2px solid var(--stone-primary) !important;
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.15) !important;
+    }
 </style>
 {% endblock %}
 
@@ -51,118 +102,165 @@
     </div>
     <form method="post" id="despachoForm">
         {% csrf_token %}
-        {{ form.orden_pedido }}
         {{ formset.management_form }}
         <div class="card shadow-sm" style="border: none; border-radius: 10px; font-size: 0.8rem;">
-            <!-- Header -->
-            <div class="card-header" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; padding: 0.5rem 1rem;">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="mb-0"><i class="fas fa-truck-loading me-2"></i>{{ titulo }}</h5>
-                        <small class="text-white-50">Crea y gestiona una nueva orden de despacho para un pedido existente.</small>
-                    </div>
-                    <div>
-                        <a href="{% url 'pedidos:orden_despacho_list' %}" class="btn btn-sm btn-outline-light py-0 px-2" style="font-size: 0.7rem;"><i class="fas fa-arrow-left"></i> Volver</a>
+            <!-- Header Piedra -->
+            <div class="card-header stats-card-piedra" style="border: none; padding: 15px 20px; border-radius: 10px 10px 0 0;">
+                <div class="stats-bg-icon" style="font-size: 60px;">
+                    <i class="fas fa-truck-loading"></i>
+                </div>
+                <div class="stats-content">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif;">
+                                <i class="fas fa-truck-loading me-2"></i><span style="font-weight: 300;">Nueva</span> <span style="font-weight: 700;">Orden de Despacho</span>
+                            </h4>
+                            <p class="mb-0 opacity-75" style="color: var(--color-piedra-texto);">Crea y gestiona una nueva orden de despacho institucional</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'pedidos:orden_despacho_list' %}" class="btn btn-sm px-3" style="background: rgba(255,255,255,0.3); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 15px;"><i class="fas fa-arrow-left me-1"></i> Volver</a>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Body -->
-            <div class="card-body" style="padding: 0.5rem;">
-                <!-- Info Pedido y Cliente -->
-                <div class="row gx-2 mb-2 pb-2 border-bottom align-items-center">
-                    <div class="col-md-3"><strong>Pedido:</strong> 
-                        {% if pedido and pedido.pk %}
-                            <a href="{% url 'pedidos:orden_pedido_detail' pedido.pk %}">{{ pedido.numero_pedido }}</a>
-                        {% else %}
-                            <span class="text-muted">Seleccione un pedido</span>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-2"><strong>Fecha Despacho:</strong> {{ form.fecha_despacho }}</div>
-                    <div class="col-md-2"><strong>Fecha Entrega:</strong> {{ form.fecha_entrega_estimada }}</div>
-                    {% if not orden %}
+            <div class="card-body p-4">
+                <!-- Sección 1: Datos Base y Cliente -->
+                <div class="row g-3 mb-4">
                     <div class="col-md-4">
-                        <strong class="d-block mb-1">Documento a Generar:</strong>
-                        <div class="d-flex align-items-center gap-4 mt-1">
-                            {% for radio in form.tipo_documento %}
-                                <div class="form-check form-check-lg">
-                                    {{ radio.tag }}
-                                    <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                        <div class="info-box-piedra">
+                            <span class="label-piedra"><i class="fas fa-shopping-cart me-1"></i> Orden de Pedido Origen</span>
+                            <div class="d-flex align-items-center mt-1">
+                                <div class="flex-grow-1">
+                                    {{ form.orden_pedido }}
                                 </div>
-                            {% endfor %}
+                                {% if pedido.pk %}
+                                <a href="{% url 'pedidos:orden_pedido_detail' pedido.pk %}" class="btn btn-sm ms-2" style="background: #F5F1E8; color: #8B7355;" title="Ver Pedido">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
-                    {% endif %}
-                    <div class="col-md-6" id="cliente-info">
-                        <div class="row gx-2">
-                            <div class="col-6"><strong>Cliente:</strong> <span id="cliente_nombre">-</span></div>
-                            <div class="col-6"><strong>RUT:</strong> <span id="cliente_rut">-</span></div>
-                            <div class="col-12 mt-1"><strong>Dirección:</strong> <span id="cliente_direccion">-</span></div>
+                    <div class="col-md-4">
+                        <div class="info-box-piedra">
+                            <span class="label-piedra"><i class="fas fa-user me-1"></i> Información del Cliente</span>
+                            <div id="cliente-info-display" class="mt-1">
+                                <div class="fw-bold" id="cliente_nombre" style="color: #6F5B44;">
+                                    {% if pedido %}{{ pedido.cliente.nombre }}{% elif orden %}{{ orden.orden_pedido.cliente.nombre }}{% else %}- Seleccione Pedido -{% endif %}
+                                </div>
+                                <div class="small text-muted" id="cliente_rut">
+                                    RUT: {% if pedido %}{{ pedido.cliente.rut }}{% elif orden %}{{ orden.orden_pedido.cliente.rut }}{% else %}-{% endif %}
+                                </div>
+                                <div class="small text-muted text-truncate" id="cliente_direccion" style="max-width: 250px;">
+                                    {% if pedido %}{{ pedido.cliente.direccion }}{% elif orden %}{{ orden.orden_pedido.cliente.direccion }}{% else %}-{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="info-box-piedra">
+                            <span class="label-piedra"><i class="fas fa-calendar-alt me-1"></i> Programación Despacho</span>
+                            <div class="row g-2 mt-1">
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.6rem;">FECHA SALIDA</small>
+                                    {{ form.fecha_despacho }}
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block" style="font-size: 0.6rem;">ENTREGA EST.</small>
+                                    {{ form.fecha_entrega_estimada }}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Información de Transporte -->
-                <div class="row gx-2 mb-2 pb-2 border-bottom">
+
+                <!-- Sección 2: Tipo de Documento y Traslado -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="info-box-piedra" style="background: rgba(139, 115, 85, 0.05);">
+                            <span class="label-piedra">Documento Tributario a Generar</span>
+                            <div class="d-flex gap-4 mt-2">
+                                {% if form.tipo_documento.field.widget.input_type == 'hidden' %}
+                                    {{ form.tipo_documento }}
+                                    <span class="badge bg-light text-dark border p-2" style="border-radius: 8px;">
+                                        <i class="fas fa-file-invoice me-1"></i> Documento ya asignado
+                                    </span>
+                                {% else %}
+                                    {% for radio in form.tipo_documento %}
+                                        <div class="form-check form-check-inline form-check-lg doc-option-card" style="padding: 10px 20px; border-radius: 8px; transition: all 0.2s; cursor: pointer;">
+                                            {{ radio.tag }}
+                                            <label class="form-check-label fw-bold" for="{{ radio.id_for_label }}" style="color: var(--stone-secondary); cursor: pointer;">
+                                                {{ radio.choice_label|upper }} 
+                                                {% if radio.choice_value == 'guia' %}<i class="fas fa-file-invoice ms-1"></i>{% else %}<i class="fas fa-file-alt ms-1"></i>{% endif %}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-box-piedra">
+                            <span class="label-piedra">Motivo del Traslado (SII)</span>
+                            <div class="mt-1">
+                                {{ form.tipo_traslado }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 3: Logística y Transporte -->
+                <div class="row g-3 mb-4">
                     <div class="col-md-3">
-                        <label class="form-label mb-1"><strong>Chofer:</strong></label>
+                        <span class="label-piedra"><i class="fas fa-user-tie me-1"></i> Chofer Asignado</span>
                         {{ form.chofer }}
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label mb-1"><strong>Vehículo:</strong></label>
+                        <span class="label-piedra"><i class="fas fa-truck me-1"></i> Vehículo de Carga</span>
                         {{ form.vehiculo }}
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label mb-1"><strong>Transportista Externo:</strong></label>
+                        <span class="label-piedra"><i class="fas fa-shipping-fast me-1"></i> Transportista Ext.</span>
                         {{ form.transportista_externo }}
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label mb-1"><strong>Dirección de Entrega:</strong></label>
+                        <span class="label-piedra"><i class="fas fa-map-marked-alt me-1"></i> Punto de Entrega</span>
                         {{ form.direccion_entrega }}
                     </div>
                 </div>
                 
-                <!-- Observaciones -->
-                {% if form.observaciones %}
-                <div class="row gx-2 mb-2 pb-2 border-bottom">
-                    <div class="col-12">
-                        <label class="form-label mb-1"><strong>Observaciones:</strong></label>
-                        {{ form.observaciones }}
+                <!-- Items Detalle Modernizado Piedra -->
+                <div class="card card-stats-pastel-piedra border-0 shadow-sm mt-4" style="border-radius: 12px; overflow: hidden;">
+                    <div class="item-header-piedra d-flex align-items-center" style="background: var(--stone-gradient); padding: 10px 15px; border-bottom: 2px solid var(--stone-light); font-weight: 700; color: var(--stone-secondary); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px;">
+                        <div style="width: 35%;">Artículo / Código</div>
+                        <div class="text-center" style="width: 15%;">Stock Pend.</div>
+                        <div class="text-center" style="width: 15%;">Despachar</div>
+                        <div class="text-end" style="width: 15%;">V. Unitario</div>
+                        <div class="text-end" style="width: 20%;">Total Item</div>
                     </div>
-                </div>
-                {% endif %}
-                
-                {{ form.estado }}
-                <div class="d-flex justify-content-between align-items-center text-muted px-2" style="font-size: 0.7rem;">
-                    <div style="width: 30%;"><strong>Producto</strong></div>
-                    <div class="d-flex align-items-center text-end" style="width: 25%;">
-                        <div class="px-2 w-100"><strong>Neto</strong></div>
-                        <div class="px-2 w-100"><strong>IVA</strong></div>
-                        <div class="px-2 w-100"><strong>Imp.Esp.</strong></div>
-                        <div class="ps-2 w-100"><strong>Total</strong></div>
-                    </div>
-                    <div></div>
-                </div>
-
-                <!-- Items del Despacho -->
-                <div class="card mt-2" style="background: #F5F1E8; border: 1px solid #E8DCC8;">
-                    <div class="card-body" style="padding: 0.5rem;" id="items-container">
-                        <!-- Los items se cargarán aquí dinámicamente -->
-                        <div class="text-center p-3 text-muted">Seleccione un pedido para ver sus artículos.</div>
+                    <div class="card-body p-0" id="items-container">
+                        <div class="text-center p-5 text-muted bg-white">
+                            <i class="fas fa-truck-loading fa-3x mb-3 opacity-25"></i>
+                            <p class="mb-0">Vincule un Pedido de Venta para cargar los artículos pendientes.</p>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Totales y Botones -->
-                <div class="row mt-2 align-items-center">
+                <div class="row mt-4 align-items-center">
                     <div class="col-md-8 text-end" id="totales-container" style="font-size: 0.9rem;">
-                        <span class="me-3"><strong>Neto:</strong> $<span id="total-neto">0</span></span>
-                        <span class="me-3"><strong>IVA:</strong> $<span id="total-iva">0</span></span>
-                        <span class="me-3"><strong>Imp.Esp.:</strong> $<span id="total-imp-esp">0</span></span>
-                        <strong class="h5" style="color: #8B7355;">TOTAL: $<span id="total-final">0</span></strong>
+                        <div class="d-inline-block p-3 rounded-3 bg-light border border-light shadow-sm">
+                            <span class="me-3"><strong>Neto:</strong> $<span id="total-neto">0</span></span>
+                            <span class="me-3"><strong>IVA:</strong> $<span id="total-iva">0</span></span>
+                            <span class="me-3"><strong>Imp.Esp.:</strong> $<span id="total-imp-esp">0</span></span>
+                            <strong class="h4 mb-0 ms-2" style="color: var(--stone-primary);">TOTAL: $<span id="total-final">0</span></strong>
+                        </div>
                     </div>
                     <div class="col-md-4 text-end">
-                        <a href="{% url 'pedidos:orden_despacho_list' %}" class="btn btn-secondary btn-sm">Cancelar</a>
-                        <button type="submit" id="submit-despacho-btn" class="btn btn-sm" style="background: #8B7355; color: white;"><i class="fas fa-save me-1"></i>{{ accion }}</button>
+                        <a href="{% url 'pedidos:orden_despacho_list' %}" class="btn btn-outline-secondary px-4 me-2" style="border-radius: 20px;">Cancelar</a>
+                        <button type="submit" id="submit-despacho-btn" class="btn px-4" style="background: var(--stone-primary); color: white; border-radius: 20px; font-weight: 600;"><i class="fas fa-save me-1"></i> {{ accion }}</button>
                     </div>
                 </div>
             </div>
@@ -237,30 +335,37 @@ $(document).ready(function() {
 
                     data.items.forEach(item => {
                         const itemHtml = `
-                            <div class="d-flex justify-content-between align-items-center py-1 border-bottom item-row" data-precio-neto="${item.precio_neto}" data-iva="${item.iva}" data-imp-esp="${item.impuesto_especifico}">
+                            <div class="item-row-piedra item-row d-flex align-items-center" 
+                                 style="padding: 12px 15px; border-bottom: 1px solid var(--stone-light); transition: all 0.2s;"
+                                 onmouseover="this.style.background='rgba(139, 115, 85, 0.05)'" 
+                                 onmouseout="this.style.background='transparent'"
+                                 data-precio-neto="${item.precio_neto_unitario || item.precio_neto / item.cantidad_pedido}" 
+                                 data-iva="${item.iva / item.cantidad_pedido}" 
+                                 data-imp-esp="${item.impuesto_especifico / item.cantidad_pedido}">
+                                
                                 <input type="hidden" name="items-${formIdx}-item_pedido" value="${item.item_pedido_id}">
-                                <div style="width: 30%;">
-                                    <small class="text-muted">${item.codigo}</small> <strong>${item.articulo}</strong>
+                                
+                                <div style="width: 35%;">
+                                    <div class="fw-bold" style="color: var(--stone-secondary); font-size: 0.85rem;">${item.articulo}</div>
+                                    <div class="text-muted" style="font-size: 0.7rem; font-family: monospace;">COD: ${item.codigo}</div>
                                 </div>
-                                <div class="d-flex align-items-center text-end" style="font-size: 0.75rem; width: 25%;">
-                                    <div class="px-2 w-100">$${Math.round(item.precio_neto).toLocaleString('es-CL')}</div>
-                                    <div class="px-2 w-100">$${Math.round(item.iva).toLocaleString('es-CL')}</div>
-                                    <div class="px-2 w-100">$${Math.round(item.impuesto_especifico).toLocaleString('es-CL')}</div>
-                                    <div class="ps-2 w-100 fw-bold">$${Math.round(item.total).toLocaleString('es-CL')}</div>
+                                
+                                <div class="text-center fw-bold" style="width: 15%; color: var(--stone-primary);">
+                                    ${item.cantidad_pendiente} <span class="text-muted" style="font-size: 0.65rem; font-weight: normal;">UND</span>
                                 </div>
-                                <div class="d-flex align-items-center">
-                                    <div class="px-2 text-center">
-                                        <small class="d-block" style="font-size:0.6rem;">Pendiente</small>
-                                        <input type="text" class="form-control form-control-sm item-field text-center" value="${item.cantidad_pendiente}" readonly>
-                                    </div>
-                                    <div class="px-2">
-                                        <small class="d-block" style="font-size:0.6rem;">A Despachar *</small>
-                                        <input type="number" name="items-${formIdx}-cantidad" class="form-control form-control-sm item-field cantidad-despachar" value="${item.cantidad_pendiente}" step="0.01" min="0" max="${item.cantidad_pendiente}" required>
-                                    </div>
-                                    <div class="px-2">
-                                        <small class="d-block" style="font-size:0.6rem;">Observaciones</small>
-                                        <input type="text" name="items-${formIdx}-observaciones" class="form-control form-control-sm item-field">
-                                    </div>
+                                
+                                <div style="width: 15%; padding: 0 10px;">
+                                    <input type="number" name="items-${formIdx}-cantidad" class="form-control form-control-sm text-center fw-bold cantidad-despachar" 
+                                        value="${item.cantidad_pendiente}" step="0.01" min="0" max="${item.cantidad_pendiente}" required 
+                                        style="height: 32px; border-radius: 6px; border: 1px solid var(--stone-light); color: var(--stone-primary); background: #FFFBF7; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);">
+                                </div>
+                                
+                                <div class="text-end" style="width: 15%; color: var(--stone-secondary); font-size: 0.85rem;">
+                                    $${Math.round(item.total / item.cantidad_pedido).toLocaleString('es-CL')}
+                                </div>
+                                
+                                <div class="text-end fw-bold" style="width: 20%; color: var(--stone-primary); font-size: 0.95rem;">
+                                    $${Math.round(item.total).toLocaleString('es-CL')}
                                 </div>
                             </div>
                         `;
@@ -311,9 +416,10 @@ $(document).ready(function() {
     });
 
     // --- Carga Inicial ---
-
-    const initialPedidoId = '{{ pedido.id|default_if_none:"" }}';
+    // En creación usamos 'pedido', en edición usamos 'orden.orden_pedido'
+    const initialPedidoId = '{% if pedido %}{{ pedido.id }}{% elif orden %}{{ orden.orden_pedido.id }}{% endif %}';
     if (initialPedidoId) {
+        console.log("Cargando datos iniciales para pedido ID:", initialPedidoId);
         loadPedidoData(initialPedidoId);
     }
 

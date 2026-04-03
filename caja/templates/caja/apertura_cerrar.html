@@ -142,6 +142,7 @@
                     <div class="col-md-12">
                         <div class="section-title"><i class="fas fa-wallet me-2"></i>Resumen Financiero del Turno</div>
                         <div class="row g-3">
+                            <!-- Datos fijos de Apertura -->
                             <div class="col-md-3 col-6">
                                 <div class="stat-card">
                                     <div class="stat-card-label">Monto Inicial</div>
@@ -154,24 +155,52 @@
                                     <div class="stat-card-value">${{ apertura.total_ventas_efectivo|format_price }}</div>
                                 </div>
                             </div>
-                             <div class="col-md-3 col-6">
+                            <div class="col-md-3 col-6">
                                 <div class="stat-card">
-                                    <div class="stat-card-label">Otros Ingresos</div>
+                                    <div class="stat-card-label">Ingresos Manuales (+)</div>
                                     <div class="stat-card-value text-success">+${{ total_ingresos|default:"0"|format_price }}</div>
                                 </div>
                             </div>
                              <div class="col-md-3 col-6">
                                 <div class="stat-card">
-                                    <div class="stat-card-label">Retiros/Gastos</div>
+                                    <div class="stat-card-label">Retiros/Gastos (-)</div>
                                     <div class="stat-card-value text-danger">-${{ total_egresos|default:"0"|format_price }}</div>
                                 </div>
                             </div>
 
-                            <!-- TOTAL ESPERADO (HIGHLIGHT) -->
-                            <div class="col-12 mt-3">
-                                <div class="stat-card stat-card-highlight">
-                                    <div class="stat-card-label">EFECTIVO ESPERADO EN CAJA (TEÓRICO)</div>
-                                    <div class="stat-card-value">${{ apertura.monto_final|format_price }}</div>
+                            <!-- RESUMEN DINÁMICO POR CADA MEDIO DE PAGO USADO -->
+                            <div class="col-12">
+                                <div class="section-title mt-2 mb-3" style="font-size: 0.75rem; color: #795548; border-bottom: 1px dotted #E8DCC8;">
+                                    <i class="fas fa-list-ul me-2"></i>Desglose detallado por medio de pago
+                                </div>
+                                <div class="row g-2">
+                                    {% for nombre_fp, datos in ventas_por_forma_pago.items %}
+                                    <div class="col-md-4 col-6">
+                                        <div class="stat-card py-2 bg-light bg-opacity-25" style="border-style: solid; border-width: 1px;">
+                                            <div class="stat-card-label" style="font-size: 0.65rem; color: #A1887F;">{{ nombre_fp|upper }}</div>
+                                            <div class="stat-card-value" style="font-size: 0.95rem;">
+                                                ${{ datos.total|format_price }}
+                                                <span class="ms-1 small text-muted" style="font-size: 0.65rem; font-weight: normal;">({{ datos.cantidad }} ops)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    
+                                    <div class="col-md-4 col-12">
+                                        <div class="stat-card py-2" style="background: #EFEBE9; border-color: #D7CCC8;">
+                                            <div class="stat-card-label" style="font-size: 0.65rem; color: #5D4037;">TOTAL VENTAS DEL TURNO</div>
+                                            <div class="stat-card-value" style="font-size: 0.95rem; color: #5D4037;">${{ apertura.total_ventas|format_price }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TOTAL ESPERADO (HIGHLIGHT PARA EL ARQUEO FÍSICO) -->
+                            <div class="col-12 mt-3 text-center">
+                                <div class="stat-card stat-card-highlight d-flex align-items-center justify-content-center flex-column py-4" style="border: 2px dashed var(--stone-primary);">
+                                    <div class="stat-card-label fs-6">EFECTIVO REAL QUE DEBE HABER EN CAJA (TEÓRICO)</div>
+                                    <div class="stat-card-value" style="font-size: 2.5rem;">${{ apertura.monto_final|format_price }}</div>
+                                    <p class="text-muted small mt-2 mb-0">Esta es la cantidad que debes contar físicamente (Billetes y Monedas)</p>
                                 </div>
                             </div>
                         </div>

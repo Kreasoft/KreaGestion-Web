@@ -345,6 +345,20 @@
             transform: scale(1.05);
             filter: brightness(0) invert(1) drop-shadow(0 0 15px rgba(255, 255, 255, 1));
         }
+
+        /* Custom Checkbox */
+        .custom-checkbox {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .custom-checkbox:checked {
+            background-color: #D2691E;
+            border-color: #D2691E;
+        }
+        .custom-checkbox:focus {
+            box-shadow: 0 0 0 0.2rem rgba(210, 105, 30, 0.25);
+            border-color: #D2691E;
+        }
     </style>
 </head>
 
@@ -415,8 +429,8 @@
 
                     <!-- Usuario -->
                     <div class="mb-3">
-                        <label for="{{ form.username.id_for_label }}" class="form-label">Usuario</label>
-                        {{ form.username|add_class:"form-control"|attr:"placeholder:Ingresa tu usuario" }}
+                        <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+                        {{ form.username|add_class:"form-control"|attr:"placeholder:Ingresa tu usuario o email" }}
                         {% if form.username.errors %}
                         <div class="text-danger small mt-1">{{ form.username.errors.0 }}</div>
                         {% endif %}
@@ -425,10 +439,25 @@
                     <!-- Contraseña -->
                     <div class="mb-4">
                         <label for="{{ form.password.id_for_label }}" class="form-label">Contraseña</label>
-                        {{ form.password|add_class:"form-control"|attr:"placeholder:Ingresa tu contraseña" }}
+                        <div class="input-group">
+                            {{ form.password|add_class:"form-control border-end-0"|attr:"placeholder:Ingresa tu contraseña" }}
+                            <button class="input-group-text bg-transparent border-start-0" type="button" id="togglePassword" style="border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.6); cursor: pointer;">
+                                <i class="fas fa-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
                         {% if form.password.errors %}
                         <div class="text-danger small mt-1">{{ form.password.errors.0 }}</div>
                         {% endif %}
+                    </div>
+
+                    <!-- Recordarme -->
+                    <div class="mb-4 d-flex justify-content-between align-items-center">
+                        <div class="form-check">
+                            <input class="form-check-input custom-checkbox" type="checkbox" name="remember_me" id="remember_me">
+                            <label class="form-check-label text-muted-glass small" for="remember_me" style="cursor: pointer;">
+                                Recordarme
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Botón -->
@@ -440,7 +469,7 @@
 
                     <!-- Links -->
                     <div class="text-center">
-                        <a href="#" class="link-glass small">
+                        <a href="{% url 'password_reset' %}" class="link-glass small">
                             ¿Olvidaste tu contraseña?
                         </a>
                     </div>
@@ -469,6 +498,20 @@
                         btn.disabled = true;
                         btn.style.opacity = '0.8';
                     }
+                });
+            }
+
+            // Toggle Password Visibility
+            const togglePassword = document.querySelector('#togglePassword');
+            const password = document.querySelector('input[name="password"]');
+            const eyeIcon = document.querySelector('#eyeIcon');
+
+            if (togglePassword && password) {
+                togglePassword.addEventListener('click', function () {
+                    const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                    password.setAttribute('type', type);
+                    eyeIcon.classList.toggle('fa-eye');
+                    eyeIcon.classList.toggle('fa-eye-slash');
                 });
             }
         });

@@ -59,13 +59,11 @@ def crear_perfil_usuario(sender, instance, created, **kwargs):
 	Crear automáticamente un perfil cuando se crea un usuario
 	"""
 	if created:
-		# Solo crear perfil si no es superusuario
-		if not instance.is_superuser:
-			# Por defecto asignar a la primera empresa disponible
-			from empresas.models import Empresa
-			empresa_default = Empresa.objects.first()
-			if empresa_default:
-				PerfilUsuario.objects.create(usuario=instance, empresa=empresa_default)
+		# Asignar a la primera empresa disponible (incluyendo superusuarios)
+		from empresas.models import Empresa
+		empresa_default = Empresa.objects.first()
+		if empresa_default:
+			PerfilUsuario.objects.get_or_create(usuario=instance, defaults={'empresa': empresa_default})
 
 
 @receiver(post_save, sender=User)

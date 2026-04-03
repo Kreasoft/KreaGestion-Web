@@ -258,30 +258,28 @@
                                         <div class="stat-grid-value">${{ apertura.total_ventas_efectivo|format_price }}</div>
                                     </div>
                                 </div>
-                                <!-- Otros medios de pago -->
-                                <div class="col-4">
-                                    <div class="stat-grid-item py-2">
-                                        <div class="stat-grid-label" style="font-size: 0.65rem;">Tarjeta</div>
-                                        <div class="fw-bold small">${{ apertura.total_ventas_tarjeta|format_price }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="stat-grid-item py-2">
-                                        <div class="stat-grid-label" style="font-size: 0.65rem;">Transf.</div>
-                                        <div class="fw-bold small">${{ apertura.total_ventas_transferencia|format_price }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="stat-grid-item py-2">
-                                        <div class="stat-grid-label" style="font-size: 0.65rem;">Otros</div>
-                                        <div class="fw-bold small">${{ apertura.total_ventas_cheque|add:apertura.total_ventas_credito|format_price }}</div>
-                                    </div>
-                                </div>
+
+                                <!-- Resumen dinámico por cada FP -->
+                                {% if ventas_por_forma_pago %}
+                                     <div class="col-12 mt-2">
+                                         <div class="row g-2">
+                                             {% for nombre_fp, datos in ventas_por_forma_pago.items %}
+                                             <div class="col-4">
+                                                 <div class="stat-grid-item py-1">
+                                                     <div class="stat-grid-label" style="font-size: 0.6rem;">{{ nombre_fp|truncatechars:10 }}</div>
+                                                     <div class="fw-bold small">${{ datos.total|format_price }}</div>
+                                                 </div>
+                                             </div>
+                                             {% endfor %}
+                                         </div>
+                                     </div>
+                                {% endif %}
                             </div>
                             
                             <div class="total-highlight">
                                 <div class="small opacity-75 text-uppercase fw-bold mb-1">Efectivo Final (Teórico)</div>
                                 <div class="h3 mb-0 fw-bold">${{ apertura.monto_final|format_price }}</div>
+                                <div class="small mt-1 opacity-75">T. Ventas: ${{ apertura.total_ventas|format_price }}</div>
                             </div>
 
                         </div>

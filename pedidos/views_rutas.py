@@ -185,7 +185,8 @@ def hoja_ruta_list(request):
         'pendientes': pendientes,
         'en_ruta': en_ruta,
         'completadas': completadas,
-        'titulo': 'Hojas de Ruta'
+        'titulo': 'Hojas de Ruta',
+        'form': HojaRutaForm(empresa=request.empresa)
     }
     return render(request, 'pedidos/hoja_ruta_list.html', context)
 

@@ -275,3 +275,42 @@ class GrupoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['name'].help_text = 'Nombre descriptivo para el rol/grupo de usuarios'
 
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import authenticate, get_user_model
+
+class EmailOrUsernameAuthenticationForm(AuthenticationForm):
+    """Formulario de login que permite usar nombre de usuario o correo electrónico"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].label = 'Usuario o Correo Electrónico'
+        self.fields['username'].widget.attrs.update({
+            'placeholder': 'Ingresa tu usuario o email'
+        })
+
+    def clean(self):
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+
+        if username and password:
+            # Primero intentar con el método estándar (username)
+            self.user_cache = authenticate(self.request, username=username, password=password)
+            
+            if self.user_cache is None:
+                # Si falla, intentar buscar el usuario por email
+                UserModel = get_user_model()
+                try:
+                    # Buscar el usuario por el correo proporcionado
+                    user = UserModel.objects.filter(email__iexact=username).first()
+                    if user:
+                        # Si encontramos el usuario por email, autenticar usando su username real
+                        self.user_cache = authenticate(self.request, username=user.username, password=password)
+                except Exception:
+                    pass
+
+            if self.user_cache is None:
+                raise self.get_invalid_login_error()
+            else:
+                self.confirm_login_allowed(self.user_cache)
+
+        return self.cleaned_data

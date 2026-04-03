@@ -234,6 +234,27 @@ class Venta(models.Model):
                 self.saldo_pendiente = Decimal('0.00')
 
         super().save(*args, **kwargs)
+
+    def get_cliente_nombre(self):
+        """Retorna el nombre del cliente, buscando en observaciones si no hay cliente asociado"""
+        if self.cliente:
+            return self.cliente.nombre
+        
+        # Fallback para ventas móviles sin cliente asociado
+        if self.observaciones and '[MOVIL] Cliente:' in self.observaciones:
+            try:
+                # Extraer: "[MOVIL] Cliente: Juan Perez" -> "Juan Perez"
+                # O "[MOVIL] Cliente: [PENDIENTE] Juan Perez" -> "Juan Perez"
+                nombre = self.observaciones.split('Cliente: ')[1].split('\n')[0]
+                if ' [PENDIENTE]' in nombre:
+                    nombre = nombre.replace('[PENDIENTE] ', '')
+                if ' [' in nombre:
+                    nombre = nombre.split(' [')[0]
+                return nombre.strip()
+            except:
+                pass
+        
+        return "Cliente Ocasional"
     
     def calcular_totales(self):
         """

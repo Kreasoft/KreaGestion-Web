@@ -110,6 +110,23 @@ class OrdenDespacho(models.Model):
         verbose_name="Observaciones"
     )
     
+    # Tipo de Traslado (OBLIGATORIO para Guías de Despacho)
+    tipo_traslado = models.CharField(
+        max_length=1,
+        choices=[
+            ('1', 'Venta'),
+            ('2', 'Venta por efectuar'),
+            ('3', 'Consignación'),
+            ('4', 'Devolución'),
+            ('5', 'Traslado interno'),
+            ('6', 'Transformación'),
+            ('7', 'Entrega gratuita'),
+            ('8', 'Otros'),
+        ],
+        default='1',
+        verbose_name="Tipo de Traslado (IndTraslado)"
+    )
+
     # Auditoría
     creado_por = models.ForeignKey(
         User,

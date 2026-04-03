@@ -204,9 +204,12 @@ def procesar_venta_caja(request, ticket_id):
                 print(f"[CAJA] Generando DTE tipo {tipo_dte_codigo} para ticket {ticket.id}...")
                 print(f"[CAJA] Documento permanece como 'ticket', DTE se genera como '{ticket.tipo_documento_planeado}'")
                 
-                # NO modificar ticket.tipo_documento antes de generar DTE
-                # El ticket debe permanecer como 'ticket' para evitar error de unicidad
-                # El DTE se genera basándose en tipo_documento_planeado
+                # SOBRESCRIBIR FECHA DEL TICKET CON LA FECHA DE APERTURA DE CAJA
+                # Esto asegura que el documento salga con la fecha del día del cobro
+                if apertura_activa:
+                    ticket.fecha = apertura_activa.fecha_apertura.date()
+                    ticket.save(update_fields=['fecha'])
+                    print(f"[CAJA] Fecha del ticket actualizada a fecha de apertura: {ticket.fecha}")
                 
                 # Generar DTE
                 dte_service = DTEService(request.empresa)
@@ -225,6 +228,7 @@ def procesar_venta_caja(request, ticket_id):
                 for fp_data in formas_pago_dict.values():
                     forma_pago_obj = FormaPago.objects.get(id=fp_data['forma_pago_id'], empresa=request.empresa)
                     
+                    # USAR FECHA DE APERTURA PARA EL MOVIMIENTO (ESTRICTO)
                     MovimientoCaja.objects.create(
                         apertura_caja=apertura_activa,
                         venta=ticket,
@@ -232,7 +236,8 @@ def procesar_venta_caja(request, ticket_id):
                         forma_pago=forma_pago_obj,
                         monto=Decimal(str(fp_data['monto'])),
                         descripcion=f"{ticket.tipo_documento_planeado.title()} #{numero_venta_final}",
-                        usuario=request.user
+                        usuario=request.user,
+                        fecha=apertura_activa.fecha_apertura # Forzar fecha contable de la caja
                     )
 
                     # Guardar la primera forma de pago en el ticket (para trazabilidad y DTE)

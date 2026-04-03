@@ -137,6 +137,12 @@ class ItemOrdenPedido(models.Model):
         verbose_name = "Item de Orden de Pedido"
         verbose_name_plural = "Items de Orden de Pedido"
     
+    def save(self, *args, **kwargs):
+        """Failsafe para asegurar que el impuesto nunca sea nulo en la BD"""
+        if self.impuesto_porcentaje is None:
+            self.impuesto_porcentaje = 19
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         return f"{self.articulo.nombre} - {self.cantidad} unidades"
     
@@ -166,7 +172,7 @@ class ItemOrdenPedido(models.Model):
     def cantidad_despachada(self):
         """Calcula la cantidad total despachada para este item."""
         total_despachado = self.despachos.filter(
-            orden_despacho__estado__in=['despachado', 'entregado']
+            orden_despacho__estado__in=['en_preparacion', 'despachado', 'en_transito', 'entregado']
         ).aggregate(total=models.Sum('cantidad'))['total'] or Decimal('0')
         return total_despachado
 

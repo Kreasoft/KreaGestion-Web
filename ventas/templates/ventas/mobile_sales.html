@@ -734,8 +734,18 @@
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Cliente:</span>
-                        <select id="clientSelect" class="form-select form-select-sm w-auto">
+                        <select id="clientSelect" class="form-select form-select-sm w-auto" onchange="app.toggleOccasionalClientName()">
                             <option value="">Cliente Ocasional</option>
+                        </select>
+                    </div>
+                    <div id="occasionalClientNameRow" class="d-flex justify-content-between mb-2">
+                        <span>Nombre:</span>
+                        <input type="text" id="occasionalClientName" class="form-control form-control-sm w-auto" placeholder="Nombre para el vale">
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>F. Pago:</span>
+                        <select id="paymentMethodSelect" class="form-select form-select-sm w-auto">
+                            <!-- Formas de pago will be injected here -->
                         </select>
                     </div>
                     <div class="d-flex justify-content-between mt-3">
@@ -840,7 +850,13 @@
 
         <!-- View: Historial / Sincronización (Pendientes) -->
         <div id="viewHistory" class="view">
-            <h5 class="fw-bold mb-3"><i class="fas fa-sync me-2"></i>Sincronización Pendiente</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="fas fa-sync me-2"></i>Pendientes</h5>
+                <button class="btn btn-sm btn-terroso rounded-pill px-3" onclick="app.syncAllPendingData()">
+                    <i class="fas fa-cloud-upload-alt me-1"></i> Subir Todo
+                </button>
+            </div>
+            
             <div id="pendingSyncSales">
                 <!-- Pending sales here -->
             </div>
@@ -858,17 +874,18 @@
 
         <!-- View: Historial de Ventas (Periodo) -->
         <div id="viewSalesHistory" class="view">
-            <h5 class="fw-bold mb-3"><i class="fas fa-calendar-alt me-2"></i>Historial de Ventas</h5>
+            <h5 class="fw-bold mb-1"><i class="fas fa-calendar-alt me-2"></i>Historial de Ventas</h5>
+            <div id="historyPeriodoDisplay" class="small text-muted mb-3 italic"></div>
             
             <div class="card p-3 border-0 shadow-sm mb-4" style="border-radius: 15px;">
                 <div class="row g-2">
                     <div class="col-6">
                         <label class="small text-muted mb-1">Desde</label>
-                        <input type="date" id="historyDateDesde" class="form-control form-control-sm">
+                        <input type="date" id="historyDateDesde" class="form-control form-control-sm" onchange="app.loadSalesHistory()">
                     </div>
                     <div class="col-6">
                         <label class="small text-muted mb-1">Hasta</label>
-                        <input type="date" id="historyDateHasta" class="form-control form-control-sm">
+                        <input type="date" id="historyDateHasta" class="form-control form-control-sm" onchange="app.loadSalesHistory()">
                     </div>
                     <div class="col-12 mt-3">
                         <button onclick="app.loadSalesHistory()" class="btn-terroso btn-sm py-2">
@@ -984,6 +1001,7 @@
                 this.renderCategories();
                 this.renderProducts();
                 this.renderClients();
+                this.renderFormasPago();
                 this.updateCartCount();
                 this.updateDebugCounters();
                 console.log("App iniciada correctamente");
@@ -1106,6 +1124,60 @@
                 location.reload();
             },
 
+            // Helper para peticiones API con manejo de sesión y errores
+            apiRequest: async function(url, options = {}) {
+                if (this.isOffline) throw new Error("Sin conexión a internet.");
+                
+                const defaults = {
+                    method: 'GET',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                };
+                
+                const finalOptions = { ...defaults, ...options };
+                if (finalOptions.body && typeof finalOptions.body !== 'string') {
+                    finalOptions.body = JSON.stringify(finalOptions.body);
+                }
+
+                try {
+                    const res = await fetch(url, finalOptions);
+                    
+                    // Si Django nos redirigió al login, la sesión expiró
+                    if (res.redirected && res.url.includes('/login')) {
+                        Swal.fire('Sesión Expirada', 'Su sesión ha caducado. Recargando...', 'error')
+                        .then(() => location.reload());
+                        throw new Error("SESION_EXPIRADA");
+                    }
+
+                    if (res.status === 403) {
+                        const data = await res.json().catch(() => ({}));
+                        throw new Error(data.error || "Acceso Denegado (403). Verifique autorización.");
+                    }
+
+                    if (res.status >= 500) {
+                        throw new Error("Error interno del servidor (500).");
+                    }
+
+                    const text = await res.text();
+                    try {
+                        const data = JSON.parse(text);
+                        return data;
+                    } catch (e) {
+                        // Si no es JSON, probablemente sea una página de error HTML
+                        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+                             throw new Error("El servidor devolvió un error (HTML).");
+                        }
+                        throw new Error("Respuesta no válida.");
+                    }
+                } catch (e) {
+                    if (e.message === "SESION_EXPIRADA") throw e;
+                    console.error("API Error:", e);
+                    throw e;
+                }
+            },
+
             // -- SYNC --
             syncData: async function() {
                 if (this.isOffline) {
@@ -1114,6 +1186,7 @@
                 }
                 
                 const steps = [
+                    { id: 'push', label: 'Subiendo Pendientes...' },
                     { id: 'fetch', label: 'Iniciando conexión...' },
                     { id: 'categorias', label: 'Procesando Categorías...' },
                     { id: 'articulos', label: 'Procesando Artículos...' },
@@ -1160,7 +1233,13 @@
                 });
 
                 try {
-                    // Step 0: Fetch
+                    // Step 0: Push Pending
+                    updateProgress(0);
+                    await this.syncAllPendingData(true);
+                    
+                    // Step 1: Fetch
+                    currentStep++;
+                    updateProgress(currentStep);
                     const response = await fetch('/ventas/movil/api/sincronizar/?vendedor_id=' + (this.seller ? this.seller.id : ''));
                     const result = await response.json();
                     
@@ -1200,6 +1279,7 @@
                         this.renderCategories();
                         this.renderProducts();
                         this.renderClients();
+                        this.renderFormasPago();
                         this.updateDebugCounters();
                         
                         // Final step
@@ -1241,7 +1321,6 @@
 
             checkDevice: async function(manual = false) {
                 if (!this.deviceId) {
-                    // Generar un ID único basado en tiempo y aleatorio si crypto no está
                     this.deviceId = 'DEV-' + Math.random().toString(36).substring(2, 7).toUpperCase() + '-' + Date.now().toString(36).slice(-4).toUpperCase();
                     localStorage.setItem('gc_deviceId', this.deviceId);
                 }
@@ -1250,43 +1329,36 @@
                 if (dispId) dispId.innerText = this.deviceId;
 
                 if (manual) {
-                    Swal.fire({ title: 'Verificando...', didOpen: () => Swal.showLoading() });
+                    Swal.fire({ title: 'Verificando con el servidor...', didOpen: () => Swal.showLoading() });
                 }
 
-                // Si no está autorizado localmente o es manual, consultar al servidor
-                if (!this.isAuthorized && !this.isOffline) {
+                // Siempre verificar con el servidor si hay conexión para detectar revocaciones
+                if (!this.isOffline) {
                     try {
-                        // Intentar obtener marca/modelo detallado (User-Agent Client Hints API)
                         let detailedModel = navigator.userAgent;
                         if (navigator.userAgentData) {
                             try {
                                 const highEntropyData = await navigator.userAgentData.getHighEntropyValues(['model', 'platformVersion']);
                                 detailedModel = `${navigator.userAgentData.platform} ${highEntropyData.model} (v${highEntropyData.platformVersion})`;
                             } catch(e) {}
-                        } else {
-                            // Fallback para navegadores antiguos parseando el UA string
-                            const match = navigator.userAgent.match(/\(([^)]+)\)/);
-                            if (match) detailedModel = match[1];
                         }
 
                         const res = await fetch('/ventas/movil/api/verificar-dispositivo/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                            body: JSON.stringify({ 
-                                deviceId: this.deviceId, 
-                                modelo: detailedModel
-                            })
+                            body: JSON.stringify({ deviceId: this.deviceId, modelo: detailedModel })
                         });
                         const data = await res.json();
-                        if (data.authorized) {
-                            this.isAuthorized = true;
-                            localStorage.setItem('gc_isAuthorized', 'true');
-                            if (manual) {
-                                Swal.fire('¡Éxito!', 'Dispositivo autorizado correctamente.', 'success')
-                                .then(() => this.showView('viewDashboard'));
+                        
+                        this.isAuthorized = !!data.authorized;
+                        localStorage.setItem('gc_isAuthorized', this.isAuthorized ? 'true' : 'false');
+
+                        if (manual) {
+                            if (this.isAuthorized) {
+                                Swal.fire('¡Autorizado!', 'El equipo está validado.', 'success').then(() => this.showView('viewDashboard'));
+                            } else {
+                                Swal.fire('No Autorizado', 'El administrador aún no autoriza este equipo o ha sido revocado.', 'warning');
                             }
-                        } else {
-                            if (manual) Swal.fire('Pendiente', 'El administrador aún no autoriza este equipo.', 'warning');
                         }
                     } catch (e) {
                          console.error("Error verificando dispositivo", e);
@@ -1453,18 +1525,28 @@
                 
                 const desde = document.getElementById('historyDateDesde').value;
                 const hasta = document.getElementById('historyDateHasta').value;
+                const pDisp = document.getElementById('historyPeriodoDisplay');
+                if (pDisp) pDisp.innerText = `Rango: ${desde} hasta ${hasta}`;
                 
                 try {
-                    // 1. Cargar locales (Pendientes)
-                    const localSales = await this.loadFromDB('sales');
+                    // 1. Cargar locales (Pendientes) y filtrar por fecha
+                    const rawLocalSales = await this.loadFromDB('sales');
+                    const localSales = rawLocalSales.filter(s => {
+                        if (!desde || !hasta) return true;
+                        const sDate = s.fecha.split('T')[0];
+                        return sDate >= desde && sDate <= hasta;
+                    });
                     
                     // 2. Cargar servidor (Sincronizadas)
                     let remoteSales = [];
                     if (!this.isOffline) {
-                        const res = await fetch(`/ventas/movil/api/historial-ventas/?vendedor_id=${this.seller.id}&fecha_inicio=${desde}&fecha_fin=${hasta}`);
-                        const data = await res.json();
-                        if (data.success) {
-                            remoteSales = data.ventas;
+                        try {
+                            const data = await this.apiRequest(`/ventas/movil/api/historial-ventas/?vendedor_id=${this.seller.id}&fecha_inicio=${since}&fecha_fin=${until}`.replace('since', desde).replace('until', hasta));
+                            if (data.success) {
+                                remoteSales = data.ventas;
+                            }
+                        } catch (e) {
+                            console.error("No se pudo cargar historial remoto", e);
                         }
                     }
 
@@ -1621,14 +1703,29 @@
                 
                 // Clientes reales
                 this.data.clients.forEach(c => {
-                    html += `<option value="${c.id}">${c.nombre}</option>`;
+                    html += `<option value="${c.id}" data-rut="${c.rut || ''}">${c.nombre}</option>`;
                 });
                 
                 // Clientes pendientes (locales)
                 this.data.pendingClients.forEach(c => {
-                    html += `<option value="PENDING_${c.localId}" style="color: #0d6efd;">[PENDIENTE] ${c.nombre}</option>`;
+                    html += `<option value="PENDING_${c.localId}" data-rut="${c.rut || ''}" style="color: #0d6efd;">[PENDIENTE] ${c.nombre}</option>`;
                 });
                 
+                select.innerHTML = html;
+            },
+
+            renderFormasPago: function() {
+                const select = document.getElementById('paymentMethodSelect');
+                if (!select) return;
+                
+                let html = '';
+                if (this.data.formas_pago && this.data.formas_pago.length > 0) {
+                    this.data.formas_pago.forEach(fp => {
+                        html += `<option value="${fp.id}">${fp.nombre}</option>`;
+                    });
+                } else {
+                    html = '<option value="">Efectivo (Default)</option>';
+                }
                 select.innerHTML = html;
             },
 
@@ -1946,11 +2043,25 @@
                 let total = 0;
                 this.cart.forEach((item, idx) => {
                     total += item.total;
-                    html += `<div class="card mb-2 p-2 border-0 shadow-sm"><div class="d-flex align-items-center">
-                        <div class="flex-grow-1"><div class="fw-bold small">${item.nombre}</div><div class="text-muted small">$${item.precio.toLocaleString()} x ${item.cantidad}</div></div>
-                        <div class="fw-bold me-3">$${item.total.toLocaleString()}</div>
-                        <button class="btn btn-sm btn-outline-danger" onclick="app.removeFromCart(${idx})"><i class="fas fa-trash"></i></button>
-                    </div></div>`;
+                    html += `<div class="card mb-2 p-2 border-0 shadow-sm" style="border-radius: 12px;">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1" style="min-width: 0;">
+                                <div class="fw-bold small mb-0 text-truncate">${item.nombre}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">$${item.precio.toLocaleString()} c/u</div>
+                            </div>
+                            <div class="d-flex align-items-center bg-light rounded-pill p-1 mx-2 border" style="height: 34px;">
+                                <button class="btn btn-sm p-0 px-2 border-0" onclick="app.updateCartQuantity(${idx}, -1)" style="color: var(--primary);"><i class="fas fa-minus" style="font-size: 0.8rem;"></i></button>
+                                <span class="px-1 fw-bold" style="min-width: 32px; text-align: center; font-size: 0.9rem;" onclick="app.editCartQuantity(${idx})">${item.cantidad}</span>
+                                <button class="btn btn-sm p-0 px-2 border-0" onclick="app.updateCartQuantity(${idx}, 1)" style="color: var(--primary);"><i class="fas fa-plus" style="font-size: 0.8rem;"></i></button>
+                            </div>
+                            <div class="text-end me-2" style="min-width: 75px;">
+                                <div class="fw-bold" style="font-size: 0.9rem; color: var(--secondary);">$${item.total.toLocaleString()}</div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger border-0 p-1" onclick="app.removeFromCart(${idx})" style="width: 28px; height: 28px; border-radius: 8px; opacity: 0.7;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>`;
                 });
                 container.innerHTML = html;
                 const tDisp = document.getElementById('cartTotal');
@@ -1959,25 +2070,91 @@
 
                 // Inyectar clientes en el select si no están ya
                 this.renderClients();
+                this.renderFormasPago();
+                this.toggleOccasionalClientName();
             },
 
             removeFromCart: function(idx) { this.cart.splice(idx, 1); this.renderCart(); this.updateCartCount(); },
+
+            updateCartQuantity: function(idx, change) {
+                const item = this.cart[idx];
+                const newQty = item.cantidad + change;
+                if (newQty <= 0) {
+                    this.removeFromCart(idx);
+                } else {
+                    item.cantidad = newQty;
+                    item.total = item.cantidad * item.precio;
+                    this.renderCart();
+                    this.updateCartCount();
+                }
+            },
+
+            editCartQuantity: async function(idx) {
+                const item = this.cart[idx];
+                const { value: qty } = await Swal.fire({
+                    title: 'Editar Cantidad',
+                    text: item.nombre,
+                    input: 'number',
+                    inputValue: item.cantidad,
+                    showCancelButton: true,
+                    confirmButtonText: 'Guardar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: 'var(--primary)',
+                    inputAttributes: {
+                        min: 0,
+                        step: 'any'
+                    }
+                });
+                
+                if (qty !== undefined && qty !== null) {
+                    const newQty = parseFloat(qty);
+                    if (newQty <= 0) {
+                        this.removeFromCart(idx);
+                    } else {
+                        item.cantidad = newQty;
+                        item.total = item.cantidad * item.precio;
+                        this.renderCart();
+                        this.updateCartCount();
+                    }
+                }
+            },
             clearCart: function() { this.cart = []; this.renderCart(); this.updateCartCount(); },
+
+            toggleOccasionalClientName: function() {
+                const select = document.getElementById('clientSelect');
+                const row = document.getElementById('occasionalClientNameRow');
+                if (select && row) {
+                    row.style.display = select.value === "" ? "flex" : "none";
+                }
+            },
 
             checkout: async function() {
                 if (this.cart.length === 0) return;
                 const clientSelect = document.getElementById('clientSelect');
-                const clientName = clientSelect.options[clientSelect.selectedIndex]?.text || 'Sin cliente';
+                let clientName = clientSelect.options[clientSelect.selectedIndex]?.text || 'Sin cliente';
                 
+                const cliente_id = clientSelect.value;
+                const cliente_rut = clientSelect.options[clientSelect.selectedIndex]?.getAttribute('data-rut') || '';
+                
+                // Si es cliente ocasional, intentar usar el nombre ingresado
+                if (cliente_id === "") {
+                    const extraName = document.getElementById('occasionalClientName')?.value.trim();
+                    if (extraName) {
+                        clientName = extraName;
+                    }
+                }
+
                 const sale = {
-                    vendedor_id: (this.seller ? this.seller.id : null),
-                    cliente_id: clientSelect.value,
-                    cliente_nombre: clientName, // Guardamos el nombre para el historial offline
-                    tipo_documento: document.getElementById('docTypeSelect').value,
-                    items: this.cart,
+                    localId: Date.now(),
+                    cliente_id: cliente_id,
+                    cliente_rut: cliente_rut,
+                    cliente_nombre: clientName,
+                    items: [...this.cart],
                     total: this.cart.reduce((s, i) => s + i.total, 0),
                     fecha: new Date().toISOString(),
-                    deviceId: this.deviceId,
+                    vendedor_id: this.seller ? this.seller.id : '',
+                    forma_pago_id: document.getElementById('paymentMethodSelect').value,
+                    tipo_documento: document.getElementById('docTypeSelect').value,
                     observaciones: `[MOVIL] Cliente: ${clientName}`
                 };
                 if (this.isOffline) {
@@ -1994,17 +2171,15 @@
             sendSaleToServer: async function(sale) {
                 try {
                     Swal.fire({ title: 'Enviando...', didOpen: () => Swal.showLoading() });
-                    const res = await fetch('/ventas/movil/api/guardar-venta/', {
+                    const data = await this.apiRequest('/ventas/movil/api/guardar-venta/', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: JSON.stringify(sale)
+                        body: sale
                     });
-                    const data = await res.json();
                     if (data.success) {
                         Swal.fire('Éxito', 'Venta enviada correctamente.', 'success');
                         this.clearCart();
                         this.showView('viewDashboard');
-                    } else throw new Error(data.error);
+                    } else throw new Error(data.error || 'Error desconocido');
                 } catch (e) {
                     await this.saveDataToDB('sales', sale);
                     Swal.fire('Error', 'Venta guardada localmente.', 'warning');
@@ -2041,70 +2216,191 @@
                 }
             },
 
-            syncOneSale: async function(localId) {
-                if (this.isOffline) return Swal.fire('Sin conexión', '', 'warning');
-                const sales = await this.loadFromDB('sales');
-                const sale = sales.find(s => s.localId === localId);
+            syncOneSale: async function(localId, silent = false) {
+                let sales = await this.loadFromDB('sales');
+                let sale = sales.find(s => s.localId === localId);
+                if (!sale) return { success: false, error: 'Documento no encontrado localmente.' };
+                
+                // --- GUARD: No subir si el cliente sigue pendiente ---
+                if (sale.cliente_id && String(sale.cliente_id).startsWith('PENDING_')) {
+                    return { success: false, error: 'El cliente de esta venta aún no se ha sincronizado.' };
+                }
+
+                // --- BACKFILL: Si la venta es vieja y no tiene cliente_rut, intentar buscarlo ---
+                if (!sale.cliente_rut && sale.cliente_id) {
+                    try {
+                        if (String(sale.cliente_id).startsWith('PENDING_')) {
+                            const lId = parseInt(sale.cliente_id.split('_')[1]);
+                            const clients = await this.loadFromDB('pendingClients');
+                            const pc = clients.find(c => c.localId === lId);
+                            if (pc) sale.cliente_rut = pc.rut;
+                        } else {
+                            const clients = await this.loadFromDB('clients');
+                            const rc = clients.find(c => String(c.id) === String(sale.cliente_id));
+                            if (rc) sale.cliente_rut = rc.rut;
+                        }
+                    } catch (e) { console.warn("No se pudo backfillear RUT:", e); }
+                }
+
                 try {
-                    const res = await fetch('/ventas/movil/api/guardar-venta/', {
+                    if (!silent) Swal.fire({ title: 'Subiendo venta...', didOpen: () => Swal.showLoading() });
+                    
+                    const data = await this.apiRequest('/ventas/movil/api/guardar-venta/', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: JSON.stringify({ ...sale, deviceId: this.deviceId })
+                        body: { ...sale, deviceId: this.deviceId }
                     });
-                    const data = await res.json();
+
                     if (data.success) {
                         const tx = this.db.transaction('sales', 'readwrite');
                         tx.objectStore('sales').delete(localId);
                         await new Promise(r => tx.oncomplete = r);
                         this.renderPendingData();
-                        Swal.fire('Sincronizado', '', 'success');
+                        if (!silent) Swal.fire('Sincronizado', 'Venta subida correctamente.', 'success');
+                        return { success: true };
+                    } else throw new Error(data.error || 'Error desconocido');
+                } catch (e) { 
+                    if (!silent && e.message !== "SESION_EXPIRADA") {
+                        Swal.fire('Fallo de Sincronización', e.message, 'error');
                     }
-                } catch (e) { Swal.fire('Error', 'No se pudo subir.', 'error'); }
+                    return { success: false, error: e.message };
+                }
             },
 
-            syncOneClient: async function(localId) {
-                if (this.isOffline) return Swal.fire('Sin conexión', '', 'warning');
+            syncOneClient: async function(localId, silent = false) {
                 const clients = await this.loadFromDB('pendingClients');
                 const client = clients.find(c => c.localId === localId);
+                if (!client) return { success: false, error: 'Cliente no encontrado localmente.' };
+
                 try {
-                    Swal.fire({ title: 'Sincronizando cliente...', didOpen: () => Swal.showLoading() });
-                    const res = await fetch('/ventas/movil/api/guardar-cliente/', {
+                    if (!silent) Swal.fire({ title: 'Subiendo cliente...', didOpen: () => Swal.showLoading() });
+                    
+                    const data = await this.apiRequest('/ventas/movil/api/guardar-cliente/', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: JSON.stringify(client)
+                        body: client
                     });
-                    const data = await res.json();
+
                     if (data.success) {
+                        const newClientId = data.cliente_id;
+                        const oldPendingId = "PENDING_" + localId;
+                        
+                        // Actualizar ventas pendientes que usaban este cliente temporal
+                        const sales = await this.loadFromDB('sales');
+                        for (const s of sales) {
+                            if (s.cliente_id === oldPendingId) {
+                                s.cliente_id = newClientId;
+                                await this.saveDataToDB('sales', s);
+                            }
+                        }
+
                         const tx = this.db.transaction('pendingClients', 'readwrite');
                         tx.objectStore('pendingClients').delete(localId);
                         await new Promise(r => tx.oncomplete = r);
                         
-                        // Recargar datos y refrescar UI
                         await this.loadLocalData();
                         this.renderPendingData();
                         this.renderClients();
                         this.renderClientsFull();
                         
-                        Swal.fire('Cliente Sincronizado', data.nombre, 'success');
-                    } else throw new Error(data.error);
-                } catch (e) { Swal.fire('Error', e.message, 'error'); }
+                        if (!silent) Swal.fire('Cliente Sincronizado', data.nombre, 'success');
+                        return { success: true, newId: newClientId };
+                    } else throw new Error(data.error || 'Error desconocido');
+                } catch (e) { 
+                    if (!silent && e.message !== "SESION_EXPIRADA") {
+                        Swal.fire('Error de Cliente', e.message, 'error');
+                    }
+                    return { success: false, error: e.message };
+                }
+            },
+
+            syncAllPendingData: async function(silent = false) {
+                if (this.isOffline) {
+                    if (!silent) Swal.fire('Sin conexión', 'No se pueden subir documentos sin internet.', 'warning');
+                    return false;
+                }
+
+                const pendingSales = await this.loadFromDB('sales');
+                const pendingClients = await this.loadFromDB('pendingClients');
+                
+                if (pendingSales.length === 0 && pendingClients.length === 0) {
+                    if (!silent) Swal.fire('Todo al día', 'No hay documentos pendientes por subir.', 'info');
+                    return true;
+                }
+
+                if (!silent) {
+                    Swal.fire({
+                        title: 'Sincronizando Todo',
+                        html: '<div class="p-3"><div class="spinner-border text-primary mb-2"></div><p id="batch-sync-text">Subiendo clientes y ventas...</p></div>',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        didOpen: () => Swal.showLoading()
+                    });
+                }
+
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+
+                // 1. Clientes primero
+                for (const c of pendingClients) {
+                    const res = await this.syncOneClient(c.localId, true);
+                    if (res.success) successCount++; 
+                    else {
+                        errorCount++;
+                        errors.push(`Cliente ${c.nombre}: ${res.error}`);
+                    }
+                }
+
+                // --- CRÍTICIO: Recargar ventas después de sincronizar clientes ---
+                // Porque syncOneClient actualiza los IDs de las ventas en la DB local
+                const updatedPendingSales = await this.loadFromDB('sales');
+
+                // 2. Ventas
+                for (const s of updatedPendingSales) {
+                    const res = await this.syncOneSale(s.localId, true);
+                    if (res.success) successCount++; 
+                    else {
+                        errorCount++;
+                        errors.push(`Venta ${new Date(s.fecha).toLocaleDateString()}: ${res.error}`);
+                    }
+                }
+
+                this.renderPendingData();
+                
+                if (!silent) {
+                    if (errorCount === 0) {
+                        Swal.fire('Éxito', `Se sincronizaron ${successCount} documentos correctamente.`, 'success');
+                    } else {
+                        Swal.fire({
+                            title: 'Sincronización Parcial',
+                            html: `<p>Se subieron ${successCount} documentos, pero ${errorCount} fallaron:</p>
+                                   <div class="text-start small p-2 bg-light mt-2" style="max-height: 150px; overflow-y: auto;">
+                                   ${errors.map(e => `• ${e}`).join('<br>')}
+                                   </div>`,
+                            icon: 'warning'
+                        });
+                    }
+                }
+                return errorCount === 0;
             },
 
             autoSyncPending: async function() {
                 const sales = await this.loadFromDB('sales');
-                if (sales.length > 0) {
+                const clients = await this.loadFromDB('pendingClients');
+                const total = sales.length + clients.length;
+                
+                if (total > 0) {
                     Swal.fire({
-                        title: 'Conexión recuperada',
-                        text: `Tiene ${sales.length} ventas pendientes por sincronizar`,
+                        title: 'Documentos Pendientes',
+                        text: `Tiene ${total} documentos sin sincronizar. ¿Desea subirlos ahora?`,
                         icon: 'info',
                         showConfirmButton: true,
-                        confirmButtonText: 'Sincronizar ahora',
+                        confirmButtonText: 'Subir Todo',
                         confirmButtonColor: '#8D7B68',
                         showCancelButton: true,
-                        cancelButtonText: 'Más tarde',
+                        cancelButtonText: 'Después',
                         cancelButtonColor: '#A8A095'
                     }).then(res => {
-                        if (res.isConfirmed) this.showView('viewHistory', null);
+                        if (res.isConfirmed) this.syncAllPendingData();
                     });
                 }
             }

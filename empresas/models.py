@@ -1,7 +1,34 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.core.validators import RegexValidator
+from django.core.validators import RegexValidator, MinValueValidator
 from django.utils import timezone
+from decimal import Decimal
+
+class PlanSaaS(models.Model):
+    """Modelo para definir los planes disponibles en el sistema SaaS"""
+    nombre = models.CharField(max_length=100, verbose_name="Nombre del Plan")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    precio_mensual = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Precio Mensual")
+    
+    # Límites del plan
+    max_usuarios = models.IntegerField(default=1, verbose_name="Máximo de Usuarios")
+    max_sucursales = models.IntegerField(default=1, verbose_name="Máximo de Sucursales")
+    max_productos = models.IntegerField(default=100, verbose_name="Máximo de Productos")
+    max_documentos_mes = models.IntegerField(default=50, verbose_name="Máximo DTEs por Mes")
+    
+    # Características
+    incluye_produccion = models.BooleanField(default=False, verbose_name="Incluye Módulo Producción")
+    incluye_despacho = models.BooleanField(default=False, verbose_name="Incluye Módulo Despacho")
+    incluye_api = models.BooleanField(default=False, verbose_name="Incluye Acceso API")
+    
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Plan SaaS"
+        verbose_name_plural = "Planes SaaS"
+
+    def __str__(self):
+        return f"{self.nombre} (${self.precio_mensual:,.0f})"
 
 
 class Empresa(models.Model):
@@ -10,8 +37,24 @@ class Empresa(models.Model):
     ESTADO_CHOICES = [
         ('activa', 'Activa'),
         ('inactiva', 'Inactiva'),
-        ('suspendida', 'Suspendida'),
+        ('suspendida', 'Suspendida (Mora)'),
+        ('demo', 'Período de Prueba (Demo)'),
     ]
+    
+    # Relación con Plan SaaS
+    plan = models.ForeignKey(
+        PlanSaaS, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='empresas_suscritas',
+        verbose_name="Plan Contratado"
+    )
+    
+    # Control de expiración
+    fecha_limite_pago = models.DateField(null=True, blank=True, verbose_name="Fecha Límite de Pago")
+    auto_suspender = models.BooleanField(default=True, verbose_name="Suspender Automáticamente por No Pago")
+    
     
     nombre = models.CharField(max_length=200, verbose_name="Nombre de Fantasía")
     razon_social = models.CharField(max_length=200, verbose_name="Razón Social")
@@ -59,6 +102,16 @@ class Empresa(models.Model):
         """Formatea el RUT antes de guardar y crea sucursal principal si es nueva"""
         self.clean_rut()
         es_nueva = self.pk is None
+        
+        # Asignar plan por defecto si es nueva
+        if es_nueva and not self.plan:
+            plan_default = PlanSaaS.objects.filter(activo=True).order_by('precio_mensual').first()
+            if plan_default:
+                self.plan = plan_default
+                # Otorgar 15 días de gracia para nuevas empresas
+                if not self.fecha_limite_pago:
+                    self.fecha_limite_pago = (timezone.now() + timezone.timedelta(days=15)).date()
+        
         super().save(*args, **kwargs)
         
         # Si es una empresa nueva, crear sucursal principal automáticamente
@@ -617,3 +670,26 @@ class ConfiguracionEmpresa(models.Model):
         numero_formateado = f"{self.prefijo_orden_compra}-{numero:06d}"
         
         return numero_formateado
+
+
+class Suscripcion(models.Model):
+    """Registro histórico de suscripciones y pagos"""
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='historial_suscripciones')
+    plan = models.ForeignKey(PlanSaaS, on_delete=models.PROTECT)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    monto_pagado = models.DecimalField(max_digits=12, decimal_places=2)
+    comprobante_pago = models.CharField(max_length=100, blank=True)
+    
+    estado_pago = models.CharField(
+        max_length=20,
+        choices=[('pagado', 'Pagado'), ('pendiente', 'Pendiente'), ('vencido', 'Vencido')],
+        default='pendiente'
+    )
+    
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Suscripción"
+        verbose_name_plural = "Suscripciones"
+        ordering = ['-fecha_registro']

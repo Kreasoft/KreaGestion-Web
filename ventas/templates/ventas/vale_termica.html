@@ -242,7 +242,7 @@
         <div class="cliente-section">
             <div class="cliente-row">
                 <span class="cliente-label">Cliente:</span>
-                <span>{{ vale.cliente.nombre|default:"Cliente General" }}</span>
+                <span>{{ vale.get_cliente_nombre }}</span>
             </div>
             <div class="cliente-row">
                 <span class="cliente-label">RUT:</span>
@@ -260,18 +260,13 @@
         <div class="productos-section">
             <div class="productos-header">DETALLE DE PRODUCTOS</div>
             {% for detalle in detalles %}
-            <div class="producto-item">
-                <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
-                <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
-                <div class="producto-detalle">
-                    <span class="producto-cantidad">{{ detalle.cantidad|floatformat:0 }} x ${{ detalle.precio_unitario|format_miles }}</span>
-                    <span class="producto-precio">${{ detalle.precio_total|format_miles }}</span>
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1mm; font-size: 8pt;">
+                <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 2mm;">
+                    <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
                 </div>
-                {% if detalle.descuento > 0 %}
-                <div style="font-size: 7pt; color: #c00; margin-top: 1mm;">
-                    Descuento: -${{ detalle.descuento|format_miles }}
+                <div style="font-weight: bold;">
+                    ${{ detalle.precio_total|format_miles }}
                 </div>
-                {% endif %}
             </div>
             {% endfor %}
         </div>

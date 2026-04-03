@@ -65,8 +65,8 @@
             <div class="col-md-6">
                 <label class="form-label-premium">Tipo de Ajuste</label>
                 <select name="tipo_ajuste" id="tipo_ajuste_edit" class="form-select form-control-premium text-uppercase fw-bold" required>
-                    <option value="ENTRADA" {% if ajuste.cantidad > 0 %}selected{% endif %}>Entrada (+ Stock)</option>
-                    <option value="SALIDA" {% if ajuste.cantidad < 0 %}selected{% endif %}>Salida (- Stock)</option>
+                    <option value="ENTRADA" {% if ajuste.tipo_ajuste == 'entrada' %}selected{% endif %}>Entrada (+ Stock)</option>
+                    <option value="SALIDA" {% if ajuste.tipo_ajuste == 'salida' %}selected{% endif %}>Salida (- Stock)</option>
                 </select>
             </div>
             <div class="col-md-6">
@@ -77,7 +77,7 @@
                 <label class="form-label-premium">Bodega</label>
                 <select name="bodega" id="bodega_edit" class="form-select form-control-premium" required>
                     {% for bodega in bodegas %}
-                        <option value="{{ bodega.id }}" {% if bodega.id == ajuste.bodega_destino.id %}selected{% endif %}>{{ bodega.nombre }}</option>
+                        <option value="{{ bodega.id }}" {% if bodega.id == ajuste.bodega.id %}selected{% endif %}>{{ bodega.nombre }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -104,15 +104,15 @@
                         <div class="col-12 col-md-5">
                             <label class="small text-muted mb-1 d-md-none">Artículo</label>
                             <select class="form-select form-select-sm articulo-select-edit form-control-premium" name="detalles-1-articulo" required>
-                                <option value="{{ ajuste.articulo.id }}" selected>{{ ajuste.articulo.codigo }} - {{ ajuste.articulo.nombre }}</option>
+                                <option value="{{ primer_detalle.articulo.id }}" selected>{{ primer_detalle.articulo.codigo }} - {{ primer_detalle.articulo.nombre }}</option>
                             </select>
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="small text-muted mb-1 d-md-none">Cantidad</label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text cantidad-sign-edit fw-bold text-white" 
-                                      style="background: {% if ajuste.cantidad > 0 %}#66BB6A{% else %}#EF5350{% endif %}; border:none;">
-                                    {% if ajuste.cantidad > 0 %}+{% else %}-{% endif %}
+                                      style="background: {% if ajuste.tipo_ajuste == 'entrada' %}#66BB6A{% else %}#EF5350{% endif %}; border:none;">
+                                    {% if ajuste.tipo_ajuste == 'entrada' %}+{% else %}-{% endif %}
                                 </span>
                                 <input type="number" class="form-control form-control-premium" name="detalles-1-cantidad" id="cantidad-input-edit-1"
                                        value="{% if cantidad_absoluta_str %}{{ cantidad_absoluta_str }}{% elif cantidad_absoluta %}{{ cantidad_absoluta|floatformat:2 }}{% else %}0.00{% endif %}"
@@ -121,7 +121,8 @@
                         </div>
                         <div class="col-6 col-md-4">
                             <label class="small text-muted mb-1 d-md-none">Comentario</label>
-                            <input type="text" class="form-control form-control-sm form-control-premium" name="detalles-1-comentario" placeholder="Nota opcional">
+                            <input type="text" class="form-control form-control-sm form-control-premium" name="detalles-1-comentario" 
+                                   value="{{ primer_detalle.comentario|default:'' }}" placeholder="Nota opcional">
                         </div>
                     </div>
                 </div>

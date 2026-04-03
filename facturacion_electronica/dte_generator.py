@@ -168,12 +168,14 @@ class DTEXMLGenerator:
         from pedidos.models import OrdenDespacho
         from facturacion_electronica.models import DocumentoTributarioElectronico
         
-        if isinstance(self.documento, OrdenDespacho):
-            fecha_emision = self.documento.fecha_despacho
-        elif isinstance(self.documento, DocumentoTributarioElectronico):
+        # PRIORIDAD DE FECHA PARA EL XML (CRÍTICO PARA CAJA)
+        if isinstance(self.documento, DocumentoTributarioElectronico):
             fecha_emision = self.documento.fecha_emision
         elif isinstance(self.documento, Venta):
-            fecha_emision = getattr(self.documento, 'fecha', None) or getattr(self.documento, 'fecha_creacion', None)
+            # Priorizar 'fecha' (sobrescrita por caja) sobre 'fecha_creacion' (original del ticket)
+            fecha_emision = self.documento.fecha or self.documento.fecha_creacion
+        elif isinstance(self.documento, OrdenDespacho):
+            fecha_emision = self.documento.fecha_despacho
         else:
             fecha_emision = getattr(self.documento, 'fecha', None) or getattr(self.documento, 'fecha_emision', None) or getattr(self.documento, 'fecha_creacion', None)
         
@@ -240,9 +242,16 @@ class DTEXMLGenerator:
                 print(f"[DTE Generator] {error_msg}")
                 raise ValueError(error_msg)
             
-            # TipoDespacho e IndTraslado (mismo valor) como en KreaDTE-Cloud para compatibilidad DTEBox
-            etree.SubElement(id_doc, "TipoDespacho").text = str(ind_traslado)
-            etree.SubElement(id_doc, "IndTraslado").text = str(ind_traslado)
+            # TipoDespacho e IndTraslado (Compatibilidad DTEBox / KreaDTE)
+            # IndTraslado es OBLIGATORIO para Guías (52)
+            # No duplicar tags si se vuelven a procesar
+            if id_doc.find('IndTraslado') is None and id_doc.find('{http://www.sii.cl/SiiDte}IndTraslado') is None:
+                etree.SubElement(id_doc, "IndTraslado").text = str(ind_traslado)
+            
+            # TipoDespacho es OPCIONAL y solo acepta valores 1, 2, 3. 
+            # Evitamos enviarlo si no tenemos un valor válido para no colapsar DTEBox (Error 500).
+            if str(ind_traslado) in ['1', '2', '3'] and id_doc.find('TipoDespacho') is None and id_doc.find('{http://www.sii.cl/SiiDte}TipoDespacho') is None:
+                etree.SubElement(id_doc, "TipoDespacho").text = str(ind_traslado)
         
         # Forma de pago - NO incluir para boletas (39, 41) NI para guías (52) - solo facturas/notas
         # Para facturas y notas: 1=Contado, 2=Crédito

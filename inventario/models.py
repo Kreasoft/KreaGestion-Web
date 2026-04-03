@@ -252,3 +252,5 @@ class Stock(models.Model):
         return textos.get(self.get_estado_stock(), 'Desconocido')
 
 
+# Importación de modelos de ajustes para que sean detectados por Django
+from .models_ajustes import AjusteStock, DetalleAjuste

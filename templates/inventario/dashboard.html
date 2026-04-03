@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}{{ titulo }}{% endblock %}
 
@@ -68,16 +69,88 @@
 .alert-card h6 {
     color: #dc3545;
 }
+
+/* Selector Premium en Header */
+.header-bodega-box {
+    min-width: 280px;
+}
+.form-select-premium {
+    border: 1.5px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.1);
+    color: white;
+    height: 42px;
+    border-radius: 12px;
+    font-weight: 600;
+    padding-left: 35px;
+    transition: all 0.3s;
+}
+.form-select-premium:focus {
+    background: rgba(255,255,255,0.2);
+    border-color: white;
+    box-shadow: none;
+    color: white;
+}
+.form-select-premium option {
+    color: #333;
+}
 </style>
 
 <div class="container-fluid">
-    <!-- Header -->
+    <!-- Header con Selector de Bodega -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="inventario-card">
-                <div class="inventario-header">
-                    <h4><i class="fas fa-tachometer-alt me-2"></i>{{ titulo }}</h4>
+                <div class="inventario-header d-flex align-items-center justify-content-between py-3">
+                    <div class="d-flex align-items-center">
+                        <h4 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>{{ titulo }}</h4>
+                    </div>
+                    
+                    <div class="header-bodega-box d-none d-md-block">
+                        <label class="small fw-bold mb-1 d-block text-uppercase" style="color: rgba(255,255,255,0.8); font-size: 0.65rem; letter-spacing: 1px;">Sucursal / Bodega</label>
+                        <div class="position-relative">
+                            <select id="header-bodega-selector" class="form-select form-select-sm form-select-premium" 
+                                    onchange="applyDashboardBodegaFilter(this.value)">
+                                <option value="">Todas las bodegas...</option>
+                                {% for bod in request.empresa.bodegas.all %}
+                                <option value="{{ bod.id }}" {% if request.GET.bodega == bod.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ bod.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <i class="fas fa-warehouse position-absolute" style="left: 12px; top: 13px; color: white; opacity: 0.8;"></i>
+                        </div>
+                    </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros y Acciones Rápidas (Espacio recuperado) -->
+    <div class="row mb-4 align-items-end">
+        <div class="col-md-5">
+            <div class="card shadow-sm p-3" style="border-radius: 12px; border: 1px solid #dee2e6;">
+                <label class="small text-uppercase fw-bold text-muted mb-2">Acciones Rápidas</label>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'inventario:inventario_create' %}" class="btn btn-inventario flex-fill py-2" style="border-radius: 10px;">
+                        <i class="fas fa-plus me-1"></i> Movimiento
+                    </a>
+                    <a href="{% url 'inventario:carga_inicial' %}" class="btn btn-inventario flex-fill py-2" style="border-radius: 10px;">
+                        <i class="fas fa-upload me-1"></i> Cargar
+                    </a>
+                    <a href="{% url 'inventario:stock_list' %}" class="btn-inventario py-2 px-3 d-flex align-items-center justify-content-center" style="border-radius: 10px; width: 45px;" title="Ver Stock">
+                        <i class="fas fa-boxes"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Otros filtros rápidos o info -->
+        <div class="col-md-7">
+            <div class="d-flex justify-content-end gap-3">
+                 <div class="text-end">
+                     <span class="text-muted small d-block">Última actualización</span>
+                     <span class="fw-bold text-dark">{{ now|date:"d/m/Y H:i" }}</span>
+                 </div>
             </div>
         </div>
     </div>
@@ -130,49 +203,14 @@
         </div>
     </div>
 
-    <!-- Acciones rápidas -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="inventario-card">
-                <div class="inventario-header">
-                    <h5><i class="fas fa-bolt me-2"></i>Acciones Rápidas</h5>
-                </div>
-                <div class="card-body p-4">
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'inventario:inventario_create' %}" class="btn btn-inventario w-100">
-                                <i class="fas fa-plus me-2"></i>Nuevo Movimiento
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'inventario:stock_list' %}" class="btn btn-inventario w-100">
-                                <i class="fas fa-boxes me-2"></i>Control de Stock
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'inventario:carga_inicial' %}" class="btn btn-inventario w-100">
-                                <i class="fas fa-upload me-2"></i>Carga Inicial
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'inventario:inventario_list' %}" class="btn btn-inventario w-100">
-                                <i class="fas fa-list me-2"></i>Ver Movimientos
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Alertas de stock -->
-    {% if alertas_stock > 0 %}
+    {% if alertas_stock or stock_bajo %}
         <div class="row mb-4">
             <div class="col-12">
                 <div class="inventario-card">
                     <div class="alert-card p-4">
                         <h6><i class="fas fa-exclamation-triangle me-2"></i>Alertas de Stock Bajo</h6>
-                        <p class="mb-0">Hay {{ alertas_stock }} artículos con stock bajo. Revise el control de stock para más detalles.</p>
+                        <p class="mb-0">Hay artículos con stock bajo o insuficiente. Revise el control de stock para más detalles.</p>
                         <a href="{% url 'inventario:stock_list' %}" class="btn btn-outline-danger btn-sm mt-2">
                             <i class="fas fa-eye me-1"></i>Ver Detalles
                         </a>
@@ -193,4 +231,16 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+function applyDashboardBodegaFilter(bodegaId) {
+    const url = new URL(window.location.href);
+    if (bodegaId) {
+        url.searchParams.set('bodega', bodegaId);
+    } else {
+        url.searchParams.delete('bodega');
+    }
+    window.location.href = url.toString();
+}
+</script>
 {% endblock %}

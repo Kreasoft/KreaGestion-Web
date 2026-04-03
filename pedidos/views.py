@@ -37,9 +37,21 @@ def orden_pedido_list(request):
             return redirect('/')
     
     # Obtener pedidos
+    from django.db.models import Sum, F, Q
     pedidos = OrdenPedido.objects.filter(empresa=empresa).select_related(
         'cliente', 'bodega', 'creado_por'
-    ).order_by('-fecha_pedido', '-numero_pedido')
+    ).annotate(
+        cant_total=Sum('items__cantidad'),
+        cant_asignada=Sum('items__despachos__cantidad')
+    )
+
+    # Si no hay filtros específicos, mostrar solo lo que tiene saldo pendiente real
+    if not any(k in request.GET and request.GET[k] for k in ['search', 'estado', 'cliente', 'fecha_desde', 'fecha_hasta']):
+        pedidos = pedidos.filter(
+            Q(cant_asignada__isnull=True) | Q(cant_asignada__lt=F('cant_total'))
+        ).exclude(estado__in=['completada', 'cancelada'])
+    
+    pedidos = pedidos.order_by('-fecha_pedido', '-numero_pedido')
     
     # Aplicar filtros
     search_form = BusquedaPedidoForm(request.GET)
@@ -118,15 +130,12 @@ def orden_pedido_create(request):
         form = OrdenPedidoForm(request.POST)
         formset = ItemOrdenPedidoFormSet(request.POST, empresa=empresa)
         
-        print(f"Form valid: {form.is_valid()}")
-        print(f"Formset valid: {formset.is_valid()}")
-        
-        if not form.is_valid():
-            print(f"Form errors: {form.errors}")
-        
-        if not formset.is_valid():
-            print(f"Formset errors: {formset.errors}")
-            print(f"Formset non_form_errors: {formset.non_form_errors()}")
+        if not form.is_valid() or not formset.is_valid():
+            with open(r'C:\PROJECTOS-WEB\GestionCloud\debug_errors.log', 'w') as f:
+                f.write(f"Form errors: {form.errors}\n")
+                f.write(f"Formset errors: {formset.errors}\n")
+                f.write(f"Formset non_form_errors: {formset.non_form_errors()}\n")
+                f.write(f"POST: {request.POST}\n")
         
         if form.is_valid() and formset.is_valid():
             try:
@@ -257,6 +266,24 @@ def orden_pedido_update(request, pk):
             
             messages.success(request, f'Orden de pedido {pedido.numero_pedido} actualizada exitosamente.')
             return redirect('pedidos:orden_pedido_detail', pk=pedido.pk)
+        else:
+            # Registrar errores para depuración
+            with open(r'C:\PROJECTOS-WEB\GestionCloud\debug_errors.log', 'w') as f:
+                f.write(f"UPDATE Form errors: {form.errors}\n")
+                f.write(f"UPDATE Formset errors: {formset.errors}\n")
+                f.write(f"UPDATE Formset non_form_errors: {formset.non_form_errors()}\n")
+            
+            # Avisar al usuario
+            if form.errors:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f'Campo {field}: {error}')
+            if formset.errors:
+                for i, form_errors in enumerate(formset.errors):
+                    if form_errors:
+                        for field, errors in form_errors.items():
+                            for error in errors:
+                                messages.error(request, f'Item {i+1} - {field}: {error}')
     else:
         form = OrdenPedidoForm(instance=pedido)
         formset = ItemOrdenPedidoFormSet(instance=pedido, empresa=pedido.empresa)

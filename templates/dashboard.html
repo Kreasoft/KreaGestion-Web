@@ -215,6 +215,31 @@
 </style>
 {% endblock %}
 
+{% block topbar_empresa_extra %}
+{% if puede_filtrar_sucursal %}
+<form method="get" class="sucursal-selector-form ms-4" style="position: relative; z-index: 2000;">
+    <div class="sucursal-selector-wrapper" style="min-width: 250px; padding: 6px 12px; height: 42px; scale: 0.95; transform-origin: left center;">
+        <div class="sucursal-selector-icon">
+            <i class="fas fa-building" style="font-size: 1rem;"></i>
+        </div>
+        <select name="sucursal" class="sucursal-selector" onchange="this.form.submit()" style="font-size: 0.85rem;">
+            <option value="todas" {% if not sucursal_seleccionada %}selected{% endif %}>
+                📊 Todas las Sucursales
+            </option>
+            {% for sucursal in sucursales %}
+            <option value="{{ sucursal.id }}" {% if sucursal_seleccionada and sucursal_seleccionada.id == sucursal.id %}selected{% endif %}>
+                🏢 {{ sucursal.nombre }}
+            </option>
+            {% endfor %}
+        </select>
+        <div class="sucursal-selector-arrow">
+            <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
+        </div>
+    </div>
+</form>
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Header del Dashboard -->
@@ -242,40 +267,76 @@
                 }
             </style>
             <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0 text-gray-800">
-                        <i class="fas fa-tachometer-alt" style="color: #1E40AF;"></i>
-                        Dashboard Principal
-                        {% if sucursal_seleccionada %}
-                        <span class="badge bg-primary ms-2" style="font-size: 0.6rem;">{{ sucursal_seleccionada.nombre }}</span>
-                        {% endif %}
-                    </h1>
-                    <p class="text-muted">Bienvenido al sistema de gestión empresarial</p>
-                </div>
-                <div class="text-end d-flex align-items-center justify-content-end gap-3">
-                    {% if puede_filtrar_sucursal %}
-                    <form method="get" class="sucursal-selector-form">
-                        <div class="sucursal-selector-wrapper">
-                            <div class="sucursal-selector-icon">
-                                <i class="fas fa-building"></i>
-                            </div>
-                            <select name="sucursal" class="sucursal-selector" onchange="this.form.submit()">
-                                <option value="todas" {% if not sucursal_seleccionada %}selected{% endif %}>
-                                    📊 Todas las Sucursales
-                                </option>
-                                {% for sucursal in sucursales %}
-                                <option value="{{ sucursal.id }}" {% if sucursal_seleccionada and sucursal_seleccionada.id == sucursal.id %}selected{% endif %}>
-                                    🏢 {{ sucursal.nombre }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <div class="sucursal-selector-arrow">
-                                <i class="fas fa-chevron-down"></i>
-                            </div>
+                <div class="d-flex align-items-center gap-4">
+                    <div>
+                        <h1 class="h3 mb-0 text-gray-800">
+                            <i class="fas fa-tachometer-alt" style="color: #1E40AF;"></i>
+                            Dashboard
+                        </h1>
+                        <p class="text-muted mb-0 small">Gestión Empresarial</p>
+                    </div>
+                    </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Botones de Acceso Rápido en Header (Pure Icons) -->
+                    <style>
+                        .header-pure-icon {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 8px;
+                            text-decoration: none !important;
+                            transition: all 0.3s ease;
+                            padding: 10px 16px;
+                            border-radius: 12px;
+                        }
+                        .header-pure-icon i {
+                            font-size: 1.6rem;
+                            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+                        }
+                        .header-pure-icon span {
+                            font-family: 'Poppins', sans-serif;
+                            font-size: 0.95rem;
+                            font-weight: 700;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                        }
+                        .header-pure-icon:hover {
+                            background: rgba(0,0,0,0.03);
+                        }
+                        .header-pure-icon:hover i {
+                            transform: translateY(-3px) scale(1.1);
+                        }
+                        .t-ene { color: var(--color-terrosa-ene); }
+                        .t-may { color: var(--color-terrosa-may); }
+                        .t-feb { color: var(--color-terrosa-feb); }
+                        .t-mar { color: var(--color-terrosa-mar); }
+                        .t-jun { color: var(--color-terrosa-jun); }
+                    </style>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end w-100">
+                        <a href="{% url 'articulos:articulo_list' %}" class="header-pure-icon">
+                            <i class="fas fa-boxes t-ene"></i> <span class="t-ene">Artículos</span>
+                        </a>
+                        <a href="{% url 'ventas:pos_seleccion' %}" class="header-pure-icon">
+                            <i class="fas fa-cash-register t-may"></i> <span class="t-may">POS</span>
+                        </a>
+                        <a href="{% url 'clientes:cliente_list' %}" class="header-pure-icon">
+                            <i class="fas fa-users t-feb"></i> <span class="t-feb">Clientes</span>
+                        </a>
+                        <a href="{% url 'informes:dashboard' %}" class="header-pure-icon">
+                            <i class="fas fa-chart-pie t-mar"></i> <span class="t-mar">Reportes</span>
+                        </a>
+                        <a href="{% url 'empresas:empresa_list' %}" class="header-pure-icon">
+                            <i class="fas fa-building t-jun"></i> <span class="t-jun">Empresas</span>
+                        </a>
+                        
+                        <div class="ms-2 text-end d-none d-lg-block border-start ps-3 border-secondary-subtle">
+                            <small class="text-muted d-block" style="font-size: 0.7rem; line-height: 1;">{{ "now"|date:"d/m/Y" }}</small>
+                            <small class="fw-bold" style="font-size: 0.8rem;">{{ "now"|date:"H:i" }}</small>
                         </div>
-                    </form>
-                    {% endif %}
-                    <small class="text-muted">{{ "now"|date:"d/m/Y H:i" }}</small>
+                    </div>
                 </div>
             </div>
 
@@ -493,87 +554,7 @@
         </div>
     </div>
 
-    <!-- Accesos Rápidos -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow mb-4" style="border-left: 4px solid #8B7355;">
-                <div class="card-header py-3" style="background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
-                    <h6 class="m-0 font-weight-bold" style="color: #6F5B44;">
-                        <i class="fas fa-bolt me-2"></i>Accesos Rápidos
-                    </h6>
-                </div>
-                <div class="card-body p-4">
-                    <div class="row g-4">
-                        <!-- Artículos -->
-                        <div class="col-md-3 col-sm-6">
-                            <a href="{% url 'articulos:articulo_list' %}" class="card card-stats-pastel-azul card-stats-pastel-text h-100 border-0 shadow-sm text-decoration-none position-relative overflow-hidden card-hove-effect" 
-                               style="border-radius: 16px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-                                <div class="card-body d-flex flex-column justify-content-center position-relative z-index-2 p-4">
-                                    <h5 class="fw-bold mb-1" style="color: #2D3748;">Artículos</h5>
-                                    <p class="mb-0 small" style="color: #4A5568;">Gestión de catálogo</p>
-                                </div>
-                                <div class="position-absolute end-0 bottom-0 p-3" style="opacity: 0.15;">
-                                    <i class="fas fa-boxes fa-4x text-dark"></i>
-                                </div>
-                            </a>
-                        </div>
-                        
-                        <!-- POS -->
-                        <div class="col-md-3 col-sm-6">
-                            <a href="{% url 'ventas:pos_seleccion' %}" class="card card-stats-pastel-verde card-stats-pastel-text h-100 border-0 shadow-sm text-decoration-none position-relative overflow-hidden card-hove-effect" 
-                               style="border-radius: 16px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-                                <div class="card-body d-flex flex-column justify-content-center position-relative z-index-2 p-4">
-                                    <h5 class="fw-bold mb-1" style="color: #2D3748;">Ir al POS</h5>
-                                    <p class="mb-0 small" style="color: #4A5568;">Punto de venta</p>
-                                </div>
-                                <div class="position-absolute end-0 bottom-0 p-3" style="opacity: 0.15;">
-                                    <i class="fas fa-cash-register fa-4x text-dark"></i>
-                                </div>
-                            </a>
-                        </div>
-                        
-                        <!-- Clientes -->
-                        <div class="col-md-3 col-sm-6">
-                            <a href="{% url 'clientes:cliente_list' %}" class="card card-stats-pastel-amarillo card-stats-pastel-text h-100 border-0 shadow-sm text-decoration-none position-relative overflow-hidden card-hove-effect" 
-                               style="border-radius: 16px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-                                <div class="card-body d-flex flex-column justify-content-center position-relative z-index-2 p-4">
-                                    <h5 class="fw-bold mb-1" style="color: #2D3748;">Clientes</h5>
-                                    <p class="mb-0 small" style="color: #4A5568;">Base de datos</p>
-                                </div>
-                                <div class="position-absolute end-0 bottom-0 p-3" style="opacity: 0.15;">
-                                    <i class="fas fa-users fa-4x text-dark"></i>
-                                </div>
-                            </a>
-                        </div>
-                        
-                        <!-- Reportes -->
-                        <div class="col-md-3 col-sm-6">
-                            <a href="{% url 'informes:dashboard' %}" class="card card-stats-pastel-terracota card-stats-pastel-text h-100 border-0 shadow-sm text-decoration-none position-relative overflow-hidden card-hove-effect" 
-                               style="border-radius: 16px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-                                <div class="card-body d-flex flex-column justify-content-center position-relative z-index-2 p-4">
-                                    <h5 class="fw-bold mb-1" style="color: #2D3748;">Reportes</h5>
-                                    <p class="mb-0 small" style="color: #4A5568;">Análisis de datos</p>
-                                </div>
-                                <div class="position-absolute end-0 bottom-0 p-3" style="opacity: 0.15;">
-                                    <i class="fas fa-chart-pie fa-4x text-dark"></i>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                    
-                    <style>
-                        .card-hove-effect:hover {
-                            transform: translateY(-8px) scale(1.03) !important;
-                            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1) !important;
-                            z-index: 10;
-                        }
-                    </style>
-                </div>
 
-
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- Scripts para gráficos -->

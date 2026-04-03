@@ -2,96 +2,134 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-<style>
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-    100% { transform: scale(1); }
-}
-</style>
-
 {% block content %}
-<div class="container py-4">
-	<div class="d-flex justify-content-between align-items-center mb-4">
-		<h3 class="m-0">Panel de Administración</h3>
-		<div>
-			<a href="{% url 'empresas:empresa_create' %}" class="btn btn-dark me-2">Nueva Empresa</a>
-			<form method="post" action="{% url 'logout' %}" style="display: inline;">
-				{% csrf_token %}
-				<button type="submit" class="btn btn-outline-dark">Cerrar sesión</button>
-			</form>
-		</div>
-	</div>
-	
-	<div class="row">
-		<div class="col-md-8">
-			<div class="card">
-				<div class="card-header">
-					<h5 class="m-0">Empresas Registradas</h5>
-				</div>
-				<div class="card-body p-0">
-					<table class="table table-hover m-0">
-						<thead>
-							<tr>
-								<th>Nombre</th>
-								<th>RUT</th>
-								<th>Ciudad</th>
-								<th>Estado</th>
-								<th>Acciones</th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for empresa in empresas %}
-							<tr>
-								<td>{{ empresa.nombre }}</td>
-								<td>{{ empresa.rut }}</td>
-								<td>{{ empresa.ciudad }}</td>
-								<td>
-									{% if empresa.estado == 'activa' %}
-									<span class="badge bg-success">Activa</span>
-									{% elif empresa.estado == 'inactiva' %}
-									<span class="badge bg-danger">Inactiva</span>
-									{% else %}
-									<span class="badge bg-warning">Suspendida</span>
-									{% endif %}
-								</td>
-								<td>
-									<a href="{% url 'empresas:empresa_detail' empresa.id %}" class="btn btn-sm btn-dark">Ver</a>
-									<a href="{% url 'empresas:empresa_update' empresa.id %}" class="btn btn-sm btn-outline-dark">Editar</a>
-								</td>
-							</tr>
-							{% empty %}
-							<tr>
-								<td colspan="5" class="text-center py-4">No hay empresas registradas.</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		</div>
-		
-		<div class="col-md-4">
-			<div class="card">
-				<div class="card-header">
-					<h6 class="m-0">Resumen</h6>
-				</div>
-				<div class="card-body">
-					<div class="d-flex justify-content-between mb-2">
-						<span>Total Empresas:</span>
-						<strong>{{ empresas.count }}</strong>
-					</div>
-					<div class="d-flex justify-content-between mb-2">
-						<span>Empresas Activas:</span>
-						<strong>{{ empresas|length }}</strong>
-					</div>
-					<div class="d-flex justify-content-between">
-						<span>Total Sucursales:</span>
-						<strong>0</strong>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
+<div class="container-fluid py-5 px-xl-5">
+    <!-- Header de Bienvenida -->
+    <div class="d-flex justify-content-between align-items-end mb-5">
+        <div>
+            <h1 class="text-stone-dark fw-bold mb-1">Global Admin Control</h1>
+            <p class="text-stone-muted mb-0"><i class="fas fa-shield-alt me-1"></i> Panel de Control del Sistema SaaS</p>
+        </div>
+        <div class="d-flex gap-3">
+            <a href="{% url 'empresas:empresa_create' %}" class="btn btn-stone-primary shadow-sm px-4 py-2">
+                <i class="fas fa-plus-circle me-2"></i>Nueva Empresa
+            </a>
+            <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger shadow-sm px-4 py-2 border-0 bg-white">
+                    <i class="fas fa-sign-out-alt me-2"></i>Cerrar sesión
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        <!-- Listado Principal -->
+        <div class="col-xl-8">
+            <div class="card card-piedra border-0 shadow-sm">
+                <div class="card-header card-header-piedra d-flex justify-content-between align-items-center">
+                    <h5 class="m-0 text-stone-dark font-weight-bold">
+                        <i class="fas fa-buildings me-2 opacity-75"></i>Empresas Registradas
+                    </h5>
+                    <div class="badge-piedra bg-stone-light text-stone-dark">TENANTS: {{ empresas.count }}</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-piedra m-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Empresa / Razón Social</th>
+                                    <th>RUT</th>
+                                    <th>Ubicación</th>
+                                    <th>Estado</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for empresa in empresas %}
+                                <tr class="align-middle">
+                                    <td class="ps-4">
+                                        <div class="fw-bold text-stone-dark">{{ empresa.nombre }}</div>
+                                        <div class="text-stone-muted small">{{ empresa.razon_social|default:"Sin razón social" }}</div>
+                                    </td>
+                                    <td><span class="text-stone-medium">{{ empresa.rut }}</span></td>
+                                    <td><div class="text-stone-medium">{{ empresa.ciudad }}</div></td>
+                                    <td>
+                                        {% if empresa.estado == 'activa' %}
+                                            <span class="badge-piedra badge-piedra-success">ACTIVA</span>
+                                        {% elif empresa.estado == 'inactiva' %}
+                                            <span class="badge-piedra bg-secondary text-white">INACTIVA</span>
+                                        {% else %}
+                                            <span class="badge-piedra badge-piedra-danger">SUSPENDIDA</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center pe-4">
+                                        <div class="d-flex justify-content-center gap-2">
+                                            <a href="{% url 'empresas:empresa_detail' empresa.id %}" 
+                                               class="btn-action-piedra" 
+                                               title="Gestionar Empresa">
+                                                <i class="fas fa-cog"></i>
+                                            </a>
+                                            <a href="{% url 'empresas:empresa_update' empresa.id %}" 
+                                               class="btn-action-piedra border-warning text-warning"
+                                               title="Editar Datos">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5">
+                                        <div class="py-4">
+                                            <i class="fas fa-building fa-4x text-stone-light opacity-25 mb-3"></i>
+                                            <p class="text-stone-muted">No hay empresas registradas en la plataforma.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar Resumen -->
+        <div class="col-xl-4">
+            <!-- Card de Resumen con Stats Soft UI -->
+            <div class="card card-piedra-full border-0 mb-4 h-100 shadow-sm">
+                <div class="card-body p-4 p-xl-5">
+                    <h5 class="text-stone-dark fw-bold mb-4">Análisis de Operación</h5>
+                    
+                    <div class="d-grid gap-4">
+                        <div class="card card-piedra border-0 shadow-sm p-4 text-center">
+                            <div class="text-stone-muted small fw-bold text-uppercase mb-2">Empresas en Red</div>
+                            <h2 class="mb-0 text-stone-dark fw-bold display-5">{{ empresas.count }}</h2>
+                            <small class="text-success mt-2 fw-semibold"><i class="fas fa-check me-1"></i>Habilitadas</small>
+                        </div>
+
+                        <div class="card card-piedra border-0 shadow-sm p-4 text-center">
+                            <div class="text-stone-muted small fw-bold text-uppercase mb-2">Documentos Mes</div>
+                            <h2 class="mb-0 text-stone-dark fw-bold display-5">1.2k+</h2>
+                            <small class="text-stone-muted mt-2 fw-semibold">Global emitidos</small>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <h6 class="text-stone-dark fw-bold mb-3 small opacity-75">SISTEMA CORE</h6>
+                        <div class="d-grid gap-2">
+                            <a href="/admin/" class="btn btn-stone-dark text-start py-3 px-4 shadow-sm">
+                                <i class="fas fa-lock-open me-3"></i>Panel Técnico Django
+                            </a>
+                            <a href="{% url 'usuarios:usuario_list' %}" class="btn btn-stone-secondary bg-white text-start py-3 px-4">
+                                <i class="fas fa-user-shield me-3"></i>Gestión de Usuarios
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

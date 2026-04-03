@@ -101,6 +101,7 @@ MIDDLEWARE = [
 	# 'simple_history.middleware.HistoryRequestMiddleware',  # Comentado temporalmente
 	'usuarios.middleware.EmpresaMiddleware',
 	'usuarios.middleware.AccesoEmpresaMiddleware',
+	'empresas.middleware.EmpresaEstadoMiddleware', # Bloqueo por mora
 	'empresas.middleware.SucursalMiddleware',  # Middleware de sucursal
 ]
 
@@ -296,4 +297,8 @@ SESSION_COOKIE_SAMESITE = 'Lax'  # Protección CSRF
 # Configuración de archivos estáticos en producción
 if not DEBUG:
 	STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+
+# Email settings for password reset (Console backend for testing)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'no-reply@gestioncloud.cl'
 

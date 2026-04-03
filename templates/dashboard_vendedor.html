@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% load static %}
+{% load format_filters %}
+
+{% block body_class %}show-top-bar{% endblock %}
+{% block title %}Dashboard Vendedor - GestionCloud{% endblock %}
+
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    .seller-card {
+        border-radius: 16px;
+        border: none;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .seller-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
+    }
+    .stat-title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-weight: 600;
+        opacity: 0.8;
+    }
+    .stat-value {
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        letter-spacing: -1px;
+    }
+    .bg-gradient-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+    .bg-gradient-info {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        color: white;
+    }
+    .bg-gradient-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    }
+    .table-modern {
+        font-family: 'Poppins', sans-serif;
+    }
+    .table-modern thead th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        border-bottom: 2px solid #e2e8f0;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+    .table-modern tbody td {
+        vertical-align: middle;
+        color: #334155;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .badge-status {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+    .badge-status-confirmada { background-color: #d1fae5; color: #065f46; }
+    .badge-status-borrador { background-color: #fef3c7; color: #92400e; }
+    .badge-status-anulada { background-color: #fee2e2; color: #991b1b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado y Accesos Rápidos -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-6 mb-3 mb-md-0">
+            <h1 class="h3 mb-1 text-gray-800" style="font-family: 'Poppins', sans-serif; font-weight: 700;">
+                <i class="fas fa-shopping-bag text-success me-2"></i> Mi Panel de Ventas
+            </h1>
+            <p class="text-muted mb-0">Hola, <strong>{{ request.user.perfil.nombre_completo|default:request.user.username }}</strong>. Aquí tienes el resumen de tu rendimiento.</p>
+        </div>
+        <div class="col-md-6 text-md-end">
+            <a href="{% url 'articulos:articulo_list' %}" class="btn btn-outline-secondary btn-lg shadow-sm me-2" style="border-radius: 10px; font-weight: 600;">
+                <i class="fas fa-box me-1"></i> Catálogo
+            </a>
+            <a href="{% url 'ventas:pos_seleccion' %}" class="btn btn-success btn-lg shadow-sm" style="border-radius: 10px; font-weight: 600; background-color: #10b981; border: none;">
+                <i class="fas fa-cash-register me-1"></i> Nueva Venta (POS)
+            </a>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="row mb-5">
+        <!-- Ventas Hoy -->
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card seller-card shadow-sm h-100 bg-gradient-success">
+                <div class="card-body p-4 position-relative overflow-hidden">
+                    <div class="position-absolute" style="right: -10px; top: -10px; font-size: 120px; opacity: 0.15;">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="stat-title mb-1">Ventas de Hoy</div>
+                    <div class="stat-value mb-2">${{ total_ventas_hoy|format_miles }}</div>
+                    <div class="d-flex align-items-center" style="font-size: 0.9rem; font-weight: 500;">
+                        <div class="bg-white bg-opacity-25 rounded-circle d-flex justify-content-center align-items-center me-2" style="width: 24px; height: 24px;">
+                            <i class="fas fa-receipt" style="font-size: 0.7rem;"></i>
+                        </div>
+                        {{ cantidad_ventas_hoy }} documentos emitidos hoy
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ventas Mes -->
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card seller-card shadow-sm h-100 bg-white" style="border-left: 5px solid #0ea5e9;">
+                <div class="card-body p-4 position-relative overflow-hidden">
+                    <div class="position-absolute text-info" style="right: -10px; top: -10px; font-size: 120px; opacity: 0.1;">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="stat-title text-info mb-1">Acumulado del Mes</div>
+                    <div class="stat-value text-dark mb-2">${{ total_ventas_mes|format_miles }}</div>
+                    <div class="d-flex align-items-center text-secondary" style="font-size: 0.9rem; font-weight: 500;">
+                        <div class="bg-info bg-opacity-10 text-info rounded-circle d-flex justify-content-center align-items-center me-2" style="width: 24px; height: 24px;">
+                            <i class="fas fa-file-invoice" style="font-size: 0.7rem;"></i>
+                        </div>
+                        {{ cantidad_ventas_mes }} ventas este mes
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mi Meta / Rendimiento (Mockup visual por ahora) -->
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card seller-card shadow-sm h-100 bg-white" style="border-left: 5px solid #f59e0b;">
+                <div class="card-body p-4 position-relative overflow-hidden">
+                    <div class="position-absolute text-warning" style="right: -10px; top: -10px; font-size: 120px; opacity: 0.1;">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="stat-title text-warning mb-1">Rendimiento (Demo)</div>
+                    <div class="stat-value text-dark mb-2">Excelente</div>
+                    <div class="w-100 bg-light rounded-pill mt-3" style="height: 8px;">
+                        <div class="bg-warning rounded-pill" style="width: 85%; height: 100%;"></div>
+                    </div>
+                    <div class="text-end text-muted mt-1" style="font-size: 0.75rem;">85% hacia tu meta</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historial Reciente -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm seller-card">
+                <div class="card-header py-3 bg-white border-bottom" style="border-radius: 16px 16px 0 0;">
+                    <h6 class="m-0 font-weight-bold" style="color: #334155; font-family: 'Poppins', sans-serif;">
+                        <i class="fas fa-history text-secondary me-2"></i> Mis Últimas 10 Ventas
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-modern table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Fecha y Hora</th>
+                                    <th>Documento</th>
+                                    <th>N° Doc.</th>
+                                    <th>Cliente</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th class="text-end pe-4">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for venta in ultimas_ventas %}
+                                <tr>
+                                    <td class="ps-4 text-nowrap">
+                                        <div class="fw-bold">{{ venta.fecha_creacion|date:"d M Y" }}</div>
+                                        <div class="text-muted small">{{ venta.fecha_creacion|time:"H:i" }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if venta.tipo_documento == 'boleta' %}
+                                                <i class="fas fa-receipt text-info me-2"></i>
+                                            {% elif venta.tipo_documento == 'factura' %}
+                                                <i class="fas fa-file-invoice text-primary me-2"></i>
+                                            {% else %}
+                                                <i class="fas fa-file-alt text-secondary me-2"></i>
+                                            {% endif %}
+                                            {{ venta.get_tipo_documento_display }}
+                                        </div>
+                                    </td>
+                                    <td><span class="fw-bold text-dark">{{ venta.numero_venta }}</span></td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 200px;" title="{{ venta.get_cliente_nombre }}">
+                                            {{ venta.get_cliente_nombre }}
+                                        </div>
+                                    </td>
+                                    <td class="fw-bold">${{ venta.total|format_miles }}</td>
+                                    <td>
+                                        <span class="badge-status badge-status-{{ venta.estado }}">
+                                            {{ venta.get_estado_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <a href="{% url 'ventas:venta_html' venta.id %}" target="_blank" class="btn btn-sm btn-light border" title="Ver/Imprimir">
+                                            <i class="fas fa-print text-secondary"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-5 text-muted">
+                                        <div style="font-size: 3rem; opacity: 0.3; margin-bottom: 10px;">
+                                            <i class="fas fa-store-slash"></i>
+                                        </div>
+                                        Aún no has realizado ninguna venta. ¡Ve al POS para empezar!
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

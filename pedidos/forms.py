@@ -1,4 +1,5 @@
 from django import forms
+from decimal import Decimal
 from django.forms import inlineformset_factory
 from .models import OrdenPedido, ItemOrdenPedido
 from clientes.models import Cliente
@@ -37,15 +38,31 @@ class OrdenPedidoForm(forms.ModelForm):
 class ItemOrdenPedidoForm(forms.ModelForm):
     """Formulario para items de orden de pedido"""
     
+    # Usamos IntegerField para evitar problemas de localización (unto vs coma) en inputs ocultos.
+    # El modelo lo guardará correctamente como Decimal.
+    impuesto_porcentaje = forms.IntegerField(
+        initial=19, 
+        widget=forms.HiddenInput(), 
+        required=False
+    )
+    
     def __init__(self, *args, **kwargs):
         empresa = kwargs.pop('empresa', None)
         super().__init__(*args, **kwargs)
         
-        # NO filtrar el queryset aquí porque el template maneja los artículos
-        # El template usa articulos_empresa del contexto para generar las opciones
-        # Si filtramos aquí, puede haber desajuste entre las opciones HTML y la validación
+        # Si el valor es nulo (por ejemplo en edición), forzamos 19
+        if self.instance and self.instance.pk and self.instance.impuesto_porcentaje is None:
+            self.fields['impuesto_porcentaje'].initial = 19
+
         from articulos.models import Articulo
         self.fields['articulo'].queryset = Articulo.objects.all()
+    
+    def clean_impuesto_porcentaje(self):
+        """Asegurar que el impuesto nunca sea nulo para evitar errores de BD"""
+        impuesto = self.cleaned_data.get('impuesto_porcentaje')
+        if impuesto is None:
+            return 19
+        return impuesto
     
     class Meta:
         model = ItemOrdenPedido
@@ -55,7 +72,6 @@ class ItemOrdenPedidoForm(forms.ModelForm):
             'cantidad': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'min': '1'}),
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'step': '1'}),
             'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'min': '0', 'max': '100'}),
-            'impuesto_porcentaje': forms.HiddenInput(),
             'observaciones': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Observaciones'}),
         }
 

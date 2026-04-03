@@ -9,7 +9,8 @@ from django.contrib.auth import views as auth_views
 from django.http import JsonResponse
 from core.decorators import requiere_empresa, solo_superusuario
 from usuarios.decorators import filtrar_por_empresa
-from .models import Empresa, Sucursal, ConfiguracionEmpresa
+from django.utils import timezone
+from .models import Empresa, Sucursal, ConfiguracionEmpresa, PlanSaaS, Suscripcion
 from .forms import EmpresaForm, SucursalForm, ConfiguracionEmpresaForm, FacturacionElectronicaForm
 
 
@@ -350,6 +351,23 @@ def empresa_update(request, pk):
 
 
 @solo_superusuario
+def empresa_toggle_status(request, pk):
+    """Permite a un superusuario suspender o reactivar una empresa rápidamente"""
+    empresa = get_object_or_404(Empresa, pk=pk)
+    
+    if empresa.estado == 'suspendida':
+        empresa.estado = 'activa'
+        # Otorgar 30 días más si se reactiva manualmente
+        empresa.fecha_limite_pago = timezone.now().date() + timezone.timedelta(days=30)
+        messages.success(request, f'✅ Empresa "{empresa.nombre}" reactivada exitosamente.')
+    else:
+        empresa.estado = 'suspendida'
+        messages.warning(request, f'🛑 Empresa "{empresa.nombre}" suspendida por morosidad.')
+        
+    empresa.save()
+    return redirect('empresas:empresa_list')
+
+@solo_superusuario
 def empresa_delete(request, pk):
 	"""Elimina una empresa - solo superusuario"""
 	empresa = get_object_or_404(Empresa, pk=pk)
@@ -581,6 +599,60 @@ def paleta_colores(request):
 	"""
 	return render(request, 'paleta_colores.html')
 
+
+@requiere_empresa
+def empresa_suspendida(request):
+    """
+    Vista informativa cuando la empresa está suspendida por mora.
+    Si el usuario es administrador, permite ver planes y pagar.
+    """
+    empresa = request.empresa
+    es_admin = request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.tipo_usuario == 'administrador')
+    
+    context = {
+        'empresa': empresa,
+        'es_admin': es_admin,
+        'planes': PlanSaaS.objects.filter(activo=True).order_by('precio_mensual')
+    }
+    
+    return render(request, 'empresas/empresa_suspendida.html', context)
+
+@requiere_empresa
+def seleccionar_plan(request, plan_id):
+    """
+    Permite a un administrador seleccionar o cambiar el plan de la empresa.
+    """
+    if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.tipo_usuario == 'administrador')):
+        messages.error(request, "Acceso denegado. Solo administradores pueden cambiar el plan.")
+        return redirect('dashboard')
+        
+    plan = get_object_or_404(PlanSaaS, id=plan_id, activo=True)
+    empresa = request.empresa
+    
+    if request.method == 'POST':
+        # En un sistema real, aquí iría la integración con pasarela de pago (Webpay, etc.)
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        empresa.plan = plan
+        empresa.estado = 'activa' # Reactivar tras "pago" simulado
+        empresa.fecha_limite_pago = timezone.now().date() + timedelta(days=30)
+        empresa.save()
+        
+        # Registrar la suscripción
+        Suscripcion.objects.create(
+            empresa=empresa,
+            plan=plan,
+            fecha_inicio=timezone.now().date(),
+            fecha_fin=empresa.fecha_limite_pago,
+            monto_pagado=plan.precio_mensual,
+            estado_pago='pagado'
+        )
+        
+        messages.success(request, f"✅ Plan {plan.nombre} activado exitosamente. Gracias por su pago.")
+        return redirect('dashboard')
+    
+    return render(request, 'empresas/confirmar_plan.html', {'plan': plan, 'empresa': empresa})
 
 def seleccionar_empresa(request):
 	"""

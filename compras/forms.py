@@ -76,6 +76,8 @@ class OrdenCompraForm(forms.ModelForm):
 class ItemOrdenCompraForm(forms.ModelForm):
     """Formulario para items de orden de compra"""
     
+    impuesto_porcentaje = forms.IntegerField(initial=19, widget=forms.HiddenInput(), required=False)
+    
     class Meta:
         model = ItemOrdenCompra
         fields = [
@@ -87,7 +89,7 @@ class ItemOrdenCompraForm(forms.ModelForm):
             'cantidad_solicitada': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center cantidad-input', 'min': '1'}),
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end precio-unitario-input', 'min': '0', 'step': '1'}),
             'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center descuento-input', 'min': '0', 'max': '100'}),
-            'impuesto_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm impuesto-input', 'min': '0', 'max': '100', 'value': '19'}),
+            'impuesto_porcentaje': forms.HiddenInput(attrs={'value': '19'}),
             'especificaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 2}),
             'fecha_entrega_item': forms.DateInput(attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
         }
@@ -104,8 +106,14 @@ class ItemOrdenCompraForm(forms.ModelForm):
         self.fields['descuento_porcentaje'].required = False
         self.fields['fecha_entrega_item'].required = False
         
-        # Filtrar artículos por empresa - esto se hará en la vista
         # La empresa se pasará a través del contexto del template
+    
+    def clean_impuesto_porcentaje(self):
+        """Asegurar que el impuesto nunca sea nulo para evitar errores de BD"""
+        impuesto = self.cleaned_data.get('impuesto_porcentaje')
+        if impuesto is None or impuesto == '':
+            return 19
+        return impuesto
     
     def clean(self):
         """Validar que si hay otros datos, el artículo es requerido"""
