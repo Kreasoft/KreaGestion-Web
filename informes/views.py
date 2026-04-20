@@ -40,8 +40,173 @@ from .exportaciones import (
 @login_required
 @requiere_empresa
 def dashboard_informes(request):
-    """Dashboard principal de informes"""
-    return render(request, 'informes/dashboard.html')
+    """Dashboard principal de informes con BI Gerencial"""
+    hoy = datetime.now().date()
+    inicio_mes = hoy.replace(day=1)
+    
+    # Ventas Mes Actual
+    ventas_mes = Venta.objects.filter(
+        empresa=request.empresa,
+        fecha__gte=inicio_mes,
+        fecha__lte=hoy,
+        estado='confirmada'
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    # Ventas Mes Anterior (mismo rango de días para comparación justa)
+    inicio_mes_anterior = (inicio_mes - timedelta(days=1)).replace(day=1)
+    fin_mes_anterior = inicio_mes - timedelta(days=1)
+    # Ajustar fin mes anterior al mismo día relativo si es posible
+    dia_relativo = hoy.day
+    try:
+        fin_mes_anterior_relativo = inicio_mes_anterior.replace(day=dia_relativo)
+    except ValueError:
+        # Si el mes anterior tiene menos días
+        fin_mes_anterior_relativo = fin_mes_anterior
+        
+    ventas_mes_anterior = Venta.objects.filter(
+        empresa=request.empresa,
+        fecha__gte=inicio_mes_anterior,
+        fecha__lte=fin_mes_anterior_relativo,
+        estado='confirmada'
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    # Variación
+    if ventas_mes_anterior > 0:
+        variacion = ((ventas_mes - ventas_mes_anterior) / ventas_mes_anterior) * 100
+    else:
+        variacion = 100 if ventas_mes > 0 else 0
+        
+    # Top 5 Productos (Cantidad)
+    top_productos_raw = VentaDetalle.objects.filter(
+        venta__empresa=request.empresa,
+        venta__fecha__gte=inicio_mes,
+        venta__estado='confirmada'
+    ).values('articulo__nombre').annotate(
+        total_qty=Sum('cantidad')
+    ).order_by('-total_qty')[:5]
+    
+    top_productos_labels = [p['articulo__nombre'] for p in top_productos_raw]
+    top_productos_values = [float(p['total_qty']) for p in top_productos_raw]
+    
+    # Ventas Diarias (Últimos 15 días)
+    hace_15_dias = hoy - timedelta(days=14)
+    ventas_diarias_raw = Venta.objects.filter(
+        empresa=request.empresa,
+        fecha__gte=hace_15_dias,
+        estado='confirmada'
+    ).values('fecha').annotate(
+        total=Sum('total')
+    ).order_by('fecha')
+    
+    # Llenar huecos de días sin ventas
+    fechas = []
+    totales_diarios = []
+    curr = hace_15_dias
+    ventas_dict = { v['fecha']: float(v['total']) for v in ventas_diarias_raw }
+    while curr <= hoy:
+        fechas.append(curr.strftime('%d/%m'))
+        totales_diarios.append(ventas_dict.get(curr, 0))
+        curr += timedelta(days=1)
+        
+    # Ventas por Vendedor
+    ventas_vendedor_raw = Venta.objects.filter(
+        empresa=request.empresa,
+        fecha__gte=inicio_mes,
+        estado='confirmada',
+        vendedor__isnull=False
+    ).values('vendedor__nombre').annotate(
+        total=Sum('total')
+    ).order_by('-total')[:5]
+    
+    vendedor_labels = [v['vendedor__nombre'] for v in ventas_vendedor_raw]
+    vendedor_values = [float(v['total']) for v in ventas_vendedor_raw]
+
+    # ---------------------------
+    # DATOS PARA BI GERENCIAL
+    # ---------------------------
+    
+    # 1. Ventas por Categoría (Mes Actual)
+    ventas_categoria_raw = VentaDetalle.objects.filter(
+        venta__empresa=request.empresa,
+        venta__fecha__gte=inicio_mes,
+        venta__estado='confirmada'
+    ).values('articulo__categoria__nombre').annotate(
+        total=Sum('precio_total')
+    ).order_by('-total')
+    
+    cat_labels = [c['articulo__categoria__nombre'] or 'Sin Categoría' for c in ventas_categoria_raw]
+    cat_values = [float(c['total']) for c in ventas_categoria_raw]
+
+    # 2. Comparativa Mensual (Últimos 12 meses)
+    hace_12_meses = (hoy - timedelta(days=365)).replace(day=1)
+    ventas_mensuales_raw = Venta.objects.filter(
+        empresa=request.empresa,
+        fecha__gte=hace_12_meses,
+        estado='confirmada'
+    ).annotate(mes=TruncMonth('fecha')).values('mes').annotate(
+        total=Sum('total')
+    ).order_by('mes')
+    
+    mensual_labels = []
+    mensual_values = []
+    meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    
+    # Asegurar que mostramos los 12 meses aunque no haya ventas
+    mes_dict = { v['mes'].strftime('%Y-%m'): float(v['total']) for v in ventas_mensuales_raw }
+    curr_mes = hace_12_meses
+    while curr_mes <= hoy:
+        key = curr_mes.strftime('%Y-%m')
+        mensual_labels.append(f"{meses_nombres[curr_mes.month-1]} {curr_mes.year}")
+        mensual_values.append(mes_dict.get(key, 0))
+        # Incrementar un mes
+        if curr_mes.month == 12:
+            curr_mes = curr_mes.replace(year=curr_mes.year + 1, month=1)
+        else:
+            curr_mes = curr_mes.replace(month=curr_mes.month + 1)
+
+    # 3. Comparativa Anual (Año Actual vs Año Anterior)
+    anio_actual = hoy.year
+    anio_anterior = anio_actual - 1
+    
+    ventas_anio_actual = Venta.objects.filter(
+        empresa=request.empresa,
+        fecha__year=anio_actual,
+        estado='confirmada'
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    ventas_anio_anterior = Venta.objects.filter(
+        empresa=request.empresa,
+        fecha__year=anio_anterior,
+        estado='confirmada'
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0')
+
+    # Cumplimiento de meta (Año actual vs Año anterior)
+    cumplimiento_meta = 0
+    if ventas_anio_anterior > 0:
+        cumplimiento_meta = (ventas_anio_actual / ventas_anio_anterior) * 100
+
+    context = {
+        'ventas_mes': float(ventas_mes),
+        'ventas_mes_anterior': float(ventas_mes_anterior),
+        'variacion': float(variacion),
+        'top_productos_labels': json.dumps(top_productos_labels),
+        'top_productos_values': json.dumps(top_productos_values),
+        'ventas_diarias_labels': json.dumps(fechas),
+        'ventas_diarias_values': json.dumps(totales_diarios),
+        'vendedor_labels': json.dumps(vendedor_labels),
+        'vendedor_values': json.dumps(vendedor_values),
+        'cat_labels': json.dumps(cat_labels),
+        'cat_values': json.dumps(cat_values),
+        'mensual_labels': json.dumps(mensual_labels),
+        'mensual_values': json.dumps(mensual_values),
+        'ventas_anio_actual': float(ventas_anio_actual),
+        'ventas_anio_anterior': float(ventas_anio_anterior),
+        'cumplimiento_meta': float(cumplimiento_meta),
+        'anio_actual': anio_actual,
+        'anio_anterior': anio_anterior,
+    }
+    
+    return render(request, 'informes/dashboard.html', context)
 
 
 # ==================== INFORMES DE VENTAS ====================

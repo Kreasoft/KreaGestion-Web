@@ -1,376 +1,508 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
-{% block title %}Informes - GestionCloud{% endblock %}
+{% block title %}Business Intelligence - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_head %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block extra_css %}
 <style>
-    /* VARIABLES ESTILO PIEDRA PREMIUM */
     :root {
-        --stone-primary: #8B7355;
-        --stone-secondary: #6F5B44;
-        --stone-light: #E8DCC8;
-        --stone-bg: #FAFAF8;
-        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
-        --stone-text: #5D4037;
-        --stone-card-bg: #FFFFFF;
-        --stone-success: #43A047;
-        --stone-danger: #e53935;
-        --stone-warning: #FB8C00;
-        --stone-info: #039BE5;
+        --color-gold: #D4A574;
+        --color-piedra: #5D4037;
+        --color-stone-light: #F5F1E8;
+        --accent-gradient: linear-gradient(135deg, #8B7355 0%, #5D4037 100%);
+        --chart-color-1: #5D4037;
+        --chart-color-2: #8B7355;
+        --chart-color-3: #D4A574;
+        --chart-color-4: #E8DCC8;
+        --chart-color-5: #B09B89;
     }
 
     body {
-        background-color: var(--stone-bg) !important;
-        color: var(--stone-text);
-        font-family: 'Poppins', sans-serif;
+        background-color: #f8f6f2 !important;
+        font-family: 'Outfit', sans-serif !important;
+        color: var(--color-piedra);
     }
 
-    /* CARD PRINCIPAL */
-    .single-card-container {
-        background: var(--stone-card-bg);
-        border: 1px solid var(--stone-light);
-        border-radius: 16px;
-        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
-        overflow: hidden;
-        margin-top: 1.5rem;
-        margin-bottom: 2rem;
+    /* KPI CARDS */
+    .bi-kpi-card {
+        background: white;
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.03);
+        border: 1px solid #eee;
+        transition: transform 0.3s ease;
+        height: 100%;
     }
 
-    /* HEADER PREMIUM */
-    .stone-header-premium {
-        background: var(--stone-gradient);
-        padding: 1.25rem 2rem;
-        border-bottom: 1px solid var(--stone-light);
+    .bi-kpi-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .kpi-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #888;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .kpi-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--color-piedra);
+        margin: 5px 0;
+    }
+
+    .kpi-trend {
+        font-size: 0.85rem;
+        font-weight: 600;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    
-    .header-icon-box {
-        width: 52px; height: 52px; 
-        background: rgba(255, 255, 255, 0.8); 
-        backdrop-filter: blur(4px);
-        border-radius: 14px; 
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
-        color: var(--stone-secondary);
-        font-size: 1.5rem;
+        gap: 5px;
     }
 
-    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
-    .header-text h1 span { font-weight: 700; }
-    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+    .trend-up { color: #2e7d32; }
+    .trend-down { color: #d32f2f; }
 
-    /* INFORME CARD STYLES */
-    .informe-card {
+    /* CHART CARDS */
+    .bi-chart-card {
         background: white;
-        border-radius: 10px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-        transition: all 0.3s ease;
-        border: 1px solid #E8DCC8;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.04);
+        border: 1px solid #eee;
+        margin-bottom: 25px;
+        height: 480px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chart-header {
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chart-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--color-piedra);
+    }
+
+    .chart-canvas-container {
+        flex-grow: 1;
+        position: relative;
+    }
+
+    /* INFORME GRID (BOTTOM) */
+    .reports-section {
+        margin-top: 50px;
+        padding-top: 40px;
+        border-top: 2px solid #eee;
+    }
+
+    .section-headline {
+        font-weight: 700;
+        font-size: 1.8rem;
+        margin-bottom: 30px;
+        color: var(--color-piedra);
+    }
+
+    .report-min-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        border: 1px solid #f0f0f0;
+        text-decoration: none !important;
+        transition: all 0.3s;
         height: 100%;
-        position: relative;
-        overflow: hidden;
     }
-    
-    .informe-card .bg-icon {
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 7rem;
-        color: #F5F1E8;
-        opacity: 0.25;
-        z-index: 0;
-        pointer-events: none;
+
+    .report-min-card:hover {
+        background: var(--color-stone-light);
+        border-color: var(--color-gold);
     }
-    
-    .informe-card:hover {
-        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
-        transform: translateY(-2px);
-        border-color: #D4A574;
-    }
-    
-    .informe-card > *:not(.bg-icon) {
-        position: relative;
-        z-index: 1;
-    }
-    
-    .informe-icon {
-        width: 50px;
-        height: 50px;
-        background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);
-        border-radius: 10px;
+
+    .report-icon-sm {
+        width: 45px;
+        height: 45px;
+        background: #fdfaf5;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 1rem;
+        color: var(--color-gold);
+        font-size: 1.2rem;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.02);
     }
-    
-    .informe-icon i {
-        font-size: 1.5rem;
-        color: #8B7355;
-    }
-    
-    .informe-title {
-        font-size: 1.1rem;
+
+    .report-info-sm h5 {
+        font-size: 1rem;
         font-weight: 600;
-        font-family: 'Poppins', sans-serif;
-        color: #5A4A37;
-        margin-bottom: 0.5rem;
+        margin: 0;
+        color: var(--color-piedra);
     }
-    
-    .informe-description {
-        font-size: 0.875rem;
-        color: #6c757d;
-        margin-bottom: 1rem;
-        line-height: 1.4;
+
+    .report-info-sm p {
+        font-size: 0.8rem;
+        margin: 0;
+        color: #888;
     }
-    
-    .informe-link {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.5rem 1rem;
-        background: #8B7355;
+
+    .premium-badge {
+        background: var(--accent-gradient);
         color: white;
-        text-decoration: none;
-        font-weight: 500;
-        font-size: 0.875rem;
-        border-radius: 0.5rem;
-        transition: all 0.2s ease;
-    }
-    
-    .informe-link:hover {
-        background: #6F5B44;
-        color: white;
-        transform: translateX(5px);
-    }
-    
-    .informe-link i {
-        margin-left: 0.25rem;
-        transition: margin-left 0.2s ease;
-    }
-    
-    .informe-link:hover i {
-        margin-left: 0.5rem;
-    }
-    
-    .section-title {
-        font-size: 1.35rem;
-        font-weight: 600;
-        font-family: 'Poppins', sans-serif;
-        color: #5A4A37;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #F5F1E8;
-    }
-    
-    .section-title i {
-        color: #8B7355;
-        margin-right: 0.5rem;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="single-card-container">
-        <!-- Header Premium -->
-        <div class="stone-header-premium">
-            <div class="d-flex align-items-center gap-3">
-                <div class="header-icon-box">
-                    <i class="fas fa-chart-line"></i>
+<div class="container-fluid py-4 px-4">
+    <!-- Header Inteligente -->
+    <div class="row align-items-center mb-5">
+        <div class="col-lg-6">
+            <div class="d-inline-block premium-badge mb-2">Piedra Premium Intelligence</div>
+            <h1 class="fw-bold mb-0" style="font-size: 2.8rem;">Control <span style="color: var(--color-gold)">Estratégico</span></h1>
+            <p class="text-muted mb-0">Analítica avanzada y comparativas reales del rendimiento empresarial.</p>
+        </div>
+        <div class="col-lg-6 mt-3 mt-lg-0">
+            <div class="d-flex justify-content-lg-end gap-4 align-items-center">
+                <div class="text-end">
+                    <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 0.7rem;">Crecimiento Anual</small>
+                    {% with diff_anio=ventas_anio_actual|add:ventas_anio_anterior %}
+                        <span class="badge {% if ventas_anio_actual >= ventas_anio_anterior %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
+                            <i class="fas fa-chart-line me-1"></i>
+                            {{ anio_actual }} vs {{ anio_anterior }}
+                        </span>
+                    {% endwith %}
                 </div>
-                <div class="header-text">
-                    <h1>Informes y <span>Reportes</span></h1>
-                    <p>Análisis y estadísticas del sistema</p>
+                <div class="vr"></div>
+                <div class="text-end">
+                    <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 0.7rem;">Período</small>
+                    <span class="fw-bold fs-5">{{ today|date:"F Y" }}</span>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="card-body p-4">
-            <!-- Ventas -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h3 class="section-title">
-                        <i class="fas fa-shopping-cart"></i>Ventas
-                    </h3>
+    <!-- KPIs Superiores Dinámicos -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="bi-kpi-card">
+                <div class="kpi-title">
+                    Ventas Mes Actual
+                    <i class="fas fa-coins text-warning"></i>
                 </div>
-                <div class="col-md-4 mb-3">
-                    <div class="informe-card ventas-periodo">
-                        <i class="fas fa-calendar-alt bg-icon"></i>
-                        <div class="informe-icon">
-                            <i class="fas fa-calendar-alt"></i>
-                        </div>
-                        <h4 class="informe-title">Ventas por Período</h4>
-                        <p class="informe-description">Análisis de ventas diarias, semanales o mensuales con totales y promedios.</p>
-                        <a href="{% url 'informes:ventas_periodo' %}" class="informe-link">
-                            Ver informe <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="informe-card ventas-vendedor">
-                        <i class="fas fa-user-tie bg-icon"></i>
-                        <div class="informe-icon">
-                            <i class="fas fa-user-tie"></i>
-                        </div>
-                        <h4 class="informe-title">Ventas por Vendedor</h4>
-                        <p class="informe-description">Rendimiento individual de cada vendedor con estadísticas detalladas.</p>
-                        <a href="{% url 'informes:ventas_vendedor' %}" class="informe-link">
-                            Ver informe <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="informe-card productos-vendidos">
-                        <i class="fas fa-trophy bg-icon"></i>
-                        <div class="informe-icon">
-                            <i class="fas fa-trophy"></i>
-                        </div>
-                        <h4 class="informe-title">Productos Más Vendidos</h4>
-                        <p class="informe-description">Top 50 productos con mayor cantidad de ventas en el período.</p>
-                        <a href="{% url 'informes:productos_vendidos' %}" class="informe-link">
-                            Ver informe <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
+                <div class="kpi-value">${{ ventas_mes|floatformat:0|intcomma }}</div>
+                <div class="kpi-trend {% if variacion >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                    <i class="fas fa-{% if variacion >= 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                    {{ variacion|floatformat:1 }}% vs Mes Anterior Relativo
                 </div>
             </div>
-
-            <!-- Inventario -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h3 class="section-title">
-                        <i class="fas fa-warehouse"></i>Inventario
-                    </h3>
+        </div>
+        <div class="col-md-3">
+            <div class="bi-kpi-card">
+                <div class="kpi-title">
+                    Total Año {{ anio_actual }}
+                    <i class="fas fa-calendar-check text-success"></i>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <div class="informe-card stock-actual">
-                        <i class="fas fa-boxes bg-icon"></i>
-                        <div class="informe-icon">
-                            <i class="fas fa-boxes"></i>
-                        </div>
-                        <h4 class="informe-title">Stock Actual</h4>
-                        <p class="informe-description">Inventario actual por bodega con valorización total del stock.</p>
-                        <a href="{% url 'informes:stock_actual' %}" class="informe-link">
-                            Ver informe <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <div class="informe-card stock-bajo">
-                        <i class="fas fa-exclamation-triangle bg-icon"></i>
-                        <div class="informe-icon">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                        <h4 class="informe-title">Stock Bajo</h4>
-                        <p class="informe-description">Productos con stock bajo o crítico que requieren reposición.</p>
-                        <a href="{% url 'informes:stock_bajo' %}" class="informe-link">
-                            Ver informe <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
+                <div class="kpi-value">${{ ventas_anio_actual|floatformat:0|intcomma }}</div>
+                <div class="kpi-trend text-muted">
+                    vs Año Anterior: ${{ ventas_anio_anterior|floatformat:0|intcomma }}
                 </div>
             </div>
-
-            <!-- Tesorería -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h3 class="section-title">
-                        <i class="fas fa-dollar-sign"></i>Tesorería
-                    </h3>
+        </div>
+        <div class="col-md-3">
+            <div class="bi-kpi-card">
+                <div class="kpi-title">
+                    Facturación {{ anio_anterior }}
+                    <i class="fas fa-history text-info"></i>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <div class="informe-card cuentas-cobrar">
-                        <i class="fas fa-file-invoice-dollar bg-icon"></i>
-                        <div class="informe-icon">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                        </div>
-                        <h4 class="informe-title">Cuentas por Cobrar</h4>
-                        <p class="informe-description">Documentos pendientes de pago clasificados por vencimiento.</p>
-                        <a href="{% url 'informes:cuentas_por_cobrar' %}" class="informe-link">
-                            Ver informe <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
+                <div class="kpi-value">${{ ventas_anio_anterior|floatformat:0|intcomma }}</div>
+                <div class="kpi-trend text-muted">Referencia histórica anual</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="bi-kpi-card">
+                <div class="kpi-title">
+                    Meta Anual {{ anio_actual }}
+                    <i class="fas fa-flag-checkered text-danger"></i>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <div class="informe-card pagos-recibidos">
-                        <i class="fas fa-hand-holding-usd bg-icon"></i>
-                        <div class="informe-icon">
-                            <i class="fas fa-hand-holding-usd"></i>
-                        </div>
-                        <h4 class="informe-title">Pagos Recibidos</h4>
-                        <p class="informe-description">Historial de pagos recibidos agrupados por forma de pago.</p>
-                        <a href="{% url 'informes:pagos_recibidos' %}" class="informe-link">
-                            Ver informe <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
+                <div class="kpi-value">
+                    {{ cumplimiento_meta|floatformat:0 }}%
+                </div>
+                <div class="progress mt-3" style="height: 10px; border-radius: 5px;">
+                    <div class="progress-bar" role="progressbar" style="width: {{ cumplimiento_meta|floatformat:0 }}%; max-width: 100%; background: var(--accent-gradient);"></div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Caja y Compras -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h3 class="section-title">
-                        <i class="fas fa-cash-register"></i>Caja y Compras
-                    </h3>
+    <!-- Bloque de Gráficos de Análisis Real -->
+    <div class="row g-4 mb-4">
+        <!-- Gráfico 1: Comparativa Mensual Histórica -->
+        <div class="col-lg-8">
+            <div class="bi-chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">Comparativa Mensual (Histórico 12 Meses)</h3>
+                    <span class="text-muted small">Tendencia de ingresos mensuales</span>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <div class="informe-card cierres-caja">
-                        <i class="fas fa-calculator bg-icon"></i>
-                        <div class="informe-icon">
-                            <i class="fas fa-calculator"></i>
-                        </div>
-                        <h4 class="informe-title">Cierres de Caja</h4>
-                        <p class="informe-description">Historial de cierres de caja con totales y diferencias.</p>
-                        <a href="{% url 'informes:cierres_caja' %}" class="informe-link">
-                            Ver informe <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <div class="informe-card compras">
-                        <i class="fas fa-shopping-basket bg-icon"></i>
-                        <div class="informe-icon">
-                            <i class="fas fa-shopping-basket"></i>
-                        </div>
-                        <h4 class="informe-title">Compras por Período</h4>
-                        <p class="informe-description">Análisis de compras agrupadas por proveedor y período.</p>
-                        <a href="{% url 'informes:compras_periodo' %}" class="informe-link">
-                            Ver informe <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
+                <div class="chart-canvas-container">
+                    <canvas id="monthlyCompareChart"></canvas>
                 </div>
             </div>
-
-            <!-- Análisis Financiero -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h3 class="section-title">
-                        <i class="fas fa-chart-pie"></i>Análisis Financiero
-                    </h3>
+        </div>
+        <!-- Gráfico 2: Distribución por Categorías Real -->
+        <div class="col-lg-4">
+            <div class="bi-chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">Distribución por Categorías</h3>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <div class="informe-card utilidad-familias">
-                        <i class="fas fa-chart-line bg-icon"></i>
-                        <div class="informe-icon">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <h4 class="informe-title">Utilidad por Familias</h4>
-                        <p class="informe-description">Análisis de costos, ventas y utilidad por categoría de productos con cálculo de márgenes.</p>
-                        <a href="{% url 'informes:utilidad_familias' %}" class="informe-link">
-                            Ver informe <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
+                <div class="chart-canvas-container">
+                    <canvas id="realCategoryChart"></canvas>
                 </div>
             </div>
+        </div>
+    </div>
 
+    <div class="row g-4">
+        <!-- Gráfico 3: Tendencia Diaria Últimos 15 días -->
+        <div class="col-lg-7">
+            <div class="bi-chart-card" style="height: 400px;">
+                <div class="chart-header">
+                    <h3 class="chart-title">Ventas Diarias (Últimos 15 Días)</h3>
+                </div>
+                <div class="chart-canvas-container">
+                    <canvas id="dailyTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Gráfico 4: Rendimiento por Vendedor -->
+        <div class="col-lg-5">
+            <div class="bi-chart-card" style="height: 400px;">
+                <div class="chart-header">
+                    <h3 class="chart-title">Top 5 Vendedores</h3>
+                </div>
+                <div class="chart-canvas-container">
+                    <canvas id="vendedoresChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de Biblioteca de Reportes Detallados -->
+    <div class="reports-section">
+        <h2 class="section-headline">Biblioteca de <span style="color: var(--color-gold)">Reportes Operativos</span></h2>
+        
+        <div class="row g-4 mb-4">
+            <!-- Ventas Detalle -->
+            <div class="col-md-4">
+                <a href="{% url 'informes:ventas_periodo' %}" class="report-min-card">
+                    <div class="report-icon-sm"><i class="fas fa-list-alt"></i></div>
+                    <div class="report-info-sm">
+                        <h5>Ventas por Período</h5>
+                        <p>Análisis tabular detallado</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{% url 'informes:ventas_vendedor' %}" class="report-min-card">
+                    <div class="report-icon-sm"><i class="fas fa-user-tag"></i></div>
+                    <div class="report-info-sm">
+                        <h5>Ranking Comisiones</h5>
+                        <p>Rendimiento por agente</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{% url 'informes:productos_vendidos' %}" class="report-min-card">
+                    <div class="report-icon-sm"><i class="fas fa-award"></i></div>
+                    <div class="report-info-sm">
+                        <h5>Artículos Estrella</h5>
+                        <p>Top 50 más demandados</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Finanzas e Inventario -->
+            <div class="col-md-4">
+                <a href="{% url 'informes:utilidad_familias' %}" class="report-min-card">
+                    <div class="report-icon-sm"><i class="fas fa-chart-pie"></i></div>
+                    <div class="report-info-sm">
+                        <h5>Rentabilidad x Familia</h5>
+                        <p>Márgenes y utilidad neta</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{% url 'informes:stock_actual' %}" class="report-min-card">
+                    <div class="report-icon-sm"><i class="fas fa-warehouse"></i></div>
+                    <div class="report-info-sm">
+                        <h5>Inventario Circular</h5>
+                        <p>Stock y valorización total</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{% url 'informes:cuentas_por_cobrar' %}" class="report-min-card">
+                    <div class="report-icon-sm"><i class="fas fa-file-invoice-dollar"></i></div>
+                    <div class="report-info-sm">
+                        <h5>Morosidad y Cobranza</h5>
+                        <p>Cartera vencida de clientes</p>
+                    </div>
+                </a>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    // Configuración Global Chart.js
+    Chart.defaults.font.family = "'Outfit', sans-serif";
+    Chart.defaults.color = '#5D4037';
+    Chart.defaults.plugins.tooltip.boxPadding = 5;
+
+    // 1. Comparativa Mensual Histórica (Bar + Line)
+    const monthlyCtx = document.getElementById('monthlyCompareChart').getContext('2d');
+    new Chart(monthlyCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ mensual_labels|safe }},
+            datasets: [{
+                label: 'Ingresos Mensuales ($)',
+                data: {{ mensual_values|safe }},
+                backgroundColor: 'rgba(212, 165, 116, 0.7)',
+                borderColor: '#D4A574',
+                borderWidth: 1,
+                borderRadius: 5,
+                order: 2
+            }, {
+                label: 'Tendencia',
+                data: {{ mensual_values|safe }},
+                type: 'line',
+                borderColor: '#5D4037',
+                borderWidth: 2,
+                pointRadius: 3,
+                fill: false,
+                tension: 0.3,
+                order: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: v => '$'+v.toLocaleString() } }
+            },
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+
+    // 2. Distribución por Categorías Real (Doughnut)
+    const categoryCtx = document.getElementById('realCategoryChart').getContext('2d');
+    new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ cat_labels|safe }},
+            datasets: [{
+                data: {{ cat_values|safe }},
+                backgroundColor: ['#5D4037', '#8B7355', '#D4A574', '#E8DCC8', '#B09B89', '#C8B39F'],
+                borderWidth: 0,
+                hoverOffset: 15
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 15, boxWidth: 12 } }
+            }
+        }
+    });
+
+    // 3. Tendencia Diaria (Line con Area)
+    const dailyCtx = document.getElementById('dailyTrendChart').getContext('2d');
+    const dGradient = dailyCtx.createLinearGradient(0, 0, 0, 300);
+    dGradient.addColorStop(0, 'rgba(139, 115, 85, 0.3)');
+    dGradient.addColorStop(1, 'rgba(139, 115, 85, 0)');
+
+    new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: {{ ventas_diarias_labels|safe }},
+            datasets: [{
+                label: 'Ventas Diarias',
+                data: {{ ventas_diarias_values|safe }},
+                borderColor: '#8B7355',
+                backgroundColor: dGradient,
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: '#8B7355',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { ticks: { callback: v => '$'+v.toLocaleString() } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 4. Vendedores (Horizontal Bar)
+    const vendCtx = document.getElementById('vendedoresChart').getContext('2d');
+    new Chart(vendCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ vendedor_labels|safe }},
+            datasets: [{
+                data: {{ vendedor_values|safe }},
+                backgroundColor: '#D4A574',
+                borderRadius: 5,
+                barThickness: 25
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { display: false }, grid: { display: false } }
+            }
+        }
+    });
+</script>
 {% endblock %}
