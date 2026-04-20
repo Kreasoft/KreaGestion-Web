@@ -67,6 +67,13 @@
         background-color: #F5F1E8 !important;
     }
 
+    /* Resaltar fila seleccionada (anclaje) */
+    .table-piedra tbody tr:target {
+        background-color: rgba(139, 115, 85, 0.15) !important;
+        border-left: 5px solid var(--color-piedra-primario) !important;
+        transition: background-color 0.5s ease;
+    }
+
     .table-piedra tbody td {
         padding: 5px 15px;
         border-bottom: 1px solid #F5F1E8;
@@ -295,7 +302,7 @@
                     </thead>
                     <tbody>
                         {% for dte in dtes %}
-                        <tr>
+                        <tr id="row-{{ dte.id }}">
                             <td>
                                 {% if dte.tipo_dte == '33' %}
                                 <span class="badge badge-premium" style="background: rgba(72, 187, 120, 0.15); color: #2F855A;" title="Factura Electrónica">FE</span>
@@ -357,9 +364,8 @@
                                     </a>
                                     {% endif %}
 
-                                    {# Enviar al SII #}
                                     {% if dte.estado_sii != 'aceptado' and dte.estado_sii != 'rechazado' and dte.estado_sii != 'anulado' %}
-                                    <a href="{% url 'facturacion_electronica:enviar_dte' dte.pk %}"
+                                    <a href="{% url 'facturacion_electronica:enviar_dte' dte.pk %}?return_url={{ request.get_full_path|urlencode }}"
                                         class="btn-action-piedra" title="Enviar al SII" style="color: #D69E2E; border-color: #F6E05E;">
                                         <i class="fas fa-paper-plane"></i>
                                     </a>
@@ -368,7 +374,7 @@
                                     {# Regenerar XML (Boletas y Guías sin XML o con error) #}
                                     {% if dte.tipo_dte == '39' or dte.tipo_dte == '52' %}
                                     {% if dte.estado_sii != 'aceptado' and dte.estado_sii != 'rechazado' and dte.estado_sii != 'anulado' %}
-                                    <a href="{% url 'facturacion_electronica:regenerar_xml_dte' dte.pk %}"
+                                    <a href="{% url 'facturacion_electronica:regenerar_xml_dte' dte.pk %}?return_url={{ request.get_full_path|urlencode }}"
                                         class="btn-action-piedra" title="Regenerar XML (si está vacío o con error)">
                                         <i class="fas fa-sync-alt"></i>
                                     </a>
@@ -376,7 +382,7 @@
                                     {% endif %}
 
                                      {# Descargar desde GDExpress (PDF y XML) #}
-                                     <a href="{% url 'facturacion_electronica:descargar_pdf_gdexpress' dte.pk %}"
+                                     <a href="{% url 'facturacion_electronica:descargar_pdf_gdexpress' dte.pk %}?return_url={{ request.get_full_path|urlencode }}"
                                         class="btn-action-piedra" title="Traer PDF/XML y sincronizar desde GDExpress">
                                          <i class="fas fa-cloud-download-alt"></i>
                                      </a>

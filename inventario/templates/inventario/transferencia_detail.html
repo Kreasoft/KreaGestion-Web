@@ -57,7 +57,7 @@
     }
 
     .header-text h1 {
-        color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 700;
+        color: var(--stone-text); font-size: 1.8rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300;
     }
     .header-text p {
         color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9;
@@ -163,6 +163,18 @@
                                 <a href="{% url 'inventario:transferencia_imprimir_guia' transferencia.pk %}" target="_blank" class="header-btn btn-action-base" style="background: #6B8E23;">
                                     <i class="fas fa-print me-2"></i> Guía N° {{ transferencia.guia_despacho.folio }}
                                 </a>
+                                
+                                {% if transferencia.guia_despacho.estado_sii != 'aceptado' and transferencia.guia_despacho.estado_sii != 'rechazado' %}
+                                    <a href="{% url 'facturacion_electronica:enviar_dte' transferencia.guia_despacho.pk %}?return_url={{ request.path|urlencode }}" class="header-btn btn-action-base" style="background: #4682B4;">
+                                        <i class="fas fa-paper-plane me-2"></i> Enviar al SII
+                                    </a>
+                                {% endif %}
+
+                                {% if transferencia.guia_despacho.track_id %}
+                                    <a href="{% url 'facturacion_electronica:consultar_estado_dte' transferencia.guia_despacho.pk %}" class="header-btn btn-action-base" style="background: #5F9EA0;">
+                                        <i class="fas fa-sync me-2"></i> Sincronizar SII
+                                    </a>
+                                {% endif %}
                             {% endif %}
                             
                             <a href="{% url 'inventario:transferencia_create' %}?edit={{ transferencia.pk }}" class="header-btn btn-action-base" style="background: #D4A574;">
@@ -181,6 +193,55 @@
                     <div class="row g-4">
                         <!-- COLUMNA IZQUIERDA: DATOS -->
                         <div class="col-lg-4">
+                            <!-- ESTADO DTE (SI EXISTE) -->
+                            {% if transferencia.guia_despacho %}
+                            <div class="detail-card mb-3" style="border: 2px solid var(--stone-primary);">
+                                <div class="detail-header" style="background: var(--stone-primary); color: white;">
+                                    <i class="fas fa-file-contract"></i> Estado Tributario (SII)
+                                </div>
+                                <div class="p-3 text-center">
+                                    <div class="mb-3">
+                                        <span class="detail-label text-center">Estado del Documento</span>
+                                        {% if transferencia.guia_despacho.estado_sii == 'aceptado' %}
+                                            <span class="badge w-100 py-2 fs-6" style="background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9;">
+                                                <i class="fas fa-check-double me-2"></i> ACEPTADO POR SII
+                                            </span>
+                                        {% elif transferencia.guia_despacho.estado_sii == 'rechazado' %}
+                                            <span class="badge w-100 py-2 fs-6" style="background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2;">
+                                                <i class="fas fa-exclamation-triangle me-2"></i> RECHAZADO
+                                            </span>
+                                        {% elif transferencia.guia_despacho.track_id %}
+                                            <span class="badge w-100 py-2 fs-6" style="background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB;">
+                                                <i class="fas fa-clock me-2"></i> EN PROCESO (SII)
+                                            </span>
+                                        {% else %}
+                                            <span class="badge w-100 py-2 fs-6" style="background: #F5F5F5; color: #616161; border: 1px solid #E0E0E0;">
+                                                <i class="fas fa-pause-circle me-2"></i> PENDIENTE ENVÍO
+                                            </span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if transferencia.guia_despacho.timbre_pdf417 %}
+                                    <div class="mb-3">
+                                        <img src="{{ transferencia.guia_despacho.timbre_pdf417.url }}" alt="Timbre SII" class="img-fluid rounded border p-2 bg-white" style="max-height: 100px;">
+                                        <div class="small text-muted mt-1" style="font-size: 0.65rem;">Timbre Electrónico Oficial</div>
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="row g-2 text-start">
+                                        <div class="col-6">
+                                            <span class="detail-label">Folio</span>
+                                            <span class="detail-value fw-bold">#{{ transferencia.guia_despacho.folio }}</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="detail-label">Track ID</span>
+                                            <span class="detail-value text-break" style="font-size: 0.8rem;">{{ transferencia.guia_despacho.track_id|default:"No enviado" }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+
                             <!-- INFO GENERAL -->
                             <div class="detail-card mb-3">
                                 <div class="detail-header">
@@ -416,6 +477,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+    // Auto-activar generación de guía si viene con el parámetro ask_emit
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('ask_emit') === '1' && btnGenerarGuia) {
+        // Pequeño delay para que el usuario vea la página primero (o que el SweetAlert de éxito no choque)
+        setTimeout(() => {
+            btnGenerarGuia.click();
+        }, 800);
     }
 });
 </script>

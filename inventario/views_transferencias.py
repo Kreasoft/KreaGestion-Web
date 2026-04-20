@@ -1,5 +1,6 @@
 from utilidades.utils import clean_id
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -30,7 +31,7 @@ def transferencia_list(request):
     transferencias = TransferenciaInventario.objects.filter(
         empresa=request.empresa
     ).select_related(
-        'bodega_origen', 'bodega_destino', 'creado_por'
+        'bodega_origen', 'bodega_destino', 'creado_por', 'guia_despacho'
     ).prefetch_related('detalles').order_by('-fecha_transferencia')
     
     # Filtros
@@ -115,7 +116,7 @@ def transferencia_create(request):
             TransferenciaInventario,
             pk=edit_id,
             empresa=request.empresa,
-            estado='confirmado'  # Solo se pueden editar transferencias confirmadas
+            estado__in=['pendiente', 'confirmado']  # Permitir editar tanto pendientes como confirmadas
         )
     
     if request.method == 'POST':
@@ -333,7 +334,7 @@ def transferencia_create(request):
                             request, 
                             f'Transferencia {transferencia.numero_folio} creada exitosamente.'
                         )
-                    return redirect('inventario:transferencia_detail', pk=transferencia.pk)
+                    return redirect(reverse('inventario:transferencia_detail', kwargs={'pk': transferencia.pk}) + '?ask_emit=1')
                     
         except ValueError as e:
             messages.error(request, str(e))
@@ -353,7 +354,7 @@ def transferencia_create(request):
             form = TransferenciaInventarioForm(empresa=request.empresa)
     
     # Obtener artículos y bodegas para el formulario
-    articulos = Articulo.objects.filter(empresa=request.empresa, activo=True)
+    articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
     bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True)
     
     # Preparar datos de artículos: en edición desde la transferencia; en POST con error preservar lo enviado
@@ -649,10 +650,11 @@ def transferencia_generar_guia(request, pk):
                         self.empresa = transferencia.empresa
                         self.cliente = None
                         self.tipo_documento = '52'
-                        self.fecha_emision = timezone.now().date()
+                        self.fecha_emision = timezone.localtime(timezone.now()).date()
                         # IndTraslado obligatorio para guías: 5 = Traslado interno (transferencias entre sucursales)
                         self.tipo_traslado = '5'
-                        self.tipo_despacho = '5'
+                        self.tipo_despacho = '3'  # 3 = Traslado propio
+                        self.forma_pago = '1'
                         # Receptor (es la misma empresa para traslado interno)
                         self.rut_receptor = transferencia.empresa.rut
                         self.razon_social_receptor = transferencia.empresa.nombre
@@ -748,8 +750,10 @@ def transferencia_generar_guia(request, pk):
                     caf_utilizado=caf,
                     tipo_dte='52',
                     folio=folio,
-                    fecha_emision=timezone.now().date(),
+                    fecha_emision=timezone.localtime(timezone.now()).date(),
                     tipo_traslado='5',  # Traslado interno
+                    tipo_despacho='3',
+                    forma_pago='1',
                     usuario_creacion=request.user,
                     # Emisor
                     rut_emisor=request.empresa.rut,

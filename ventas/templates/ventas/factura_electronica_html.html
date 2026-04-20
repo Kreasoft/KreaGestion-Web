@@ -701,54 +701,52 @@
         console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl });
 
         function safeCloseWindow() {
-            // Notificar al padre si existe
+            const posUrl = "{% url 'ventas:pos_view' %}";
+            const libroVentasUrl = "{% url 'ventas:libro_ventas' %}";
+            const params = new URLSearchParams(window.location.search);
+            const returnUrlParam = params.get('return_url');
+            const targetUrl = returnUrlParam ? decodeURIComponent(returnUrlParam) : libroVentasUrl;
+
+            console.log('[DTE AUTO] Cerrando ventana. Destino:', targetUrl);
+
+            // Intento 1: postMessage al padre (si existe)
             try {
-                if (window.opener && window.opener !== window && !window.opener.closed) {
+                if (window.opener && !window.opener.closed) {
                     window.opener.postMessage({ kind: 'print_done', dte_id: '{{ dte.id }}' }, window.location.origin);
                 }
             } catch (e) { console.log('No se pudo notificar al padre:', e); }
 
-            console.log('[DTE AUTO] Intentando salir de la vista...');
-
-            // PRIORIDAD 1: Si hay return_url
-            if (returnUrl) {
-                const target = decodeURIComponent(returnUrl);
-                console.log('[DTE AUTO] Redirigiendo a return_url:', target);
-                window.location.href = target;
-                return;
-            }
-
-            // PRIORIDAD 2: Si es un popup o pestaña nueva sin historial
+            // Intento 2: window.close()
             if (window.opener || window.history.length <= 1) {
-                console.log('[DTE AUTO] Cerrando ventana...');
-                setTimeout(() => {
-                    window.location.href = "{% url 'ventas:libro_ventas' %}";
-                }, 500);
-                try { window.close(); } catch(e) { console.log(e); }
-                return;
+                try {
+                    window.close();
+                } catch(e) { console.log(e); }
             }
 
-            // PRIORIDAD 3: Historial normal
-            window.history.back();
-            
+            // Intento 3: Redirección inmediata (fallback)
             setTimeout(() => {
-                if (!document.hidden) {
-                    window.location.href = "{% url 'ventas:libro_ventas' %}";
-                }
-            }, 1000);
+                window.location.replace(targetUrl);
+            }, 100);
         }
 
         // Auto-ejecución
         if (autoPrint === '1') {
             window.addEventListener('load', function () {
-                console.log('[DTE AUTO] Iniciando impresión automática...');
+                console.log('[DTE AUTO] Iniciando flujo automático...');
                 setTimeout(function () {
-                    window.print();
-
+                    // Si autoclose está activo, programar el cierre ANTES de print (blocking)
                     if (autoClose === '1') {
+                        console.log('[DTE AUTO] Cierre automático programado en', autoCloseDelay, 'ms');
                         setTimeout(safeCloseWindow, autoCloseDelay);
                     }
-                }, 1000);
+                    
+                    try {
+                        window.print();
+                    } catch(e) {
+                        console.log('Error al imprimir:', e);
+                        safeCloseWindow();
+                    }
+                }, 500); // Un poco de delay para que cargue bien
             });
         }
     </script>

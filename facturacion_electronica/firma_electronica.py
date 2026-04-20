@@ -69,7 +69,7 @@ class FirmadorDTE:
         try:
             # Parsear el XML
             if isinstance(xml_string, str):
-                xml_string = xml_string.encode('utf-8')
+                xml_string = xml_string.encode('ISO-8859-1')
             
             root = etree.fromstring(xml_string)
             
@@ -96,13 +96,13 @@ class FirmadorDTE:
                 cert=[self.certificate]
             )
             
-            # Convertir a string SIN declaración XML (para embeber en SOAP)
+            # Convertir a string SIN declaración XML
             xml_firmado = etree.tostring(
                 signed_root,
-                pretty_print=False,  # Compacto
-                xml_declaration=False,  # Sin declaración XML
-                encoding='unicode'
-            )
+                pretty_print=False,
+                xml_declaration=False,
+                encoding='ISO-8859-1'
+            ).decode('ISO-8859-1')
             
             print(f"Solicitud de token firmada exitosamente")
             

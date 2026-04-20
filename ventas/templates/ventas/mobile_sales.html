@@ -874,30 +874,38 @@
 
         <!-- View: Historial de Ventas (Periodo) -->
         <div id="viewSalesHistory" class="view">
-            <h5 class="fw-bold mb-1"><i class="fas fa-calendar-alt me-2"></i>Historial de Ventas</h5>
-            <div id="historyPeriodoDisplay" class="small text-muted mb-3 italic"></div>
+            <h5 class="fw-bold mb-3"><i class="fas fa-calendar-alt me-2"></i>Historial de Ventas</h5>
             
-            <div class="card p-3 border-0 shadow-sm mb-4" style="border-radius: 15px;">
+            <div class="card p-3 border-0 shadow-sm mb-3" style="border-radius: 12px; background: #fdfcfb;">
                 <div class="row g-2">
                     <div class="col-6">
                         <label class="small text-muted mb-1">Desde</label>
-                        <input type="date" id="historyDateDesde" class="form-control form-control-sm" onchange="app.loadSalesHistory()">
+                        <input type="date" id="historyDateDesde" class="form-control form-control-sm border-0 shadow-none px-0" style="background: transparent;" onchange="app.loadSalesHistory()">
                     </div>
                     <div class="col-6">
                         <label class="small text-muted mb-1">Hasta</label>
-                        <input type="date" id="historyDateHasta" class="form-control form-control-sm" onchange="app.loadSalesHistory()">
-                    </div>
-                    <div class="col-12 mt-3">
-                        <button onclick="app.loadSalesHistory()" class="btn-terroso btn-sm py-2">
-                            <i class="fas fa-search me-2"></i>FILTRAR PERIODO
-                        </button>
+                        <input type="date" id="historyDateHasta" class="form-control form-control-sm border-0 shadow-none px-0" style="background: transparent;" onchange="app.loadSalesHistory()">
                     </div>
                 </div>
             </div>
 
-            <div id="salesHistoryList">
+            <!-- Tabs Historial Móvil -->
+            <ul class="nav nav-pills nav-justified mb-3 bg-white p-1 rounded-pill shadow-sm" style="font-size: 0.75rem;">
+                <li class="nav-item">
+                    <button class="nav-link active rounded-pill py-2" id="hist-pend-tab" onclick="app.switchHistoryTab('pendientes')">
+                        PENDIENTES
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-pill py-2" id="hist-fact-tab" onclick="app.switchHistoryTab('facturadas')">
+                        FACTURADAS
+                    </button>
+                </li>
+            </ul>
+
+            <div id="salesHistoryList" class="fancy-list">
                 <div class="text-center py-5 text-muted">
-                    <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                    <i class="fas fa-spinner fa-spin fa-2x mb-3" style="color: var(--terracota);"></i>
                     <p>Cargando historial...</p>
                 </div>
             </div>
@@ -982,15 +990,24 @@
                 // Cargar datos guardados
                 await this.loadLocalData();
                 
-                // --- INYECTAR VENDEDORES DESDE EL SERVIDOR SI ESTÁ VACÍO ---
-                if (this.data.vendedores.length === 0) {
-                    this.data.vendedores = [
-                        {% for v in vendedores %}
-                        { id: {{ v.id }}, codigo: "{{ v.codigo|escapejs }}", nombre: "{{ v.nombre|escapejs }}" },
-                        {% endfor %}
-                    ];
-                    localStorage.setItem('gc_vendedores', JSON.stringify(this.data.vendedores));
-                }
+                // --- ACTUALIZAR VENDEDORES DESDE EL CONTEXTO DEL SERVIDOR ---
+                const serverVendedores = [
+                    {% for v in vendedores %}
+                    { id: {{ v.id }}, codigo: "{{ v.codigo|escapejs }}", nombre: "{{ v.nombre|escapejs }}" },
+                    {% endfor %}
+                ];
+                
+                // Mezclar sin duplicados (priorizando el id)
+                serverVendedores.forEach(sv => {
+                    const idx = this.data.vendedores.findIndex(lv => lv.id === sv.id);
+                    if (idx === -1) {
+                        this.data.vendedores.push(sv);
+                    } else {
+                        // Actualizar datos por si cambió nombre o código
+                        this.data.vendedores[idx] = sv;
+                    }
+                });
+                localStorage.setItem('gc_vendedores', JSON.stringify(this.data.vendedores));
                 
                 // Verificar login
                 this.checkLogin();
@@ -1353,6 +1370,28 @@
                         this.isAuthorized = !!data.authorized;
                         localStorage.setItem('gc_isAuthorized', this.isAuthorized ? 'true' : 'false');
 
+                        // Auto-login si el dispositivo tiene un vendedor asignado y no hay sesión activa
+                        if (this.isAuthorized && data.vendedor && !this.seller) {
+                            console.log("Auto-login detectado para:", data.vendedor.nombre);
+                            this.seller = data.vendedor;
+                            localStorage.setItem('gc_mobile_seller', JSON.stringify(data.vendedor));
+                            
+                            // Asegurarse de que el vendedor esté en la lista local por si acaso
+                            if (!this.data.vendedores.find(v => v.id === data.vendedor.id)) {
+                                this.data.vendedores.push(data.vendedor);
+                                localStorage.setItem('gc_vendedores', JSON.stringify(this.data.vendedores));
+                            }
+
+                            document.getElementById('loginView').style.display = 'none';
+                            const mainApp = document.getElementById('mainApp');
+                            if (mainApp) mainApp.style.display = 'block';
+                            
+                            const sbName = document.getElementById('sidebarSellerNameDisplay');
+                            if (sbName) sbName.innerText = data.vendedor.nombre;
+                            const dsName = document.getElementById('dashboardSellerName');
+                            if (dsName) dsName.innerText = data.vendedor.nombre;
+                        }
+
                         if (manual) {
                             if (this.isAuthorized) {
                                 Swal.fire('¡Autorizado!', 'El equipo está validado.', 'success').then(() => this.showView('viewDashboard'));
@@ -1511,117 +1550,126 @@
                 
                 if (dInput && !dInput.value) dInput.value = hoy;
                 if (hInput && !hInput.value) hInput.value = hoy;
-                
                 this.loadSalesHistory();
             },
 
             loadSalesHistory: async function() {
-                const list = document.getElementById('salesHistoryList');
-                if (!list) return;
-                
-                list.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x mb-3"></i><p>Cargando...</p></div>';
-                
                 if (!this.seller) return;
                 
                 const desde = document.getElementById('historyDateDesde').value;
                 const hasta = document.getElementById('historyDateHasta').value;
-                const pDisp = document.getElementById('historyPeriodoDisplay');
-                if (pDisp) pDisp.innerText = `Rango: ${desde} hasta ${hasta}`;
+                const list = document.getElementById('salesHistoryList');
                 
+                list.innerHTML = `<div class="text-center py-4"><i class="fas fa-spinner fa-spin me-2" style="color:var(--terracota);"></i>Sincronizando...</div>`;
+
                 try {
-                    // 1. Cargar locales (Pendientes) y filtrar por fecha
-                    const rawLocalSales = await this.loadFromDB('sales');
-                    const localSales = rawLocalSales.filter(s => {
-                        if (!desde || !hasta) return true;
-                        const sDate = s.fecha.split('T')[0];
-                        return sDate >= desde && sDate <= hasta;
-                    });
+                    // 1. Obtener de Servidor (Historial Completo)
+                    const response = await this.apiRequest(`/ventas/movil/api/historial-ventas/?vendedor_id=${this.seller.id}&fecha_inicio=${desde}&fecha_fin=${hasta}`);
                     
-                    // 2. Cargar servidor (Sincronizadas)
-                    let remoteSales = [];
-                    if (!this.isOffline) {
-                        try {
-                            const data = await this.apiRequest(`/ventas/movil/api/historial-ventas/?vendedor_id=${this.seller.id}&fecha_inicio=${since}&fecha_fin=${until}`.replace('since', desde).replace('until', hasta));
-                            if (data.success) {
-                                remoteSales = data.ventas;
-                            }
-                        } catch (e) {
-                            console.error("No se pudo cargar historial remoto", e);
-                        }
+                    if (response.success) {
+                        this.data.fullHistory = response.ventas;
+                        
+                        // 2. Obtener Locales (Aún no enviadas)
+                        const rawLocalSales = await this.loadFromDB('sales');
+                        this.data.localHistory = rawLocalSales || [];
+                        
+                        // Activar pestaña por defecto
+                        if (!this.currentHistoryTab) this.currentHistoryTab = 'pendientes';
+                        this.renderHistory(this.currentHistoryTab);
+                    } else {
+                        list.innerHTML = '<div class="alert alert-danger mx-3 small">Error de sincronización</div>';
                     }
-
-                    // 3. Renderizar listado unificado
-                    if (localSales.length === 0 && remoteSales.length === 0) {
-                        list.innerHTML = '<div class="text-center py-5 text-muted">No se encontraron ventas en este periodo</div>';
-                        return;
-                    }
-
-                    let html = '';
-                    
-                    // Primero las pendientes (si están en el rango de fecha, aunque localmente no solemos filtrar tanto, las mostramos siempre)
-                    if (localSales.length > 0) {
-                        html += '<h6 class="fw-bold text-warning small uppercase mb-2 mt-3">Pendientes de Envío</h6>';
-                        localSales.forEach(s => {
-                            html += this.formatHistoryCard(s, true);
-                        });
-                    }
-
-                    // Luego las del servidor
-                    if (remoteSales.length > 0) {
-                        html += '<h6 class="fw-bold text-success small uppercase mb-2 mt-4">Sincronizadas con Central</h6>';
-                        remoteSales.forEach(s => {
-                            html += this.formatHistoryCard(s, false);
-                        });
-                    }
-                    
-                    list.innerHTML = html;
-                    
                 } catch (e) {
-                    list.innerHTML = '<div class="alert alert-danger small">Error al conectar con el servidor</div>';
+                    console.error("Error historial:", e);
+                    list.innerHTML = '<div class="alert alert-warning mx-3 small">Sin conexión remota</div>';
                 }
             },
 
-            formatHistoryCard: function(sale, isPending) {
-                const total = sale.total.toLocaleString('es-CL');
-                const fechaStr = new Date(sale.fecha).toLocaleString([], {
-                    day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'
-                });
-                
-                // Priorizar nombre del cliente: si sale.cliente es "Sin cliente" o nulo, usar cliente_nombre local
-                let displayName = 'Sin cliente';
-                if (sale.cliente && sale.cliente !== 'Sin cliente') {
-                    displayName = sale.cliente;
-                } else if (sale.cliente_nombre) {
-                    displayName = sale.cliente_nombre;
-                }
-                
-                const badgeClass = isPending ? 'bg-warning text-dark' : 'bg-success';
-                const badgeText = isPending ? '<i class="fas fa-clock me-1"></i> Pendiente' : '<i class="fas fa-check-circle me-1"></i> Sincronizado';
-                const icon = isPending ? 'fa-cloud-upload-alt text-warning' : 'fa-cloud text-success';
+            switchHistoryTab: function(tab) {
+                this.currentHistoryTab = tab;
+                const btnPend = document.getElementById('hist-pend-tab');
+                const btnFact = document.getElementById('hist-fact-tab');
+                if (btnPend) btnPend.classList.toggle('active', tab === 'pendientes');
+                if (btnFact) btnFact.classList.toggle('active', tab === 'facturadas');
+                this.renderHistory(tab);
+            },
 
-                return `
-                    <div class="card mb-2 border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
-                        <div class="p-3">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <div>
-                                    <div class="small fw-bold text-muted mb-1">#${sale.numero || (isPending ? 'PENDIENTE' : 'N/A')}</div>
-                                    <div class="fw-bold" style="color: var(--secondary);">${displayName}</div>
-                                    <div class="small text-muted">${fechaStr}</div>
+            renderHistory: function(tab) {
+                const list = document.getElementById('salesHistoryList');
+                if (!list) return;
+                
+                const remoteHistory = this.data.fullHistory || [];
+                const localHistory = this.data.localHistory || [];
+                
+                let html = '';
+                
+                if (tab === 'pendientes') {
+                    const pendingRemote = remoteHistory.filter(v => !v.facturado);
+                    if (localHistory.length === 0 && pendingRemote.length === 0) {
+                        list.innerHTML = `<div class="text-center py-5 text-muted small"><i class="fas fa-history fa-2x mb-2 opacity-25"></i><br>No hay ventas pendientes</div>`;
+                        return;
+                    }
+
+                    localHistory.forEach(s => {
+                        html += `
+                            <div class="card p-3 border-0 shadow-sm mb-2" style="border-radius: 12px; border-left: 4px solid #E6B8A2 !important;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-bold text-terracota" style="font-size: 0.65rem;"><i class="fas fa-cloud-upload-alt me-1"></i>SIN ENVIAR</span>
+                                    <span class="small text-muted" style="font-size: 0.65rem;">${new Date(s.fecha).toLocaleDateString()}</span>
                                 </div>
-                                <div class="text-end">
-                                    <div class="fw-bold text-dark">$${total}</div>
-                                    <div class="small uppercase font-monospace" style="font-size: 0.65rem; opacity: 0.7;">${sale.tipo_doc || sale.tipo_documento}</div>
+                                <div class="fw-bold mb-1" style="font-size: 0.9rem;">${s.cliente_nombre || 'Sin Cliente'}</div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="small text-muted uppercase" style="font-size: 0.7rem;">${s.tipo_doc}</div>
+                                    <div class="fw-bold text-dark">$${s.total.toLocaleString('es-CL')}</div>
                                 </div>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light">
-                                <span class="badge ${badgeClass}" style="font-size: 0.6rem; padding: 4px 8px; border-radius: 5px;">
-                                    ${badgeText}
-                                </span>
-                                <i class="fas ${icon} opacity-50"></i>
+                        `;
+                    });
+
+                    pendingRemote.forEach(v => {
+                        const date = new Date(v.fecha);
+                        html += `
+                            <div class="card p-3 border-0 shadow-sm mb-2" style="border-radius: 12px; border-left: 4px solid var(--terracota) !important;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-bold text-muted" style="font-size: 0.65rem;">#${v.numero}</span>
+                                    <span class="small text-muted" style="font-size: 0.65rem;">${date.toLocaleDateString()}</span>
+                                </div>
+                                <div class="fw-bold mb-1" style="font-size: 0.9rem;">${v.cliente}</div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="small text-muted uppercase" style="font-size: 0.7rem;"><i class="fas fa-spinner fa-spin me-1"></i>PENDIENTE CAJA</div>
+                                    <div class="fw-bold text-dark">$${v.total.toLocaleString('es-CL')}</div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                `;
+                        `;
+                    });
+                } else {
+                    const facturadas = remoteHistory.filter(v => v.facturado);
+                    if (facturadas.length === 0) {
+                        list.innerHTML = `<div class="text-center py-5 text-muted small"><i class="fas fa-check-double fa-2x mb-2 opacity-25"></i><br>No hay ventas facturadas</div>`;
+                        return;
+                    }
+
+                    facturadas.forEach(v => {
+                        const date = new Date(v.fecha);
+                        html += `
+                            <div class="card p-3 border-0 shadow-sm mb-2" style="border-radius: 12px; background: #fafdfc;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-bold text-muted" style="font-size: 0.65rem;">#${v.numero}</span>
+                                    <span class="badge bg-teal text-white py-1 px-2" style="font-size: 0.55rem; border-radius: 4px; letter-spacing: 0.5px;">FACTURADO</span>
+                                </div>
+                                <div class="fw-bold mb-1" style="font-size: 0.9rem; color: #004d4d;">${v.cliente}</div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="small text-muted" style="font-size: 0.7rem;">${date.toLocaleDateString()}</div>
+                                    <div class="fw-bold" style="color: #008080;">$${v.total.toLocaleString('es-CL')}</div>
+                                </div>
+                                <div class="p-2 rounded-2 bg-white small" style="font-size: 0.65rem; border: 1px dashed #b2d8d8; color: #004d4d;">
+                                    <i class="fas fa-receipt me-1 text-teal"></i><b>${v.doc_final}</b>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                list.innerHTML = html;
             },
 
             renderDashboard: async function() {

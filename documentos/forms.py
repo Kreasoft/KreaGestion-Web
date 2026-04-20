@@ -17,7 +17,11 @@ class DocumentoCompraForm(forms.ModelForm):
             'tipo_documento', 'proveedor', 'bodega', 
             'numero_documento', 'fecha_emision', 
             'fecha_vencimiento', 'estado_documento', 'estado_pago',
-            'observaciones'
+            'observaciones',
+            'subtotal', 'descuento_porcentaje_1', 'descuento_porcentaje_2', 
+            'descuento_porcentaje_3', 'descuento_monto_directo',
+            'descuentos_totales', 'neto_ajustado', 'iva_ajustado', 
+            'impuesto_especifico', 'impuestos_totales', 'total_documento'
         ]
         widgets = {
             'tipo_documento': forms.Select(attrs={'class': 'form-select form-select-sm'}),
@@ -29,6 +33,19 @@ class DocumentoCompraForm(forms.ModelForm):
             'estado_documento': forms.Select(attrs={'class': 'form-select form-select-sm'}),
             'estado_pago': forms.Select(attrs={'class': 'form-select form-select-sm'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 2, 'placeholder': 'Observaciones...'}),
+            
+            # Campos de Totales y Descuentos
+            'subtotal': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'readonly': True}),
+            'descuento_porcentaje_1': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'min': 0, 'max': 100}),
+            'descuento_porcentaje_2': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'min': 0, 'max': 100}),
+            'descuento_porcentaje_3': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'min': 0, 'max': 100}),
+            'descuento_monto_directo': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'min': 0}),
+            'descuentos_totales': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'readonly': True}),
+            'neto_ajustado': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
+            'iva_ajustado': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
+            'impuesto_especifico': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
+            'impuestos_totales': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'readonly': True}),
+            'total_documento': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end fw-bold'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -59,12 +76,14 @@ class DocumentoCompraForm(forms.ModelForm):
     def clean_numero_documento(self):
         numero_documento = self.cleaned_data.get('numero_documento')
         tipo_documento = self.cleaned_data.get('tipo_documento')
+        proveedor = self.cleaned_data.get('proveedor')
         empresa = self.empresa
         
-        if numero_documento and tipo_documento and empresa:
-            # Verificar unicidad por empresa, tipo y número
+        if numero_documento and tipo_documento and proveedor and empresa:
+            # Verificar unicidad por empresa, proveedor, tipo y número
             queryset = DocumentoCompra.objects.filter(
                 empresa=empresa,
+                proveedor=proveedor,
                 tipo_documento=tipo_documento,
                 numero_documento=numero_documento
             )
@@ -73,7 +92,9 @@ class DocumentoCompraForm(forms.ModelForm):
                 queryset = queryset.exclude(pk=self.instance.pk)
             
             if queryset.exists():
-                raise ValidationError(f'Ya existe un {self.get_tipo_documento_display()} con el número {numero_documento} en esta empresa.')
+                tipo_dict = dict(DocumentoCompra.TIPO_DOCUMENTO_CHOICES)
+                tipo_display = tipo_dict.get(tipo_documento, tipo_documento)
+                raise ValidationError(f'Ya existe un documento de tipo "{tipo_display}" con el número {numero_documento} en esta empresa.')
         
         return numero_documento
 
@@ -91,26 +112,72 @@ class ItemDocumentoCompraForm(forms.ModelForm):
         ]
         widgets = {
             'articulo': forms.Select(attrs={'class': 'form-select form-select-sm articulo-select'}),
-            'cantidad': forms.NumberInput(attrs={'class': 'form-control form-control-sm cantidad-input', 'min': '1', 'value': '1'}),
+            'cantidad': forms.NumberInput(attrs={'class': 'form-control form-control-sm cantidad-input', 'min': '1'}),
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control form-control-sm precio-input', 'min': '0', 'placeholder': 'Precio sin decimales'}),
-            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm descuento-input', 'min': '0', 'max': '100', 'value': '0'}),
+            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm descuento-input', 'min': '0', 'max': '100'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Campos opcionales
-        self.fields['impuesto_porcentaje'].required = False
+        # Establecer valores iniciales técnicos para que el formset detecte 
+        # correctamente cuándo una fila no ha sido modificada (evita IntegrityError)
+        if not self.instance.pk:
+            self.initial['cantidad'] = 1
+            self.initial['precio_unitario'] = 0
+            self.initial['descuento_porcentaje'] = 0
+            self.initial['impuesto_porcentaje'] = 19
+        
+        # Campos opcionales para permitir que el formset ignore filas vacías
+        # que tienen valores iniciales (como el impuesto o descuento)
+        self.fields['articulo'].required = False
+        self.fields['cantidad'].required = False
+        self.fields['precio_unitario'].required = False
         self.fields['descuento_porcentaje'].required = False
+        self.fields['impuesto_porcentaje'].required = False
+    
+    def has_changed(self):
+        """Forzar que el formset ignore la fila si no hay artículo seleccionado"""
+        # Si no hay artículo en el POST de esta fila, no ha cambiado "útilmente"
+        field_name = 'articulo'
+        if self.prefix:
+            field_name = f"{self.prefix}-{field_name}"
+        
+        articulo_id = self.data.get(field_name)
+        if not articulo_id:
+            return False
+        return super().has_changed()
+            
+    def clean(self):
+        """Validar integridad y asegurar que filas vacías no intenten guardarse sin artículo"""
+        cleaned_data = super().clean()
+        articulo = cleaned_data.get('articulo')
+        cantidad = cleaned_data.get('cantidad')
+        precio = cleaned_data.get('precio_unitario')
+        
+        # Si NO hay artículo, esta fila NO debe guardarse.
+        if not articulo:
+            # Si tiene otros datos, reportamos error
+            if (precio and precio > 0) or (cantidad and cantidad > 1):
+                self.add_error('articulo', 'Este campo es requerido si el ítem tiene datos.')
+            else:
+                # Si está "vacío" (solo valores por defecto), 
+                # forzamos que Django lo vea como no-modificado
+                # borrando cualquier dato que pueda disparar el guardado
+                for field in list(cleaned_data.keys()):
+                    if field != 'id' and field != 'documento_compra':
+                        cleaned_data.pop(field, None)
+            return cleaned_data
+            
+        # Si tiene artículo, validar integridad obligatoria
+        if not cantidad or cantidad < 1:
+            self.add_error('cantidad', 'La cantidad debe ser mayor a 0.')
+        if precio is None:
+            self.add_error('precio_unitario', 'El precio es requerido.')
+            
+        return cleaned_data
     
     def clean_impuesto_porcentaje(self):
-        """Asegurar que el impuesto nunca sea nulo para evitar errores de BD"""
-        impuesto = self.cleaned_data.get('impuesto_porcentaje')
-        if impuesto is None or impuesto == '':
-            return 19
-        return impuesto
-        
-        # Obtener empresa del documento padre si existe
         empresa = None
         if self.instance and self.instance.pk:
             # Si la instancia ya está guardada, obtener empresa del documento padre

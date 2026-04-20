@@ -59,7 +59,7 @@
     }
 
     .header-text h1 {
-        color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 700;
+        color: var(--stone-text); font-size: 1.8rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300;
     }
     .header-text p {
         color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9;
@@ -136,6 +136,15 @@
     }
     .btn-add-item:hover:not(:disabled) { background: #556B2F; transform: translateY(-1px); color: white;}
     .btn-add-item:disabled { opacity: 0.6; cursor: not-allowed; background: #9CAF88; }
+
+    /* SELECT2 PREMIUM */
+    .select2-premium-dropdown {
+        min-width: 600px !important;
+        border: 1px solid var(--stone-light) !important;
+        box-shadow: 0 10px 25px rgba(139, 115, 85, 0.2) !important;
+        border-radius: 12px !important;
+        margin-top: 5px !important;
+    }
 </style>
 {% endblock %}
 
@@ -329,22 +338,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar Select2
-    $('#articuloSelect').select2({
-        theme: 'bootstrap-5',
-        placeholder: '-- Seleccione un artículo --',
-        width: '100%',
-        language: {
-            noResults: function() { return "No se encontraron resultados"; },
-            searching: function() { return "Buscando..."; }
-        }
-    });
-
-    let articulos = {{ articulos_edit|safe|default:"[]" }};
-    
-    // Obtener referencias DOM limpias
+    // Referencias DOM principales (Declaradas al inicio)
     const articuloSelect = document.getElementById('articuloSelect');
-    const articuloSelectJquery = $('#articuloSelect'); // Referencia jQuery para eventos Select2
+    const articuloSelectJquery = $('#articuloSelect');
     const cantidadInput = document.getElementById('cantidadInput');
     const agregarBtn = document.getElementById('agregarArticuloBtn');
     const articulosContainer = document.getElementById('articulosContainer');
@@ -352,6 +348,102 @@ document.addEventListener('DOMContentLoaded', function() {
     const bodegaDestinoSelect = document.getElementById('{{ form.bodega_destino.id_for_label }}');
     const stockInfo = document.getElementById('stockInfo');
     const stockInfoText = document.getElementById('stockInfoText');
+
+    // Inicializar Select2 con diseño Premium
+    function formatRepo(repo) {
+        if (repo.loading) return repo.text;
+        
+        // Obtener datos del elemento option original
+        const element = repo.element;
+        if (!element) return repo.text;
+        
+        const codigo = $(element).data('codigo') || '';
+        const nombre = $(element).data('nombre') || '';
+        const stock = $(element).attr('data-stock') || '0';
+        
+        // Renderizado con códigos alineados (ancho fijo) y stock
+        return $(`
+            <div class="d-flex justify-content-between align-items-center" style="width: 100%;">
+                <div class="d-flex align-items-center">
+                    <span style="font-family: 'Courier New', monospace; font-weight: bold; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; min-width: 100px; display: inline-block; margin-right: 12px; color: #5D4037; border: 1px solid #D4C4A8;">
+                        ${codigo}
+                    </span>
+                    <span style="font-weight: 500; color: #333;">${nombre}</span>
+                </div>
+                <div class="text-end">
+                    <span class="badge" style="background: #E8DCC8; color: #8B7355; font-size: 0.75rem; border: 1px solid #D4C4A8;">
+                        Stock: ${stock}
+                    </span>
+                </div>
+            </div>
+        `);
+    }
+
+    function formatRepoSelection(repo) {
+        if (!repo.id) return repo.text;
+        const element = repo.element;
+        const codigo = $(element).data('codigo') || '';
+        const nombre = $(element).data('nombre') || '';
+        return `${codigo} - ${nombre}`;
+    }
+
+    $('#articuloSelect').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Seleccione un artículo --',
+        width: '100%',
+        dropdownAutoWidth: true,
+        allowClear: true,
+        templateResult: formatRepo,
+        templateSelection: formatRepoSelection,
+        dropdownCssClass: 'select2-premium-dropdown',
+        language: {
+            noResults: function() { return "No se encontraron resultados"; },
+            searching: function() { return "Buscando..."; }
+        }
+    });
+
+    // Función para actualizar los stocks en el selector cuando cambia la bodega origen
+    function actualizarStocksEnSelector() {
+        const bodegaId = $(bodegaOrigenSelect).val();
+        if (!bodegaId) return;
+
+        fetch(`/inventario/api/articulos-inventario/?bodega_id=${bodegaId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.articulos) {
+                    // Actualizar el atributo data-stock de cada opción
+                    $('#articuloSelect option').each(function() {
+                        const artId = $(this).val();
+                        if (artId) {
+                            const artData = data.articulos.find(a => String(a.id) === String(artId));
+                            const stockCount = artData ? artData.cantidad : 0;
+                            $(this).attr('data-stock', stockCount);
+                        }
+                    });
+                }
+            })
+            .catch(e => console.error("Error cargando stocks:", e));
+    }
+
+    // Evento al cambiar bodega origen
+    $('#{{ form.bodega_origen.id_for_label }}').on('change', function() {
+        actualizarStocksEnSelector();
+    });
+    
+    // Si ya hay una bodega seleccionada al cargar (ej. en edición)
+    if ($('#{{ form.bodega_origen.id_for_label }}').val()) {
+        actualizarStocksEnSelector();
+    }
+
+    let articulos = [];
+    try {
+        const articulosRaw = '{{ articulos_edit|escapejs }}';
+        articulos = JSON.parse(articulosRaw || '[]');
+        console.log('Artículos cargados:', articulos);
+    } catch (e) {
+        console.error('Error al parsear artículos:', e);
+        articulos = [];
+    }
     
     // VALIDACIÓN: Bodegas diferentes
     function validarBodegasDiferentes() {
@@ -455,6 +547,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     cantidadInput.addEventListener('input', validarCantidadEnTiempoReal);
     cantidadInput.addEventListener('change', validarCantidadEnTiempoReal);
+    
+    // Al presionar Enter en Cantidad, agregar el artículo automáticamente
+    cantidadInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation(); // Evitar que el manejador global de base.html actue aquí
+            agregarBtn.click();
+        }
+    });
 
     function verificarStock() {
         const articuloId = articuloSelectJquery.val();

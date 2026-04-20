@@ -553,3 +553,7 @@ class KitOfertaItemForm(forms.ModelForm):
                 empresa=empresa,
                 activo=True
             ).order_by('nombre')
+            
+            # Personalizar labels para que los códigos tengan ancho fijo (aprox 20 chars)
+            # Usaremos una fuente monoespaciada en el select2 para que se vea alineado
+            self.fields['articulo'].label_from_instance = lambda obj: f"[{obj.codigo.ljust(20)}] | {obj.nombre}"

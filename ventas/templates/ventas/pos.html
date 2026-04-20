@@ -268,6 +268,27 @@
         }
 
         /* Grid de productos compacto */
+        .tab-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .tab-pane {
+            flex: 1;
+            display: flex; /* Cambiado de display: block (default) a flex */
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* Sobrepasar el display: block de Bootstrap para las pestañas activas */
+        .tab-pane.show.active {
+            display: flex !important;
+        }
+
         .pos-products-container {
             flex: 1;
             overflow-y: auto;
@@ -1182,15 +1203,13 @@
                                     data-porcentaje-ahorro="{% if articulo.oferta_activa or articulo.en_oferta %}{{ articulo.get_porcentaje_ahorro|unlocalize }}{% else %}0{% endif %}">
                                     {% if articulo.oferta_activa or articulo.en_oferta %}
                                     <div class="pos-product-badge-oferta">
-                                        <i class="fas fa-tag"></i> OFERTA{% if articulo.get_porcentaje_ahorro %} -{{
-                                        articulo.get_porcentaje_ahorro|floatformat:0 }}%{% endif %}
+                                        <i class="fas fa-tag"></i> OFERTA{% if articulo.get_porcentaje_ahorro %} -{{ articulo.get_porcentaje_ahorro|floatformat:0 }}%{% endif %}
                                     </div>
                                     {% endif %}
                                     <div class="pos-product-name">{{ articulo.nombre }}</div>
                                     {% if articulo.oferta_activa or articulo.en_oferta %}
                                     <div class="pos-product-price-oferta">
-                                        <span class="precio-normal-tachado">${{
-                                            articulo.precio_final_calculado|format_price }}</span>
+                                        <span class="precio-normal-tachado">${{ articulo.precio_final_calculado|format_price }}</span>
                                         <span class="precio-oferta">${{ articulo.get_precio_oferta_decimal|format_price
                                             }}</span>
                                     </div>
@@ -1229,15 +1248,12 @@
                                     data-precio-neto="{{ articulo.precio_venta|unlocalize }}"
                                     data-stock="{{ articulo.stock_actual|default:0 }}">
                                     <div class="pos-product-badge-oferta">
-                                        <i class="fas fa-tag"></i> OFERTA{% if articulo.get_porcentaje_ahorro %} -{{
-                                        articulo.get_porcentaje_ahorro|floatformat:0 }}%{% endif %}
+                                        <i class="fas fa-tag"></i> OFERTA{% if articulo.get_porcentaje_ahorro %} -{{ articulo.get_porcentaje_ahorro|floatformat:0 }}%{% endif %}
                                     </div>
                                     <div class="pos-product-name">{{ articulo.nombre }}</div>
                                     <div class="pos-product-price-oferta">
-                                        <span class="precio-normal-tachado">${{
-                                            articulo.precio_final_calculado|format_price }}</span>
-                                        <span class="precio-oferta">${{ articulo.get_precio_oferta_decimal|format_price
-                                            }}</span>
+                                        <span class="precio-normal-tachado">${{ articulo.precio_final_calculado|format_price }}</span>
+                                        <span class="precio-oferta">${{ articulo.get_precio_oferta_decimal|format_price }}</span>
                                     </div>
                                     <div
                                         class="pos-product-stock{% if articulo.stock_actual <= 0 %} text-danger{% endif %}">
@@ -1289,8 +1305,7 @@
                                                                     style="color: #D4A574; font-size: 0.65rem;"></i>
                                                                 {% endif %}
                                                             </div>
-                                                            <div style="font-size: 0.65rem; color: #999;">{{
-                                                                kit.items.count }} item{{ kit.items.count|pluralize }} •
+                                                            <div style="font-size: 0.65rem; color: #999;">{{ kit.items.count }} item{{ kit.items.count|pluralize }} •
                                                                 Stock: {{ kit.stock_disponible }}</div>
                                                         </div>
                                                     </div>
@@ -1308,8 +1323,7 @@
                                                         </div>
                                                         {% if kit.items.count > 0 %}
                                                         <span class="badge bg-success"
-                                                            style="font-size: 0.65rem; padding: 2px 6px;">-{{
-                                                            kit.ahorro_porcentaje|floatformat:0 }}%</span>
+                                                            style="font-size: 0.65rem; padding: 2px 6px;">-{{ kit.ahorro_porcentaje|floatformat:0 }}%</span>
                                                         {% endif %}
                                                     </div>
 
@@ -1351,8 +1365,12 @@
             <div class="pos-right-panel">
                 <!-- Lista de items del carrito -->
                 <div class="pos-cart-container">
-                    <div class="pos-cart-header">
-                        <i class="fas fa-shopping-cart me-2"></i>Carrito de Venta
+                    <div class="pos-cart-header d-flex justify-content-between align-items-center">
+                        <div><i class="fas fa-shopping-cart me-2"></i>Carrito</div>
+                        <div class="d-flex gap-1">
+                            <span class="badge" style="background: rgba(139, 115, 85, 0.1); color: #8B7355; font-size: 0.7rem; border: 1px solid rgba(139, 115, 85, 0.2);" id="cart-item-count">0 Líneas</span>
+                            <span class="badge" style="background: rgba(40, 167, 69, 0.1); color: #28a745; font-size: 0.7rem; border: 1px solid rgba(40, 167, 69, 0.2);" id="cart-total-qty">0 Prod</span>
+                        </div>
                     </div>
                     <div class="pos-cart-items" id="pos-cart-items">
                         <!-- Los items se cargarán dinámicamente -->
@@ -1580,11 +1598,25 @@
         // Actualizar display del carrito - DEBE ESTAR EN SCOPE GLOBAL
         function updateCartDisplay() {
             const cartContainer = document.getElementById('pos-cart-items');
+            const itemCountElement = document.getElementById('cart-item-count');
+            const totalQtyElement = document.getElementById('cart-total-qty');
+            
             cartContainer.innerHTML = '';
 
             if (cart.length === 0) {
                 cartContainer.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-shopping-cart fa-2x mb-2"></i><p>Carrito vacío</p></div>';
+                if (itemCountElement) itemCountElement.textContent = '0 Líneas';
+                if (totalQtyElement) totalQtyElement.textContent = '0 Prods';
                 return;
+            }
+
+            // Actualizar contadores
+            if (itemCountElement) {
+                itemCountElement.textContent = cart.length + (cart.length === 1 ? ' Línea' : ' Líneas');
+            }
+            if (totalQtyElement) {
+                const totalQty = cart.reduce((acc, item) => acc + parseFloat(item.cantidad || 0), 0);
+                totalQtyElement.textContent = (Number.isInteger(totalQty) ? totalQty : totalQty.toFixed(2)) + ' Prods';
             }
 
             cart.forEach((item, index) => {
@@ -2052,6 +2084,28 @@
         // Inicialización
         document.addEventListener('DOMContentLoaded', function () {
             console.log('*** DOMContentLoaded INICIADO ***');
+            
+            // Inicializar estados globales si no existen
+            if (typeof window.clienteSeleccionado === 'undefined') window.clienteSeleccionado = null;
+            if (typeof window.referencias === 'undefined') window.referencias = [];
+
+            // Función para obtener cantidad de copias según configuración de estación
+            window.getNCopias = function(tipoDoc) {
+                if (!window.currentEstacion || !window.currentEstacion.copias) return 1;
+                
+                // Mapear tipos de documentos a la configuración
+                const config = window.currentEstacion.copias;
+                const tipo = String(tipoDoc).toLowerCase();
+                
+                if (tipo.includes('factura')) return config.factura || 1;
+                if (tipo.includes('boleta')) return config.boleta || 1;
+                if (tipo.includes('guia')) return config.guia || 1;
+                if (tipo.includes('cotizacion')) return config.cotizacion || 1;
+                if (tipo.includes('ticket')) return config.ticket || 1;
+                if (tipo.includes('vale')) return config.vale || 1;
+                
+                return 1;
+            };
 
             // Verificar si hay un vale pendiente de imprimir
             const urlParams = new URLSearchParams(window.location.search);
@@ -2607,12 +2661,8 @@
                 tiposPermitidos = tiposPermitidos.filter(t => t !== 'ticket');
                 console.log('Tipos permitidos:', tiposPermitidos);
 
-                // Si está en modo "con_cliente", filtrar boletas y vales
-                // (Las boletas son solo para consumidor final, no para clientes con RUT)
+                // Eliminar filtro: Ahora SÍ se pueden emitir Boletas Nominativas a clientes con RUT
                 const modoPOS = '{{ modo_pos }}';
-                if (modoPOS === 'con_cliente') {
-                    tiposPermitidos = tiposPermitidos.filter(tipo => tipo !== 'boleta' && tipo !== 'vale');
-                }
 
                 if (tiposPermitidos.length === 0) {
                     console.log('*** ERROR: No hay tipos de documentos permitidos ***');
@@ -2764,14 +2814,15 @@
                 </label>
                 <select id="tipo-despacho" class="form-control" required style="border: 2px solid #dc3545; background-color: #fff3cd;">
                     <option value="">⚠️ DEBE SELECCIONAR UN MOTIVO...</option>
-                    <option value="1">1 - Venta (genera obligación tributaria)</option>
-                    <option value="2">2 - Venta por efectuar (anticipada)</option>
+                    <option value="1">1 - Constituye venta</option>
+                    <option value="2">2 - Venta por efectuar</option>
                     <option value="3">3 - Consignación</option>
-                    <option value="4">4 - Devolución</option>
-                    <option value="5">5 - Traslado interno (SIN obligación tributaria)</option>
-                    <option value="6">6 - Transformación de productos</option>
-                    <option value="7">7 - Entrega gratuita</option>
-                    <option value="8">8 - Otros</option>
+                    <option value="4">4 - Entrega gratuita</option>
+                    <option value="5">5 - Traslado interno</option>
+                    <option value="6">6 - Otros traslados no venta</option>
+                    <option value="7">7 - Guía de devolución</option>
+                    <option value="8">8 - Traslado para exportación (no venta)</option>
+                    <option value="9">9 - Venta para exportación</option>
                 </select>
                 <small style="color: #dc3545; font-size: 0.75rem; font-weight: 600;">
                     <i class="fas fa-info-circle me-1"></i>Este campo afecta las obligaciones tributarias. Seleccione con cuidado.
@@ -2852,56 +2903,63 @@
             <div class="mb-3">
                 <label class="form-label" style="font-weight: 700; color: #495057; text-align: left; display: block;">Cliente *</label>
                 
-                ${clienteYaSeleccionado && '{{ modo_pos }}' === 'con_cliente' ? `
-                    <!-- Cliente ya seleccionado en modo con_cliente - NO EDITABLE -->
-                    <div class="alert alert-info mb-0" style="background: #E8F4F8; border: 1px solid #B8E0F0;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <i class="fas fa-user-check me-2" style="color: #0c5460;"></i>
-                                <strong style="color: #0c5460;">${clienteYaSeleccionado.nombre}</strong><br>
-                                <small style="color: #0c5460;">RUT: ${clienteYaSeleccionado.rut || clienteYaSeleccionado.rut_formatted || 'Sin RUT'}</small>
+                <div id="cliente-seleccionado-container">
+                    ${clienteYaSeleccionado && '{{ modo_pos }}' === 'con_cliente' ? `
+                        <!-- Cliente ya seleccionado en modo con_cliente -->
+                        <div id="alert-cliente-fijo" class="alert alert-info mb-2" style="background: #E8F4F8; border: 1px solid #B8E0F0;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-user-check me-2" style="color: #0c5460;"></i>
+                                    <strong style="color: #0c5460;">${clienteYaSeleccionado.nombre}</strong><br>
+                                    <small style="color: #0c5460;">RUT: ${clienteYaSeleccionado.rut || clienteYaSeleccionado.rut_formatted || 'Sin RUT'}</small>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="document.getElementById('busqueda-cliente-wrapper').style.display='block'; this.style.display='none'; document.getElementById('alert-cliente-fijo').classList.add('opacity-50');" title="Cambiar cliente">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </button>
                             </div>
                         </div>
-                        <small class="d-block mt-2" style="color: #0c5460;">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Cliente seleccionado para esta venta.
-                        </small>
-                    </div>
-                    <input type="hidden" id="busqueda-cliente" value="${clienteYaSeleccionado.rut || clienteYaSeleccionado.rut_formatted || ''}">
-                ` : `
-                    <!-- Modo normal - Búsqueda habilitada -->
+                    ` : ''}
+                </div>
+
+                <div id="busqueda-cliente-wrapper" style="display: ${clienteYaSeleccionado && '{{ modo_pos }}' === 'con_cliente' ? 'none' : 'block'};">
                     <div class="input-group mb-2">
-                        <input type="text" id="busqueda-cliente" class="form-control" placeholder="RUT o nombre del cliente" required ${clienteYaSeleccionado ? 'value="' + clienteYaSeleccionado.rut + '"' : ''}>
-                        <button type="button" class="btn btn-outline-secondary" onclick="buscarCliente()">
+                        <input type="text" id="busqueda-cliente" class="form-control" placeholder="RUT o nombre del cliente" required value="${clienteYaSeleccionado ? (clienteYaSeleccionado.rut || clienteYaSeleccionado.rut_formatted || '') : ''}">
+                        <button type="button" class="btn btn-outline-secondary" onclick="window.buscarCliente()" title="Buscar cliente">
                             <i class="fas fa-search"></i>
                         </button>
                     </div>
-                    {% if modo_pos != 'con_cliente' %}
+                    
                     <button type="button" id="btn-venta-boleta" class="btn btn-sm w-100 mb-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; display: none;">
                         <i class="fas fa-receipt me-2"></i>Venta Boleta (RUT Genérico 66666666-6)
                     </button>
-                    {% endif %}
-                    <div id="resultados-busqueda" class="mt-2" style="display: none;">
-                        <div class="list-group" id="lista-clientes">
-                            <!-- Resultados de búsqueda aparecerán aquí -->
+                </div>
+
+                <div id="resultados-busqueda" class="mt-2" style="display: none;">
+                    <div class="list-group" id="lista-clientes" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px;">
+                        <!-- Resultados de búsqueda aparecerán aquí -->
+                    </div>
+                </div>
+
+                <div id="cliente-info" class="mt-2" style="display: ${clienteYaSeleccionado ? 'block' : 'none'};">
+                    <div class="alert alert-success" style="background: #e9f7ef; border-color: #d4edda; color: #155724; padding: 10px 15px;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-check-circle me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <strong id="cliente-nombre">${clienteYaSeleccionado ? clienteYaSeleccionado.nombre : '-'}</strong><br>
+                                <small id="cliente-direccion">${clienteYaSeleccionado ? (clienteYaSeleccionado.direccion || 'Sin dirección') : '-'}</small>
+                            </div>
                         </div>
                     </div>
-                    <div id="cliente-info" class="mt-2" style="display: ${clienteYaSeleccionado ? 'block' : 'none'};">
-                        <div class="alert alert-success">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <strong id="cliente-nombre">${clienteYaSeleccionado ? clienteYaSeleccionado.nombre : '-'}</strong><br>
-                            <small id="cliente-direccion">${clienteYaSeleccionado ? (clienteYaSeleccionado.direccion || 'Sin dirección') : '-'}</small>
-                        </div>
+                </div>
+
+                <div id="cliente-no-encontrado" class="mt-2" style="display: none;">
+                    <div class="alert alert-warning">
+                        <strong>Cliente no encontrado</strong><br>
+                        <button type="button" class="btn btn-sm btn-primary mt-2" onclick="window.crearCliente()">
+                            <i class="fas fa-plus me-1"></i>Crear Cliente
+                        </button>
                     </div>
-                    <div id="cliente-no-encontrado" class="mt-2" style="display: none;">
-                        <div class="alert alert-warning">
-                            <strong>Cliente no encontrado</strong><br>
-                            <button type="button" class="btn btn-sm btn-primary" id="btn-crear-cliente">
-                                <i class="fas fa-plus me-1"></i>Crear Cliente
-                            </button>
-                        </div>
-                    </div>
-                `}
+                </div>
             </div>
         `;
 
@@ -3352,14 +3410,14 @@
                                     <p class="mb-3">Seleccione el motivo del traslado:</p>
                                     <select id="tipo-despacho-modal" class="form-select" style="font-size: 1.1rem;">
                                         <option value="">-- Seleccione --</option>
-                                        <option value="1">1 - Operación constituye venta</option>
-                                        <option value="2">2 - Ventas por efectuar</option>
-                                        <option value="3">3 - Consignaciones</option>
+                                        <option value="1">1 - Constituye venta</option>
+                                        <option value="2">2 - Venta por efectuar</option>
+                                        <option value="3">3 - Consignación</option>
                                         <option value="4">4 - Entrega gratuita</option>
-                                        <option value="5">5 - Traslados internos</option>
-                                        <option value="6">6 - Otros traslados (sin venta)</option>
+                                        <option value="5">5 - Traslado interno</option>
+                                        <option value="6">6 - Otros traslados no venta</option>
                                         <option value="7">7 - Guía de devolución</option>
-                                        <option value="8">8 - Traslado para exportación (no DUS)</option>
+                                        <option value="8">8 - Traslado para exportación (no venta)</option>
                                         <option value="9">9 - Venta para exportación</option>
                                     </select>
                                 `,
@@ -3436,8 +3494,16 @@
                                         <button class="btn btn-outline-secondary" type="button" id="btn-buscar-cliente-ticket">
                                             <i class="fas fa-search"></i>
                                         </button>
+                                        <button class="btn btn-outline-primary" type="button" onclick="abrirModalNuevoCliente(document.getElementById('busqueda-cliente-ticket').value)">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
                                     </div>
                                     <div id="resultados-busqueda-ticket" class="list-group shadow-sm mt-1" style="display: none; position: absolute; width: 100%; z-index: 1000; max-height: 200px; overflow-y: auto;"></div>
+                                </div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="abrirModalNuevoCliente(document.getElementById('busqueda-cliente-ticket').value)">
+                                        <i class="fas fa-user-plus me-1"></i>Crear Nuevo Cliente
+                                    </button>
                                 </div>
 
                                 <div id="cliente-info-ticket" class="mt-3 p-3 bg-light rounded" style="display: none; border-left: 4px solid #8B7355;">
@@ -3508,52 +3574,120 @@
             }
 
             // Función para buscar clientes específicamente para el modal de Ticket
-            function buscarClientesTicket(q) {
-                const lista = document.getElementById('resultados-busqueda-ticket'); // This should be the container for the list items
-                const resultados = document.getElementById('resultados-busqueda-ticket'); // This is the overall results container
+            window.buscarClientesTicket = function(q) {
+                const lista = document.getElementById('resultados-busqueda-ticket');
+                const resultados = document.getElementById('resultados-busqueda-ticket');
 
                 if (!q || q.length < 3) {
-                    resultados.style.display = 'none';
+                    if (resultados) resultados.style.display = 'none';
                     return;
                 }
 
-                lista.innerHTML = '<div class="text-center p-2"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
-                resultados.style.display = 'block';
+                if (lista) lista.innerHTML = '<div class="text-center p-2"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
+                if (resultados) resultados.style.display = 'block';
 
                 fetch(`/ventas/pos/buscar-cliente/?q=${encodeURIComponent(q)}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.success && data.clientes && data.clientes.length > 0) {
-                            lista.innerHTML = data.clientes.map(cliente => `
-                                <button type="button" class="list-group-item list-group-item-action" 
-                                        onclick="seleccionarClienteTicket('${cliente.id}', '${cliente.nombre.replace(/'/g, "\\'")}', '${(cliente.rut || '').replace(/'/g, "\\'")}', '${(cliente.direccion || '').replace(/'/g, "\\'")}')">
-                                    <div class="d-flex flex-column">
-                                        <strong>${cliente.nombre}</strong>
-                                        <small class="text-muted">${cliente.rut || 'Sin RUT'}</small>
-                                    </div>
-                                </button>
-                            `).join('');
-                            resultados.style.display = 'block';
+                            if (lista) {
+                                lista.innerHTML = data.clientes.map(cliente => `
+                                    <button type="button" class="list-group-item list-group-item-action" 
+                                            onclick="seleccionarClienteTicket('${cliente.id}', '${cliente.nombre.replace(/'/g, "\\'")}', '${(cliente.rut || '').replace(/'/g, "\\'")}', '${(cliente.direccion || '').replace(/'/g, "\\'")}')">
+                                        <div class="d-flex flex-column">
+                                            <strong>${cliente.nombre}</strong>
+                                            <small class="text-muted">${cliente.rut || 'Sin RUT'}</small>
+                                        </div>
+                                    </button>
+                                `).join('');
+                            }
+                            if (resultados) resultados.style.display = 'block';
                         } else {
-                            lista.innerHTML = '<div class="alert alert-warning">No se encontraron clientes</div>';
-                            resultados.style.display = 'block';
+                            if (lista) lista.innerHTML = '<div class="alert alert-warning">No se encontraron clientes</div>';
+                            if (resultados) resultados.style.display = 'block';
                         }
                     })
                     .catch(error => {
                         console.error('Error buscando clientes:', error);
                         Swal.showValidationMessage('Error al buscar clientes');
                     });
-            }
+            };
 
             // Función para seleccionar cliente en modal Ticket-Guía
-            function seleccionarClienteTicket(id, nombre, rut, direccion) {
+            window.seleccionarClienteTicket = function(id, nombre, rut, direccion) {
                 window.clienteSeleccionado = { id, nombre, rut, direccion };
-                document.getElementById('busqueda-cliente-ticket').value = rut;
-                document.getElementById('resultados-busqueda-ticket').style.display = 'none';
-                document.getElementById('cliente-info-ticket').style.display = 'block';
-                document.getElementById('cliente-nombre-ticket').textContent = nombre;
-                document.getElementById('cliente-direccion-ticket').textContent = direccion || 'Sin dirección';
-            }
+                const input = document.getElementById('busqueda-cliente-ticket');
+                const results = document.getElementById('resultados-busqueda-ticket');
+                const info = document.getElementById('cliente-info-ticket');
+                const nombreEl = document.getElementById('cliente-nombre-ticket');
+                const dirEl = document.getElementById('cliente-direccion-ticket');
+
+                if (input) input.value = rut;
+                if (results) results.style.display = 'none';
+                if (info) info.style.display = 'block';
+                if (nombreEl) nombreEl.textContent = nombre;
+                if (dirEl) dirEl.textContent = direccion || 'Sin dirección';
+            };
+
+            // Función para seleccionar cliente en modal principal
+            window.seleccionarCliente = function(id, nombre, rut, direccion) {
+                try {
+                    // Limpiar datos
+                    id = String(id).trim().replace(/\s+/g, '');
+                    nombre = String(nombre).trim();
+                    rut = String(rut).trim();
+                    direccion = String(direccion).trim();
+
+                    console.log('=== SELECCIONANDO CLIENTE (BÚSQUEDA) ===');
+                    console.log('ID:', id, 'Nombre:', nombre, 'RUT:', rut);
+
+                    // Guardar cliente seleccionado globalmente INMEDIATAMENTE
+                    window.clienteSeleccionado = {
+                        id: id,
+                        nombre: nombre,
+                        rut: rut,
+                        rut_formatted: rut,
+                        direccion: direccion
+                    };
+
+                    // Intentar actualizar la UI (puede estar en diferentes partes del DOM)
+                    const updates = [
+                        { id: 'resultados-busqueda', style: 'none' },
+                        { id: 'cliente-info', style: 'block' },
+                        { id: 'cliente-no-encontrado', style: 'none' },
+                        { id: 'cliente-nombre', text: nombre },
+                        { id: 'cliente-direccion', text: direccion || 'Sin dirección' },
+                        { id: 'busqueda-cliente', value: rut }
+                    ];
+
+                    updates.forEach(u => {
+                        const el = document.getElementById(u.id);
+                        if (el) {
+                            if (u.style !== undefined) el.style.display = u.style;
+                            if (u.text !== undefined) el.textContent = u.text;
+                            if (u.value !== undefined) el.value = u.value;
+                        }
+                    });
+
+                    // Mostrar cliente en header si existe el elemento
+                    const clienteHeader = document.getElementById('clienteEnHeader');
+                    if (clienteHeader) {
+                        clienteHeader.innerHTML = `
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
+                                <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
+                                <strong style="color: white; font-size: 0.95rem;">${nombre}</strong>
+                                <button onclick="window.cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;">
+                                    <i class="fas fa-exchange-alt me-1"></i>Cambiar
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    console.log('Selección exitosa:', window.clienteSeleccionado);
+                } catch (err) {
+                    console.error('Error en seleccionarCliente:', err);
+                }
+            };
 
             // Validar RUT chileno
             function validarRUT(rut) {
@@ -3592,248 +3726,141 @@
             }
 
             // Buscar cliente por RUT o nombre
-            function buscarCliente() {
-                const busqueda = document.getElementById('busqueda-cliente').value.trim();
+            window.buscarCliente = function() {
+                try {
+                    const busquedaInput = document.getElementById('busqueda-cliente');
+                    if (!busquedaInput) return;
+                    
+                    const busqueda = busquedaInput.value.trim();
 
-                if (!busqueda) {
-                    document.getElementById('resultados-busqueda').style.display = 'none';
-                    document.getElementById('cliente-info').style.display = 'none';
-                    document.getElementById('cliente-no-encontrado').style.display = 'none';
-                    return;
-                }
+                    const resultadosBusqueda = document.getElementById('resultados-busqueda');
+                    const clienteInfo = document.getElementById('cliente-info');
+                    const clienteNoEncontrado = document.getElementById('cliente-no-encontrado');
+                    const listaClientes = document.getElementById('lista-clientes');
 
-                // Limpiar resultados anteriores
-                document.getElementById('lista-clientes').innerHTML = '';
-                document.getElementById('resultados-busqueda').style.display = 'block';
-                document.getElementById('cliente-info').style.display = 'none';
-                document.getElementById('cliente-no-encontrado').style.display = 'none';
+                    if (!busqueda) {
+                        if (resultadosBusqueda) resultadosBusqueda.style.display = 'none';
+                        if (clienteInfo) clienteInfo.style.display = 'none';
+                        if (clienteNoEncontrado) clienteNoEncontrado.style.display = 'none';
+                        return;
+                    }
 
-                // Mostrar loading
-                document.getElementById('lista-clientes').innerHTML = '<div class="list-group-item text-center"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
+                    // Limpiar resultados anteriores
+                    if (listaClientes) listaClientes.innerHTML = '<div class="list-group-item text-center"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
+                    if (resultadosBusqueda) resultadosBusqueda.style.display = 'block';
+                    if (clienteInfo) clienteInfo.style.display = 'none';
+                    if (clienteNoEncontrado) clienteNoEncontrado.style.display = 'none';
 
-                fetch(`/ventas/pos/buscar-cliente/?q=${encodeURIComponent(busqueda)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success && data.clientes && data.clientes.length > 0) {
-                            // Mostrar lista de clientes encontrados
-                            let html = '';
-                            data.clientes.forEach(cliente => {
-                                const rutDisplay = cliente.rut || cliente.rut_formatted || 'Sin RUT';
-                                html += `
-                            <div class="list-group-item list-group-item-action" onclick="seleccionarCliente('${cliente.id}', '${cliente.nombre.replace(/'/g, "\\'")}', '${rutDisplay.replace(/'/g, "\\'")}', '${(cliente.direccion || '').replace(/'/g, "\\'")}')">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">${cliente.nombre}</h6>
-                                    <small>${rutDisplay}</small>
-                                </div>
-                                <p class="mb-1">${cliente.direccion || 'Sin dirección'}</p>
-                            </div>
-                        `;
-                            });
-                            document.getElementById('lista-clientes').innerHTML = html;
-                        } else {
-                            // No se encontraron clientes
-                            document.getElementById('resultados-busqueda').style.display = 'none';
-                            document.getElementById('cliente-no-encontrado').style.display = 'block';
+                    fetch(`/ventas/pos/buscar-cliente/?q=${encodeURIComponent(busqueda)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.clientes && data.clientes.length > 0) {
+                                // Si solo hay un resultado y buscamos por RUT, seleccionarlo automáticamente
+                                if (data.clientes.length === 1 && busqueda.includes('-')) {
+                                    const c = data.clientes[0];
+                                    window.seleccionarCliente(c.id, c.nombre, c.rut || c.rut_formatted || '', c.direccion || '');
+                                    return;
+                                }
+
+                                // Mostrar lista de clientes encontrados
+                                let html = '';
+                                data.clientes.forEach(cliente => {
+                                    const rutDisplay = cliente.rut || cliente.rut_formatted || 'Sin RUT';
+                                    const encodedNombre = cliente.nombre.replace(/'/g, "\\'");
+                                    const encodedRut = rutDisplay.replace(/'/g, "\\'");
+                                    const encodedDir = (cliente.direccion || '').replace(/'/g, "\\'");
+                                    const encodedId = String(cliente.id).replace(/'/g, "\\'");
+                                    
+                                    html += `
+                                        <div class="list-group-item list-group-item-action" 
+                                             onclick="console.log('Click en item:', '${encodedId}'); window.seleccionarCliente('${encodedId}', '${encodedNombre}', '${encodedRut}', '${encodedDir}')"
+                                             style="cursor: pointer;">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1" style="font-weight: 700;">${cliente.nombre}</h6>
+                                                <span class="badge bg-secondary">${rutDisplay}</span>
+                                            </div>
+                                            <p class="mb-1 text-muted" style="font-size: 0.85rem;"><i class="fas fa-map-marker-alt me-1"></i>${cliente.direccion || 'Sin dirección'}</p>
+                                        </div>
+                                    `;
+                                });
+                                if (listaClientes) listaClientes.innerHTML = html;
+                                if (resultadosBusqueda) resultadosBusqueda.style.display = 'block';
+                            } else {
+                                // No se encontraron clientes
+                                if (resultadosBusqueda) resultadosBusqueda.style.display = 'none';
+                                if (clienteNoEncontrado) {
+                                    clienteNoEncontrado.style.display = 'block';
+                                    
+                                    // Si buscamos el RUT genérico y no existe, ofrecer crearlo
+                                    if (busqueda === '66666666-6') {
+                                        clienteNoEncontrado.innerHTML = `
+                                            <div class="alert alert-warning">
+                                                <strong>Cliente Boleta no encontrado</strong><br>
+                                                <p class="small mb-2">El cliente genérico para boletas (66666666-6) no existe en el sistema.</p>
+                                                <button type="button" class="btn btn-sm btn-success" onclick="window.crearClienteBoleta()">
+                                                    <i class="fas fa-magic me-1"></i>Crear Cliente Genérico Ahora
+                                                </button>
+                                            </div>
+                                        `;
+                                    }
+                                }
+                                window.clienteSeleccionado = null;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error al buscar cliente:', error);
+                            if (resultadosBusqueda) resultadosBusqueda.style.display = 'none';
+                            if (clienteNoEncontrado) clienteNoEncontrado.style.display = 'block';
                             window.clienteSeleccionado = null;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error al buscar cliente:', error);
-                        document.getElementById('resultados-busqueda').style.display = 'none';
-                        document.getElementById('cliente-no-encontrado').style.display = 'block';
-                        window.clienteSeleccionado = null;
-                    });
-            }
-
-
-            // Crear cliente
-            function crearCliente() {
-                // Verificar que Swal existe
-                if (typeof Swal === 'undefined') {
-                    console.error('ERROR: SweetAlert2 no está cargado');
-                    return;
+                        });
+                } catch (err) {
+                    console.error('Error en buscarCliente:', err);
                 }
+            };
 
-                const rut = document.getElementById('busqueda-cliente').value;
-                const tipoDocumento = document.getElementById('tipo-documento').value;
 
-                // Si es boleta, usar cliente automático
-                if (tipoDocumento === 'boleta') {
-                    crearClienteBoleta();
-                    return;
+            // Crear cliente (ahora abre el nuevo modal Piedra)
+            window.crearCliente = function() {
+                if (typeof abrirModalNuevoCliente === 'function') {
+                    abrirModalNuevoCliente(document.getElementById('busqueda-cliente')?.value || '');
+                } else {
+                    console.error('Función abrirModalNuevoCliente no encontrada');
                 }
-                // Para otros tipos, mostrar formulario de creación
-                Swal.fire({
-                    title: '<i class="fas fa-user-plus me-2"></i>Crear Nuevo Cliente',
-                    html: `
-                <style>
-                    .swal2-popup {
-                        border-radius: 15px;
-                        font-family: 'Poppins', sans-serif;
-                    }
-                    .swal2-title {
-                        color: #6F5B44;
-                        font-weight: 600;
-                        font-size: 1.5rem;
-                        padding: 1rem 0 0.5rem 0;
-                    }
-                    .swal2-html-container {
-                        padding: 0 2rem 1rem 2rem;
-                    }
-                    .form-label-terroso {
-                        font-weight: 600;
-                        color: #6F5B44;
-                        font-size: 0.9rem;
-                        margin-bottom: 0.3rem;
-                        display: block;
-                        text-align: left;
-                    }
-                    .form-control-terroso {
-                        border: 2px solid #D4C4A8;
-                        border-radius: 8px;
-                        padding: 0.5rem 0.75rem;
-                        font-size: 0.9rem;
-                        transition: all 0.3s ease;
-                    }
-                    .form-control-terroso:focus {
-                        border-color: #8B7355;
-                        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
-                        outline: none;
-                    }
-                    .campo-requerido::after {
-                        content: " *";
-                        color: #dc3545;
-                    }
-                    .info-box {
-                        background: linear-gradient(135deg, #F5F0EB 0%, #E8DED5 100%);
-                        border-left: 4px solid #8B7355;
-                        padding: 0.75rem;
-                        border-radius: 8px;
-                        margin-bottom: 1rem;
-                        text-align: left;
-                    }
-                    .info-box i {
-                        color: #8B7355;
-                        margin-right: 0.5rem;
-                    }
-                    .info-box p {
-                        margin: 0;
-                        color: #6F5B44;
-                        font-size: 0.85rem;
-                    }
-                </style>
-                <div class="info-box">
-                    <i class="fas fa-info-circle"></i>
-                    <strong style="color: #6F5B44;">Importante:</strong>
-                    <p>Complete los datos del cliente. Los campos marcados con (*) son obligatorios.</p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label-terroso campo-requerido">RUT</label>
-                    <input type="text" id="nuevo-rut" class="form-control form-control-terroso" value="${rut}" placeholder="12.345.678-9">
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label-terroso campo-requerido">Nombre</label>
-                        <input type="text" id="nuevo-nombre" class="form-control form-control-terroso" placeholder="Nombre del cliente" required>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label-terroso campo-requerido">Giro</label>
-                        <input type="text" id="nuevo-giro" class="form-control form-control-terroso" placeholder="Giro comercial" required>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label-terroso">Dirección</label>
-                    <input type="text" id="nueva-direccion" class="form-control form-control-terroso" placeholder="Calle y número">
-                </div>
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label-terroso campo-requerido">Comuna</label>
-                        <input type="text" id="nueva-comuna" class="form-control form-control-terroso" placeholder="Comuna" required>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label-terroso campo-requerido">Ciudad</label>
-                        <input type="text" id="nueva-ciudad" class="form-control form-control-terroso" placeholder="Ciudad" required>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label-terroso">Región</label>
-                        <input type="text" id="nueva-region" class="form-control form-control-terroso" placeholder="Región">
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label-terroso">Teléfono</label>
-                        <input type="text" id="nuevo-telefono" class="form-control form-control-terroso" placeholder="+56 9 1234 5678">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label-terroso">Email</label>
-                        <input type="email" id="nuevo-email" class="form-control form-control-terroso" placeholder="correo@ejemplo.com">
-                    </div>
-                </div>
-            `,
-                    width: '700px',
-                    showCancelButton: true,
-                    confirmButtonText: '<i class="fas fa-save me-2"></i>Crear Cliente',
-                    cancelButtonText: '<i class="fas fa-times me-2"></i>Cancelar',
-                    confirmButtonColor: '#8B7355',
-                    cancelButtonColor: '#6c757d',
-                    customClass: {
-                        confirmButton: 'btn btn-lg',
-                        cancelButton: 'btn btn-lg'
-                    },
-                    buttonsStyling: true,
-                    preConfirm: () => {
-                        const rutInput = document.getElementById('nuevo-rut').value.trim();
-                        const nombre = document.getElementById('nuevo-nombre').value.trim();
-                        const giro = document.getElementById('nuevo-giro').value.trim();
-                        const direccion = document.getElementById('nueva-direccion').value.trim();
-                        const comuna = document.getElementById('nueva-comuna').value.trim();
-                        const ciudad = document.getElementById('nueva-ciudad').value.trim();
-                        const region = document.getElementById('nueva-region').value.trim();
-                        const telefono = document.getElementById('nuevo-telefono').value.trim();
-                        const email = document.getElementById('nuevo-email').value.trim();
+            };
 
-                        if (!rutInput) {
-                            Swal.showValidationMessage('<i class="fas fa-exclamation-circle me-2"></i>El RUT es requerido');
-                            return false;
-                        }
-                        if (!nombre) {
-                            Swal.showValidationMessage('<i class="fas fa-exclamation-circle me-2"></i>El nombre es requerido');
-                            return false;
-                        }
-                        if (!giro) {
-                            Swal.showValidationMessage('<i class="fas fa-exclamation-circle me-2"></i>El giro es requerido');
-                            return false;
-                        }
-                        if (!comuna) {
-                            Swal.showValidationMessage('<i class="fas fa-exclamation-circle me-2"></i>La comuna es requerida');
-                            return false;
-                        }
-                        if (!ciudad) {
-                            Swal.showValidationMessage('<i class="fas fa-exclamation-circle me-2"></i>La ciudad es requerida');
-                            return false;
-                        }
 
-                        return {
-                            rut: rutInput,
-                            nombre: nombre,
-                            giro: giro,
-                            direccion: direccion,
-                            comuna: comuna,
-                            ciudad: ciudad,
-                            region: region,
-                            telefono: telefono,
-                            email: email
-                        };
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        crearClienteNuevo(result.value);
-                    }
+            // Escuchar el evento de cliente creado con éxito
+            document.addEventListener('clienteCreado', function(e) {
+                const cliente = e.detail;
+                console.log('Cliente creado y capturado por el POS:', cliente);
+                
+                // Actualizar inputs de búsqueda
+                const inputNormal = document.getElementById('busqueda-cliente');
+                const inputTicket = document.getElementById('busqueda-cliente-ticket');
+                
+                if (inputNormal) inputNormal.value = cliente.rut;
+                if (inputTicket) inputTicket.value = cliente.rut;
+                
+                // Seleccionar automáticamente al cliente
+                seleccionarCliente(cliente.id, cliente.nombre, cliente.rut, cliente.direccion || '');
+                
+                // Feedback visual de éxito
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true
                 });
-            }
+                
+                Toast.fire({
+                    icon: 'success',
+                    title: `Cliente ${cliente.nombre} seleccionado`
+                });
+            });
 
             // Crear cliente automático para boletas
-            function crearClienteBoleta() {
+            window.crearClienteBoleta = function() {
                 const data = {
                     items: cart.map(item => ({
                         articuloId: item.articuloId,
@@ -3848,7 +3875,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : ''
                     },
                     body: JSON.stringify(data)
                 })
@@ -3864,24 +3891,30 @@
                     .then(data => {
                         if (data.success) {
                             // Mostrar información del cliente creado
-                            document.getElementById('cliente-nombre').textContent = data.cliente.nombre;
-                            document.getElementById('cliente-direccion').textContent = data.cliente.direccion;
-                            document.getElementById('cliente-info').style.display = 'block';
-                            document.getElementById('cliente-no-encontrado').style.display = 'none';
+                            const nombreEl = document.getElementById('cliente-nombre');
+                            const dirEl = document.getElementById('cliente-direccion');
+                            const infoEl = document.getElementById('cliente-info');
+                            const noEncontradoEl = document.getElementById('cliente-no-encontrado');
+
+                            if (nombreEl) nombreEl.textContent = data.cliente.nombre;
+                            if (dirEl) dirEl.textContent = data.cliente.direccion;
+                            if (infoEl) infoEl.style.display = 'block';
+                            if (noEncontradoEl) noEncontradoEl.style.display = 'none';
+                            
                             window.clienteSeleccionado = data.cliente;
 
                             // Mostrar cliente en header
                             const clienteHeader = document.getElementById('clienteEnHeader');
                             if (clienteHeader) {
                                 clienteHeader.innerHTML = `
-                        <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
-                            <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
-                            <strong style="color: white; font-size: 0.95rem;">${data.cliente.nombre}</strong>
-                            <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                                <i class="fas fa-exchange-alt me-1"></i>Cambiar
-                            </button>
-                        </div>
-                    `;
+                                    <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
+                                        <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
+                                        <strong style="color: white; font-size: 0.95rem;">${data.cliente.nombre}</strong>
+                                        <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                                            <i class="fas fa-exchange-alt me-1"></i>Cambiar
+                                        </button>
+                                    </div>
+                                `;
                             }
 
                             Swal.fire({
@@ -3908,7 +3941,7 @@
                             timer: 3000
                         });
                     });
-            }
+            };
 
             // Crear cliente nuevo
             function crearClienteNuevo(datos) {
@@ -4250,10 +4283,11 @@
                                         timer: 2000
                                     }).then(() => {
                                         // IMPRESION DIRECTA CON QZ TRAY
+                                        const nCopias = window.getNCopias('vale');
                                         if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
                                             const ticketUrl = `/ventas/vales/${data.preventa_id}/termica/`;
                                             // No bloquear UI, hacerlo en background
-                                            QZ_Printers.printTicketFromUrl(ticketUrl).catch(err => {
+                                            QZ_Printers.printTicketFromUrl(ticketUrl, nCopias).catch(err => {
                                                 console.error("Error QZ, fallback to window.open", err);
                                                 window.open(`/ventas/vales/${data.preventa_id}/html/`, '_blank');
                                             });
@@ -4333,13 +4367,21 @@
                                         timer: 2000,
                                         showConfirmButton: false
                                     }).then(() => {
-                                        // Abrir documento para impresión con autoclose (cierra automáticamente después de imprimir)
+                                        // IMPRESIÓN DIRECTA CON QZ TRAY (o fallback a window.open)
+                                        const nCopias = window.getNCopias(data.tipo_documento);
                                         const posUrl = "{% url 'ventas:pos_view' %}";
                                         const separator = data.doc_url.includes('?') ? '&' : '?';
-                                        // auto=1: imprime automáticamente
-                                        // autoclose=1: cierra la ventana después de imprimir
-                                        // autoclose_delay=2000: espera 2 segundos antes de cerrar
-                                        window.open(data.doc_url + separator + 'auto=1&autoclose=1&autoclose_delay=2000&return_url=' + encodeURIComponent(posUrl), '_blank');
+
+                                        if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
+                                            // En este caso data.doc_url suele ser la vista térmica
+                                            const ticketUrl = data.doc_url.includes('/termica/') ? data.doc_url : data.doc_url.replace('/html/', '/termica/');
+                                            QZ_Printers.printTicketFromUrl(ticketUrl, nCopias).catch(err => {
+                                                console.error("Error QZ, fallback to window.open", err);
+                                                window.open(data.doc_url + separator + 'auto=1&autoclose=1&autoclose_delay=2000&return_url=' + encodeURIComponent(posUrl), '_blank');
+                                            });
+                                        } else {
+                                            window.open(data.doc_url + separator + 'auto=1&autoclose=1&autoclose_delay=2000&return_url=' + encodeURIComponent(posUrl), '_blank');
+                                        }
 
                                         // Limpiar carrito inmediatamente (el POS queda listo para siguiente venta)
                                         cart = [];
@@ -4441,9 +4483,10 @@
                                         // IMPRESION DEL TICKET (Vale facturable)
                                         const ticketId = data.preventa_id || data.id;
                                         if (ticketId) {
+                                            const nCopias = window.getNCopias('ticket');
                                             if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
                                                 const ticketUrl = `/ventas/vales/${ticketId}/termica/`;
-                                                QZ_Printers.printTicketFromUrl(ticketUrl).catch(err => {
+                                                QZ_Printers.printTicketFromUrl(ticketUrl, nCopias).catch(err => {
                                                     console.error("Error QZ, fallback to window.open", err);
                                                     window.open(`/ventas/vales/${ticketId}/html/`, '_blank');
                                                 });
@@ -5158,256 +5201,10 @@
             }
         }
 
-        // Función global para agregar producto al carrito desde cualquier lugar
-        async function addToCartFromAnywhere(articuloId, nombre, precio, cantidad = 1, fromKit = false) {
-            console.log('*** AGREGANDO AL CARRITO DESDE CUALQUIER LUGAR ***');
-            if (fromKit) {
-                console.log('*** ITEM MARCADO COMO DEL KIT (cantidad bloqueada) ***');
-            }
 
-            // Buscar el producto en la lista de productos para obtener información de categoría
-            const productos = window.articulos || [];
-            const producto = productos.find(p => p.id == articuloId);
+        /* ===== FUNCIONES DE COMPATIBILIDAD ELIMINADAS (USANDO CANÓNICAS) ===== */
+        // Se han eliminado las versiones duplicadas y manuales para asegurar consistencia
 
-            let categoriaExentaIva = false;
-            let impuestoEspecifico = 0;
-            let precioNeto = null;
-
-            if (producto) {
-                categoriaExentaIva = producto.categoria && producto.categoria.exenta_iva;
-                impuestoEspecifico = producto.categoria && producto.categoria.impuesto_especifico ?
-                    parseFloat(producto.categoria.impuesto_especifico.get_porcentaje_decimal) : 0;
-
-                // Calcular precio neto desde el precio proporcionado (que incluye IVA)
-                // Si el precio fue ajustado proporcionalmente, calcular el neto correcto
-                precioNeto = Math.round(precio / 1.19);
-            }
-
-            // Usar la función addToCart con toda la información
-            await addToCart(articuloId, nombre, precio, 1000, categoriaExentaIva, impuestoEspecifico, precioNeto, fromKit);
-
-            // Actualizar visualización
-            if (typeof updateCartDisplay === 'function') {
-                updateCartDisplay();
-            } else {
-                updateCartDisplayManual();
-            }
-
-            if (typeof updateTotals === 'function') {
-                updateTotals();
-            } else {
-                updateTotalsManual();
-            }
-
-            // Restaurar foco en código de barras después de un breve delay
-            setTimeout(() => {
-                const barcodeInput = document.getElementById('barcode-input');
-                if (barcodeInput) {
-                    barcodeInput.focus();
-                    console.log('*** FOCO RESTAURADO EN CÓDIGO DE BARRAS ***');
-                }
-            }, 100);
-        }
-
-        // FUNCIÓN DUPLICADA ELIMINADA - Se usa la función addToCart principal (línea 1057)
-        // que tiene la firma completa: addToCart(articuloId, nombre, precio, stock, categoriaExentaIva, impuestoEspecifico, precioNeto)
-
-        // Función manual para actualizar la visualización del carrito
-        function updateCartDisplayManual() {
-            console.log('*** ACTUALIZANDO CARRITO MANUALMENTE ***');
-
-            const cartContainer = document.getElementById('pos-cart-items');
-            if (!cartContainer) {
-                console.log('*** ERROR: No se encontró el contenedor del carrito ***');
-                return;
-            }
-
-            // Limpiar el contenedor
-            cartContainer.innerHTML = '';
-
-            if (cart.length === 0) {
-                cartContainer.innerHTML = '<div class="pos-cart-empty">No hay productos en el carrito</div>';
-                return;
-            }
-
-            // Agregar cada item del carrito
-            cart.forEach((item, index) => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'pos-cart-item';
-                itemDiv.innerHTML = `
-            <div class="cart-item-name">${item.nombre}</div>
-            <div class="cart-item-price">$${window.formatChileanNumber ? window.formatChileanNumber(item.precio) : Math.round(item.precio).toLocaleString('es-CL')}</div>
-            <div class="cart-item-qty">
-                <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, -1)">-</button>
-                <span>${item.cantidad}</span>
-                <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>
-            </div>
-            <div class="cart-item-discount">${item.descuento}%</div>
-            <div class="cart-item-total">$${window.formatChileanNumber ? window.formatChileanNumber(item.total) : Math.round(item.total).toLocaleString('es-CL')}</div>
-            <div class="cart-item-actions">
-                <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${index})" title="Eliminar">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `;
-                cartContainer.appendChild(itemDiv);
-            });
-
-            // Scroll automático al último item agregado
-            setTimeout(() => {
-                cartContainer.scrollTop = cartContainer.scrollHeight;
-            }, 50);
-
-            console.log('*** CARRITO VISUALIZADO MANUALMENTE ***');
-        }
-
-        // Función manual para actualizar los totales
-        function updateTotalsManual() {
-            console.log('*** ACTUALIZANDO TOTALES MANUALMENTE ***');
-
-            // Calcular totales
-            let subtotal = 0;
-            let descuento = 0;
-            let neto = 0;
-            let iva = 0;
-            let impuestoEspecifico = 0;
-
-            cart.forEach(item => {
-                const precioFinal = parseFloat(item.precio);
-                const precioNeto = parseFloat(item.precio_neto || 0);
-                const ivaItem = parseFloat(item.iva || 0);
-                const impEspItem = parseFloat(item.impuesto_especifico || 0);
-
-                subtotal += precioFinal * parseFloat(item.cantidad);
-                neto += precioNeto * parseFloat(item.cantidad);
-                iva += ivaItem * parseFloat(item.cantidad);
-                impuestoEspecifico += impEspItem * parseFloat(item.cantidad);
-            });
-
-            const total = subtotal;
-
-            // Actualizar elementos en el DOM
-            const updateElement = (id, value) => {
-                const element = document.getElementById(id);
-                if (element) {
-                    const formattedValue = window.formatChileanNumber ? window.formatChileanNumber(value) : Math.round(value).toLocaleString('es-CL');
-                    element.textContent = `$${formattedValue}`;
-                } else {
-                    console.log(`*** ERROR: Elemento ${id} no encontrado ***`);
-                }
-            };
-
-            updateElement('subtotal', subtotal);
-            updateElement('descuento', descuento);
-            updateElement('neto', neto);
-            updateElement('iva', iva);
-            updateElement('impuesto_especifico', impuestoEspecifico);
-            updateElement('total', total);
-
-            console.log('*** TOTALES ACTUALIZADOS MANUALMENTE ***');
-            console.log('Subtotal:', subtotal);
-            console.log('Total:', total);
-        }
-
-        // Función para actualizar cantidad de un item en el carrito
-        function updateQuantity(index, change) {
-            if (cart[index]) {
-                cart[index].cantidad += change;
-                if (cart[index].cantidad <= 0) {
-                    cart.splice(index, 1);
-                } else {
-                    cart[index].total = cart[index].precio * cart[index].cantidad;
-                    // Recalcular impuestos según la cantidad
-                    cart[index].precio_neto_total = cart[index].precio_neto * cart[index].cantidad;
-                    cart[index].iva_total = cart[index].iva * cart[index].cantidad;
-                    cart[index].impuesto_especifico_total = cart[index].impuesto_especifico * cart[index].cantidad;
-                }
-
-                // Actualizar visualización
-                if (typeof updateCartDisplay === 'function') {
-                    updateCartDisplay();
-                } else {
-                    updateCartDisplayManual();
-                }
-
-                if (typeof updateTotals === 'function') {
-                    updateTotals();
-                } else {
-                    updateTotalsManual();
-                }
-            }
-        }
-
-        // Función para remover un item del carrito
-        function removeFromCart(index) {
-            if (cart[index]) {
-                cart.splice(index, 1);
-
-                // Actualizar visualización
-                if (typeof updateCartDisplay === 'function') {
-                    updateCartDisplay();
-                } else {
-                    updateCartDisplayManual();
-                }
-
-                if (typeof updateTotals === 'function') {
-                    updateTotals();
-                } else {
-                    updateTotalsManual();
-                }
-            }
-        }
-
-        // Función global para seleccionar cliente
-        function seleccionarCliente(id, nombre, rut, direccion) {
-            // Limpiar datos
-            id = String(id).trim().replace(/\s+/g, '');
-            nombre = String(nombre).trim();
-            rut = String(rut).trim();
-            direccion = String(direccion).trim();
-
-            console.log('=== SELECCIONANDO CLIENTE (BÚSQUEDA) ===');
-            console.log('ID (limpio):', id, 'Tipo:', typeof id);
-            console.log('Nombre:', nombre);
-            console.log('RUT:', rut, 'Tipo:', typeof rut);
-            console.log('Dirección:', direccion);
-
-            // Ocultar resultados de búsqueda
-            document.getElementById('resultados-busqueda').style.display = 'none';
-
-            // Mostrar información del cliente seleccionado
-            document.getElementById('cliente-nombre').textContent = nombre;
-            document.getElementById('cliente-direccion').textContent = direccion || 'Sin dirección';
-            document.getElementById('cliente-info').style.display = 'block';
-
-            // Guardar cliente seleccionado
-            window.clienteSeleccionado = {
-                id: id,
-                nombre: nombre,
-                rut: rut,
-                rut_formatted: rut,
-                direccion: direccion
-            };
-
-            console.log('Cliente guardado en window.clienteSeleccionado:', window.clienteSeleccionado);
-
-            // Mostrar cliente en header
-            const clienteHeader = document.getElementById('clienteEnHeader');
-            if (clienteHeader) {
-                clienteHeader.innerHTML = `
-            <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
-                <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
-                <strong style="color: white; font-size: 0.95rem;">${nombre}</strong>
-                <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                    <i class="fas fa-exchange-alt me-1"></i>Cambiar
-                </button>
-            </div>
-        `;
-            }
-
-            // Actualizar el campo de búsqueda con el RUT
-            document.getElementById('busqueda-cliente').value = rut;
-        }
 
         // Función para mostrar historial de tickets del día
         function mostrarHistorialTickets() {
@@ -5614,8 +5411,7 @@
         }
     </script>
 
-    <!-- Modal de Selección de Cliente (Modo Con Cliente) -->
-    {% if modo_pos == 'con_cliente' %}
+    <!-- Modal de Selección de Cliente (Manual o automático según modo) -->
     <div class="modal fade" id="modalSeleccionCliente" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content" style="border-radius: 15px; overflow: hidden;">
@@ -5706,85 +5502,84 @@
         document.addEventListener('DOMContentLoaded', function () {
             const modoPOS = '{{ modo_pos }}';
 
-            if (modoPOS === 'con_cliente') {
-                // Mostrar modal automáticamente
-                const modalCliente = new bootstrap.Modal(document.getElementById('modalSeleccionCliente'));
-                modalCliente.show();
-
-                // Buscador de clientes
-                document.getElementById('buscarClienteInicio').addEventListener('input', function () {
+            // 1. Vincular BUSCADOR de clientes (siempre, para que Cambiar Cliente funcione)
+            const inputBusquedaInicio = document.getElementById('buscarClienteInicio');
+            if (inputBusquedaInicio) {
+                inputBusquedaInicio.addEventListener('input', function () {
                     const query = this.value.toLowerCase();
                     const items = document.querySelectorAll('.cliente-item');
 
                     items.forEach(item => {
-                        const nombre = item.dataset.clienteNombre.toLowerCase();
-                        const rut = item.dataset.clienteRut.toLowerCase();
+                        const nombre = item.dataset.clienteNombre ? item.dataset.clienteNombre.toLowerCase() : '';
+                        const rut = item.dataset.clienteRut ? item.dataset.clienteRut.toLowerCase() : '';
 
                         if (nombre.includes(query) || rut.includes(query)) {
-                            item.style.display = 'block';
+                            item.style.display = '';
                         } else {
                             item.style.display = 'none';
                         }
                     });
                 });
+            }
 
-                // Seleccionar cliente
-                document.querySelectorAll('.cliente-item').forEach(item => {
-                    item.addEventListener('click', function () {
-                        const clienteId = this.dataset.clienteId.trim().replace(/\s+/g, ''); // Limpiar ID
-                        const clienteNombre = this.dataset.clienteNombre.trim();
-                        const clienteRut = this.dataset.clienteRut.trim();
-                        const clienteDireccion = this.dataset.clienteDireccion.trim();
+            // 2. Vincular CLIC en clientes (siempre)
+            document.querySelectorAll('.cliente-item').forEach(item => {
+                item.addEventListener('click', function () {
+                    const clienteId = this.dataset.clienteId ? this.dataset.clienteId.trim().replace(/\s+/g, '') : '';
+                    const clienteNombre = this.dataset.clienteNombre ? this.dataset.clienteNombre.trim() : 'Cliente';
+                    const clienteRut = this.dataset.clienteRut ? this.dataset.clienteRut.trim() : '';
+                    const clienteDireccion = this.dataset.clienteDireccion ? this.dataset.clienteDireccion.trim() : '';
 
-                        console.log('=== CLIENTE SELECCIONADO DESDE MODAL INICIO ===');
-                        console.log('ID (limpio):', clienteId);
-                        console.log('Nombre:', clienteNombre);
-                        console.log('RUT:', clienteRut);
-                        console.log('Dirección:', clienteDireccion);
+                    console.log('=== CLIENTE SELECCIONADO DESDE MODAL INICIO ===');
+                    console.log('ID (limpio):', clienteId);
+                    console.log('Nombre:', clienteNombre);
 
-                        // Guardar cliente en sesión/variable global
-                        window.clienteSeleccionado = {
-                            id: clienteId,
-                            nombre: clienteNombre,
-                            rut: clienteRut,
-                            rut_formatted: clienteRut,
-                            direccion: clienteDireccion
-                        };
+                    // Guardar cliente seleccionado globalmente
+                    window.clienteSeleccionado = {
+                        id: clienteId,
+                        nombre: clienteNombre,
+                        rut: clienteRut,
+                        rut_formatted: clienteRut,
+                        direccion: clienteDireccion
+                    };
 
-                        // Mostrar cliente en header del POS
-                        const clienteHeader = document.getElementById('clienteEnHeader');
-                        if (clienteHeader) {
-                            clienteHeader.innerHTML = `
-                        <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
-                            <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
-                            <strong style="color: white; font-size: 0.95rem;">${clienteNombre}</strong>
-                            <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                                <i class="fas fa-exchange-alt me-1"></i>Cambiar
-                            </button>
-                        </div>
-                    `;
-                        }
+                    // Mostrar cliente en header del POS
+                    const clienteHeader = document.getElementById('clienteEnHeader');
+                    if (clienteHeader) {
+                        clienteHeader.innerHTML = `
+                            <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
+                                <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
+                                <strong style="color: white; font-size: 0.95rem;">${clienteNombre}</strong>
+                                <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                                    <i class="fas fa-exchange-alt me-1"></i>Cambiar
+                                </button>
+                            </div>
+                        `;
+                    }
 
-                        // Cerrar modal
+                    // Cerrar modal de forma segura
+                    // Cerrar modal de forma segura
+                    try {
                         const modalElement = document.getElementById('modalSeleccionCliente');
-                        const modalInstance = bootstrap.Modal.getInstance(modalElement);
-                        if (modalInstance) {
-                            modalInstance.hide();
-                        } else {
-                            // Si no existe instancia, crear una y cerrarla
-                            const newModal = new bootstrap.Modal(modalElement);
-                            newModal.hide();
-                        }
+                        const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+                        modalInstance.hide();
+                    } catch(e) { console.log('Error cerrando modal:', e); }
 
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Cliente Seleccionado',
-                            text: `Venta para: ${clienteNombre}`,
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Cliente Seleccionado',
+                        text: `Venta para: ${clienteNombre}`,
+                        timer: 1500,
+                        showConfirmButton: false
                     });
                 });
+            });
+
+            // 3. Mostrar modal automáticamente si el modo lo requiere
+            if (modoPOS === 'con_cliente') {
+                const modalElement = document.getElementById('modalSeleccionCliente');
+                const modalCliente = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+                modalCliente.show();
             }
         });
 
@@ -5810,7 +5605,6 @@
             modalCliente.show();
         }
     </script>
-    {% endif %}
 
     <!-- Modal de Apertura de Caja -->
     {% if mostrar_modal_apertura %}
@@ -6448,7 +6242,7 @@
             const overlay = document.getElementById('help-overlay');
             overlay.classList.add('show');
             // Mostrar primera pestaña por defecto
-            mostrarTab('tab-ofertas');
+            mostrarTab('help-content-ofertas');
         }
 
         function cerrarAyudaPOS() {
@@ -6492,15 +6286,15 @@
             </div>
 
             <div class="help-tabs">
-                <button id="btn-tab-ofertas" class="help-tab active" onclick="mostrarTab('tab-ofertas')">
+                <button id="btn-help-content-ofertas" class="help-tab active" onclick="mostrarTab('help-content-ofertas')">
                     <i class="fas fa-tag"></i>
                     Ofertas
                 </button>
-                <button id="btn-tab-kits" class="help-tab" onclick="mostrarTab('tab-kits')">
+                <button id="btn-help-content-kits" class="help-tab" onclick="mostrarTab('help-content-kits')">
                     <i class="fas fa-box-open"></i>
                     Kits
                 </button>
-                <button id="btn-tab-comodin" class="help-tab" onclick="mostrarTab('tab-comodin')">
+                <button id="btn-help-content-comodin" class="help-tab" onclick="mostrarTab('help-content-comodin')">
                     <i class="fas fa-star"></i>
                     Código 001
                 </button>
@@ -6508,7 +6302,7 @@
 
             <div class="help-content">
                 <!-- TAB: OFERTAS -->
-                <div id="tab-ofertas" class="help-tab-content active">
+                <div id="help-content-ofertas" class="help-tab-content active">
                     <div class="help-section">
                         <h3><i class="fas fa-percent"></i>¿Qué son las Ofertas?</h3>
                         <p>
@@ -6565,7 +6359,7 @@
                 </div>
 
                 <!-- TAB: KITS -->
-                <div id="tab-kits" class="help-tab-content">
+                <div id="help-content-kits" class="help-tab-content">
                     <div class="help-section">
                         <h3><i class="fas fa-box"></i>¿Qué son los Kits?</h3>
                         <p>
@@ -6627,7 +6421,7 @@
                 </div>
 
                 <!-- TAB: CÓDIGO COMODÍN 001 -->
-                <div id="tab-comodin" class="help-tab-content">
+                <div id="help-content-comodin" class="help-tab-content">
                     <div class="help-section">
                         <h3><i class="fas fa-magic"></i>¿Qué es el Código Comodín 001?</h3>
                         <p>
@@ -6712,6 +6506,6 @@
             </div>
         </div>
     </div>
+    {% include 'clientes/cliente_form_modal.html' %}
 </body>
-
 </html>

@@ -120,6 +120,7 @@ TEMPLATES = [
 				'django.contrib.messages.context_processors.messages',
 				'gestioncloud.context_processors.global_context',
 				'empresas.context_processors.empresa_context',
+				'core.context_processors.global_notifications_processor',
 			],
 		},
 	},

@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.http import JsonResponse
-from django.db import transaction
+from django.db.models import Q, Sum, Count
 from core.decorators import requiere_empresa
 from .models import ArchivoCAF, DocumentoTributarioElectronico, EnvioDTE, ConfiguracionAlertaFolios
 from .forms import CargarCAFForm as ArchivoCAFForm  # Alias para compatibilidad
@@ -45,9 +45,15 @@ def caf_list(request):
     from empresas.models import Sucursal
     sucursales = Sucursal.objects.filter(empresa=request.empresa)
     
+    # Separar para pestañas del template
+    cafs_vigentes = archivos_caf.filter(estado='activo', oculto=False)
+    cafs_historico = archivos_caf.filter(Q(estado__in=['agotado', 'vencido', 'anulado']) | Q(oculto=True))
+    
     context = {
         'archivos_caf': archivos_caf,
-        'cafs': archivos_caf,  # Alias para compatibilidad con nuevo template
+        'cafs': archivos_caf,
+        'cafs_vigentes': cafs_vigentes,
+        'cafs_historico': cafs_historico,
         'total_caf': total_caf,
         'activos': activos,
         'agotados': agotados,

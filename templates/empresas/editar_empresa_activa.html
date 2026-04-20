@@ -1571,9 +1571,9 @@
                                 <h5 class="mb-0">
                                     <i class="fas fa-store me-2"></i>Sucursales de la Empresa
                                 </h5>
-                                <a href="#" class="btn btn-primary px-4" data-bs-toggle="modal" data-bs-target="#modalNuevaSucursal">
+                                <button type="button" class="btn btn-sm px-4" onclick="abrirModalSucursal('{% url 'empresas:sucursal_create' %}', 'Nueva Sucursal')" style="background: rgba(245, 241, 190, 0.4); border: 1px solid var(--color-piedra-borde); color: #6F5B44; font-weight: 600;">
                                     <i class="fas fa-plus me-2"></i>Nueva Sucursal
-                                </a>
+                                </button>
                             </div>
                             
                             {% if sucursales %}
@@ -1610,11 +1610,11 @@
                                         </div>
                                         <div class="card-footer" style="background: white; border-top: 1px solid var(--color-piedra-borde); padding: 10px 15px;">
                                             <div class="d-flex justify-content-end gap-2">
-                                                <a href="#" class="btn btn-sm px-3" style="background: rgba(141, 110, 99, 0.1); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 8px; font-weight: 600;">
+                                                <button type="button" class="btn btn-sm px-3" onclick="abrirModalSucursal('{% url 'empresas:sucursal_update' sucursal.pk %}', 'Editar Sucursal')" style="background: rgba(141, 110, 99, 0.1); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 8px; font-weight: 600;">
                                                     <i class="fas fa-edit me-1"></i> Editar
-                                                </a>
+                                                </button>
                                                 {% if not sucursal.es_principal %}
-                                                <a href="#" class="btn btn-sm px-3" style="background: rgba(211, 47, 47, 0.05); color: #d32f2f; border: 1px solid rgba(211, 47, 47, 0.2); border-radius: 8px; font-weight: 600;">
+                                                <a href="{% url 'empresas:sucursal_delete' sucursal.pk %}" class="btn btn-sm px-3" style="background: rgba(211, 47, 47, 0.05); color: #d32f2f; border: 1px solid rgba(211, 47, 47, 0.2); border-radius: 8px; font-weight: 600;">
                                                     <i class="fas fa-trash me-1"></i> Eliminar
                                                 </a>
                                                 {% endif %}
@@ -1629,7 +1629,7 @@
                                 <i class="fas fa-info-circle fa-3x mb-3"></i>
                                 <h5>No hay sucursales registradas</h5>
                                 <p class="mb-3">Agregue sucursales para gestionar múltiples puntos de venta o ubicaciones de su empresa.</p>
-                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaSucursal">
+                                <button class="btn btn-sm px-4" onclick="abrirModalSucursal('{% url 'empresas:sucursal_create' %}', 'Nueva Sucursal')" style="background: #FFF8E1; border: 1px solid #FFE0B2; color: #6F5B44; font-weight: 600;">
                                     <i class="fas fa-plus me-2"></i>Agregar Primera Sucursal
                                 </button>
                             </div>
@@ -1642,26 +1642,95 @@
     </div>
 </div>
 
-<!-- Modal Nueva Sucursal -->
-<div class="modal fade" id="modalNuevaSucursal" tabindex="-1" aria-labelledby="modalNuevaSucursalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalNuevaSucursalLabel">
-                    <i class="fas fa-store me-2"></i>Nueva Sucursal
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- Modal Gestion Sucursal -->
+<div class="modal fade" id="modalSucursal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden" style="border: 2px solid var(--color-piedra-borde) !important;">
+            <!-- Header con Estilo Piedra Premium Real -->
+            <div class="modal-header py-3 px-4 d-flex justify-content-between align-items-center" style="background: var(--gradient-piedra) !important; border-bottom: 3px solid var(--color-piedra-borde) !important; padding: 15px 25px !important;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-store me-3" style="font-size: 2rem; color: #6F5B44; opacity: 0.8;"></i>
+                    <div>
+                        <h4 class="modal-title mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: #6F5B44; letter-spacing: -1px; font-size: 1.5rem;">
+                            <span id="modalSucursalTitle" class="fw-bold">Gestión de Sucursal</span>
+                        </h4>
+                        <div style="font-size: 0.75rem; color: #6F5B44; opacity: 0.8; font-weight: 500;">
+                            Portal de Administración de Sucursales
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" style="filter: sepia(1) saturate(2) hue-rotate(320deg);"></button>
             </div>
-            <div class="modal-body">
-                <p class="text-muted">La funcionalidad de gestión de sucursales estará disponible próximamente.</p>
-                <p>Por favor, contacte al administrador del sistema para agregar o modificar sucursales.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            <div class="modal-body p-0 position-relative bg-white" style="min-height: 500px;">
+                <!-- Loader -->
+                <div id="modalLoading" class="position-absolute top-50 start-50 translate-middle text-center">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+                
+                <!-- Iframe -->
+                <iframe id="sucursalIframe" src="" frameborder="0" style="width: 100%; height: 650px; display: none;"></iframe>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    let gModalSucursal;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        gModalSucursal = new bootstrap.Modal(document.getElementById('modalSucursal'));
+        
+        const iframe = document.getElementById('sucursalIframe');
+        iframe.onload = function() {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                const currentPath = iframe.contentWindow.location.pathname;
+                
+                // Si la URL contiene "sucursales/" y termina en "/" es probable que sea el listado (éxito)
+                // O si vuelve a editar_empresa_activa
+                if (currentPath.includes('sucursales/') && !currentPath.includes('nueva') && !currentPath.includes('editar')) {
+                    gModalSucursal.hide();
+                    location.reload();
+                    return;
+                }
+
+                // Inyectar CSS para adaptar el formulario al modal
+                const style = iframeDoc.createElement('style');
+                style.textContent = `
+                    header, nav, footer, .top-bar, .sidebar, .stone-header-premium, .btn-action-secondary, .card-header { display: none !important; }
+                    body { background: white !important; padding: 0 !important; overflow-x: hidden; }
+                    .container, .container-fluid { padding: 0 !important; max-width: 100% !important; }
+                    .single-card-container { border: none !important; box-shadow: none !important; margin: 0 !important; }
+                    .card-body { padding: 1.5rem !important; }
+                    form { padding: 0 !important; }
+                `;
+                iframeDoc.head.appendChild(style);
+                
+                document.getElementById('modalLoading').style.display = 'none';
+                iframe.style.display = 'block';
+            } catch(e) {
+                console.error("Error accessing iframe content:", e);
+                document.getElementById('modalLoading').style.display = 'none';
+                iframe.style.display = 'block';
+            }
+        };
+
+        // Limpiar al cerrar
+        document.getElementById('modalSucursal').addEventListener('hidden.bs.modal', function() {
+            iframe.src = '';
+            iframe.style.display = 'none';
+            document.getElementById('modalLoading').style.display = 'block';
+        });
+    });
+
+    function abrirModalSucursal(url, titulo) {
+        document.getElementById('modalSucursalTitle').textContent = titulo;
+        document.getElementById('sucursalIframe').src = url;
+        gModalSucursal.show();
+    }
+</script>
 
 <script>
 // Formateo automático del RUT

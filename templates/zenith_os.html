@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Zenith OS Premium - Navegación Visual{% endblock %}
+
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --color-gold: #D4A574;
+        --color-piedra: #5D4037;
+        --color-stone-light: #F5F1E8;
+        --glass-bg: rgba(255, 255, 255, 0.85);
+        --glass-shimmer: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%);
+    }
+
+    body {
+        background: radial-gradient(circle at 50% 50%, #fdfbfb 0%, #ebedee 100%) !important;
+        font-family: 'Outfit', sans-serif !important;
+        overflow-x: hidden;
+    }
+
+    .zenith-stage {
+        min-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 50px 20px;
+    }
+
+    .os-title-box {
+        margin-bottom: 60px;
+        text-align: center;
+    }
+
+    .os-title {
+        font-weight: 700;
+        font-size: 3.5rem;
+        color: var(--color-piedra);
+        letter-spacing: -1px;
+        margin-bottom: 5px;
+    }
+
+    .os-subtitle {
+        color: #8B7355;
+        font-size: 1.1rem;
+        font-weight: 400;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+    }
+
+    .launcher-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 50px;
+        width: 100%;
+        max-width: 1300px;
+        padding: 20px;
+    }
+
+    .launcher-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+        text-decoration: none !important;
+    }
+
+    .icon-container {
+        width: 160px;
+        height: 160px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+    }
+
+    .icon-placeholder {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 15px 30px rgba(0,0,0,0.12));
+        transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+    }
+
+    .launcher-item:hover .icon-placeholder {
+        transform: scale(1.15) translateY(-10px);
+        filter: drop-shadow(0 25px 45px rgba(0,0,0,0.18));
+    }
+
+    .item-label {
+        margin-top: 25px;
+        font-weight: 600;
+        font-size: 1.2rem;
+        color: var(--color-piedra);
+        transition: color 0.3s ease;
+    }
+
+    .launcher-item:hover .item-label {
+        color: var(--color-gold);
+    }
+
+    /* Modal Styling */
+    .os-modal .modal-content {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 35px;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.15);
+        padding: 20px;
+    }
+
+    .modal-header {
+        border-bottom: none;
+        padding: 30px 40px 10px;
+    }
+
+    .modal-title {
+        font-weight: 700;
+        font-size: 2.2rem;
+        color: var(--color-piedra);
+    }
+
+    .modal-body {
+        padding: 20px 40px 40px;
+    }
+
+    .submenu-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 20px;
+    }
+
+    .submenu-card {
+        background: white;
+        border-radius: 24px;
+        padding: 25px;
+        text-align: center;
+        text-decoration: none !important;
+        border: 1px solid #f0f0f0;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .submenu-card:hover {
+        background: var(--color-stone-light);
+        border-color: var(--color-gold);
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+    }
+
+    .submenu-card i {
+        font-size: 2.5rem;
+        color: var(--color-gold);
+        margin-bottom: 15px;
+        opacity: 0.8;
+    }
+
+    .submenu-card span {
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--color-piedra);
+    }
+
+    .close-btn {
+        background: #f5f5f5;
+        border: none;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        transition: all 0.3s;
+    }
+
+    .close-btn:hover {
+        background: #e0e0e0;
+        transform: rotate(90deg);
+    }
+
+    /* Animaciones */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .launcher-item {
+        animation: fadeInUp 0.8s backwards;
+    }
+
+    .launcher-item:nth-child(1) { animation-delay: 0.1s; }
+    .launcher-item:nth-child(2) { animation-delay: 0.2s; }
+    .launcher-item:nth-child(3) { animation-delay: 0.3s; }
+    .launcher-item:nth-child(4) { animation-delay: 0.4s; }
+    .launcher-item:nth-child(5) { animation-delay: 0.5s; }
+    .launcher-item:nth-child(6) { animation-delay: 0.6s; }
+    .launcher-item:nth-child(7) { animation-delay: 0.7s; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="zenith-stage">
+    <div class="os-title-box">
+        <h1 class="os-title">Zenith OS</h1>
+        <div class="os-subtitle">Navegación Inteligente</div>
+    </div>
+
+    <div class="launcher-grid">
+        <!-- Dashboard -->
+        <div class="launcher-item" onclick="showSubmenu('Dashboard', 'Centro de Mando', [
+            {icon: 'fas fa-chart-line', name: 'Métricas Reales', url: '{% url 'dashboard' %}'},
+            {icon: 'fas fa-calendar-alt', name: 'Cierre Diario', url: '#'},
+            {icon: 'fas fa-bullseye', name: 'Metas Compras', url: '#'}
+        ])">
+            <div class="icon-container">
+                <img src="/static/img/icons3d/dashboard_hq.png" class="icon-placeholder">
+            </div>
+            <span class="item-label">Dashboard</span>
+        </div>
+
+        <!-- Artículos -->
+        <div class="launcher-item" onclick="showSubmenu('Catálogo', 'Gestión de Productos', [
+            {icon: 'fas fa-plus-circle', name: 'Nuevo Artículo', url: '{% url 'articulos:articulo_create' %}'},
+            {icon: 'fas fa-list', name: 'Maestro Artículos', url: '{% url 'articulos:articulo_list' %}'},
+            {icon: 'fas fa-tags', name: 'Categorías', url: '{% url 'articulos:categoria_list' %}'}
+        ])">
+            <div class="icon-container">
+                <img src="/static/img/icons3d/articulos_hq.png" class="icon-placeholder">
+            </div>
+            <span class="item-label">Artículos</span>
+        </div>
+
+        <!-- Ventas -->
+        <div class="launcher-item" onclick="showSubmenu('Ventas', 'Ciclo de Ventas', [
+            {icon: 'fas fa-cash-register', name: 'Terminal POS', url: '{% url 'ventas:pos_view' %}'},
+            {icon: 'fas fa-file-invoice', name: 'DTE Emitidos', url: '{% url 'facturacion_electronica:dte_list' %}'},
+            {icon: 'fas fa-truck-loading', name: 'Facturar Guías', url: '{% url 'ventas:facturar_guias_list' %}'},
+            {icon: 'fas fa-file-contract', name: 'Cotizaciones', url: '{% url 'ventas:cotizacion_list' %}'}
+        ])">
+            <div class="icon-container">
+                <img src="/static/img/icons3d/ventas_hq.png" class="icon-placeholder">
+            </div>
+            <span class="item-label">Ventas</span>
+        </div>
+
+        <!-- Compras -->
+        <div class="launcher-item" onclick="showSubmenu('Compras', 'Adquisiciones', [
+            {icon: 'fas fa-shopping-cart', name: 'Nueva Compra', url: '#'},
+            {icon: 'fas fa-address-book', name: 'Proveedores', url: '{% url 'proveedores:proveedor_list' %}'}
+        ])">
+            <div class="icon-container">
+                <img src="/static/img/icons3d/compras_hq.png" class="icon-placeholder">
+            </div>
+            <span class="item-label">Compras</span>
+        </div>
+
+        <!-- Inventario -->
+        <div class="launcher-item" onclick="showSubmenu('Inventario', 'Control de Stock', [
+            {icon: 'fas fa-boxes', name: 'Stock Actual', url: '{% url 'inventario:stock_list' %}'},
+            {icon: 'fas fa-exchange-alt', name: 'Movimientos', url: '{% url 'inventario:inventario_list' %}'},
+            {icon: 'fas fa-warehouse', name: 'Bodegas', url: '{% url 'bodegas:bodega_list' %}'}
+        ])">
+            <div class="icon-container">
+                <img src="/static/img/icons3d/inventario_hq.png" class="icon-placeholder">
+            </div>
+            <span class="item-label">Inventario</span>
+        </div>
+
+        <!-- Clientes -->
+        <div class="launcher-item" onclick="showSubmenu('Clientes', 'CRM & Fidelización', [
+            {icon: 'fas fa-user-plus', name: 'Nuevo Cliente', url: '{% url 'clientes:cliente_create' %}'},
+            {icon: 'fas fa-users', name: 'Base Clientes', url: '{% url 'clientes:cliente_list' %}'}
+        ])">
+            <div class="icon-container">
+                <img src="/static/img/icons3d/clientes_hq.png" class="icon-placeholder">
+            </div>
+            <span class="item-label">Clientes</span>
+        </div>
+
+        <!-- Config -->
+        <div class="launcher-item" onclick="showSubmenu('Sistema', 'Configuración General', [
+            {icon: 'fas fa-building', name: 'Mi Empresa', url: '{% url 'empresas:editar_empresa_activa' %}'},
+            {icon: 'fas fa-palette', name: 'Personalización', url: '{% url 'paleta_colores' %}'}
+        ])">
+            <div class="icon-container">
+                <img src="/static/img/icons3d/config_hq.png" class="icon-placeholder">
+            </div>
+            <span class="item-label">Ajustes</span>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap OS Modal -->
+<div class="modal fade os-modal" id="osSubmenuModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="osModalTitle">Título</h5>
+                    <p class="text-muted mb-0" id="osModalSubtitle">Subtítulo descriptivo</p>
+                </div>
+                <button type="button" class="close-btn" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="submenu-grid" id="osSubmenuGrid">
+                    <!-- Dinámico -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showSubmenu(title, subtitle, options) {
+        const modal = new bootstrap.Modal(document.getElementById('osSubmenuModal'));
+        document.getElementById('osModalTitle').innerText = title;
+        document.getElementById('osModalSubtitle').innerText = subtitle;
+        
+        const grid = document.getElementById('osSubmenuGrid');
+        grid.innerHTML = '';
+        
+        options.forEach(opt => {
+            const card = document.createElement('a');
+            card.href = opt.url;
+            card.className = 'submenu-card animate__animated animate__fadeInUp';
+            card.innerHTML = `
+                <i class="${opt.icon}"></i>
+                <span>${opt.name}</span>
+            `;
+            grid.appendChild(card);
+        });
+        
+        modal.show();
+    }
+</script>
+{% endblock %}

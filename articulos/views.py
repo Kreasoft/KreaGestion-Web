@@ -1524,7 +1524,7 @@ def kit_oferta_list(request):
 def kit_oferta_detail(request, pk):
     """Detalle de un kit de oferta"""
     kit = get_object_or_404(KitOferta, pk=pk, empresa=request.empresa)
-    items = kit.items.select_related('articulo').all()
+    items = kit.items.select_related('articulo').all().order_by('articulo__nombre')
     
     return render(request, 'articulos/kit_oferta_detail.html', {
         'kit': kit,

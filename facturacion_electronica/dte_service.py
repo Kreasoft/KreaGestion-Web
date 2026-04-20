@@ -8,7 +8,7 @@ from .models import DocumentoTributarioElectronico, ArchivoCAF, EnvioDTE
 from .dte_generator import DTEXMLGenerator  # Usar para boletas
 from dte_gdexpress import GeneradorFactura, GeneradorGuia, GeneradorNotaCredito, GeneradorNotaDebito, ClienteGDExpress, GestorCAF
 from .firma_electronica import FirmadorDTE
-# from .cliente_sii import ClienteSII  # Reemplazado por ClienteGDExpress
+from .cliente_sii import ClienteSII
 from .services import FolioService
 from .pdf417_generator import PDF417Generator
 import os
@@ -206,7 +206,10 @@ class DTEService:
             with transaction.atomic():
                 venta = dte.venta
                 if not venta:
-                    raise NotImplementedError("Solo se soporta regenerar DTE desde Venta")
+                    # Intentar buscar transferencia asociada
+                    transferencia = dte.transferencias.first()
+                    if not transferencia:
+                        raise NotImplementedError("Solo se soporta regenerar DTE desde Venta o Transferencia")
                 
                 # Para boletas (39), guías (52) y facturas (33), usar DTEXMLGenerator
                 if dte.tipo_dte in ['33', '39', '52']:
@@ -220,8 +223,11 @@ class DTEService:
                     # Para otros tipos, usar dte_gdexpress
                     print(f"[DTE] Regenerando DTE tipo {dte.tipo_dte} con dte_gdexpress")
                     
+                    if not dte.venta:
+                         raise ValueError(f"Regeneración vía dte_gdexpress requiere Venta")
+
                     items_dte = []
-                    for item in venta.ventadetalle_set.all():
+                    for item in dte.venta.ventadetalle_set.all():
                         items_dte.append({
                             'nombre': item.articulo.nombre if item.articulo else item.descripcion,
                             'cantidad': float(item.cantidad),
@@ -320,13 +326,31 @@ class DTEService:
                     })
                 
                 referencias = []
-                # Intentar extraer referencia de la nota de crédito
-                if hasattr(nota_credito, 'factura') and nota_credito.factura:
+                # Intentar extraer referencia de los campos del modelo
+                if nota_credito.tipo_doc_afectado and nota_credito.numero_doc_afectado:
+                    # Mapear código de referencia según tipo_nc
+                    # 1: ANULA, 2: CORRIGE TEXTO, 3: CORRIGE MONTO
+                    map_codigo_ref = {
+                        'ANULA': '1',
+                        'CORRIGE_TEXTO': '2',
+                        'CORRIGE_MONTO': '3',
+                    }
+                    codigo_ref = map_codigo_ref.get(nota_credito.tipo_nc, '1')
+                    
+                    referencias.append({
+                        'tipo_documento': nota_credito.tipo_doc_afectado,
+                        'folio': int(nota_credito.numero_doc_afectado),
+                        'fecha': nota_credito.fecha_doc_afectado.strftime('%Y-%m-%d') if nota_credito.fecha_doc_afectado else nota_credito.fecha.strftime('%Y-%m-%d'),
+                        'codigo_referencia': codigo_ref,
+                        'razon': nota_credito.motivo[:90] if nota_credito.motivo else 'Corrección/Anulación de documento',
+                    })
+                elif hasattr(nota_credito, 'factura') and nota_credito.factura:
+                     # Fallback para compatibilidad con código antiguo
                      referencias.append({
-                         'tipo_documento': '33', # Asumimos factura
-                         'folio': nota_credito.factura.numero, # O folio
+                         'tipo_documento': '33',
+                         'folio': nota_credito.factura.numero,
                          'fecha': nota_credito.factura.fecha.strftime('%Y-%m-%d'),
-                         'codigo_referencia': '1', # Anula documento
+                         'codigo_referencia': '1',
                          'razon': 'Anula factura',
                      })
 
@@ -422,7 +446,16 @@ class DTEService:
                         'unidad': getattr(item.articulo, 'unidad_medida', '') if item.articulo else '',
                     })
                 
-                referencias = [] # TODO: Extraer referencias si aplica
+                referencias = []
+                if nota_debito.tipo_doc_afectado and nota_debito.numero_doc_afectado:
+                    # Código de referencia para nota de débito: usualmente '3' para corrección de montos
+                    referencias.append({
+                        'tipo_documento': nota_debito.tipo_doc_afectado,
+                        'folio': int(nota_debito.numero_doc_afectado),
+                        'fecha': nota_debito.fecha_doc_afectado.strftime('%Y-%m-%d') if nota_debito.fecha_doc_afectado else nota_debito.fecha.strftime('%Y-%m-%d'),
+                        'codigo_referencia': '3', 
+                        'razon': nota_debito.motivo[:90] if nota_debito.motivo else 'Corrección de monto',
+                    })
 
                 generator = GeneradorNotaDebito(
                     folio=folio,
@@ -495,17 +528,42 @@ class DTEService:
                         if dte.venta and dte.venta.cliente and getattr(dte.venta.cliente, 'giro', None):
                             dte.giro_receptor = dte.venta.cliente.giro
                         else:
-                            dte.giro_receptor = 'SIN GIRO'
+                            # Intentar desde transferencia
+                            transf = dte.transferencias.first()
+                            if transf and transf.empresa:
+                                dte.giro_receptor = transf.empresa.giro_sii or transf.empresa.giro or 'TRASLADO INTERNO'
+                            else:
+                                dte.giro_receptor = 'SIN GIRO'
+                        
                         dte.save(update_fields=['giro_receptor'])
                         self.procesar_dte_existente(dte)
                         dte.refresh_from_db()
                         print(f"[PRE-ENVÍO] GiroRecep asegurado para guía {dte.folio}: {dte.giro_receptor}")
-                    except Exception as _:
+                    except Exception as e:
+                        print(f"[ERROR PRE-ENVÍO] No se pudo asegurar GiroRecep: {e}")
                         pass
             
             # Preparar XML para envío
             xml_para_enviar = (dte.xml_firmado or '').strip() or (dte.xml_dte or '').strip()
             
+            # Forzar regeneración si el XML está vacío o si le faltan campos obligatorios para guías
+            xml_incompleto = not xml_para_enviar
+            if not xml_incompleto and dte.tipo_dte == '52' and '<DirRecep' not in xml_para_enviar:
+                xml_incompleto = True
+                print(f"[ENVÍO] XML de guía {dte.folio} no contiene dirección del receptor. Forzando regeneración.")
+
+            if xml_incompleto:
+                print(f"[ENVÍO] XML vacío o incompleto detectado para folio {dte.folio}, intentando regenerar...")
+                try:
+                    self.procesar_dte_existente(dte)
+                    dte.refresh_from_db()
+                    xml_para_enviar = (dte.xml_firmado or '').strip() or (dte.xml_dte or '').strip()
+                except Exception as e:
+                    print(f"[ENVÍO] Error al intentar regenerar XML: {e}")
+            
+            if not xml_para_enviar:
+                 raise ValueError(f"No se puede enviar el DTE {dte.folio} porque el XML está vacío y falló la regeneración.")
+
             print(f"[ENVÍO] Tipo {dte.tipo_dte} - Usando DTEBox")
             return self._enviar_dtebox(dte, xml_para_enviar)
                 

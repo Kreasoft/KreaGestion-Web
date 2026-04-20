@@ -12,6 +12,7 @@ from usuarios.decorators import filtrar_por_empresa
 from django.utils import timezone
 from .models import Empresa, Sucursal, ConfiguracionEmpresa, PlanSaaS, Suscripcion
 from .forms import EmpresaForm, SucursalForm, ConfiguracionEmpresaForm, FacturacionElectronicaForm
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 
 @requiere_empresa
@@ -379,167 +380,6 @@ def empresa_delete(request, pk):
 	return render(request, 'empresas/empresa_confirm_delete.html', {'empresa': empresa})
 
 
-@requiere_empresa
-@permission_required('empresas.view_sucursal', raise_exception=True)
-def sucursal_list(request, empresa_id=None):
-	"""
-	Lista las sucursales - superusuario puede especificar empresa, usuario normal ve solo las suyas
-	"""
-	if request.user.is_superuser:
-		if empresa_id:
-			empresa = get_object_or_404(Empresa, pk=empresa_id)
-		else:
-			empresa = None
-		sucursales = Sucursal.objects.filter(empresa=empresa) if empresa else Sucursal.objects.all()
-	else:
-		empresa = request.empresa
-		sucursales = empresa.sucursales.all()
-	
-	return render(request, 'empresas/sucursal_list.html', {
-		'empresa': empresa,
-		'sucursales': sucursales
-	})
-
-
-from django.views.decorators.clickjacking import xframe_options_sameorigin
-
-@xframe_options_sameorigin
-@requiere_empresa
-@permission_required('empresas.add_sucursal', raise_exception=True)
-def sucursal_create(request, empresa_id=None):
-	"""
-	Crea una nueva sucursal - superusuario puede especificar empresa, usuario normal crea en su empresa
-	"""
-	if request.user.is_superuser:
-		if empresa_id:
-			empresa = get_object_or_404(Empresa, pk=empresa_id)
-		else:
-			empresa = None
-	else:
-		empresa = request.empresa
-	
-	if request.method == 'POST':
-		form = SucursalForm(request.POST)
-		if form.is_valid():
-			sucursal = form.save(commit=False)
-			sucursal.empresa = empresa
-			sucursal.creado_por = request.user
-			sucursal.save()
-			
-			messages.success(request, 'Sucursal creada exitosamente.')
-			if empresa_id:
-				return redirect('empresas:sucursal_list', empresa_id=empresa_id)
-			else:
-				return redirect('empresas:sucursal_list')
-	else:
-		form = SucursalForm()
-	
-	return render(request, 'empresas/sucursal_form.html', {'form': form, 'empresa': empresa})
-
-
-@requiere_empresa
-def sucursal_detail(request, pk):
-	"""
-	Muestra los detalles de una sucursal - verifica que pertenezca a la empresa del usuario
-	"""
-	sucursal = get_object_or_404(Sucursal, pk=pk)
-	
-	# Verificar que el usuario tenga acceso a esta sucursal
-	if not request.user.is_superuser and sucursal.empresa != request.empresa:
-		messages.error(request, 'No tiene acceso a esta sucursal.')
-		return redirect('dashboard')
-	
-	return render(request, 'empresas/sucursal_detail.html', {'sucursal': sucursal})
-
-
-@xframe_options_sameorigin
-@requiere_empresa
-@permission_required('empresas.change_sucursal', raise_exception=True)
-def sucursal_update(request, pk):
-	"""
-	Actualiza una sucursal - verifica que pertenezca a la empresa del usuario
-	"""
-	sucursal = get_object_or_404(Sucursal, pk=pk)
-	
-	# Verificar que el usuario tenga acceso a esta sucursal
-	if not request.user.is_superuser and sucursal.empresa != request.empresa:
-		messages.error(request, 'No tiene acceso a esta sucursal.')
-		return redirect('dashboard')
-	
-	if request.method == 'POST':
-		form = SucursalForm(request.POST, instance=sucursal)
-		if form.is_valid():
-			form.save()
-			messages.success(request, 'Sucursal actualizada exitosamente.')
-			return redirect('empresas:sucursal_detail', pk=pk)
-	else:
-		form = SucursalForm(instance=sucursal)
-	
-	return render(request, 'empresas/sucursal_form.html', {'form': form, 'sucursal': sucursal})
-
-
-@requiere_empresa
-@permission_required('empresas.delete_sucursal', raise_exception=True)
-def sucursal_delete(request, pk):
-	"""
-	Elimina una sucursal - verifica que pertenezca a la empresa del usuario
-	"""
-	sucursal = get_object_or_404(Sucursal, pk=pk)
-	
-	# Verificar que el usuario tenga acceso a esta sucursal
-	if not request.user.is_superuser and sucursal.empresa != request.empresa:
-		messages.error(request, 'No tiene acceso a esta sucursal.')
-		return redirect('dashboard')
-	
-	if request.method == 'POST':
-		sucursal.delete()
-		messages.success(request, 'Sucursal eliminada exitosamente.')
-		return redirect('empresas:sucursal_list')
-	
-	return render(request, 'empresas/sucursal_confirm_delete.html', {'sucursal': sucursal})
-
-
-@requiere_empresa
-def empresa_configuracion(request):
-	"""
-	Vista para configurar datos de la empresa
-	"""
-	empresa = request.empresa
-	
-	# Si no hay empresa asignada, redirigir a crear una
-	if not empresa:
-		if request.user.is_superuser:
-			messages.info(request, 'Primero debe crear una empresa.')
-			return redirect('empresas:empresa_create')
-		else:
-			messages.error(request, 'No tiene acceso a ninguna empresa. Contacte al administrador.')
-			return redirect('logout')
-	
-	# Obtener o crear configuración
-	try:
-		configuracion = ConfiguracionEmpresa.objects.get(empresa=empresa)
-	except ConfiguracionEmpresa.DoesNotExist:
-		configuracion = ConfiguracionEmpresa.objects.create(empresa=empresa)
-	
-	if request.method == 'POST':
-		form = ConfiguracionEmpresaForm(request.POST, instance=configuracion)
-		if form.is_valid():
-			configuracion = form.save(commit=False)
-			configuracion.empresa = empresa
-			configuracion.save()
-			messages.success(request, 'Configuración actualizada exitosamente.')
-			return redirect('empresas:empresa_configuracion')
-	else:
-		form = ConfiguracionEmpresaForm(instance=configuracion)
-	
-	context = {
-		'empresa': empresa,
-		'form': form,
-		'configuracion': configuracion,
-	}
-	
-	return render(request, 'empresas/empresa_configuracion.html', context)
-
 
 @requiere_empresa
 def empresa_configuracion(request):
@@ -896,6 +736,7 @@ def sucursal_list(request):
 	return render(request, 'empresas/sucursal_list.html', context)
 
 
+@xframe_options_sameorigin
 @login_required
 @requiere_empresa
 def sucursal_create(request):
@@ -919,6 +760,8 @@ def sucursal_create(request):
 			sucursal.save()
 			messages.success(request, f'Sucursal "{sucursal.nombre}" creada correctamente.')
 			return redirect('empresas:sucursal_list')
+		else:
+			messages.error(request, 'Error al crear la sucursal. Por favor, revise los datos ingresados.')
 	else:
 		form = SucursalForm()
 	
@@ -931,6 +774,7 @@ def sucursal_create(request):
 	return render(request, 'empresas/sucursal_form.html', context)
 
 
+@xframe_options_sameorigin
 @login_required
 @requiere_empresa
 def sucursal_update(request, pk):
@@ -950,6 +794,8 @@ def sucursal_update(request, pk):
 			sucursal.save()
 			messages.success(request, f'Sucursal "{sucursal.nombre}" actualizada correctamente.')
 			return redirect('empresas:sucursal_list')
+		else:
+			messages.error(request, 'Error al actualizar la sucursal. Por favor, revise los datos ingresados.')
 	else:
 		form = SucursalForm(instance=sucursal)
 	

@@ -121,8 +121,8 @@ class DTEBoxService:
             xml_bytes_out = etree.tostring(root, encoding='ISO-8859-1', xml_declaration=True, method='xml')
             xml_clean = xml_bytes_out.decode('ISO-8859-1', errors='replace')
 
-            # 7. Limpiezas finales (minificar espacios entre tags)
-            xml_clean = re.sub(r'>\s+<', '><', xml_clean)
+            # 7. Limpiezas finales (evitar minificación agresiva que pueda romper el parser)
+            # xml_clean = re.sub(r'>\s+<', '><', xml_clean)
             xml_clean = xml_clean.strip()
 
             # 8. Sanitizar campos de guías (TipoDespacho/IndTraslado) para compatibilidad con DTEBox
@@ -136,29 +136,48 @@ class DTEBoxService:
                 if str(tipo_dte) == '52':
                     iddoc = root2.find(f'.//{{{ns_sii}}}IdDoc') or root2.find('.//IdDoc')
                     if iddoc is not None:
-                        # IndTraslado: limitar a valores conocidos, default '1'
-                        ind = iddoc.find(f'{{{ns_sii}}}IndTraslado') or iddoc.find('IndTraslado')
-                        if ind is None:
+                        # IndTraslado: evitar duplicidades (limpiar antes de procesar)
+                        all_inds = iddoc.findall(f'.//{{{ns_sii}}}IndTraslado') + iddoc.findall('.//IndTraslado')
+                        if all_inds:
+                            # Quedarse con el primero y borrar el resto
+                            ind = all_inds[0]
+                            for extra in all_inds[1:]:
+                                iddoc.remove(extra)
+                            
+                            val = (ind.text or '').strip()
+                            if val not in {'1', '2', '3', '4', '5', '6', '7', '8', '9'}:
+                                ind.text = "1"
+                        else:
                             ind = etree.SubElement(iddoc, "IndTraslado")
                             ind.text = "1"
-                        else:
-                            val = (ind.text or '').strip()
-                            if val not in {'1', '2', '3', '4'}:
-                                ind.text = "1"
-                        # TipoDespacho: opcional, si presente limitar a {'1','2'}, default '1'
-                        td = iddoc.find(f'{{{ns_sii}}}TipoDespacho') or iddoc.find('TipoDespacho')
-                        if td is not None:
+                        
+                        # TipoDespacho: opcional, evitar duplicidades
+                        all_tds = iddoc.findall(f'.//{{{ns_sii}}}TipoDespacho') + iddoc.findall('.//TipoDespacho')
+                        if all_tds:
+                            td = all_tds[0]
+                            for extra in all_tds[1:]:
+                                iddoc.remove(extra)
+                            
                             val_td = (td.text or '').strip()
-                            if val_td not in {'1', '2'}:
+                            if val_td not in {'1', '2', '3'}:
                                 td.text = "1"
 
                 # Sanitizar Receptor: Asegurar GiroRecep (OBLIGATORIO para DTEBox)
                 if str(tipo_dte) in ['33', '52', '56', '61']:
                     receptor = root2.find(f'.//{{{ns_sii}}}Receptor') or root2.find('.//Receptor')
                     if receptor is not None:
-                        giro_elem = receptor.find(f'{{{ns_sii}}}GiroRecep') or receptor.find('GiroRecep')
-                        if giro_elem is None:
-                            # Insertar GiroRecep (debe ir después de RznSocRecep)
+                        # GiroRecep: evitar duplicidades (OBLIGATORIO para DTEBox)
+                        all_giros = receptor.findall(f'.//{{{ns_sii}}}GiroRecep') + receptor.findall('.//GiroRecep')
+                        if all_giros:
+                            # Quedarse con el primero y borrar el resto
+                            giro_elem = all_giros[0]
+                            for extra in all_giros[1:]:
+                                receptor.remove(extra)
+                            
+                            if not (giro_elem.text or '').strip():
+                                giro_elem.text = "PARTICULAR"
+                        else:
+                            # Agregar si no existe
                             # Intentar con namespace primero
                             rzn_soc = receptor.find(f'{{{ns_sii}}}RznSocRecep')
                             if rzn_soc is not None:
@@ -177,26 +196,52 @@ class DTEBoxService:
                                     new_giro = etree.Element(f"{{{ns_sii}}}GiroRecep")
                                     new_giro.text = "PARTICULAR"
                                     receptor.insert(0, new_giro)
-                        elif not (giro_elem.text or '').strip():
-                            giro_elem.text = "PARTICULAR"
 
                 # Re-serializar después de cambios
                 xml_clean = etree.tostring(root2, encoding='ISO-8859-1', xml_declaration=True, method='xml').decode('ISO-8859-1', errors='replace')
-                xml_clean = re.sub(r'>\s+<', '><', xml_clean).strip()
-                
-                # DEBUG - Mostrar los primeros 500 caracteres del XML final
-                print(f"[DTEBox Debug] XML Preparado (fragmento): {xml_clean[:500]}")
             except Exception as e:
-                print(f"[DTEBox] Error en sanitización: {e}")
+                print(f"[DTEBox] Error en sanitización o re-inyección de TED: {e}")
                 pass
 
-            # Asegurar namespace SII en DTE (no tocar si ya está)
+            # 1. Asegurar Namespace SII y eliminar duplicados de raíz
             if 'xmlns="http://www.sii.cl/SiiDte"' not in xml_clean:
                 xml_clean = re.sub(r'<DTE[^>]*>', '<DTE version="1.0" xmlns="http://www.sii.cl/SiiDte">', xml_clean)
+            else:
+                xml_clean = re.sub(r'<DTE[^>]*>', '<DTE version="1.0" xmlns="http://www.sii.cl/SiiDte">', xml_clean)
 
-            # Sin declaración XML en Content base64
+            # Parsear de nuevo para limpieza final de duplicados
+            try:
+                # Usar parser que ignore namespaces para limpieza fácil
+                root3 = etree.fromstring(xml_clean.encode('ISO-8859-1', errors='replace'))
+                ns_sii = "http://www.sii.cl/SiiDte"
+                
+                # Función para limpiar duplicados de cualquier tag
+                def limpiar_duplicados(padre, tag_name):
+                    if padre is None: return
+                    encontrados = padre.findall(f'.//{{{ns_sii}}}{tag_name}') + padre.findall(f'.//{tag_name}')
+                    if len(encontrados) > 1:
+                        for extra in encontrados[1:]:
+                            extra.getparent().remove(extra)
 
-            return xml_clean, None
+                # Limpiar IndTraslado en IdDoc
+                iddoc = root3.find(f'.//{{{ns_sii}}}IdDoc') or root3.find('.//IdDoc')
+                limpiar_duplicados(iddoc, 'IndTraslado')
+                limpiar_duplicados(iddoc, 'TipoDespacho')
+                
+                # Limpiar GiroRecep en Receptor
+                receptor = root3.find(f'.//{{{ns_sii}}}Receptor') or root3.find('.//Receptor')
+                limpiar_duplicados(receptor, 'GiroRecep')
+                
+                # Re-serializar sin declaración XML para el Base64
+                xml_para_b64_inner = etree.tostring(root3, encoding='ISO-8859-1', xml_declaration=False).decode('ISO-8859-1', errors='replace').strip()
+                # Unir con declaración purista (sin saltos de línea, comillas dobles)
+                xml_para_b64 = '<?xml version="1.0" encoding="ISO-8859-1"?>' + xml_para_b64_inner
+                
+                xml_b64 = base64.b64encode(xml_para_b64.encode('ISO-8859-1', errors='replace')).decode('utf-8')
+            except Exception as e_clean:
+                print(f"[DTEBox] Error en limpieza duplicados final: {e_clean}")
+
+            return xml_para_b64, None
 
         except Exception as e:
             msg = str(e)
@@ -217,30 +262,27 @@ class DTEBoxService:
             print(f"[DTEBox] Preparando envío REST Tipo {tipo_dte}")
 
             # 1. Preparar XML limpio
-            xml_preparado, error_preparar = self._limpiar_y_preparar_xml(xml_firmado, tipo_dte)
-            if xml_preparado is None:
+            xml_para_b64, error_preparar = self._limpiar_y_preparar_xml(xml_firmado, tipo_dte)
+            if xml_para_b64 is None:
                 return {'success': False, 'error': error_preparar}
             
-            # Asegurar que el XML tenga la declaración si no la tiene
-            if not xml_preparado.startswith('<?xml'):
-                xml_preparado = '<?xml version="1.0" encoding="ISO-8859-1"?>' + xml_preparado
-
-            # 2. Codificar a Base64
-            xml_b64 = base64.b64encode(xml_preparado.encode('ISO-8859-1', errors='replace')).decode('utf-8')
+            # 2. Codificar a Base64 - USAR XML EXACTO (CON DECLARACIÓN PURISTA SI EXISTE)
+            xml_b64 = base64.b64encode(xml_para_b64.encode('ISO-8859-1', errors='replace')).decode('utf-8')
             
-            # 3. Datos de resolución
+            # 3. Datos de resolución - SEGUIR INSTRUCCIÓN GDEXPRESS: 0 para Homologación
             res_num = 0 if self.ambiente == 'T' else int(self.empresa.resolucion_numero or 0)
             res_fch = self.empresa.resolucion_fecha.strftime('%Y-%m-%d') if self.empresa.resolucion_fecha else "2014-08-22"
 
             # 4. Construir Payload JSON (Estándar REST DTEBox)
+            # NOTA: WCF es sensible a los tipos. Usamos INT para números.
             payload = {
                 "Environment": self.ambiente,
                 "Content": xml_b64,
+                "ResolutionNumber": int(res_num),
                 "ResolutionDate": res_fch,
-                "ResolutionNumber": str(res_num),
-                "PDF417Columns": "",
-                "PDF417Level": "",
-                "PDF417Type": "",
+                "PDF417Columns": 5,
+                "PDF417Level": 2,
+                "PDF417Type": 1,
                 "TED": ""
             }
 
@@ -277,9 +319,10 @@ class DTEBoxService:
                         }
                     else:
                         error_msg = resp_data.get('Description', 'Error en procesamiento DTEBox')
+                        print(f"[DTEBox Error] Result: {result_code} | Msg: {error_msg}")
                         return {
                             'success': False, 
-                            'error': error_msg,
+                            'error': f"{error_msg} (Código: {result_code})",
                             'detail': response.text
                         }
                 except ValueError:
@@ -292,10 +335,13 @@ class DTEBoxService:
                         }
                     return {'success': False, 'error': f"Respuesta no válida: {response.text[:200]}"}
             else:
+                # INTEGRACIÓN: Capturar el detalle del 500 para diagnóstico
+                error_body = response.text[:1000]
+                print(f"[DTEBox CRÍTICO] HTTP {response.status_code} | Body: {error_body}")
                 return {
                     'success': False, 
-                    'error': f"Error HTTP {response.status_code}", 
-                    'detail': response.text[:500]
+                    'error': f"Error HTTP {response.status_code} en DTEBox", 
+                    'detail': error_body
                 }
 
         except Exception as e:

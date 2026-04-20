@@ -142,6 +142,11 @@ class Inventario(models.Model):
     def __str__(self):
         return f"{self.get_tipo_movimiento_display()} - {self.articulo.nombre} - {self.cantidad}"
     
+    @property
+    def folio(self):
+        """Retorna el numero_folio o un identificador basado en el PK si no existe."""
+        return self.numero_folio or f"MOV-{self.pk:06d}"
+    
     def save(self, *args, **kwargs):
         """Calcula el total automáticamente"""
         self.total = self.cantidad * self.precio_unitario

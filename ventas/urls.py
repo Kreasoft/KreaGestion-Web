@@ -1,5 +1,6 @@
 """
 URLs para el módulo de ventas
+Versión 1.1 - Soporte Copias por Estación
 """
 from django.urls import path
 from django.shortcuts import render, redirect
@@ -91,6 +92,9 @@ urlpatterns = [
     
     # Libro de Ventas
     path('libro-ventas/', views.libro_ventas, name='libro_ventas'),
+    path('libro-ventas/excel/', views.libro_ventas_excel, name='libro_ventas_excel'),
+    path('libro-guias/', views.libro_guias, name='libro_guias'),
+    path('libro-guias/excel/', views.libro_guias_excel, name='libro_guias_excel'),
     
     # Precios Especiales Clientes
     path('precios-clientes/', views.precio_cliente_list, name='precio_cliente_list'),
@@ -127,6 +131,7 @@ urlpatterns = [
     path('movil/', views.mobile_sales_app, name='mobile_sales_app'),
     path('movil/gestion/', views.mobile_sales_gestion, name='mobile_sales_gestion'),
     path('movil/gestion/dispositivo/<int:pk>/toggle/', views.mobile_api_toggle_device, name='mobile_api_toggle_device'),
+    path('movil/gestion/dispositivo/<int:pk>/asignar-vendedor/', views.mobile_api_assign_vendedor, name='mobile_api_assign_vendedor'),
     path('movil/api/sincronizar/', views.mobile_api_sync, name='mobile_api_sync'),
     path('movil/api/verificar-dispositivo/', views.mobile_api_verify_device, name='mobile_api_verify_device'),
     path('movil/api/guardar-venta/', views.mobile_api_save_sale, name='mobile_api_save_sale'),
@@ -135,4 +140,10 @@ urlpatterns = [
     path('movil/api/registrar-ubicacion/', views.mobile_api_register_location, name='mobile_api_register_location'),
     path('movil/api/cliente-historial/', views.mobile_api_cliente_historial, name='mobile_api_cliente_historial'),
     path('monitoreo/vendedores/', views.ventas_mapa_vendedores, name='ventas_mapa_vendedores'),
+    path('venta/detalle/<int:pk>/', views.venta_detail, name='venta_detail'),
+    
+    # Facturación Consolidada de Guías
+    path('facturar-guias/', views.facturar_guias_list, name='facturar_guias_list'),
+    path('api/guias-pendientes-cliente/<int:cliente_id>/', views.api_guias_pendientes_cliente, name='api_guias_pendientes_cliente'),
+    path('api/procesar-factura-consolidada/', views.api_procesar_factura_consolidada, name='api_procesar_factura_consolidada'),
 ]

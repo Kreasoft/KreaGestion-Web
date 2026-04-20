@@ -1,4 +1,5 @@
 from django import forms
+from django.db import models
 from django.core.exceptions import ValidationError
 from .models import Cliente, ContactoCliente
 from empresas.models import Empresa
@@ -69,6 +70,7 @@ class ClienteForm(forms.ModelForm):
         # region no es requerido
         self.fields['region'].required = False
         self.fields['telefono'].required = True
+        self.fields['descuento_porcentaje'].required = False
     
     def clean_rut(self):
         rut = self.cleaned_data.get('rut', '')
@@ -91,15 +93,20 @@ class ClienteForm(forms.ModelForm):
             raise ValidationError('El dígito verificador del RUT es inválido.')
         
         # Verificar que el RUT sea único para la empresa
-        queryset = Cliente.objects.filter(empresa=self.empresa, rut__icontains=rut_limpio)
+        # Primero buscamos coincidencias con el RUT limpio o formateado
+        rut_formateado = self.formatear_rut(rut_limpio)
+        queryset = Cliente.objects.filter(empresa=self.empresa).filter(
+            models.Q(rut=rut_limpio) | models.Q(rut=rut_formateado)
+        )
+        
         if self.instance.pk:
             queryset = queryset.exclude(pk=self.instance.pk)
         
         if queryset.exists():
-            raise ValidationError('Este RUT ya está siendo usado por otro cliente.')
+            raise ValidationError('Este RUT ya está siendo usado por otro cliente de su empresa.')
         
         # Retornar RUT formateado
-        return self.formatear_rut(rut_limpio)
+        return rut_formateado
     
     def validar_digito_verificador(self, rut_limpio):
         """Valida el dígito verificador del RUT chileno"""

@@ -130,13 +130,31 @@
     .bg-badge-warning { background: #FFF8E1; color: #F57C00; border: 1px solid #FFE0B2; }
 
     .actions-cell { text-align: right; white-space: nowrap; }
-    .btn-icon {
-        background: transparent; border: none; color: #BDBDBD;
-        padding: 0.25rem; font-size: 1rem; transition: color 0.2s;
+    .btn-action-piedra {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border: 1px solid var(--stone-light);
+        border-radius: 8px;
+        color: var(--stone-secondary);
+        font-size: 0.85rem;
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        text-decoration: none;
         cursor: pointer;
     }
-    .btn-icon:hover { color: var(--stone-primary); }
-    .btn-icon.delete:hover { color: var(--stone-danger); }
+    .btn-action-piedra:hover {
+        background: var(--stone-primary);
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(139, 115, 85, 0.2);
+    }
+    .btn-action-piedra.delete:hover {
+        background: var(--stone-danger);
+        border-color: var(--stone-danger);
+    }
 
     /* MODAL STYLES */
     .stone-modal-header {
@@ -164,24 +182,28 @@
 {% block content %}
 <div class="container-fluid">
     <div class="single-card-container">
-        <!-- Header Compacto -->
-        <div class="stone-header-premium">
-            <div class="d-flex align-items-center gap-3">
-                <div class="header-icon-box">
-                    <i class="fas fa-store"></i>
+        <!-- Header con Estilo Piedra Premium -->
+        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-store me-3" style="font-size: 2.2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                    <div>
+                        <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
+                            Gestión de <span class="fw-bold">Sucursales</span>
+                        </h2>
+                        <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                            Lista de sucursales de <span>{{ empresa.nombre }}</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="header-text">
-                    <h1>Sucursales</h1>
-                    <p>Lista de sucursales de <span>{{ empresa.nombre }}</span></p>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'empresas:editar_empresa_activa' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: #6F5B44; font-size: 0.75rem; font-weight: 600;">
+                        <i class="fas fa-arrow-left me-1"></i> Volver a Configuración
+                    </a>
+                    <button type="button" class="btn btn-sm" onclick="abrirModal('{% url 'empresas:sucursal_create' %}', 'Nueva Sucursal')" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                        <i class="fas fa-plus me-1"></i> Nueva Sucursal
+                    </button>
                 </div>
-            </div>
-            <div class="d-flex gap-2">
-                <a href="{% url 'empresas:editar_empresa_activa' %}" class="btn-action-secondary">
-                    <i class="fas fa-arrow-left"></i> Volver
-                </a>
-                <button type="button" class="btn-stone-primary" onclick="abrirModal('{% url 'empresas:sucursal_create' %}', 'Nueva Sucursal')">
-                    <i class="fas fa-plus"></i> Nueva
-                </button>
             </div>
         </div>
 
@@ -230,11 +252,11 @@
                                 {% endif %}
                             </td>
                             <td class="actions-cell">
-                                <button onclick="abrirModal('{% url 'empresas:sucursal_update' sucursal.pk %}', 'Editar Sucursal')" class="btn-icon" title="Editar">
+                                <button onclick="abrirModal('{% url 'empresas:sucursal_update' sucursal.pk %}', 'Editar Sucursal')" class="btn-action-piedra" title="Editar">
                                     <i class="fas fa-pencil-alt"></i>
                                 </button>
                                 {% if not sucursal.es_principal %}
-                                <a href="{% url 'empresas:sucursal_delete' sucursal.pk %}" class="btn-icon delete" title="Eliminar">
+                                <a href="{% url 'empresas:sucursal_delete' sucursal.pk %}" class="btn-action-piedra delete" title="Eliminar">
                                     <i class="fas fa-trash-alt"></i>
                                 </a>
                                 {% endif %}
@@ -258,12 +280,21 @@
 <!-- Modal Container -->
 <div class="modal fade" id="sucursalModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="modal-header border-bottom-0 py-3 px-4 bg-light d-flex justify-content-between align-items-center">
-                <h5 class="modal-title fw-bold text-dark mb-0" id="modalTitle">
-                    <i class="fas fa-edit me-2 text-primary"></i> <span id="modalTitleText">Gestión de Sucursal</span>
-                </h5>
-                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" onclick="cerrarModal()"></button>
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden" style="border: 2px solid var(--color-piedra-borde) !important;">
+            <!-- Header con Estilo Piedra Premium Real -->
+            <div class="modal-header py-3 px-4 d-flex justify-content-between align-items-center" style="background: var(--gradient-piedra) !important; border-bottom: 3px solid var(--color-piedra-borde) !important; padding: 15px 25px !important;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-store me-3" style="font-size: 2rem; color: #6F5B44; opacity: 0.8;"></i>
+                    <div>
+                        <h4 class="modal-title mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: #6F5B44; letter-spacing: -1px; font-size: 1.5rem;">
+                            <span id="modalTitleText" class="fw-bold">Gestión de Sucursal</span>
+                        </h4>
+                        <div style="font-size: 0.75rem; color: #6F5B44; opacity: 0.8; font-weight: 500;">
+                            Portal de Administración de Sucursales
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" onclick="cerrarModal()" style="filter: sepia(1) saturate(2) hue-rotate(320deg);"></button>
             </div>
             <div class="modal-body p-0 position-relative bg-white" style="min-height: 500px;">
                 <!-- Loader -->
@@ -331,11 +362,10 @@
             // Inyectar estilos para ocultar elementos innecesarios dentro del iframe (header, sidebar)
             var style = iframeDoc.createElement('style');
             style.textContent = `
-                header, nav, .stone-header-premium, .sidebar, .top-bar { display: none !important; }
+                header, nav, footer, .stone-header-premium, .sidebar, .top-bar, .card-header, .btn-action-secondary { display: none !important; }
                 body { background: white !important; padding: 0 !important; overflow-y: auto; }
                 .single-card-container { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 1rem !important; }
                 .card-body { padding: 0 !important; }
-                .btn-action-secondary { display: none !important; }
                 /* Ajustar padding del formulario */
                 form { padding: 0 1rem; }
             `;

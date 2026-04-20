@@ -68,4 +68,5 @@ urlpatterns = [
     path('ajax/items-pedido/', views_despacho.ajax_items_pedido, name='ajax_items_pedido'),
     path('ajax/ruta/<int:ruta_id>/datos/', views_rutas.ajax_ruta_datos, name='ajax_ruta_datos'),
     path('ajax/vehiculo/<int:vehiculo_id>/chofer/', views_rutas.ajax_vehiculo_chofer, name='ajax_vehiculo_chofer'),
+    path('ajax/rutas/', views_rutas.ajax_rutas_lista, name='ajax_rutas_lista'),
 ]

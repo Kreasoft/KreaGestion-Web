@@ -5,6 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>{% block page_title %}GestionCloud{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% static 'image/LogoCloud-5.png' %}">
 
@@ -18,6 +19,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -31,6 +38,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <style>
         /* Aplicar Poppins a todo el sistema */
@@ -1028,7 +1037,26 @@
                 <a href="{% url 'dashboard' %}"
                     class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
                     <i class="nav-icon fas fa-tachometer-alt"></i>
-                    <span class="nav-text">Dashboard</span>
+                    <span class="nav-text d-flex align-items-center justify-content-between">
+                        Dashboard
+                        <div class="d-flex gap-1 align-items-center">
+                            {% if GLOBAL_GUIAS_PENDIENTES_COUNT > 0 %}
+                            <span class="badge rounded-pill {% if GLOBAL_GUIAS_URGENCIA_MES %}bg-danger{% else %}bg-warning text-dark{% endif %} animate__animated animate__pulse animate__infinite" 
+                                  style="font-size: 0.6rem; padding: 0.3em 0.5em;" 
+                                  title="Guías pendientes">
+                                {{ GLOBAL_GUIAS_PENDIENTES_COUNT }}
+                            </span>
+                            {% endif %}
+                            
+                            {% if GLOBAL_CAF_ALERTS %}
+                            <span class="badge rounded-pill bg-danger animate__animated animate__pulse animate__infinite" 
+                                  style="font-size: 0.6rem; padding: 0.3em 0.5em;" 
+                                  title="Alertas de folios CAF">
+                                {{ GLOBAL_CAF_ALERTS|length }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </span>
                 </a>
             </div>
 
@@ -1151,6 +1179,11 @@
                             class="nav-link submenu-link {% if 'libro-ventas' in request.path %}active{% endif %}">
                             <i class="fas fa-book me-2" style="color: #A0826D;"></i>
                             <span>Libro de Ventas</span>
+                        </a>
+                        <a href="{% url 'ventas:facturar_guias_list' %}"
+                            class="nav-link submenu-link {% if 'facturar-guias' in request.path %}active{% endif %}">
+                            <i class="fas fa-file-invoice me-2" style="color: #A0826D;"></i>
+                            <span class="fw-bold" style="color: #5D4037;">Facturar Guías</span>
                         </a>
                         {% endif %}
                         {% if perms.ventas.view_notacredito or user.is_superuser %}
@@ -1703,6 +1736,8 @@
                 <button class="toggle-sidebar me-3" id="toggleSidebar">
                     <i class="fas fa-bars"></i>
                 </button>
+
+
                 <div class="ms-3 empresa-info">
                     <div class="d-flex align-items-center">
                         <div
@@ -2313,6 +2348,48 @@
                     const icon = floatingBtn.querySelector('i');
                     icon.classList.remove('fa-expand-arrows-alt');
                     icon.classList.add('fa-bars');
+                }
+            }
+        });
+    </script>
+    <!-- Global Enter Key Handling (Prevent premature submit and navigate between fields) -->
+    <script>
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const target = e.target;
+                
+                // Excepciones donde Enter DEBE funcionar normalmente
+                const isTextArea = target.tagName === 'TEXTAREA';
+                const isButton = target.tagName === 'BUTTON' || target.tagName === 'A' || target.type === 'submit' || target.type === 'button';
+                const isSelect2Search = target.classList.contains('select2-search__field');
+                
+                if (isTextArea || isButton || isSelect2Search) {
+                    return;
+                }
+
+                // Si estamos en un formulario, prevenir el submit y saltar al siguiente campo
+                if (target.form) {
+                    e.preventDefault();
+                    
+                    const form = target.form;
+                    const elements = Array.from(form.elements).filter(el => 
+                        !el.disabled && 
+                        !el.readOnly && 
+                        el.type !== 'hidden' &&
+                        el.tagName !== 'FIELDSET' && 
+                        el.style.display !== 'none' &&
+                        el.tabIndex !== -1
+                    );
+                    
+                    const index = elements.indexOf(target);
+                    if (index > -1 && index < elements.length - 1) {
+                        elements[index + 1].focus();
+                        if (elements[index + 1].select) {
+                            elements[index + 1].select();
+                        }
+                    } else if (index === elements.length - 1) {
+                        // Opcional: si es el último campo, no hace nada o podrías enfocar el primer botón de acción
+                    }
                 }
             }
         });

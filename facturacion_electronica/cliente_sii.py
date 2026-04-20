@@ -51,22 +51,14 @@ class ClienteSII:
     
     def obtener_semilla(self):
         """
-        Obtiene la semilla (seed) del SII para autenticación usando requests directo
-        
-        Returns:
-            str: Semilla obtenida
+        Obtiene la semilla del SII para iniciar el proceso de autenticación.
         """
-        import requests
         import html
+        import time
+        from lxml import etree
         
-        try:
-            print(f"Obteniendo semilla del SII...")
-            
-            # URL sin ?WSDL para el servicio
-            url = self.urls['seed'].replace('?WSDL', '')
-            
-            # SOAP envelope
-            soap_request = """<?xml version="1.0" encoding="UTF-8"?>
+        url = self.urls['seed'].replace('?WSDL', '')
+        soap_request = """<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
                   xmlns:def="http://DefaultNamespace">
    <soapenv:Header/>
@@ -74,58 +66,68 @@ class ClienteSII:
       <def:getSeed/>
    </soapenv:Body>
 </soapenv:Envelope>"""
-            
-            headers = {
-                'Content-Type': 'text/xml; charset=utf-8',
-                'SOAPAction': '',
-            }
-            
-            # Enviar petición
-            response = requests.post(
-                url,
-                data=soap_request.encode('utf-8'),
-                headers=headers,
-                timeout=30,
-                verify=True
-            )
-            
-            if response.status_code != 200:
-                raise ValueError(f"Error HTTP {response.status_code}: {response.text[:200]}")
-            
-            # Parsear respuesta SOAP
-            root = etree.fromstring(response.content)
-            
-            # Buscar getSeedReturn (el XML está escapado dentro)
-            seed_return = root.find('.//{http://DefaultNamespace}getSeedReturn')
-            if seed_return is None:
-                seed_return = root.find('.//getSeedReturn')
-            
-            if seed_return is None or seed_return.text is None:
-                raise ValueError("No se encontró getSeedReturn en la respuesta")
-            
-            # Decodificar el XML escapado
-            xml_escapado = seed_return.text
-            xml_decodificado = html.unescape(xml_escapado)
-            
-            # Parsear el XML interno
-            root_interno = etree.fromstring(xml_decodificado.encode('utf-8'))
-            
-            # Buscar SEMILLA
-            semilla_elem = root_interno.find('.//{http://www.sii.cl/XMLSchema}SEMILLA')
-            if semilla_elem is None:
-                semilla_elem = root_interno.find('.//SEMILLA')
-            
-            if semilla_elem is None or semilla_elem.text is None:
-                raise ValueError("No se encontró SEMILLA en la respuesta interna")
-            
-            semilla = semilla_elem.text
-            
-            print(f"Semilla obtenida: {semilla}")
-            return semilla
-            
-        except Exception as e:
-            print(f"ERROR al obtener semilla: {str(e)}")
-            raise
+        
+        headers = {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': '',
+        }
+        
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    print(f"Reintentando obtener semilla (Intento {attempt + 1}/{max_retries})...")
+                
+                response = requests.post(
+                    url,
+                    data=soap_request.encode('utf-8'),
+                    headers=headers,
+                    timeout=30,
+                    verify=True
+                )
+                
+                if response.status_code == 503:
+                    if attempt < max_retries - 1:
+                        print(f"SII saturado (Error 503). Esperando 2 segundos para reintentar...")
+                        time.sleep(2)
+                        continue
+                    else:
+                        raise ValueError("El servidor del SII no está disponible en este momento (Error 503).")
+                
+                if response.status_code != 200:
+                    raise ValueError(f"Error HTTP {response.status_code}: {response.text[:200]}")
+                
+                # Parsear respuesta SOAP
+                root = etree.fromstring(response.content)
+                seed_return = root.find('.//{http://DefaultNamespace}getSeedReturn')
+                if seed_return is None:
+                    seed_return = root.find('.//getSeedReturn')
+                
+                if seed_return is None or seed_return.text is None:
+                    raise ValueError("No se encontró getSeedReturn en la respuesta")
+                
+                xml_decodificado = html.unescape(seed_return.text)
+                root_interno = etree.fromstring(xml_decodificado.encode('utf-8'))
+                
+                semilla_elem = root_interno.find('.//{http://www.sii.cl/XMLSchema}SEMILLA')
+                if semilla_elem is None:
+                    semilla_elem = root_interno.find('.//SEMILLA')
+                
+                if semilla_elem is None or semilla_elem.text is None:
+                    raise ValueError("No se encontró SEMILLA en la respuesta interna")
+                
+                semilla = semilla_elem.text
+                print(f"Semilla obtenida: {semilla}")
+                return semilla
+                
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"Error al obtener semilla: {str(e)}. Reintentando...")
+                    time.sleep(2)
+                    continue
+                print(f"ERROR al obtener semilla tras {max_retries} intentos: {str(e)}")
+                raise
+        return None
     
     def obtener_token(self, semilla, firmador):
         """
@@ -141,20 +143,22 @@ class ClienteSII:
         try:
             print(f"Obteniendo token de autenticación...")
             
-            # Crear XML SIMPLE de solicitud de token (sin namespaces complejos)
-            # Según ejemplo real del SII: <getToken><item><Semilla>XXX</Semilla></item></getToken>
+            # Usar semilla recibida o pedir una si no viene
+            if not semilla:
+                semilla = self.obtener_semilla()
+            
+            # 2. Generar Solicitud de Token (XML compacto)
             gettoken = etree.Element("getToken")
             item = etree.SubElement(gettoken, "item")
             semilla_elem = etree.SubElement(item, "Semilla")
             semilla_elem.text = semilla
             
-            # Convertir a string
             gettoken_string = etree.tostring(
                 gettoken,
-                pretty_print=False,  # Sin formato para que quede compacto
-                xml_declaration=False,  # Sin declaración XML
-                encoding='unicode'
-            )
+                pretty_print=False,
+                xml_declaration=False,
+                encoding='ISO-8859-1'
+            ).decode('ISO-8859-1')
             
             # Firmar la solicitud (usando método específico para tokens)
             gettoken_firmado = firmador.firmar_token_request(gettoken_string)
@@ -164,75 +168,90 @@ class ClienteSII:
                 f.write(gettoken_firmado)
             print(f"   XML firmado guardado en: gettoken_firmado_simple.xml")
             
-            # El SII espera el XML firmado como string escapado
             import html
-            gettoken_escapado = html.escape(gettoken_firmado)
+            import time
+            max_retries = 3
+            current_semilla = semilla
             
-            # URL sin ?WSDL
-            url = self.urls['token'].replace('?WSDL', '')
-            
-            # SOAP envelope con el XML firmado escapado como string
-            soap_request = f"""<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
-                  xmlns:def="http://DefaultNamespace">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <def:getToken>{gettoken_escapado}</def:getToken>
-   </soapenv:Body>
-</soapenv:Envelope>"""
-            
-            headers = {
-                'Content-Type': 'text/xml; charset=utf-8',
-                'SOAPAction': '',
-            }
-            
-            # Enviar petición
-            response = requests.post(
-                url,
-                data=soap_request.encode('utf-8'),
-                headers=headers,
-                timeout=30,
-                verify=True
-            )
-            
-            if response.status_code != 200:
-                print(f"\n   ERROR HTTP {response.status_code} al obtener token")
-                print(f"   Respuesta completa del SII:")
-                print(response.text[:1500])
-                raise ValueError(f"Error HTTP {response.status_code}")
-            
-            # Parsear respuesta SOAP
-            root = etree.fromstring(response.content)
-            
-            # Buscar getTokenReturn (el XML está escapado dentro)
-            token_return = root.find('.//{http://DefaultNamespace}getTokenReturn')
-            if token_return is None:
-                token_return = root.find('.//getTokenReturn')
-            
-            if token_return is None or token_return.text is None:
-                raise ValueError("No se encontró getTokenReturn en la respuesta")
-            
-            # Decodificar el XML escapado
-            import html
-            xml_escapado = token_return.text
-            xml_decodificado = html.unescape(xml_escapado)
-            
-            # Parsear el XML interno
-            root_interno = etree.fromstring(xml_decodificado.encode('utf-8'))
-            
-            # Buscar TOKEN
-            token_elem = root_interno.find('.//{http://www.sii.cl/XMLSchema}TOKEN')
-            if token_elem is None:
-                token_elem = root_interno.find('.//TOKEN')
-            
-            if token_elem is None or token_elem.text is None:
-                raise ValueError("No se encontró TOKEN en la respuesta interna")
-            
-            token = token_elem.text
-            
-            print(f"Token obtenido exitosamente")
-            return token
-            
+            for attempt in range(max_retries):
+                try:
+                    if attempt > 0:
+                        print(f"Reintentando obtener token (Intento {attempt + 1}/{max_retries})...")
+                        current_semilla = self.obtener_semilla()
+                    
+                    # Tag 'semilla' en minúsculas es más común en algunas documentaciones del SII
+                    gettoken_string = f'<getToken><item><semilla>{current_semilla}</semilla></item></getToken>'
+                    gettoken_firmado = firmador.firmar_token_request(gettoken_string)
+
+                    gettoken_escapado = html.escape(gettoken_firmado)
+                    url = self.urls['token'].replace('?WSDL', '')
+                    
+                    # Sobre SOAP ultra-estándar para SII Chile
+                    soap_request = '<?xml version="1.0" encoding="ISO-8859-1"?>'
+                    soap_request += '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">'
+                    soap_request += '<soapenv:Header/>'
+                    soap_request += '<soapenv:Body>'
+                    soap_request += f'<getToken xmlns="http://DefaultNamespace" soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
+                    soap_request += f'<pszXml xsi:type="xsd:string">{gettoken_escapado}</pszXml>'
+                    soap_request += '</getToken>'
+                    soap_request += '</soapenv:Body></soapenv:Envelope>'
+                    
+                    response = requests.post(
+                        url,
+                        data=soap_request.encode('ISO-8859-1'),
+                        headers={'Content-Type': 'text/xml; charset=ISO-8859-1', 'SOAPAction': ''},
+                        timeout=30,
+                        verify=True
+                    )
+                    
+                    if response.status_code == 503:
+                        if attempt < max_retries - 1:
+                            time.sleep(5)
+                            continue
+                        raise ValueError("Servidor SII no disponible (503)")
+
+                    if response.status_code != 200:
+                        raise ValueError(f"Error HTTP {response.status_code}")
+                    
+                    root = etree.fromstring(response.content)
+                    token_return = root.find('.//{http://DefaultNamespace}getTokenReturn')
+                    if token_return is None: token_return = root.find('.//getTokenReturn')
+                    
+                    if token_return is None or token_return.text is None:
+                        raise ValueError("No se encontró getTokenReturn")
+                    
+                    xml_decodificado = html.unescape(token_return.text)
+                    root_interno = etree.fromstring(xml_decodificado.encode('ISO-8859-1'))
+                    
+                    ns = {'sii': 'http://www.sii.cl/XMLSchema'}
+                    token_elem = root_interno.find('.//sii:TOKEN', namespaces=ns)
+                    if token_elem is None: token_elem = root_interno.find('.//TOKEN')
+                    
+                    if token_elem is not None and token_elem.text:
+                        print(f"Token obtenido exitosamente")
+                        return token_elem.text
+                    
+                    glosa_elem = root_interno.find('.//sii:GLOSA', namespaces=ns)
+                    if glosa_elem is None: glosa_elem = root_interno.find('.//GLOSA')
+                    
+                    if glosa_elem is not None:
+                        err_msg = glosa_elem.text
+                        if attempt < max_retries - 1:
+                            print(f"Error SII: {err_msg}. Reintentando...")
+                            time.sleep(5)
+                            continue
+                        raise ValueError(f"Error SII: {err_msg}")
+                    
+                    raise ValueError("Respuesta del SII no contiene TOKEN ni error")
+                    
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        print(f"Error en intento {attempt+1}: {str(e)}. Reintentando...")
+                        time.sleep(5)
+                        continue
+                    raise e
+            return None
+                
         except Exception as e:
             print(f"ERROR al obtener token: {str(e)}")
             raise

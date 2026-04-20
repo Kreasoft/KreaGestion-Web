@@ -106,6 +106,33 @@
         border-radius: 12px;
         border: 1px solid var(--color-piedra-borde);
     }
+
+    /* Estilos para que Select2 use fuente mono en códigos de artículos */
+    .select2-results__option, 
+    .select2-selection__rendered,
+    .select2-container--default .select2-selection--single {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+        font-size: 0.85rem !important;
+        white-space: pre !important;
+    }
+
+    /* Ajuste para el alto del select en el estilo premium */
+    .select2-container--default .select2-selection--single {
+        height: 40px !important;
+        border-radius: 10px !important;
+        border: 1px solid var(--color-piedra-borde) !important;
+        display: flex !important;
+        align-items: center !important;
+        background-color: #fdfcfb !important;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 38px !important;
+    }
+
+    .select2-container {
+        z-index: 9999 !important;
+    }
 </style>
 {% endblock %}
 
@@ -305,11 +332,20 @@
 <div class="modal fade" id="modalAgregarItem" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content border-0 shadow" style="border-radius: 20px; overflow: hidden;">
-            <div class="card-header-piedra py-3">
-                <div class="d-flex justify-content-between align-items-center px-2">
-                    <h6 class="mb-0 fw-bold text-piedra"><i class="fas fa-plus-circle me-2"></i>Añadir al Pack</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <!-- Header con Estilo Piedra Premium Real -->
+            <div class="modal-header py-3 px-4 d-flex justify-content-between align-items-center" style="background: var(--gradient-piedra) !important; border-bottom: 3px solid var(--color-piedra-borde) !important; padding: 15px 25px !important;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-plus-circle me-3" style="font-size: 2rem; color: #6F5B44; opacity: 0.8;"></i>
+                    <div>
+                        <h4 class="modal-title mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: #6F5B44; letter-spacing: -1px; font-size: 1.5rem;">
+                            <span class="fw-bold">Añadir al Pack</span>
+                        </h4>
+                        <div style="font-size: 0.75rem; color: #6F5B44; opacity: 0.8; font-weight: 500;">
+                            Seleccione artículos para el combo
+                        </div>
+                    </div>
                 </div>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" style="filter: sepia(1) saturate(2) hue-rotate(320deg);"></button>
             </div>
             <div class="modal-body p-4" id="modalAgregarItemBody">
                 <!-- Se carga vía AJAX -->
@@ -322,11 +358,20 @@
 <div class="modal fade" id="modalEditarItem" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content border-0 shadow" style="border-radius: 20px; overflow: hidden;">
-            <div class="card-header-piedra py-3" style="background: linear-gradient(135deg, #efebe9 0%, #E0D3C4 100%);">
-                <div class="d-flex justify-content-between align-items-center px-2">
-                    <h6 class="mb-0 fw-bold text-piedra"><i class="fas fa-edit me-2"></i>Modificar Item</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <!-- Header con Estilo Piedra Premium Real -->
+            <div class="modal-header py-3 px-4 d-flex justify-content-between align-items-center" style="background: var(--gradient-piedra) !important; border-bottom: 3px solid var(--color-piedra-borde) !important; padding: 15px 25px !important;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-edit me-3" style="font-size: 2rem; color: #6F5B44; opacity: 0.8;"></i>
+                    <div>
+                        <h4 class="modal-title mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: #6F5B44; letter-spacing: -1px; font-size: 1.5rem;">
+                            <span class="fw-bold">Modificar Item</span>
+                        </h4>
+                        <div style="font-size: 0.75rem; color: #6F5B44; opacity: 0.8; font-weight: 500;">
+                            Ajuste cantidades u observaciones
+                        </div>
+                    </div>
                 </div>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" style="filter: sepia(1) saturate(2) hue-rotate(320deg);"></button>
             </div>
             <div class="modal-body p-4" id="modalEditarItemBody">
                 <!-- Se carga vía AJAX -->
@@ -350,6 +395,17 @@ function cargarFormularioItem(url, targetId) {
     .then(r => r.text())
     .then(html => {
         body.innerHTML = html;
+        
+        // Inicializar Select2 en el modal
+        const selectElement = $(body).find('.select2-modal');
+        if (selectElement.length) {
+            selectElement.select2({
+                dropdownParent: $(targetId === 'modalAgregarItemBody' ? '#modalAgregarItem' : '#modalEditarItem'),
+                width: '100%',
+                placeholder: 'Seleccione un artículo...'
+            });
+        }
+
         const form = body.querySelector('form');
         if (form) {
             form.addEventListener('submit', (e) => {

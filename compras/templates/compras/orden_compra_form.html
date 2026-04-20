@@ -2,6 +2,7 @@
 {% load static %}
 {% load l10n %}
 {% load currency_filters %}
+{% load widget_tweaks %}
 
 {% block title %}
     {% if orden %}Editar Orden de Compra{% else %}Crear Orden de Compra{% endif %}
@@ -41,10 +42,10 @@
         margin: 1.5rem auto;
     }
 
-    /* HEADER PREMIUM AJUSTADO */
+    /* HEADER PREMIUM AJUSTADO (MÁS COMPACTO) */
     .stone-header-premium {
         background: var(--stone-gradient);
-        padding: 1rem 1.5rem;
+        padding: 0.6rem 1.25rem;
         border-bottom: 1px solid var(--stone-light);
         display: flex;
         align-items: center;
@@ -60,17 +61,17 @@
     }
     
     .header-icon-box {
-        width: 48px;
-        height: 48px; 
+        width: 38px;
+        height: 38px; 
         background: rgba(255, 255, 255, 0.8); 
         backdrop-filter: blur(4px);
-        border-radius: 12px; 
+        border-radius: 10px; 
         display: flex; 
         align-items: center; 
         justify-content: center;
         box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
         color: var(--stone-secondary);
-        font-size: 1.25rem;
+        font-size: 1.1rem;
     }
 
     .header-text h1 {
@@ -97,17 +98,17 @@
 
     /* Formulario Container */
     .form-container-body {
-        padding: 1.5rem;
+        padding: 0.75rem 1.25rem;
     }
 
     /* INPUTS & SELECTS (Estilo Base) */
     .form-label {
-        font-weight: 600;
+        font-weight: 700;
         color: var(--stone-secondary);
-        font-size: 0.75rem;
-        margin-bottom: 0.4rem;
+        font-size: 0.65rem;
+        margin-bottom: 0.2rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
         display: block;
     }
 
@@ -125,6 +126,15 @@
         border-color: var(--stone-primary);
         box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1);
         outline: none;
+    }
+
+    /* CONTROL DE DESCUENTOS ULTRA COMPACTO */
+    .discount-control {
+        height: 30px !important;
+        font-size: 0.85rem !important;
+        padding: 2px 8px !important;
+        text-align: center;
+        font-weight: 700;
     }
 
     /* SELECT2 OVERRIDES */
@@ -166,7 +176,7 @@
         border: 1px solid var(--stone-light);
         border-radius: 10px;
         overflow: hidden;
-        margin-top: 2rem;
+        margin-top: 0.5rem;
         box-shadow: 0 2px 8px rgba(0,0,0,0.02);
     }
 
@@ -183,7 +193,7 @@
     
     /* MODALIDAD ITEM ULTRAFINO (33px) */
     .item-line {
-        height: 33px !important;
+        height: 32px !important;
         padding: 0 0.5rem;
         border-bottom: 1px solid #f0f0f0;
         background: white;
@@ -288,8 +298,8 @@
         background-color: #fdfbf7;
         border: 1px solid var(--stone-light);
         border-radius: 12px;
-        padding: 1.5rem;
-        margin-top: 2rem;
+        padding: 0.75rem 1rem;
+        margin-top: 0rem;
     }
     
     .total-row {
@@ -387,18 +397,17 @@
             <form method="post" enctype="multipart/form-data" id="ordenForm">
                 {% csrf_token %}
                 
-                <!-- Datos Generales -->
-                <div class="row g-4 mb-4">
+                <!-- Datos Generales Compactos -->
+                <div class="row g-2 mb-2">
                     <div class="col-md-2">
                          <label class="form-label">N° Orden</label>
-                         <!-- Enviamos 'PENDIENTE' si está vacío para pasar validación required, el backend debe generarlo -->
-                         <input type="text" name="{{ form.numero_orden.name }}" class="form-control bg-light" value="{{ form.numero_orden.value|default:'PENDIENTE' }}" readonly>
+                         <input type="text" name="{{ form.numero_orden.name }}" class="form-control form-control-sm bg-light" value="{{ form.numero_orden.value|default:'PENDIENTE' }}" readonly>
                     </div>
                     <div class="col-md-5">
                         <label class="form-label">Proveedor <span class="text-danger">*</span></label>
                         <div class="proveedor-container">
                              {{ form.proveedor }}
-                             <a href="#" class="btn-add-prov" onclick="abrirModalCrearProveedor(event)" title="Nuevo Proveedor">
+                             <a href="#" class="btn-add-prov" onclick="abrirModalCrearProveedor(event)" title="Nuevo Proveedor" style="height: 38px;">
                                 <i class="fas fa-plus"></i>
                              </a>
                         </div>
@@ -410,39 +419,35 @@
                     
                     <div class="col-md-3">
                         <label class="form-label">Fecha Orden <span class="text-danger">*</span></label>
-                         <input type="date" name="{{ form.fecha_orden.name }}" class="form-control" 
+                         <input type="date" name="{{ form.fecha_orden.name }}" class="form-control form-control-sm" 
                                value="{% if form.fecha_orden.value %}{{ form.fecha_orden.value|date:'Y-m-d' }}{% else %}{{ 'now'|date:'Y-m-d' }}{% endif %}" required>
                     </div>
                     <!-- Fila 2 -->
                     <div class="col-md-2">
-                        <label class="form-label">Fecha Entrega</label>
-                        <input type="date" name="{{ form.fecha_entrega_esperada.name }}" class="form-control" 
+                        <label class="form-label">F. Entrega</label>
+                        <input type="date" name="{{ form.fecha_entrega_esperada.name }}" class="form-control form-control-sm" 
                                value="{% if form.fecha_entrega_esperada.value %}{{ form.fecha_entrega_esperada.value|date:'Y-m-d' }}{% endif %}">
                     </div>
-                     <div class="col-md-3">
-                        <label class="form-label">Bodega Destino <span class="text-danger">*</span></label>
+                     <div class="col-md-2">
+                        <label class="form-label">Bodega Destino</label>
                         {{ form.bodega }}
                     </div>
-                     <div class="col-md-3">
+                     <div class="col-md-2">
                         <label class="form-label">Estado</label>
                         {{ form.estado_orden }}
                     </div>
-                     <div class="col-md-4">
-                        <label class="form-label">Observaciones</label>
-                        <input type="text" name="{{ form.observaciones.name }}" class="form-control" value="{{ form.observaciones.value|default:'' }}">
+                     <div class="col-md-6">
+                        <label class="form-label">Obs. Cabecera</label>
+                        <input type="text" name="{{ form.observaciones.name }}" class="form-control form-control-sm" value="{{ form.observaciones.value|default:'' }}" placeholder="...">
                     </div>
                 </div>
             
-             <!-- Campos Ocultos Cálculo (Requeridos por Form) -->
-             <!-- Importante: valores iniciales 0 para evitar error 'required' si JS falla -->
-             <input type="hidden" name="subtotal" id="hidden_subtotal" value="0">
-             <input type="hidden" name="descuentos_totales" id="hidden_descuentos_totales" value="0">
-             <input type="hidden" name="impuestos_totales" id="hidden_impuestos_totales" value="0">
-             <input type="hidden" name="total_orden" id="hidden_total_orden" value="0">
+             <!-- Campos Ocultos Cálculo (Removidos los redundantes) -->
+             <input type="hidden" id="dummy_field" value="0">
              
             {{ formset.management_form }}
 
-            <!-- Sección Items -->
+             <!-- Sección Items -->
             <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
                 <h5 class="m-0 text-muted text-uppercase fs-6 fw-bold" style="color: var(--stone-primary) !important;">
                     <i class="fas fa-boxes me-2"></i> Items Orden
@@ -482,13 +487,19 @@
                                 <input type="hidden" name="{{ item_form.impuesto_porcentaje.html_name }}" value="{{ item_form.impuesto_porcentaje.value|default:19 }}">
                             </div>
                             <div class="col-2 px-1">
-                                <input type="number" name="{{ item_form.cantidad_solicitada.html_name }}" value="{{ item_form.cantidad_solicitada.value|unlocalize|default:1 }}" class="form-control form-control-sm text-center cantidad-input" min="1">
+                                <input type="number" name="{{ item_form.cantidad_solicitada.html_name }}" 
+                                       value="{% if item_form.cantidad_solicitada.value %}{{ item_form.cantidad_solicitada.value|unlocalize }}{% else %}1{% endif %}" 
+                                       class="form-control form-control-sm text-center cantidad-input" min="1">
                             </div>
                             <div class="col-2 px-1">
-                                <input type="number" name="{{ item_form.precio_unitario.html_name }}" value="{{ item_form.precio_unitario.value|unlocalize|default:0 }}" class="form-control form-control-sm text-end precio-unitario-input" min="0">
+                                <input type="number" name="{{ item_form.precio_unitario.html_name }}" 
+                                       value="{% if item_form.precio_unitario.value %}{{ item_form.precio_unitario.value|unlocalize }}{% else %}0{% endif %}" 
+                                       class="form-control form-control-sm text-end precio-unitario-input" min="0">
                             </div>
                              <div class="col-2 px-1">
-                                <input type="number" name="{{ item_form.descuento_porcentaje.html_name }}" value="{{ item_form.descuento_porcentaje.value|unlocalize|default:0 }}" class="form-control form-control-sm text-center descuento-input" min="0" max="100">
+                                <input type="number" name="{{ item_form.descuento_porcentaje.html_name }}" 
+                                       value="{% if item_form.descuento_porcentaje.value %}{{ item_form.descuento_porcentaje.value|unlocalize }}{% else %}0{% endif %}" 
+                                       class="form-control form-control-sm text-center descuento-input" min="0" max="100">
                             </div>
                             <div class="col-2 ps-1 pe-2 d-flex align-items-center">
                                 <input type="text" class="subtotal-display form-control form-control-sm text-end item-total bg-transparent border-0 fw-bold" readonly value="0">
@@ -501,24 +512,111 @@
                 </div>
             </div>
 
-            <!-- Totales -->
-            <div class="row justify-content-end">
-                <div class="col-md-4">
-                    <div class="totals-panel">
-                        <div class="total-row"><span>Subtotal Neto:</span> <input type="text" id="subtotal-total-display" readonly value="0"></div>
-                        <div class="total-row"><span>Descuentos:</span> <input type="text" id="descuentos-total-display" class="text-danger" readonly value="0"></div>
-                        <div class="total-row"><span>IVA (19%):</span> <input type="text" id="iva-total-display" readonly value="0"></div>
-                        <div class="total-row final"><span>TOTAL:</span> <input type="text" id="total-orden-display" readonly value="0"></div>
+            <div class="row mt-4">
+                <!-- Columna Izquierda: DESCUENTOS Y OPCIONES -->
+                <div class="col-md-7">
+                    <div class="card border-0 shadow-sm p-4 h-100" style="background: #fdfcfb; border: 1px solid var(--stone-light) !important; border-radius: 16px;">
+                        <h6 class="text-uppercase fw-bold mb-3 d-flex align-items-center" style="font-size: 0.8rem; color: var(--stone-primary);">
+                            <i class="fas fa-percentage me-2"></i> Descuentos y Configuración
+                        </h6>
+                        
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-3">
+                                <label class="small fw-bold text-muted mb-1 d-block" style="font-size: 0.6rem;">Desc 1 (%)</label>
+                                <input type="number" name="{{ form.descuento_porcentaje_1.name }}" id="id_descuento_porcentaje_1" class="form-control discount-control" value="{{ form.descuento_porcentaje_1.value|default:0 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small fw-bold text-muted mb-1 d-block" style="font-size: 0.6rem;">Desc 2 (%)</label>
+                                <input type="number" name="{{ form.descuento_porcentaje_2.name }}" id="id_descuento_porcentaje_2" class="form-control discount-control" value="{{ form.descuento_porcentaje_2.value|default:0 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small fw-bold text-muted mb-1 d-block" style="font-size: 0.6rem;">Desc 3 (%)</label>
+                                <input type="number" name="{{ form.descuento_porcentaje_3.name }}" id="id_descuento_porcentaje_3" class="form-control discount-control" value="{{ form.descuento_porcentaje_3.value|default:0 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small fw-bold text-muted mb-1 d-block" style="font-size: 0.6rem;">Directo ($)</label>
+                                <input type="number" name="{{ form.descuento_monto_directo.name }}" id="id_descuento_monto_directo" class="form-control discount-control" style="text-align: right;" value="{{ form.descuento_monto_directo.value|default:0 }}">
+                            </div>
+                        </div>
+
+                        <hr class="my-3 opacity-25">
+
+                        <div class="row g-3">
+                             <div class="col-md-6">
+                                <label class="form-label">Condiciones de Pago</label>
+                                {{ form.condiciones_pago|add_class:"form-control-sm" }}
+                             </div>
+                             <div class="col-md-6">
+                                <label class="form-label">Plazo de Entrega</label>
+                                {{ form.plazo_entrega|add_class:"form-control-sm" }}
+                             </div>
+                             <div class="col-12">
+                                <label class="form-label">Observaciones Generales</label>
+                                <textarea name="{{ form.observaciones.name }}" class="form-control" rows="2" style="font-size: 0.85rem;">{{ form.observaciones.value|default:'' }}</textarea>
+                             </div>
+                        </div>
                     </div>
-                    
-                    <button type="submit" class="btn-stone-primary w-100 mt-3 py-2 fs-6">
-                        <i class="fas fa-save me-2"></i> Guardar Orden
-                    </button>
+                </div>
+
+                <!-- Columna Derecha: TOTALES COMPACTOS -->
+                <div class="col-md-5">
+                    <div class="totals-panel shadow-sm h-100 d-flex flex-column justify-content-between" style="background: white; border-radius: 12px; border: 2px solid var(--stone-light);">
+                        <div class="p-1">
+                            <h6 class="text-uppercase fw-bold mb-2 text-center" style="font-size: 0.7rem; color: var(--stone-secondary); border-bottom: 1px solid var(--stone-light); padding-bottom: 4px;">
+                                Totales
+                            </h6>
+
+                            <div class="total-row mb-1">
+                                <span class="small text-muted">Subtotal:</span>
+                                <input type="number" name="subtotal" id="id_subtotal" class="form-control form-control-sm text-end border-0 bg-transparent fw-bold py-0" style="height: 24px;" 
+                                       value="{% if form.subtotal.value %}{{ form.subtotal.value|unlocalize }}{% else %}0{% endif %}" readonly>
+                            </div>
+
+                            <div class="total-row mb-1">
+                                <span class="small text-danger">Descuentos:</span>
+                                <input type="number" name="descuentos_totales" id="id_descuentos_totales" class="form-control form-control-sm text-end border-0 bg-transparent text-danger py-0" style="height: 24px;" 
+                                       value="{% if form.descuentos_totales.value %}{{ form.descuentos_totales.value|unlocalize }}{% else %}0{% endif %}" readonly>
+                            </div>
+
+                            <div class="total-row mb-1 py-1" style="background: #fdfbf7; border-radius: 4px;">
+                                <span class="small fw-bold ps-1" style="color: var(--stone-primary);">NETO:</span>
+                                <input type="number" name="neto_ajustado" id="id_neto_ajustado" class="form-control form-control-sm text-end border-0 bg-transparent fw-bold py-0" style="height: 24px;" 
+                                       value="{% if form.neto_ajustado.value %}{{ form.neto_ajustado.value|unlocalize }}{% else %}0{% endif %}">
+                            </div>
+
+                            <div class="total-row mb-1">
+                                <span class="small text-muted">IVA (19%):</span>
+                                <input type="number" name="iva_ajustado" id="id_iva_ajustado" class="form-control form-control-sm text-end border-0 bg-transparent py-0" style="height: 24px;" 
+                                       value="{% if form.iva_ajustado.value %}{{ form.iva_ajustado.value|unlocalize }}{% else %}0{% endif %}">
+                            </div>
+
+                            <div class="total-row mb-1">
+                                <span class="small text-muted">Imp. Esp:</span>
+                                <input type="number" name="impuesto_especifico" id="id_impuesto_especifico" class="form-control form-control-sm text-end border-0 bg-transparent py-0" style="height: 24px;" 
+                                       value="{% if form.impuesto_especifico.value %}{{ form.impuesto_especifico.value|unlocalize }}{% else %}0{% endif %}">
+                            </div>
+                            
+                            <!-- Campo oculto para cumplir requerimiento de form si se separa visualmente -->
+                            <input type="hidden" name="impuestos_totales" id="id_impuestos_totales" value="{% if form.impuestos_totales.value %}{{ form.impuestos_totales.value|unlocalize }}{% else %}0{% endif %}">
+
+                            <div class="total-row final mt-1 pt-1 d-flex align-items-center" style="border-top: 2px solid var(--stone-light);">
+                                <span class="fw-bold" style="font-size: 0.9rem;">TOTAL:</span>
+                                <input type="number" name="total_orden" id="id_total_orden" class="form-control form-control-sm text-end border-0 bg-transparent fw-bold py-0 fs-5" style="height: 30px;" 
+                                       value="{% if form.total_orden.value %}{{ form.total_orden.value|unlocalize }}{% else %}0{% endif %}">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2">
+                            <button type="submit" class="btn-stone-primary w-100 py-2 fs-6 shadow-sm" style="border-radius: 10px;">
+                                <i class="fas fa-save me-2"></i> GUARDAR COMPRA
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>
-        </div> <!-- Fin form-container-body -->
-    </div> <!-- Fin single-card-container -->
+        </div>
+    </div>
 </div>
 
 <!-- Template Oculto de Item -->
@@ -555,104 +653,99 @@
 
 <script>
     $(document).ready(function() {
-        // Init Select2 Global
         function initSelect2Global() {
             $('.form-select').not('#empty-form-template .form-select').each(function() {
-                if (!$(this).hasClass("select2-hidden-accessible")) {
-                    $(this).select2({ 
-                        theme: 'default', 
-                        width: '100%', 
-                        placeholder: 'Seleccione...' 
-                    });
+                if (!$(this).hasClass('select2-hidden-accessible')) {
+                    $(this).select2({ theme: 'default', width: '100%', placeholder: 'Seleccione...' });
                 }
             });
         }
         initSelect2Global();
 
-        // Calcular Totales
+        let manualAdjust = false;
+
         function calcularTotales() {
-            let totalNeto = 0;
-            let totalDescuentos = 0;
+            let subtotalBrutoItems = 0;
+            let totalDescuentoItems = 0;
             
             $('.item-line:visible').each(function() {
                 if($(this).closest('#empty-form-template').length > 0) return;
-                
-                const formIdx = $(this).attr('data-form-index');
-                if(formIdx === '__prefix__') return;
-                
                 const cantidad = parseFloat($(this).find('input[name$="-cantidad_solicitada"]').val()) || 0;
                 const precio = parseFloat($(this).find('input[name$="-precio_unitario"]').val()) || 0;
                 const descuentoPorc = parseFloat($(this).find('input[name$="-descuento_porcentaje"]').val()) || 0;
                 
                 const bruto = cantidad * precio;
-                const desc = bruto * (descuentoPorc / 100);
+                const desc = Math.round(bruto * (descuentoPorc / 100));
                 const neto = bruto - desc;
-                
                 $(this).find('.item-total').val(Math.round(neto).toLocaleString('es-CL'));
-                
-                totalNeto += neto;
-                totalDescuentos += desc;
+                subtotalBrutoItems += bruto;
+                totalDescuentoItems += desc;
             });
             
-            const iva = Math.round(totalNeto * 0.19);
-            const total = totalNeto + iva;
-            
-            // Actualizar Displays
-            $('#subtotal-total-display').val(Math.round(totalNeto).toLocaleString('es-CL'));
-            $('#descuentos-total-display').val(Math.round(totalDescuentos).toLocaleString('es-CL'));
-            $('#iva-total-display').val(iva.toLocaleString('es-CL'));
-            $('#total-orden-display').val(Math.round(total).toLocaleString('es-CL'));
-            
-            // Actualizar Hidden Inputs (Sin formato, para backend)
-            $('#hidden_subtotal').val(Math.round(totalNeto));
-            $('#hidden_descuentos_totales').val(Math.round(totalDescuentos));
-            $('#hidden_impuestos_totales').val(Math.round(iva)); // Asumiendo que impuestos es solo IVA
-            $('#hidden_total_orden').val(Math.round(total));
+            $('#id_subtotal').val(Math.round(subtotalBrutoItems));
+
+            if (!manualAdjust) {
+                const netoBase = subtotalBrutoItems - totalDescuentoItems;
+                const d1 = parseFloat($('#id_descuento_porcentaje_1').val()) || 0;
+                const d2 = parseFloat($('#id_descuento_porcentaje_2').val()) || 0;
+                const d3 = parseFloat($('#id_descuento_porcentaje_3').val()) || 0;
+                const dDirecto = parseFloat($('#id_descuento_monto_directo').val()) || 0;
+
+                let actual_neto = netoBase;
+                actual_neto = actual_neto * (1 - d1 / 100);
+                actual_neto = actual_neto * (1 - d2 / 100);
+                actual_neto = actual_neto * (1 - d3 / 100);
+                
+                const netoFinalCalculado = Math.round(actual_neto) - dDirecto;
+                
+                $('#id_neto_ajustado').val(netoFinalCalculado);
+                $('#id_descuentos_totales').val(subtotalBrutoItems - netoFinalCalculado);
+                $('#id_iva_ajustado').val(Math.round(netoFinalCalculado * 0.19));
+            }
+
+            const ivaVal = parseInt($('#id_iva_ajustado').val()) || 0;
+            const espVal = parseInt($('#id_impuesto_especifico').val()) || 0;
+            $('#id_impuestos_totales').val(ivaVal + espVal);
+            const netoVal = parseInt($('#id_neto_ajustado').val()) || 0;
+            $('#id_total_orden').val(netoVal + ivaVal + espVal);
         }
 
-        $(document).on('input change', 'input', calcularTotales);
+        $(document).on('input change', '.item-row input, .item-row select, #id_descuento_porcentaje_1, #id_descuento_porcentaje_2, #id_descuento_porcentaje_3', function() {
+            manualAdjust = false; 
+            calcularTotales();
+        });
 
-        // Agregar Item
+        $(document).on('input change', '#id_descuento_monto_directo, #id_neto_ajustado, #id_iva_ajustado, #id_impuesto_especifico, #id_total_orden', function() {
+            manualAdjust = true; 
+            calcularTotales();
+        });
+
         $('#addItemBtn').click(function() {
             const formIdx = parseInt($('#id_items-TOTAL_FORMS').val());
             let tmplHtml = $('#empty-form-template').html();
             tmplHtml = tmplHtml.replace(/__prefix__/g, formIdx);
-            
-            let $tmpl = $(tmplHtml);
-            
-            // Limpieza Select2
-            $tmpl.find('.select2-container').remove();
-            $tmpl.find('.select2-hidden-accessible').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').removeAttr('aria-hidden').removeAttr('tabindex');
-            $tmpl.find('select').show();
-            
+            let $tmpl = $(tmplHtml).attr('data-form-index', formIdx);
+            $tmpl.find('[name*="__prefix__"]').each(function() {
+                $(this).attr('name', $(this).attr('name').replace('__prefix__', formIdx));
+                $(this).attr('id', 'id_' + $(this).attr('name'));
+            });
             $('#items-wrapper').append($tmpl);
             $('#id_items-TOTAL_FORMS').val(formIdx + 1);
-            
-            $tmpl.find('.articulo-select').select2({
-                theme: 'default',
-                width: '100%',
-                placeholder: '...'
-            });
+            $tmpl.find('.articulo-select').select2({ theme: 'default', width: '100%', placeholder: '...' });
         });
 
-        // Eliminar Item
         window.eliminarItem = function(button) {
             const row = $(button).closest('.item-line');
             if (row.find('input[name$="-DELETE"]').length) {
                 row.find('input[name$="-DELETE"]').prop('checked', true);
                 row.hide();
-            } else {
-                row.remove();
-            }
+            } else { row.remove(); }
             calcularTotales();
         }
 
-        // Dummy Provider Add
-        window.abrirModalCrearProveedor = function(e) {
-            e.preventDefault();
-            Swal.fire('Información', 'Creación rápida de proveedor en desarrollo.', 'info');
-        };
-
+        if (!$('.edit-mode').length && $('#id_descuento_porcentaje_1').val() == 0) {
+            $('#id_descuento_porcentaje_1').val(3);
+        }
         calcularTotales();
     });
 </script>

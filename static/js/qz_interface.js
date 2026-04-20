@@ -76,9 +76,9 @@ const QZ_Printers = {
     },
 
     // Imprimir contenido HTML directamente
-    printHTML: function (htmlContent) {
+    printHTML: function (htmlContent, copies = 1) {
         if (!qzConfig.isConnected) {
-            return QZ_Printers.connect().then(() => QZ_Printers.printHTML(htmlContent));
+            return QZ_Printers.connect().then(() => QZ_Printers.printHTML(htmlContent, copies));
         }
 
         const printer = QZ_Printers.loadSavedPrinter();
@@ -87,13 +87,13 @@ const QZ_Printers = {
             return Promise.reject("Ninguna impresora seleccionada");
         }
 
+        // Asegurar que copies sea un número válido
+        const numCopies = parseInt(copies) || 1;
+        console.log(`Iniciando impresión de ${numCopies} copias a ${printer}`);
+
         // Crear configuración para impresora de recibos
-        // Units can be 'in', 'mm', 'cm'
         var config = qz.configs.create(printer, {
-            scaleContent: true,
-            // margins: { top: 0, right: 0, bottom: 0, left: 0 },
-            // size: { width: 80, height: null }, // 80mm ancho, altura auto
-            // units: 'mm'
+            scaleContent: true
         });
 
         // Impresión HTML
@@ -106,8 +106,17 @@ const QZ_Printers = {
             }
         ];
 
-        return qz.print(config, printData).then(function () {
-            console.log("Impresión enviada exitosamente a " + printer);
+        // Realizar impresión el número de veces solicitado
+        let lastPromise = Promise.resolve();
+        for (let i = 0; i < numCopies; i++) {
+            lastPromise = lastPromise.then(() => {
+                console.log(`Enviando copia ${i + 1} de ${numCopies}...`);
+                return qz.print(config, printData);
+            });
+        }
+
+        return lastPromise.then(function () {
+            console.log("Todas las copias enviadas exitosamente.");
         }).catch(function (e) {
             console.error(e);
             alert("Error al imprimir con QZ Tray: " + e);
@@ -116,15 +125,15 @@ const QZ_Printers = {
     },
 
     // Imprimir desde URL (descargar HTML luego imprimir)
-    printTicketFromUrl: function (url) {
-        console.log("Obteniendo ticket desde:", url);
+    printTicketFromUrl: function (url, copies = 1) {
+        console.log(`Obteniendo ticket [${copies} copias] desde:`, url);
         return fetch(url)
             .then(response => {
                 if (!response.ok) throw new Error("Error obteniendo ticket");
                 return response.text();
             })
             .then(html => {
-                return QZ_Printers.printHTML(html);
+                return QZ_Printers.printHTML(html, copies);
             });
     }
 };

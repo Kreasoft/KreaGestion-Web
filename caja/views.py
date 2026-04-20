@@ -577,6 +577,11 @@ def procesar_venta_buscar(request):
                 ).first()
                 
                 if ticket:
+                    # Verificar si ya tiene proceso en caja
+                    if VentaProcesada.objects.filter(venta_preventa=ticket).exists():
+                        messages.warning(request, f'El ticket #{numero_ticket} ya fue procesado en caja.')
+                        return redirect('caja:procesar_venta_buscar')
+                    
                     return redirect('caja:procesar_venta', ticket_id=ticket.pk)
                 else:
                     messages.error(request, f'No se encontró el ticket #{numero_ticket} o ya fue procesado.')
@@ -585,19 +590,20 @@ def procesar_venta_buscar(request):
         else:
             messages.error(request, 'Debe ingresar un número de ticket.')
     
-    # CONSULTA SIMPLIFICADA AL MÁXIMO: Solo condiciones esenciales
-    # NO restringir por fecha, NO restringir por estado, solo facturado=False
+    # CONSULTA REFORZADA: Solo tickets reales (tipo_documento='ticket')
+    # que NO han sido facturados Y que NO tienen un registro en VentaProcesada
     tickets_pendientes = Venta.objects.filter(
         empresa=request.empresa,
         tipo_documento='ticket',
-        facturado=False
+        facturado=False,
+        venta_preventa__isnull=True  # Filtro clave: Excluye los que ya están en VentaProcesada
     ).exclude(
         tipo_documento_planeado='ticket'
     ).exclude(
         tipo_documento_planeado__isnull=True
     ).exclude(
         tipo_documento_planeado=''
-    ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')[:500]  # Limitar a 500 para rendimiento
+    ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')[:500]
     
     # Debug: información de depuración
     todos_los_tickets = Venta.objects.filter(

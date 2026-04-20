@@ -17,7 +17,10 @@ class OrdenCompraForm(forms.ModelForm):
             'proveedor', 'bodega', 'numero_orden', 'fecha_orden', 
             'fecha_entrega_esperada', 'estado_orden', 'prioridad', 
             'observaciones', 'condiciones_pago', 'plazo_entrega',
-            'subtotal', 'descuentos_totales', 'impuestos_totales', 'total_orden'
+            'subtotal', 'descuento_porcentaje_1', 'descuento_porcentaje_2', 
+            'descuento_porcentaje_3', 'descuento_monto_directo',
+            'descuentos_totales', 'neto_ajustado', 'iva_ajustado', 
+            'impuesto_especifico', 'impuestos_totales', 'total_orden'
         ]
         widgets = {
             'proveedor': forms.Select(attrs={'class': 'form-select form-select-sm'}),
@@ -30,10 +33,19 @@ class OrdenCompraForm(forms.ModelForm):
             'observaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 2}),
             'condiciones_pago': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
             'plazo_entrega': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
-            'subtotal': forms.HiddenInput(),
-            'descuentos_totales': forms.HiddenInput(),
-            'impuestos_totales': forms.HiddenInput(),
-            'total_orden': forms.HiddenInput(),
+            
+            # Campos de Totales y Descuentos
+            'subtotal': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'readonly': True}),
+            'descuento_porcentaje_1': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'min': 0, 'max': 100}),
+            'descuento_porcentaje_2': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'min': 0, 'max': 100}),
+            'descuento_porcentaje_3': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'min': 0, 'max': 100}),
+            'descuento_monto_directo': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'min': 0}),
+            'descuentos_totales': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'readonly': True}),
+            'neto_ajustado': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
+            'iva_ajustado': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
+            'impuesto_especifico': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end'}),
+            'impuestos_totales': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'readonly': True}),
+            'total_orden': forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end fw-bold'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -97,6 +109,14 @@ class ItemOrdenCompraForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+        # Establecer valores iniciales técnicos para que el formset detecte 
+        # correctamente cuándo una fila no ha sido modificada (evita IntegrityError)
+        if not self.instance.pk:
+            self.initial['cantidad_solicitada'] = 1
+            self.initial['precio_unitario'] = 0
+            self.initial['descuento_porcentaje'] = 0
+            self.initial['impuesto_porcentaje'] = 19
+            
         # Hacer campos opcionales para permitir filas vacías (que tienen impuesto hidden)
         # La validación real se hace en clean()
         self.fields['impuesto_porcentaje'].required = False
@@ -115,28 +135,44 @@ class ItemOrdenCompraForm(forms.ModelForm):
             return 19
         return impuesto
     
+    def has_changed(self):
+        """Forzar que el formset ignore la fila si no hay artículo seleccionado"""
+        field_name = 'articulo'
+        if self.prefix:
+            field_name = f"{self.prefix}-{field_name}"
+        
+        articulo_id = self.data.get(field_name)
+        if not articulo_id:
+            return False
+        return super().has_changed()
+
     def clean(self):
-        """Validar que si hay otros datos, el artículo es requerido"""
+        """Validar integridad y asegurar que filas vacías no intenten guardarse sin artículo"""
         cleaned_data = super().clean()
         articulo = cleaned_data.get('articulo')
         cantidad = cleaned_data.get('cantidad_solicitada')
         precio = cleaned_data.get('precio_unitario')
         
-        # Si el item está completamente vacío, no generar errores (será ignorado por el formset)
-        if not articulo and not cantidad and not precio:
+        # Si NO hay artículo, esta fila NO debe guardarse.
+        if not articulo:
+            # Si tiene otros datos, reportamos error
+            if (precio and precio > 0) or (cantidad and cantidad > 1):
+                self.add_error('articulo', 'Este campo es requerido si el ítem tiene datos.')
+            else:
+                # Si está "vacío" (solo valores por defecto), 
+                # forzamos que Django lo vea como no-modificado
+                # borrando cualquier dato que pueda disparar el guardado
+                for field in list(cleaned_data.keys()):
+                    if field != 'id' and field != 'orden_compra':
+                        cleaned_data.pop(field, None)
             return cleaned_data
-        
-        # Si hay cantidad o precio pero no hay artículo, es un error
-        if (cantidad or precio) and not articulo:
-            raise ValidationError('Debe seleccionar un artículo si ingresa cantidad o precio.')
-        
-        # Si hay artículo, validar que tenga cantidad y precio
-        if articulo:
-            if not cantidad or cantidad <= 0:
-                raise ValidationError('La cantidad debe ser mayor a 0.')
-            if precio is None or precio < 0:
-                raise ValidationError('El precio debe ser mayor o igual a 0.')
-        
+            
+        # Si tiene artículo, validar integridad
+        if not cantidad or cantidad < 1:
+            self.add_error('cantidad_solicitada', 'La cantidad debe ser mayor a 0.')
+        if precio is None:
+            self.add_error('precio_unitario', 'El precio es requerido.')
+            
         return cleaned_data
     
     def clean_cantidad_solicitada(self):

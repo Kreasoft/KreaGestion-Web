@@ -21,6 +21,10 @@ def paleta_colores_view(request):
     """Vista de paleta de colores del sistema"""
     return render(request, 'paleta_colores.html')
 
+def zenith_os_view(request):
+    """Experimento de interfaz basada en iconos (Zenith OS)"""
+    return render(request, 'zenith_os.html')
+
 
 urlpatterns = [
 	path('admin/', admin.site.urls),
@@ -30,6 +34,7 @@ urlpatterns = [
 	path('dashboard/', dashboard_view, name='dashboard_alt'),
 	path('opciones/', opciones_principales_view, name='opciones_principales'),
 	path('paleta-colores/', paleta_colores_view, name='paleta_colores'),
+	path('zenith-os/', zenith_os_view, name='zenith_os'),
 	path('empresas/', include('empresas.urls')),
 	path('articulos/', include('articulos.urls')),
 	path('inventario/', include('inventario.urls')),

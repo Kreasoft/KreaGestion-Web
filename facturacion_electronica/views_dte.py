@@ -22,6 +22,53 @@ except ImportError:
     OrdenDespacho = None
 
 
+def redirect_to_dte_list(request, anchor=None, dte=None):
+    """
+    Redirige a la lista de DTEs, manteniendo los filtros de búsqueda si existen
+    """
+    from django.urls import reverse
+    
+    url = request.GET.get('return_url')
+    
+    if not url:
+        # Intentar obtener del referer si no hay return_url
+        referer = request.META.get('HTTP_REFERER')
+        if referer:
+            # Evitar bucles si el referer es la misma página de acción o el detalle del documento
+            excluded_patterns = [
+                '/enviar/', '/consultar-estado/', '/descargar-pdf/', 
+                '/regenerar-xml/', '/ver-factura/', '/ver-notacredito/', 
+                '/ver-notadebito/', '/dte/'
+            ]
+            if not any(x in referer for x in excluded_patterns):
+                url = referer
+
+    if not url:
+        # Fallback inteligente según el tipo de DTE
+        if dte and dte.tipo_dte == '52':
+            url = reverse('ventas:libro_guias')
+        else:
+            url = reverse('facturacion_electronica:dte_list')
+            
+        # Limpiar query_string de return_url para no ensuciar la URL final
+        params = request.GET.copy()
+        if 'return_url' in params:
+            del params['return_url']
+        query_string = params.urlencode()
+        if query_string:
+            if '?' in url:
+                url += '&' + query_string
+            else:
+                url += '?' + query_string
+    
+    if anchor:
+        if '#' in url:
+            url = url.split('#')[0]
+        url += f'#{anchor}'
+        
+    return redirect(url)
+
+
 @login_required
 @requiere_empresa
 def generar_dte_venta(request, venta_id):
@@ -101,7 +148,7 @@ def enviar_dte_sii(request, dte_id):
     # Verificar que no haya sido enviado ya
     if dte.estado_sii in ['enviado', 'aceptado']:
         messages.warning(request, 'Este DTE ya fue enviado al SII.')
-        return redirect('facturacion_electronica:dte_list')
+        return redirect_to_dte_list(request)
 
     # Acción directa: cualquier request que llegue aquí intenta enviar el DTE
     try:
@@ -128,7 +175,7 @@ def enviar_dte_sii(request, dte_id):
         traceback.print_exc()
 
     # Siempre volver al listado de DTE después del intento de envío
-    return redirect('facturacion_electronica:dte_list')
+    return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
 
 
@@ -162,7 +209,7 @@ def consultar_estado_dte(request, dte_id):
         import traceback
         traceback.print_exc()
     
-    return redirect('facturacion_electronica:dte_detail', pk=dte_id)
+    return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
 
 @login_required
@@ -173,8 +220,18 @@ def dte_detail(request, pk):
     """
     dte = get_object_or_404(DocumentoTributarioElectronico, pk=pk, empresa=request.empresa)
     
+    # Determinar URL de retorno inteligente
+    from django.urls import reverse
+    back_url = reverse('facturacion_electronica:dte_list')
+    if dte.tipo_dte == '52':
+        back_url = reverse('ventas:libro_guias')
+    
+    # Añadir el anclaje si es posible
+    back_url += f"#row-{dte.id}"
+    
     context = {
         'dte': dte,
+        'back_url': back_url,
     }
     
     return render(request, 'facturacion_electronica/dte_detail.html', context)
@@ -215,10 +272,14 @@ def ver_factura_electronica(request, dte_id):
     
     # Usar el prefetched orden_despacho
     orden_despacho = dte.orden_despacho.all()[0] if dte.orden_despacho.exists() else None
-    documento_origen = venta or orden_despacho
+    
+    # Intentar obtener transferencia
+    transferencia = dte.transferencias.first()
+    
+    documento_origen = venta or orden_despacho or transferencia
 
     if not documento_origen:
-        messages.error(request, 'Este DTE no tiene un documento de origen asociado (Venta u Orden de Despacho).')
+        messages.error(request, 'Este DTE no tiene un documento de origen asociado (Venta, Orden de Despacho o Transferencia).')
         return redirect('facturacion_electronica:dte_detail', pk=dte_id)
 
     # Crear wrapper de cliente desde DTE si no hay cliente o el cliente no tiene datos
@@ -302,12 +363,27 @@ def ver_factura_electronica(request, dte_id):
                 self.articulo = ArticuloWrapper(detalle_despacho.item_pedido.articulo)
                 self.cantidad = detalle_despacho.cantidad
                 self.precio_unitario = detalle_despacho.item_pedido.precio_unitario
-                subtotal = float(detalle_despacho.cantidad) * float(detalle_despacho.item_pedido.precio_unitario)
+                subtotal_val = float(detalle_despacho.cantidad) * float(detalle_despacho.item_pedido.precio_unitario)
                 descuento_pct = float(detalle_despacho.item_pedido.descuento_porcentaje or 0)
-                self.descuento = subtotal * (descuento_pct / 100)
-                self.precio_total = subtotal - self.descuento
+                self.descuento = subtotal_val * (descuento_pct / 100)
+                self.precio_total = subtotal_val - self.descuento
         
         detalles = [DetalleWrapper(d) for d in detalles_despacho]
+    
+    # Caso para Transferencias
+    from inventario.models import TransferenciaInventario
+    if not detalles and isinstance(documento_origen, TransferenciaInventario):
+        detalles_transf = documento_origen.detalles.all().select_related('articulo', 'articulo__unidad_medida')
+        
+        class DetalleTransfWrapper:
+            def __init__(self, item_inv):
+                self.articulo = item_inv.articulo
+                self.cantidad = item_inv.cantidad
+                self.precio_unitario = item_inv.precio_unitario
+                self.precio_total = item_inv.total
+                self.descuento = 0
+                
+        detalles = [DetalleTransfWrapper(d) for d in detalles_transf]
     
     # Obtener configuración de impresora
     empresa = request.empresa
@@ -361,6 +437,12 @@ def ver_factura_electronica(request, dte_id):
     except Exception as e:
         logger.warning(f"Error al obtener formas de pago: {str(e)}")
     
+    # Obtener configuración de copias de la estación (prioritario)
+    n_copias = 1
+    estacion = getattr(venta, 'estacion_trabajo', None)
+    if estacion:
+        n_copias = estacion.get_copias_por_tipo(dte.get_tipo_slug())
+    
     context = {
         'dte': dte,
         'venta': venta,
@@ -369,6 +451,8 @@ def ver_factura_electronica(request, dte_id):
         'empresa': empresa,
         'nombre_impresora': nombre_impresora,
         'formas_pago_list': formas_pago_list,
+        'n_copias': n_copias,
+        'copias_range': range(n_copias),
     }
     
     return render(request, template, context)
@@ -401,11 +485,20 @@ def ver_notacredito_electronica(request, notacredito_id):
         template = 'ventas/notacredito_electronica_html.html'
         print(f"[PRINT] Nota Credito -> Formato LASER A4")
     
+    # Obtener configuración de copias de la estación (prioritario)
+    n_copias = 1
+    venta = getattr(nota, 'venta', None)
+    estacion = getattr(venta, 'estacion_trabajo', None) if venta else None
+    if estacion:
+        n_copias = estacion.get_copias_por_tipo('notacredito')
+    
     context = {
         'nota': nota,
         'dte': dte,
         'detalles': detalles,
         'empresa': empresa,
+        'n_copias': n_copias,
+        'copias_range': range(n_copias),
     }
     
     return render(request, template, context)
@@ -444,6 +537,7 @@ def ver_notadebito_electronica(request, notadebito_id):
         'dte': dte,
         'detalles': detalles,
         'empresa': empresa,
+        'copias_range': range(n_copias),
     }
     
     return render(request, template, context)
@@ -456,7 +550,14 @@ def dte_list(request):
     Lista de DTEs de la empresa (REDIRIGIDO AL LIBRO DE VENTAS OFICIAL EN VENTAS)
     """
     from django.shortcuts import redirect
-    return redirect('ventas:libro_ventas')
+    from django.urls import reverse
+    
+    url = reverse('ventas:libro_ventas')
+    query_string = request.GET.urlencode()
+    if query_string:
+        url += '?' + query_string
+        
+    return redirect(url)
 
 
 @login_required
@@ -533,7 +634,7 @@ def probar_dtebox_xml_ejemplo(request):
     """
     if not request.empresa.dtebox_habilitado:
         messages.error(request, 'DTEBox no está habilitado para esta empresa.')
-        return redirect('facturacion_electronica:dte_list')
+        return redirect_to_dte_list(request)
     
     resultado = None
     error = None
@@ -751,7 +852,7 @@ def sincronizar_con_gdexpress(request, dte_id):
         # Verificar que DTEBox esté habilitado
         if not request.empresa.dtebox_habilitado:
             messages.error(request, 'DTEBox/GDExpress no está habilitado para esta empresa.')
-            return redirect('facturacion_electronica:dte_list')
+            return redirect_to_dte_list(request)
         
         # Inicializar servicio DTEBox
         dtebox_service = DTEBoxService(request.empresa)
@@ -823,13 +924,13 @@ def sincronizar_con_gdexpress(request, dte_id):
             else:
                 messages.error(request, f'No se pudo sincronizar el documento {dte.folio}: {resultado_pdf.get("error")}')
             
-            return redirect(reverse('ventas:libro_ventas') + f'#row-{dte.id}')
+            return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
             
     except Exception as e:
         messages.error(request, f'Error durante la sincronización: {str(e)}')
         import traceback
         traceback.print_exc()
-        return redirect('ventas:libro_ventas')
+        return redirect_to_dte_list(request)
 
 
 @login_required
@@ -853,7 +954,7 @@ def regenerar_xml_dte(request, dte_id):
         except Exception as e:
             messages.error(request, f'Error al regenerar XML: {str(e)}')
             import traceback
-            return redirect(reverse('ventas:libro_ventas') + f'#row-{dte.id}')
+            return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
     if dte.tipo_dte == '52':
         transferencia = getattr(dte, 'transferencias', None)
@@ -861,7 +962,7 @@ def regenerar_xml_dte(request, dte_id):
             transferencia = transferencia.first()
         if not transferencia:
             messages.error(request, 'Esta guía no está asociada a una transferencia. No se puede regenerar el XML.')
-            return redirect('facturacion_electronica:dte_list')
+            return redirect_to_dte_list(request)
         try:
             from facturacion_electronica.dte_generator import DTEXMLGenerator
             from facturacion_electronica.firma_electronica import FirmadorDTE
@@ -959,10 +1060,10 @@ def regenerar_xml_dte(request, dte_id):
             messages.success(request, f'XML de la Guía folio {dte.folio} regenerado correctamente. Ya puede enviarla al SII.')
         except Exception as e:
             messages.error(request, f'Error al regenerar XML de la guía: {str(e)}')
-        return redirect(reverse('ventas:libro_ventas') + f'#row-{dte.id}')
+        return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
     messages.error(request, 'Solo se puede regenerar XML de Boletas (39) o Guías de Despacho (52) asociadas a una transferencia.')
-    return redirect(reverse('ventas:libro_ventas') + f'#row-{dte.id}')
+    return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
 
 @login_required
@@ -995,4 +1096,40 @@ def enviar_gdexpress_directo(request, dte_id):
     except Exception as e:
         messages.error(request, f'Error: {str(e)}')
         import traceback
-    return redirect(reverse('ventas:libro_ventas') + f'#row-{dte.id}')
+    return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
+
+
+@login_required
+@requiere_empresa
+def sincronizar_pendientes_sii(request):
+    """
+    Envía todos los DTEs pendientes al SII en segundo plano usando BackgroundDTESender.
+    Se puede llamar vía GET (redirección) o vía AJAX (JSON).
+    """
+    from .background_sender import get_background_sender
+    
+    # Obtener DTEs pendientes de la empresa
+    dtes_pendientes = DocumentoTributarioElectronico.objects.filter(
+        empresa=request.empresa,
+        estado_sii__in=['pendiente', 'generado', 'firmado', 'error', 'rechazado']
+    ).exclude(estado_sii__in=['enviado', 'aceptado', 'anulado'])
+    
+    count = dtes_pendientes.count()
+    
+    if count > 0:
+        sender = get_background_sender()
+        dtes_ids = list(dtes_pendientes.values_list('id', flat=True))
+        sender.enviar_multiples(dtes_ids, request.empresa.id)
+        
+        msg = f'Se han encolado {count} documentos para envío al SII en segundo plano.'
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': msg, 'count': count})
+        
+        messages.success(request, f'✅ {msg}')
+    else:
+        msg = 'No hay documentos pendientes para enviar.'
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': msg, 'count': 0})
+        messages.info(request, msg)
+        
+    return redirect_to_dte_list(request)

@@ -743,6 +743,20 @@ class DocumentoTributarioElectronico(models.Model):
     def __str__(self):
         return f"{self.get_tipo_dte_display()} Folio {self.folio}"
 
+    def get_tipo_slug(self):
+        """Retorna un slug simplificado (factura, boleta, guia, etc.)"""
+        if self.tipo_dte in ['33', '34']:
+            return 'factura'
+        if self.tipo_dte in ['39', '41']:
+            return 'boleta'
+        if self.tipo_dte == '52':
+            return 'guia'
+        if self.tipo_dte == '61':
+            return 'notacredito'
+        if self.tipo_dte == '56':
+            return 'notadebito'
+        return 'ticket'
+
 
 class EnvioDTE(models.Model):
     """Control de envíos masivos de DTE al SII"""

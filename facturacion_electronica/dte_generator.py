@@ -6,6 +6,7 @@ from lxml import etree
 from datetime import datetime
 from decimal import Decimal
 from django.utils import timezone
+from facturacion_electronica.models import DocumentoTributarioElectronico
 
 
 class DTEXMLGenerator:
@@ -166,128 +167,72 @@ class DTEXMLGenerator:
         # Obtener fecha de emisión según el tipo de documento
         from ventas.models import Venta
         from pedidos.models import OrdenDespacho
-        from facturacion_electronica.models import DocumentoTributarioElectronico
         
         # PRIORIDAD DE FECHA PARA EL XML (CRÍTICO PARA CAJA)
         if isinstance(self.documento, DocumentoTributarioElectronico):
             fecha_emision = self.documento.fecha_emision
-        elif isinstance(self.documento, Venta):
-            # Priorizar 'fecha' (sobrescrita por caja) sobre 'fecha_creacion' (original del ticket)
-            fecha_emision = self.documento.fecha or self.documento.fecha_creacion
-        elif isinstance(self.documento, OrdenDespacho):
-            fecha_emision = self.documento.fecha_despacho
-        else:
-            fecha_emision = getattr(self.documento, 'fecha', None) or getattr(self.documento, 'fecha_emision', None) or getattr(self.documento, 'fecha_creacion', None)
-        
+        elif hasattr(self.documento, 'fecha'):
+            fecha_emision = self.documento.fecha
+            
         if fecha_emision:
-            # Si la fecha es un datetime con timezone, convertir a fecha de Chile
             from django.utils import timezone
             import pytz
             
-            if hasattr(fecha_emision, 'tzinfo') and fecha_emision.tzinfo:
-                # Es un datetime con timezone, convertir a Chile
-                chile_tz = pytz.timezone('America/Santiago')
+            # Asegurar que la fecha esté en la zona horaria de Chile
+            chile_tz = pytz.timezone('America/Santiago')
+            if hasattr(fecha_emision, 'astimezone'):
                 fecha_chile = fecha_emision.astimezone(chile_tz).date()
                 etree.SubElement(id_doc, "FchEmis").text = fecha_chile.strftime('%Y-%m-%d')
             else:
-                # Es una fecha simple o datetime naive
                 etree.SubElement(id_doc, "FchEmis").text = fecha_emision.strftime('%Y-%m-%d')
         else:
-            # Si no hay fecha, usar la fecha actual en zona horaria de Chile
             from django.utils import timezone
             import pytz
-            
-            # Obtener la fecha actual en Chile
             chile_tz = pytz.timezone('America/Santiago')
             fecha_chile = timezone.now().astimezone(chile_tz).date()
-            
             etree.SubElement(id_doc, "FchEmis").text = fecha_chile.strftime('%Y-%m-%d')
         
-        # Indicador de servicio (OBLIGATORIO para boletas, opcional para facturas)
-        # 3 = Boletas de venta y servicios
+        # Indicador de servicio (OBLIGATORIO para boletas)
         if self.tipo_dte in ['39', '41']:
-            etree.SubElement(id_doc, "IndServicio").text = "3"  # Obligatorio para boletas
+            etree.SubElement(id_doc, "IndServicio").text = "3"
         
-        # IndTraslado (OBLIGATORIO para Guías de Despacho tipo 52) - PRIMERO para tipo 52 (como KreaDTE)
-        # Debe ir en IdDoc, NO en Transporte
-        if self.tipo_dte == '52':
-            # Buscar el tipo de traslado en diferentes campos posibles
-            ind_traslado = None
-            
-            # 1. Intentar desde tipo_traslado (DocumentoTributarioElectronico)
-            if hasattr(self.documento, 'tipo_traslado') and self.documento.tipo_traslado:
-                ind_traslado = self.documento.tipo_traslado
-                print(f"[DTE Generator] IndTraslado desde tipo_traslado: {ind_traslado}")
-            
-            # 2. Intentar desde tipo_despacho (Venta)
-            elif hasattr(self.documento, 'tipo_despacho') and self.documento.tipo_despacho:
-                ind_traslado = self.documento.tipo_despacho
-                print(f"[DTE Generator] IndTraslado desde tipo_despacho: {ind_traslado}")
-            
-            # 3. Intentar desde venta asociada (si el documento es un DTE)
+        # ORDEN ESTRICTO SII para IDDOC
+        # 1. FmaPago (Si corresponde)
+        if self.tipo_dte not in ['39', '41']:
+            forma_pago = "1"
+            if hasattr(self.documento, 'forma_pago') and self.documento.forma_pago:
+                forma_pago = str(self.documento.forma_pago)
             elif hasattr(self.documento, 'venta') and self.documento.venta:
-                if hasattr(self.documento.venta, 'tipo_despacho') and self.documento.venta.tipo_despacho:
-                    ind_traslado = self.documento.venta.tipo_despacho
-                    print(f"[DTE Generator] IndTraslado desde venta.tipo_despacho: {ind_traslado}")
-            
-            # 4. ERROR CRÍTICO: NO usar valor por defecto
-            if not ind_traslado:
-                error_msg = (
-                    "ERROR CRÍTICO: No se pudo determinar el tipo de traslado (IndTraslado) para la Guía de Despacho. "
-                    "Este campo es OBLIGATORIO y afecta las obligaciones tributarias. "
-                    "DEBE seleccionar el tipo de guía en el formulario: "
-                    "1=Venta, 2=Venta por efectuar, 3=Consignación, 4=Devolución, "
-                    "5=Traslado interno, 6=Transformación, 7=Entrega gratuita, 8=Otros"
-                )
-                print(f"[DTE Generator] {error_msg}")
-                raise ValueError(error_msg)
-            
-            # TipoDespacho e IndTraslado (Compatibilidad DTEBox / KreaDTE)
-            # IndTraslado es OBLIGATORIO para Guías (52)
-            # No duplicar tags si se vuelven a procesar
-            if id_doc.find('IndTraslado') is None and id_doc.find('{http://www.sii.cl/SiiDte}IndTraslado') is None:
-                etree.SubElement(id_doc, "IndTraslado").text = str(ind_traslado)
-            
-            # TipoDespacho es OPCIONAL y solo acepta valores 1, 2, 3. 
-            # Evitamos enviarlo si no tenemos un valor válido para no colapsar DTEBox (Error 500).
-            if str(ind_traslado) in ['1', '2', '3'] and id_doc.find('TipoDespacho') is None and id_doc.find('{http://www.sii.cl/SiiDte}TipoDespacho') is None:
-                etree.SubElement(id_doc, "TipoDespacho").text = str(ind_traslado)
-        
-        # Forma de pago - NO incluir para boletas (39, 41) NI para guías (52) - solo facturas/notas
-        # Para facturas y notas: 1=Contado, 2=Crédito
-        if self.tipo_dte not in ['39', '41', '52']:
-            from ventas.models import Venta
-            from facturacion_electronica.models import DocumentoTributarioElectronico
-            forma_pago = "1"  # Default: Contado
-            
-            # Intentar obtener desde la venta asociada
-            if isinstance(self.documento, Venta) and hasattr(self.documento, 'forma_pago') and self.documento.forma_pago:
-                forma_pago = "2" if self.documento.forma_pago.es_cuenta_corriente else "1"
-            elif isinstance(self.documento, DocumentoTributarioElectronico):
-                # Si es un DTE, buscar la venta asociada
-                if hasattr(self.documento, 'venta') and self.documento.venta:
-                    venta = self.documento.venta
-                    if hasattr(venta, 'forma_pago') and venta.forma_pago:
-                        forma_pago = "2" if venta.forma_pago.es_cuenta_corriente else "1"
+                v = self.documento.venta
+                if hasattr(v, 'forma_pago') and v.forma_pago:
+                    forma_pago = "2" if getattr(v.forma_pago, 'es_credito', False) else "1"
             
             etree.SubElement(id_doc, "FmaPago").text = forma_pago
-        
-        # Fecha de vencimiento (si es crédito) - NO incluir en tipo 52 según ejemplo exitoso
-        from ventas.models import Venta
-        if self.tipo_dte != '52' and isinstance(self.documento, Venta) and hasattr(self.documento, 'fecha_vencimiento') and self.documento.fecha_vencimiento:
+
+        # 2. TipoDespacho e IndTraslado (Solo para Guías 52)
+        if self.tipo_dte == '52':
+            tipo_despacho = '3'
+            if hasattr(self.documento, 'tipo_despacho') and self.documento.tipo_despacho:
+                tipo_despacho = str(self.documento.tipo_despacho)
+            etree.SubElement(id_doc, "TipoDespacho").text = tipo_despacho
+            
+            ind_traslado = '1'
+            if hasattr(self.documento, 'tipo_traslado') and self.documento.tipo_traslado:
+                ind_traslado = str(self.documento.tipo_traslado)
+            elif hasattr(self.documento, 'tipo_despacho') and self.documento.tipo_despacho:
+                ind_traslado = str(self.documento.tipo_despacho)
+            etree.SubElement(id_doc, "IndTraslado").text = ind_traslado
+
+        # 3. FchVenc (Si corresponde y NO es guía)
+        if self.tipo_dte != '52' and hasattr(self.documento, 'fecha_vencimiento') and self.documento.fecha_vencimiento:
             etree.SubElement(id_doc, "FchVenc").text = self.documento.fecha_vencimiento.strftime('%Y-%m-%d')
 
-        
-        # Emisor
+        # Emisor, Receptor, Transporte
         self._generar_emisor(encabezado)
-        
-        # Receptor
         self._generar_receptor(encabezado)
-        
-        # Transporte (solo para guías de despacho)
-        if incluir_transporte:
+        if incluir_transporte and self.tipo_dte == '52':
             self._generar_transporte(encabezado)
-        
+            
         return encabezado
     
     def _generar_transporte(self, encabezado):
@@ -306,11 +251,19 @@ class DTEXMLGenerator:
             comuna = getattr(self.documento, 'comuna_receptor', '')
             ciudad = getattr(self.documento, 'ciudad_receptor', 'SANTIAGO')
 
-            # Si no hay datos en el documento, intentar desde la relación cliente si existe
-            if not direccion and hasattr(self.documento, 'cliente') and self.documento.cliente:
-                direccion = self.documento.cliente.direccion
-                comuna = self.documento.cliente.comuna
-                ciudad = getattr(self.documento.cliente, 'ciudad', 'SANTIAGO')
+            # Si no hay datos en el documento, intentar desde la relación cliente o transferencia
+            if not direccion:
+                if hasattr(self.documento, 'cliente') and self.documento.cliente:
+                    direccion = self.documento.cliente.direccion
+                    comuna = self.documento.cliente.comuna
+                    ciudad = getattr(self.documento.cliente, 'ciudad', 'SANTIAGO')
+                elif isinstance(self.documento, DocumentoTributarioElectronico):
+                    transf = self.documento.transferencias.first()
+                    if transf and transf.bodega_destino and transf.bodega_destino.sucursal:
+                        suc = transf.bodega_destino.sucursal
+                        direccion = suc.direccion
+                        comuna = suc.comuna
+                        ciudad = suc.ciudad
 
             etree.SubElement(transporte, "DirDest").text = (direccion or 'DIRECCION DESCONOCIDA')[:70]
             etree.SubElement(transporte, "CmnaDest").text = (comuna or 'COMUNA DESCONOCIDA')[:20]
@@ -417,6 +370,27 @@ class DTEXMLGenerator:
                 direccion = cliente.direccion or ''
                 comuna = cliente.comuna if isinstance(cliente.comuna, str) else ''
 
+        # Si el documento es un DTE que proviene de una transferencia
+        if not rut_receptor and isinstance(self.documento, DocumentoTributarioElectronico):
+            transf = self.documento.transferencias.first()
+            if transf:
+                # El receptor es la bodega de destino
+                bodega_dest = transf.bodega_destino
+                if bodega_dest:
+                    rut_receptor = self.empresa.rut # Transferencia interna, mismo RUT
+                    razon_social = self.empresa.razon_social
+                    giro = self.empresa.giro_sii or self.empresa.giro or 'TRASLADO INTERNO'
+                    
+                    # Primero intentar obtener dirección de la SUCURSAL de la bodega
+                    if bodega_dest.sucursal:
+                        # Si la sucursal tiene datos, usarlos
+                        direccion = bodega_dest.sucursal.direccion or self.empresa.direccion
+                        comuna = bodega_dest.sucursal.comuna or self.empresa.comuna
+                    else:
+                        # Fallback a datos de empresa (aunque usualmente las bodegas tienen sucursal)
+                        direccion = self.empresa.direccion
+                        comuna = self.empresa.comuna
+        
         # Si no hay datos en el DTE, intentar obtenerlos desde la relación 'cliente'
         if not rut_receptor and hasattr(self.documento, 'cliente') and self.documento.cliente:
             cliente = self.documento.cliente
@@ -456,10 +430,14 @@ class DTEXMLGenerator:
         if contacto:
             etree.SubElement(receptor, "Contacto").text = str(contacto)[:80]
         
-        if direccion:
-            etree.SubElement(receptor, "DirRecep").text = direccion[:70]
-        if comuna:
-            etree.SubElement(receptor, "CmnaRecep").text = comuna[:20]
+        # Dirección y Comuna (OBLIGATORIOS para facturas y guías)
+        if not direccion:
+            direccion = 'DIRECCION NO DISPONIBLE'
+        if not comuna:
+            comuna = 'COMUNA NO DISPONIBLE'
+            
+        etree.SubElement(receptor, "DirRecep").text = direccion[:70]
+        etree.SubElement(receptor, "CmnaRecep").text = comuna[:20]
         # CiudadRecep - incluir para facturas y guías (KreaDTE)
         ciudad_recep = 'SANTIAGO'  # Default
         if hasattr(self.documento, 'cliente') and self.documento.cliente:
@@ -533,7 +511,6 @@ class DTEXMLGenerator:
     def _generar_detalles(self, documento):
         """Genera los detalles (items) del documento"""
         from ventas.models import Venta, NotaCredito
-        from facturacion_electronica.models import DocumentoTributarioElectronico
         from pedidos.models import OrdenDespacho
 
         items = []
@@ -543,11 +520,13 @@ class DTEXMLGenerator:
             # Primero intentar con la venta directa
             if hasattr(self.documento, 'venta') and self.documento.venta:
                 items = self.documento.venta.ventadetalle_set.all()
-            # Si no hay venta directa, intentar con orden_despacho
-            elif self.documento.orden_despacho.exists():
-                venta_asociada = self.documento.orden_despacho.first()
                 if venta_asociada and hasattr(venta_asociada, 'ventadetalle_set'):
                     items = venta_asociada.ventadetalle_set.all()
+            # Si no hay ninguna de las anteriores, intentar con transferencias
+            elif self.documento.transferencias.exists():
+                transf = self.documento.transferencias.first()
+                if transf:
+                    items = transf.detalles.all()
         elif isinstance(self.documento, Venta):
             items = self.documento.ventadetalle_set.all()
         elif isinstance(self.documento, NotaCredito):

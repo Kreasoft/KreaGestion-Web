@@ -7,10 +7,11 @@
     <title>Boleta Electrónica - {{ dte.folio|default:venta.numero_venta }}</title>
 
     {% load format_filters %}
+    {% load static %}
 
     <style>
         @page {
-            size: 80mm auto;
+            size: 75mm auto;
             margin: 0;
         }
 
@@ -25,7 +26,7 @@
             font-size: 9pt;
             line-height: 1.2;
             color: #000;
-            width: 80mm;
+            width: 75mm;
             margin: 0 auto;
             padding: 2mm;
             background: white;
@@ -187,9 +188,12 @@
         }
 
         .timbre-img {
-            max-width: 60mm;
+            width: 60mm;
             height: auto;
-            margin: 2mm 0;
+            max-height: 35mm;
+            object-fit: contain;
+            margin: 1mm auto;
+            display: block;
         }
 
         .timbre-info {
@@ -226,7 +230,8 @@
 </head>
 
 <body>
-    <div class="ticket-container">
+    {% for i in copias_range %}
+    <div class="ticket-container {% if not forloop.last %}page-break{% endif %}">
 
         <!-- CABECERA -->
         <div class="header">
@@ -383,6 +388,7 @@
         </div>
 
     </div>
+    {% endfor %}
 
     <!-- Botones de acción (solo en pantalla) -->
     <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
@@ -396,6 +402,12 @@
         </button>
     </div>
 
+    <!-- QZ Tray y dependencias -->
+    <script src="https://cdn.jsdelivr.net/npm/dependencies/rsvp-3.1.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dependencies/sha-256.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/qz-tray/qz-tray.js"></script>
+    <script src="{% static 'js/qz_interface.js' %}"></script>
+
     <script>
         // Parámetros URL globales
         const urlParams = new URLSearchParams(window.location.search);
@@ -403,64 +415,86 @@
         const autoClose = urlParams.get('autoclose');
         const autoCloseDelay = parseInt(urlParams.get('autoclose_delay')) || 3000;
         const returnUrl = urlParams.get('return_url');
+        const nCopiasConfig = parseInt("{{ n_copias|default:1 }}") || 1;
 
-        console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl });
+        console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl, nCopiasConfig });
 
         function safeCloseWindow() {
-            // Notificar al padre si existe
-            try {
-                if (window.opener && window.opener !== window && !window.opener.closed) {
-                    window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
-                }
-            } catch (e) { console.log('No se pudo notificar al padre:', e); }
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            const referrer = document.referrer;
 
-            console.log('[DTE AUTO] Cerrando ventana...');
+            console.log('[DTE] Cerrando ventana vinculada al POS...');
 
-            // Si es un popup (tiene window.opener), cerrarlo directamente
+            // SI HAY OPENER (POPUP), CERRAR INSTANTÁNEAMENTE PARA NO RECARGAR EL POS
             if (window.opener) {
-                console.log('[DTE AUTO] Es un popup - cerrando...');
-                try { window.close(); } catch(e) {}
+                try {
+                    window.close();
+                    setTimeout(() => {
+                        if (!window.closed) {
+                            if (returnUrl) window.location.href = decodeURIComponent(returnUrl);
+                            else window.close();
+                        }
+                    }, 100);
+                } catch (e) { console.log(e); }
                 return;
             }
 
-            // PRIORIDAD: Si hay return_url, SIEMPRE ir ahí (para emisión directa desde POS)
+            // PRIORIDAD: return_url
             if (returnUrl) {
-                console.log('[DTE AUTO] Volviendo a return_url:', returnUrl);
                 window.location.href = decodeURIComponent(returnUrl);
                 return;
             }
 
             // Fallback: usar referrer si viene del POS
-            const referrer = document.referrer;
             if (referrer && referrer.includes('/pos/')) {
                 console.log('[DTE AUTO] Volviendo al POS (referrer)');
                 window.location.href = referrer;
                 return;
             }
             
-            if (referrer && (referrer.includes('/dte/') || referrer.includes('/facturacion-electronica/'))) {
-                console.log('[DTE AUTO] Volviendo al Libro de Ventas');
+            // Fallback: volver atrás
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                console.log('[DTE AUTO] Fallback a Libro de Ventas');
                 window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-                return;
             }
-            
-            // Último fallback: ir a Caja (comportamiento POS)
-            console.log('[DTE AUTO] Fallback a Caja');
-            window.location.href = "{% url 'caja:procesar_venta_buscar' %}";
         }
 
         // Auto-ejecución
         if (autoPrint === '1') {
             window.addEventListener('load', function () {
                 console.log('[DTE AUTO] Iniciando impresión automática...');
-                setTimeout(function () {
-                    window.print();
+                
+                // Intentar usar QZ Tray si está disponible y configurado
+                if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
+                    console.log('[DTE AUTO] Usando QZ Tray para ' + nCopiasConfig + ' copias...');
+                    QZ_Printers.printHTML(document.body.innerHTML, nCopiasConfig)
+                        .then(() => {
+                            if (autoClose === '1') {
+                                setTimeout(safeCloseWindow, 500);
+                            }
+                        })
+                        .catch(err => {
+                            console.error('[DTE AUTO] Error QZ:', err);
+                            // Fallback a window.print
+                            window.print();
+                            if (autoClose === '1') {
+                                setTimeout(safeCloseWindow, autoCloseDelay);
+                            }
+                        });
+                } else {
+                    // Fallback estándar
+                    setTimeout(function () {
+                        window.print();
 
-                    if (autoClose === '1') {
-                        console.log('[DTE AUTO] Cierre programado en ' + autoCloseDelay + 'ms');
-                        setTimeout(safeCloseWindow, autoCloseDelay);
-                    }
-                }, 500);
+                        if (autoClose === '1') {
+                            console.log('[DTE AUTO] Cierre programado en ' + autoCloseDelay + 'ms');
+                            setTimeout(safeCloseWindow, autoCloseDelay);
+                        }
+                    }, 500);
+                }
             });
         }
     </script>

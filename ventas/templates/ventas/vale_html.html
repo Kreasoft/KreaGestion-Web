@@ -382,56 +382,42 @@
     </div>
     
     <script>
-        // Función para cerrar/volver - SOLUCIÓN DIRECTA
+        // Función para cerrar/volver - MÁXIMA ROBUSTEZ
         function cerrarVentana() {
-            console.log('cerrarVentana llamado');
+            const posUrl = "{% url 'ventas:pos_view' %}";
+            const params = new URLSearchParams(window.location.search);
+            const returnUrlParam = params.get('return_url');
+            const targetUrl = returnUrlParam ? decodeURIComponent(returnUrlParam) : posUrl;
             
-            // Intentar cerrar si fue abierta por otra ventana
-            if (window.opener && window.opener !== window && !window.opener.closed) {
+            console.log('Cerrando ventana. Destino:', targetUrl);
+            
+            // Intento 1: window.close()
+            // Solo funciona si la ventana fue abierta por JS (window.open)
+            if (window.opener) {
                 try {
                     window.close();
-                    return;
+                    // Si llegamos aquí y no se cerró (pasa en algunos navegadores), procedemos al redirect
                 } catch(e) {
-                    console.log('No se pudo cerrar ventana:', e);
+                    console.log('Error al intentar window.close():', e);
                 }
             }
             
-            // Obtener parámetros URL
-            const params = new URLSearchParams(window.location.search);
-            const volverCaja = params.get('volver_caja') === '1';
-            const returnUrl = params.get('return_url');
-            
-            // URL de caja y POS
-            const cajaUrl = "{% url 'caja:procesar_venta_buscar' %}";
-            const posUrl = "{% url 'ventas:pos_view' %}";
-            
-            // CRÍTICO: Los vales facturables SIEMPRE deben retornar al POS, no a la caja
-            // Si hay return_url, usarlo (debería ser POS cuando viene desde caja procesando un vale)
-            if (returnUrl) {
-                console.log('Redirigiendo a return_url:', returnUrl);
-                window.location.href = decodeURIComponent(returnUrl);
-            } else if (volverCaja) {
-                // Si viene con volver_caja=1 pero no hay return_url, ir a POS (vales siempre van al POS)
-                console.log('Redirigiendo al POS (vale facturable)');
-                window.location.href = posUrl;
-            } else {
-                // Fallback: ir al POS (vales siempre van al POS)
-                console.log('Redirigiendo al POS (fallback)');
-                window.location.href = posUrl;
-            }
+            // Intento 2: Redirección inmediata
+            // Esto asegura que la pestaña vuelva al sistema si no se pudo cerrar
+            setTimeout(() => {
+                window.location.replace(targetUrl);
+            }, 100);
         }
         
-        // Configurar botón cerrar
+        // Configuraciones iniciales
         document.addEventListener('DOMContentLoaded', function() {
+            // Vincular botón cerrar
             const btnCerrar = document.getElementById('btnCerrar');
             if (btnCerrar) {
-                btnCerrar.onclick = function(e) {
+                btnCerrar.addEventListener('click', function(e) {
                     e.preventDefault();
-                    e.stopPropagation();
                     cerrarVentana();
-                    return false;
-                };
-                console.log('Botón cerrar configurado');
+                });
             }
         });
         
@@ -462,19 +448,16 @@
                 console.log('Auto-impresión activada');
                 setTimeout(function() {
                     try {
-                        window.print();
-                        
-                        // Si autoclose está activo, cerrar después del delay
+                        // Programar el cierre si autoclose está activo ANTES de imprimir
+                        // para que el timer corra aunque el diálogo de impresión bloquee el hilo
                         if (autoClose === '1') {
-                            console.log('Programando cierre en', autoCloseDelay, 'ms');
-                            setTimeout(function() {
-                                console.log('Cerrando/redirigiendo automáticamente...');
-                                cerrarVentana();
-                            }, autoCloseDelay);
+                            console.log('Programando cierre automático en', autoCloseDelay, 'ms');
+                            setTimeout(cerrarVentana, autoCloseDelay);
                         }
+                        
+                        window.print();
                     } catch(e) {
                         console.log('Error al imprimir:', e);
-                        // Si hay error, redirigir de todos modos
                         cerrarVentana();
                     }
                 }, 150);

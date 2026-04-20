@@ -714,3 +714,14 @@ def hoja_ruta_exportar_excel(request, pk):
     wb.save(response)
     return response
 
+
+@login_required
+@requiere_empresa
+@require_http_methods(["GET"])
+def ajax_rutas_lista(request):
+    """Obtener lista de todas las rutas activas de la empresa"""
+    try:
+        rutas = Ruta.objects.filter(empresa=request.empresa, activo=True).values('id', 'codigo', 'nombre')
+        return JsonResponse({'success': True, 'rutas': list(rutas)})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)

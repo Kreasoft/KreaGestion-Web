@@ -269,9 +269,27 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-4">
                     <div>
-                        <h1 class="h3 mb-0 text-gray-800">
+                        <h1 class="h3 mb-0 text-gray-800 d-flex align-items-center gap-2">
                             <i class="fas fa-tachometer-alt" style="color: #1E40AF;"></i>
                             Dashboard
+                            {% if GLOBAL_GUIAS_PENDIENTES_COUNT > 0 %}
+                            <a href="{% url 'ventas:facturar_guias_list' %}" 
+                               class="badge {% if GLOBAL_GUIAS_URGENCIA_MES %}bg-danger{% else %}bg-warning text-dark{% endif %} animate__animated animate__pulse animate__infinite text-decoration-none" 
+                               style="font-size: 0.8rem; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                {{ GLOBAL_GUIAS_PENDIENTES_COUNT }} Guías Pendientes
+                            </a>
+                            {% endif %}
+                            
+                            {% for alert in GLOBAL_CAF_ALERTS %}
+                            <a href="{% url 'facturacion_electronica:caf_list' %}" 
+                               class="badge bg-{{ alert.urgencia }} animate__animated animate__pulse animate__infinite text-decoration-none ms-1" 
+                               style="font-size: 0.8rem; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
+                               title="{{ alert.detalle }}">
+                                <i class="fas fa-file-invoice me-1"></i>
+                                {{ alert.mensaje }}
+                            </a>
+                            {% endfor %}
                         </h1>
                         <p class="text-muted mb-0 small">Gestión Empresarial</p>
                     </div>
@@ -424,7 +442,7 @@
             <div class="card card-stats-pastel-azul card-stats-pastel-text shadow-sm border-0 h-100" style="border-radius: 16px; position: relative; overflow: hidden; min-height: 140px;">
                 <div class="card-body p-4" style="position: relative; z-index: 2;">
                     <div class="card-title text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1.5px; font-weight: 700; opacity: 0.8;">Total Artículos</div>
-                    <h2 class="mb-0 fw-bold" style="font-size: 2.5rem; color: #2D3748; letter-spacing: -1px;">{{ total_articulos|format_miles }}</h2>
+                    <h2 class="mb-0 fw-bold" style="font-size: 1.8rem; color: #2D3748; letter-spacing: -1px;">{{ total_articulos|format_miles }}</h2>
                     <div class="mt-2">
                         <span class="badge bg-white bg-opacity-50 text-dark px-3" style="font-size: 0.7rem; border-radius: 20px;">Catálogo Base</span>
                     </div>
@@ -440,7 +458,7 @@
             <div class="card card-stats-pastel-terracota card-stats-pastel-text shadow-sm border-0 h-100" style="border-radius: 16px; position: relative; overflow: hidden; min-height: 140px;">
                 <div class="card-body p-4" style="position: relative; z-index: 2;">
                     <div class="card-title text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1.5px; font-weight: 700; opacity: 0.8;">Ventas (30d)</div>
-                    <h2 class="mb-0 fw-bold" style="font-size: 2.5rem; color: #2D3748; letter-spacing: -1px;">${{ ventas_mes|format_miles }}</h2>
+                    <h2 class="mb-0 fw-bold" style="font-size: 1.8rem; color: #2D3748; letter-spacing: -1px;">${{ ventas_mes|format_miles }}</h2>
                     <div class="mt-2">
                         <span class="badge bg-white bg-opacity-50 text-dark px-3" style="font-size: 0.7rem; border-radius: 20px;">Flujo Mensual</span>
                     </div>
@@ -456,7 +474,7 @@
             <div class="card card-stats-pastel-azul card-stats-pastel-text shadow-sm border-0 h-100" style="border-radius: 16px; position: relative; overflow: hidden; min-height: 140px;">
                 <div class="card-body p-4" style="position: relative; z-index: 2;">
                     <div class="card-title text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1.5px; font-weight: 700; opacity: 0.8;">Clientes Activos</div>
-                    <h2 class="mb-0 fw-bold" style="font-size: 2.5rem; color: #2D3748; letter-spacing: -1px;">{{ total_clientes|format_miles }}</h2>
+                    <h2 class="mb-0 fw-bold" style="font-size: 1.8rem; color: #2D3748; letter-spacing: -1px;">{{ total_clientes|format_miles }}</h2>
                     <div class="mt-2 text-success fw-bold" style="font-size: 0.75rem;">
                         <i class="fas fa-arrow-up me-1"></i>+{{ clientes_nuevos_mes|format_miles }} este mes
                     </div>
@@ -472,7 +490,7 @@
             <div class="card card-stats-pastel-rosa card-stats-pastel-text shadow-sm border-0 h-100" style="border-radius: 16px; position: relative; overflow: hidden; min-height: 140px;">
                 <div class="card-body p-4" style="position: relative; z-index: 2;">
                     <div class="card-title text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1.5px; font-weight: 700; opacity: 0.8;">Stock Crítico</div>
-                    <h2 class="mb-0 fw-bold" style="font-size: 2.5rem; color: #E53E3E; letter-spacing: -1px;">{{ stock_bajo|format_miles }}</h2>
+                    <h2 class="mb-0 fw-bold" style="font-size: 1.8rem; color: #E53E3E; letter-spacing: -1px;">{{ stock_bajo|format_miles }}</h2>
                     <div class="mt-2">
                         <span class="badge bg-danger bg-opacity-10 text-danger px-3" style="font-size: 0.7rem; border-radius: 20px;">Urgente</span>
                     </div>

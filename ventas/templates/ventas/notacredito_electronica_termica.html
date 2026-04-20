@@ -6,10 +6,11 @@
     <title>Nota de Crédito - {{ dte.folio|default:nota.numero }}</title>
 
     {% load format_filters %}
+    {% load static %}
 
     <style>
         @page {
-            size: 80mm auto;
+            size: 75mm auto;
             margin: 0;
         }
 
@@ -24,7 +25,7 @@
             font-size: 9pt;
             line-height: 1.2;
             color: #000;
-            width: 80mm;
+            width: 75mm;
             margin: 0 auto;
             padding: 2mm;
             background: white;
@@ -201,9 +202,12 @@
         }
 
         .timbre-img {
-            max-width: 60mm;
+            width: 60mm;
             height: auto;
-            margin: 2mm 0;
+            max-height: 35mm;
+            object-fit: contain;
+            margin: 1mm auto;
+            display: block;
         }
 
         .timbre-info {
@@ -239,7 +243,8 @@
     </style>
 </head>
 <body>
-    <div class="ticket-container">
+    {% for i in copias_range %}
+    <div class="ticket-container {% if not forloop.last %}page-break{% endif %}">
 
         <!-- CABECERA -->
         <div class="header">
@@ -314,14 +319,14 @@
 
         <!-- DETALLE DE PRODUCTOS -->
         <div class="productos-section">
-            <div class="productos-header">DETALLE</div>
+            <div class="productos-header">DETALLE DE PRODUCTOS</div>
             {% for detalle in detalles %}
-            <div class="producto-item">
-                <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
-                <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
-                <div class="producto-detalle">
-                    <span class="producto-cantidad">Cant: {{ detalle.cantidad|floatformat:0 }}</span>
-                    <span class="producto-precio">${{ detalle.total|format_miles }}</span>
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.5mm; font-size: 8pt; border-bottom: 1px dotted #ccc; padding-bottom: 1mm;">
+                <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 2mm;">
+                    <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
+                </div>
+                <div style="font-weight: bold; min-width: 15mm; text-align: right;">
+                    ${{ detalle.total|format_miles }}
                 </div>
             </div>
             {% endfor %}
@@ -329,10 +334,10 @@
 
         <!-- TOTALES -->
         <div class="totales-section">
-            {% if nota.neto %}
+            {% if nota.subtotal %}
             <div class="total-row">
-                <span class="total-label">Neto:</span>
-                <span class="total-value">${{ nota.neto|format_miles }}</span>
+                <span class="total-label">Subtotal:</span>
+                <span class="total-value">${{ nota.subtotal|format_miles }}</span>
             </div>
             {% endif %}
             {% if nota.iva %}
@@ -343,7 +348,7 @@
             {% endif %}
             <div class="total-row total-final">
                 <span class="total-label">TOTAL NC:</span>
-                <span class="total-value">${{ nota.monto_total|format_miles }}</span>
+                <span class="total-value">${{ nota.total|format_miles }}</span>
             </div>
         </div>
 
@@ -373,18 +378,26 @@
             Impreso: {{ nota.fecha|date:"d/m/Y" }}<br>
             Este documento anula parcial/totalmente el documento afectado
         </div>
+        {% endif %}
 
     </div>
+    {% endfor %}
 
     <!-- Botones de acción (solo en pantalla) -->
     <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
         <button onclick="window.print()" style="padding: 6px 20px; font-size: 10pt; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; border-radius: 6px; cursor: pointer; margin: 4px; font-weight: 600; box-shadow: 0 2px 6px rgba(139, 115, 85, 0.2);">
             <i class="fas fa-print me-1"></i> Imprimir
         </button>
-        <a href="javascript:history.back()" style="display: inline-block; padding: 6px 20px; font-size: 10pt; background: #FAF8F3; color: #8B7355; border: 1.5px solid #8B7355; border-radius: 6px; cursor: pointer; margin: 4px; text-decoration: none; font-weight: 600;">
+        <button onclick="safeCloseWindow()" style="display: inline-block; padding: 6px 20px; font-size: 10pt; background: #FAF8F3; color: #8B7355; border: 1.5px solid #8B7355; border-radius: 6px; cursor: pointer; margin: 4px; text-decoration: none; font-weight: 600;">
             <i class="fas fa-arrow-left me-1"></i> Volver
-        </a>
+        </button>
     </div>
+
+    <!-- QZ Tray y dependencias -->
+    <script src="https://cdn.jsdelivr.net/npm/dependencies/rsvp-3.1.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dependencies/sha-256.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/qz-tray/qz-tray.js"></script>
+    <script src="{% static 'js/qz_interface.js' %}"></script>
 
     <script>
         // Parámetros URL globales
@@ -393,58 +406,84 @@
         const autoClose = urlParams.get('autoclose');
         const autoCloseDelay = parseInt(urlParams.get('autoclose_delay')) || 2000;
         const returnUrl = urlParams.get('return_url');
+        const nCopiasConfig = parseInt("{{ n_copias|default:1 }}") || 1;
 
-        console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl });
+        console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl, nCopiasConfig });
 
         function safeCloseWindow() {
-            // Notificar al padre si existe
-            try {
-                if (window.opener && window.opener !== window && !window.opener.closed) {
-                    window.opener.postMessage({ kind: 'print_done', dte_id: '{{ dte.id }}' }, window.location.origin);
-                }
-            } catch (e) { console.log('No se pudo notificar al padre:', e); }
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            const referrer = document.referrer;
 
-            console.log('[DTE AUTO] Intentando salir de la vista...');
+            console.log('[DTE] Cerrando ventana vinculada al POS...');
 
-            // PRIORIDAD 1: Si hay return_url
+            // SI HAY OPENER (POPUP), CERRAR INSTANTÁNEAMENTE PARA NO RECARGAR EL POS
+            if (window.opener) {
+                try {
+                    window.close();
+                    setTimeout(() => {
+                        if (!window.closed) {
+                            if (returnUrl) window.location.href = decodeURIComponent(returnUrl);
+                            else window.close();
+                        }
+                    }, 100);
+                } catch (e) { console.log(e); }
+                return;
+            }
+
+            // PRIORIDAD: return_url
             if (returnUrl) {
-                const target = decodeURIComponent(returnUrl);
-                console.log('[DTE AUTO] Redirigiendo a return_url:', target);
-                window.location.href = target;
+                window.location.href = decodeURIComponent(returnUrl);
                 return;
             }
 
-            // PRIORIDAD 2: Si es un popup o pestaña nueva sin historial
-            if (window.opener || window.history.length <= 1) {
-                console.log('[DTE AUTO] Cerrando ventana...');
-                setTimeout(() => {
-                    window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-                }, 500);
-                try { window.close(); } catch(e) { console.log(e); }
+            // Fallback: usar referrer si viene del POS
+            if (referrer && referrer.includes('/pos/')) {
+                console.log('[DTE AUTO] Volviendo al POS (referrer)');
+                window.location.href = referrer;
                 return;
             }
 
-            // PRIORIDAD 3: Historial normal
-            window.history.back();
-            
-            setTimeout(() => {
-                if (!document.hidden) {
-                    window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-                }
-            }, 1000);
+            // Fallback
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
+            }
         }
 
         // Auto-ejecución
         if (autoPrint === '1') {
             window.addEventListener('load', function () {
                 console.log('[DTE AUTO] Iniciando impresión automática...');
-                setTimeout(function () {
-                    window.print();
+                
+                // Intentar usar QZ Tray si está disponible y configurado
+                if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
+                    console.log('[DTE AUTO] Usando QZ Tray para ' + nCopiasConfig + ' copias...');
+                    QZ_Printers.printHTML(document.body.innerHTML, nCopiasConfig)
+                        .then(() => {
+                            if (autoClose === '1') {
+                                setTimeout(safeCloseWindow, 500);
+                            }
+                        })
+                        .catch(err => {
+                            console.error('[DTE AUTO] Error QZ:', err);
+                            // Fallback a window.print
+                            window.print();
+                            if (autoClose === '1') {
+                                setTimeout(safeCloseWindow, autoCloseDelay);
+                            }
+                        });
+                } else {
+                    // Fallback estándar
+                    setTimeout(function () {
+                        window.print();
 
-                    if (autoClose === '1') {
-                        setTimeout(safeCloseWindow, autoCloseDelay);
-                    }
-                }, 800);
+                        if (autoClose === '1') {
+                            setTimeout(safeCloseWindow, autoCloseDelay);
+                        }
+                    }, 800);
+                }
             });
         }
     </script>

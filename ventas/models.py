@@ -370,6 +370,15 @@ class EstacionTrabajo(models.Model):
     max_items_ticket = models.PositiveIntegerField(default=50, verbose_name="Máx. Items Ticket")
     max_items_vale = models.PositiveIntegerField(default=30, verbose_name="Máx. Items Vale")
     
+    # Configuración de copias por documento
+    copias_factura = models.PositiveSmallIntegerField(default=1, verbose_name="Copias Factura")
+    copias_boleta = models.PositiveSmallIntegerField(default=1, verbose_name="Copias Boleta")
+    copias_guia = models.PositiveSmallIntegerField(default=1, verbose_name="Copias Guía")
+    copias_notacredito = models.PositiveSmallIntegerField(default=1, verbose_name="Copias Nota Crédito")
+    copias_cotizacion = models.PositiveSmallIntegerField(default=1, verbose_name="Copias Cotización")
+    copias_ticket = models.PositiveSmallIntegerField(default=1, verbose_name="Copias Ticket")
+    copias_vale = models.PositiveSmallIntegerField(default=1, verbose_name="Copias Vale")
+    
     # Modo de operación del POS
     modo_pos = models.CharField(
         max_length=20,
@@ -452,6 +461,21 @@ class EstacionTrabajo(models.Model):
             'vale': self.max_items_vale,
         }
         return max_items.get(tipo_documento, 20)
+    
+    def get_copias_por_tipo(self, tipo_documento):
+        """Retorna la cantidad de copias configurada para un tipo de documento"""
+        # Normalizar tipo
+        t = (tipo_documento or '').lower()
+        copias = {
+            'factura': self.copias_factura,
+            'boleta': self.copias_boleta,
+            'guia': self.copias_guia,
+            'notacredito': self.copias_notacredito,
+            'cotizacion': self.copias_cotizacion,
+            'ticket': self.copias_ticket,
+            'vale': self.copias_vale,
+        }
+        return copias.get(t, 1) or 1
     
     def get_correlativo_ticket(self):
         """Retorna el correlativo actual de ticket de la estación"""

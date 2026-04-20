@@ -237,10 +237,9 @@ def documento_compra_create(request):
                 # Calcular totales
                 documento.calcular_totales()
                 
-                # Si hay OC asociada, marcarla como completada
+                # Si hay OC asociada, recalcular su estado inteligentemente
                 if documento.orden_compra:
-                    documento.orden_compra.estado_orden = 'completada'
-                    documento.orden_compra.save()
+                    documento.orden_compra.recalcular_estado()
                 
                 messages.success(request, f'Documento {documento.get_tipo_documento_display()} {documento.numero_documento} creado exitosamente.')
                 return redirect('documentos:documento_compra_list')
@@ -382,6 +381,10 @@ def documento_compra_update(request, pk):
                 # Calcular totales
                 documento.calcular_totales()
                 
+                # Si hay OC asociada, recalcular su estado
+                if documento.orden_compra:
+                    documento.orden_compra.recalcular_estado()
+                
                 messages.success(request, f'Documento {documento.get_tipo_documento_display()} {documento.numero_documento} actualizado exitosamente.')
                 return redirect('documentos:documento_compra_list')
             except Exception as e:
@@ -448,7 +451,14 @@ def documento_compra_delete(request, pk):
     if request.method == 'POST':
         tipo_doc = documento.get_tipo_documento_display()
         numero_doc = documento.numero_documento
+        orden_asociada = documento.orden_compra
+        
         documento.delete()
+        
+        # Si había una OC asociada, recalcular su estado tras la eliminación del documento
+        if orden_asociada:
+            orden_asociada.recalcular_estado()
+            
         messages.success(request, f'Documento {tipo_doc} {numero_doc} eliminado exitosamente.')
         return redirect('documentos:documento_compra_list')
     

@@ -292,10 +292,8 @@ def edicion_manual_inventario(request):
 @requiere_empresa
 def obtener_articulos_para_inventario(request):
     """
-    API para obtener artículos con su stock actual
+    API para obtener artículos con su stock actual (usada por inicialización y Select2)
     """
-    if not request.user.is_superuser:
-        return JsonResponse({'error': 'No tiene permisos'}, status=403)
     
     bodega_id = clean_id(request.GET.get('bodega_id'))
     if not bodega_id:

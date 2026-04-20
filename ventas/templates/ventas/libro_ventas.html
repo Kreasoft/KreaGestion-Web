@@ -19,6 +19,62 @@
         --shadow-piedra: 0 10px 30px rgba(139, 115, 85, 0.1);
     }
 
+    @media print {
+        @page {
+            size: landscape;
+            margin: 1cm;
+        }
+        .sidebar, .navbar, .btn, .filter-section, .nav-tabs, .hide-print {
+            display: none !important;
+        }
+        body {
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .container-fluid {
+            width: 100% !important;
+            padding: 0 !important;
+        }
+        .card-piedra {
+            box-shadow: none !important;
+            border: none !important;
+        }
+        .table-premium {
+            width: 100% !important;
+            border-collapse: collapse !important;
+        }
+        .table-premium th {
+            background: #f8f9fa !important;
+            color: black !important;
+            border-bottom: 2px solid black !important;
+            font-size: 10pt !important;
+        }
+        .table-premium td {
+            font-size: 9pt !important;
+            border-bottom: 1px solid #eee !important;
+        }
+        .stat-card {
+            display: none !important;
+        }
+        .print-header {
+            display: block !important;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .print-header h1 {
+            font-size: 18pt;
+            margin-bottom: 5px;
+        }
+        .badge {
+            border: 1px solid #ccc !important;
+            background: transparent !important;
+            color: black !important;
+        }
+    }
+
+    .print-header { display: none; }
+
     .card-piedra {
         border: none;
         border-radius: 20px;
@@ -46,7 +102,7 @@
     .stat-card-4 { background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%); }
 
     .stat-value {
-        font-size: 2rem;
+        font-size: 1.5rem;
         font-weight: 700;
         color: white;
         text-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -270,6 +326,12 @@
                                     onclick="window.print()">
                                 <i class="fas fa-print me-2"></i>Imprimir
                             </button>
+                            <button id="btnSyncSII" class="btn btn-sm me-2 btn-action" 
+                                    style="background: #D69E2E; border: 1px solid #D69E2E; color: white; font-weight: 600; padding: 8px 15px; border-radius: 10px; transition: all 0.3s;"
+                                    title="Sincronizar documentos pendientes con el SII"
+                                    onclick="sessionStorage.setItem('libro_ventas_scroll', window.scrollY); window.location.href='{% url 'facturacion_electronica:sincronizar_pendientes_sii' %}?return_url={{ request.get_full_path|urlencode }}'">
+                                <i class="fas fa-sync-alt me-2"></i>Sincronizar SII
+                            </button>
                             <button class="btn btn-sm btn-piedra" 
                                     style="padding: 8px 15px; border-radius: 10px;"
                                     onclick="exportarExcel()">
@@ -424,8 +486,33 @@
                         </form>
                     </div>
 
+                    <!-- NAVEGACIÓN ENTRE REPORTES -->
+                    <div class="px-4 mb-4">
+                        <ul class="nav nav-pills p-1 background-piedra-suave rounded-pill" style="background: #F5F1E8; border: 1px solid #E8DCC8; width: fit-content;">
+                            <li class="nav-item">
+                                <a class="nav-link active rounded-pill fw-bold" style="background: var(--color-piedra-primario); color: white;" href="{% url 'ventas:libro_ventas' %}">
+                                    <i class="fas fa-file-invoice me-2"></i>Libro de Ventas
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link rounded-pill fw-bold text-muted" href="{% url 'ventas:libro_guias' %}">
+                                    <i class="fas fa-truck me-2"></i>Libro de Guías
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="card-body p-0">
+                        <!-- Cabecera exclusiva para Impresión -->
+                        <div class="print-header text-center">
+                            <h1>LIBRO DE VENTAS</h1>
+                            <p class="mb-1"><strong>Empresa:</strong> {{ request.empresa.nombre }}</p>
+                            <p><strong>Periodo:</strong> {{ fecha_desde }} al {{ fecha_hasta }}</p>
+                            <hr>
+                        </div>
+
                     <!-- LEYENDA DE TIPOS -->
-                    <div class="mb-3 px-3">
+                    <div class="mb-3 px-3 hide-print">
                         <div class="d-flex flex-wrap align-items-center gap-3 p-2 rounded" style="background: rgba(245, 241, 232, 0.4); border: 1px solid #E8DCC8;">
                             <span style="font-size: 0.7rem; font-weight: 700; color: #5D4037; text-transform: uppercase; margin-right: 5px;">
                                 <i class="fas fa-info-circle me-1"></i> Leyenda:
@@ -437,10 +524,6 @@
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge badge-premium" style="background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%); color: white; padding: 2px 6px;">BE</span>
                                 <span style="font-size: 0.65rem; color: #8B7355;">Boleta Electrónica</span>
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge badge-premium" style="background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%); color: white; padding: 2px 6px;">GD</span>
-                                <span style="font-size: 0.65rem; color: #8B7355;">Guía Despacho</span>
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge badge-premium" style="background: rgba(236, 201, 75, 0.2); color: #744210; padding: 2px 6px;">NC</span>
@@ -601,7 +684,7 @@
 
                                             {# Botón Enviar al SII: solo si NO está aceptado ni rechazado #}
                                             {% if documento.estado_sii != 'aceptado' and documento.estado_sii != 'rechazado' and documento.estado_sii != 'anulado' %}
-                                            <a href="{% url 'facturacion_electronica:enviar_dte' documento.pk %}"
+                                            <a href="{% url 'facturacion_electronica:enviar_dte' documento.pk %}?return_url={{ request.get_full_path|urlencode }}"
                                                 class="btn btn-sm btn-action btn-outline-warning"
                                                 title="Enviar al SII" style="padding: 2px 6px; font-size: 0.65rem;">
                                                 <i class="fas fa-paper-plane"></i>
@@ -609,7 +692,7 @@
                                             {% endif %}
 
                                              {# Sincronizar y Descargar desde GDExpress (PDF y XML) #}
-                                             <a href="{% url 'facturacion_electronica:descargar_pdf_gdexpress' documento.id %}"
+                                             <a href="{% url 'facturacion_electronica:descargar_pdf_gdexpress' documento.id %}?return_url={{ request.get_full_path|urlencode }}"
                                                  class="btn btn-sm btn-action btn-outline-info"
                                                  title="Traer PDF/XML y sincronizar desde GDExpress" style="padding: 2px 6px; font-size: 0.65rem;">
                                                  <i class="fas fa-cloud-download-alt"></i>
@@ -735,15 +818,8 @@
 {% block extra_js %}
 <script>
     function exportarExcel() {
-        Swal.fire({
-            icon: 'info',
-            title: 'En Desarrollo',
-            text: 'La funcionalidad de exportación a Excel estará disponible próximamente.',
-            confirmButtonColor: '#8B7355',
-            confirmButtonText: 'Entendido',
-            background: '#fff',
-            color: '#5D4037'
-        });
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = "{% url 'ventas:libro_ventas_excel' %}?" + params.toString();
     }
 
     // Scroll suave a la fila si hay un anclaje en la URL
@@ -756,6 +832,50 @@
                 }, 500);
             }
         }
+        
+        // Sincronización automática de pendientes en "tiempos muertos" (20 segundos después de cargar)
+        setTimeout(function() {
+            console.log('[SII] Verificando documentos pendientes para sincronización automática...');
+            fetch('{% url "facturacion_electronica:sincronizar_pendientes_sii" %}', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.count > 0) {
+                    console.log('[SII] Sincronización automática completa:', data.message);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 5000,
+                            timerProgressBar: true,
+                            icon: 'info',
+                            title: 'Sincronización SII',
+                            text: data.message,
+                            background: '#fff',
+                            color: '#5D4037'
+                        });
+                    }
+                }
+            })
+            .catch(err => console.error('[SII] Error en sincronización auto:', err));
+        }, 20000); // 20 segundos después de cargar la página
+
+        // Persistencia de posición de scroll
+        const scrollPos = sessionStorage.getItem('libro_ventas_scroll');
+        if (scrollPos) {
+            window.scrollTo(0, parseInt(scrollPos));
+            sessionStorage.removeItem('libro_ventas_scroll');
+        }
+
+        document.querySelectorAll('.btn-action, .btn-outline-warning, .btn-outline-info, #btnSyncSII').forEach(btn => {
+            btn.addEventListener('click', function() {
+                sessionStorage.setItem('libro_ventas_scroll', window.scrollY);
+            });
+        });
     });
 </script>
 {% endblock %}

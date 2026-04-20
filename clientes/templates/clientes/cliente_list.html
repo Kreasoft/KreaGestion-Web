@@ -2,10 +2,13 @@
 {% load static %}
 {% load articulo_filters %}
 {% load query_tags %}
+{% load l10n %}
 
-{% block title %}Lista de Clientes - GestionCloud{% endblock %}
+{% block title %}Lista de Clientes - GestionCloud<script>document.addEventListener('clienteCreado', function(){ window.location.reload(); });</script>
+{% endblock %}
 
-{% block body_class %}hide-top-bar{% endblock %}
+{% block body_class %}hide-top-bar<script>document.addEventListener('clienteCreado', function(){ window.location.reload(); });</script>
+{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -108,6 +111,62 @@
         transform: scale(1.1);
     }
 </style>
+    {% include 'clientes/cliente_form_modal.html' %}
+    {% include 'clientes/cliente_detail_modal.html' %}
+    <script>
+        function abrirModalDetalleCliente(id) {
+            const modalEl = document.getElementById('modalDetalleCliente');
+            if (!modalEl) return;
+            const modal = new bootstrap.Modal(modalEl);
+            
+            // Reset fields
+            document.getElementById('det_cliente_nombre_header').textContent = 'Cargando...';
+            
+            fetch(`/clientes/ajax/${id}/`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const c = data.cliente;
+                    
+                    // Header
+                    document.getElementById('det_cliente_nombre_header').textContent = c.nombre;
+                    document.getElementById('det_cliente_rut_header').textContent = `RUT: ${c.rut}`;
+                    
+                    // Identificación
+                    document.getElementById('det_cliente_nombre').textContent = c.nombre;
+                    document.getElementById('det_cliente_tipo').textContent = c.tipo_cliente.replace('_', ' ').toUpperCase();
+                    document.getElementById('det_cliente_direccion').textContent = (c.direccion || '') + (c.comuna ? `, ${c.comuna}` : '') + (c.ciudad ? `, ${c.ciudad}` : '');
+                    document.getElementById('det_cliente_telefono').textContent = c.telefono || 'No registrado';
+                    document.getElementById('det_cliente_email').textContent = c.email || 'No registrado';
+                    document.getElementById('det_cliente_giro').textContent = c.giro || 'No registrado';
+                    
+                    // Comercial
+                    const formattedLimite = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(c.limite_credito);
+                    document.getElementById('det_cliente_limite').textContent = formattedLimite;
+                    document.getElementById('det_cliente_plazo').textContent = `${c.plazo_pago} Días`;
+                    document.getElementById('det_cliente_descuento').textContent = `${c.descuento_porcentaje} %`;
+                    document.getElementById('det_cliente_vendedor').textContent = c.vendedor_nombre || 'Sin vendedor';
+                    document.getElementById('det_cliente_obs').textContent = c.observaciones || 'Sin observaciones.';
+                    
+                    // Botón Editar
+                    document.getElementById('btn_ir_a_editar').onclick = () => {
+                        modal.hide();
+                        setTimeout(() => abrirModalEditarCliente(id), 400);
+                    };
+                    
+                    modal.show();
+                } else {
+                    Swal.fire('Error', 'No se pudo cargar el detalle: ' + data.message, 'error');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.fire('Error', 'Falla en la conexión al servidor', 'error');
+            });
+        }
+    </script>
+    
+<script>document.addEventListener('clienteCreado', function(){ window.location.reload(); });</script>
 {% endblock %}
 
 {% block content %}
@@ -130,9 +189,9 @@
                     </div>
                 </div>
                 <div class="col-md-4 text-end">
-                    <a href="{% url 'clientes:cliente_create' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                    <button type="button" class="btn btn-sm" onclick="abrirModalNuevoCliente()" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
                         <i class="fas fa-plus me-1"></i> Nuevo Cliente
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -311,20 +370,20 @@
                                     </td>
                                     <td class="text-center">
                                         <div class="d-flex justify-content-center gap-1">
-                                            <a href="{% url 'clientes:cliente_detail' cliente.pk %}" class="btn-action-piedra" title="Ver detalles">
+                                            <button type="button" onclick="abrirModalDetalleCliente({{ cliente.pk|unlocalize }})" class="btn-action-piedra" title="Ver detalles">
                                                 <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{% url 'clientes:cliente_update' cliente.pk %}" class="btn-action-piedra" title="Editar">
+                                            </button>
+                                            <button type="button" onclick="abrirModalEditarCliente({{ cliente.pk|unlocalize }})" class="btn-action-piedra" title="Editar">
                                                 <i class="fas fa-edit"></i>
-                                            </a>
+                                            </button>
                                             <a href="#" class="btn-action-piedra btn-toggle-estado" 
                                                title="{% if cliente.estado == 'activo' %}Desactivar{% else %}Activar{% endif %}"
-                                               data-cliente-id="{{ cliente.pk }}"
+                                               data-cliente-id="{{ cliente.pk|unlocalize }}"
                                                data-cliente-nombre="{{ cliente.nombre }}"
                                                data-estado-actual="{{ cliente.estado }}">
                                                 <i class="fas fa-{% if cliente.estado == 'activo' %}toggle-on{% else %}toggle-off{% endif %}"></i>
                                             </a>
-                                            <a href="{% url 'clientes:cliente_delete' cliente.pk %}" class="btn-action-piedra" title="Eliminar">
+                                            <a href="{% url 'clientes:cliente_delete' cliente.pk|unlocalize %}" class="btn-action-piedra" title="Eliminar">
                                                 <i class="fas fa-trash"></i>
                                             </a>
                                         </div>
@@ -425,4 +484,66 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+    {% include 'clientes/cliente_form_modal.html' %}
+    {% include 'clientes/cliente_detail_modal.html' %}
+    <script>
+        function abrirModalDetalleCliente(id) {
+            const modalEl = document.getElementById('modalDetalleCliente');
+            if (!modalEl) return;
+            const modal = new bootstrap.Modal(modalEl);
+            
+            // Reset fields
+            document.getElementById('det_cliente_nombre_header').textContent = 'Cargando...';
+            
+            fetch(`/clientes/ajax/${id}/`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const c = data.cliente;
+                    
+                    // Header
+                    document.getElementById('det_cliente_nombre_header').textContent = c.nombre;
+                    document.getElementById('det_cliente_rut_header').textContent = `RUT: ${c.rut}`;
+                    
+                    // Identificación
+                    document.getElementById('det_cliente_nombre').textContent = c.nombre;
+                    document.getElementById('det_cliente_tipo').textContent = c.tipo_cliente.replace('_', ' ').toUpperCase();
+                    document.getElementById('det_cliente_direccion').textContent = (c.direccion || '') + (c.comuna ? `, ${c.comuna}` : '') + (c.ciudad ? `, ${c.ciudad}` : '');
+                    document.getElementById('det_cliente_telefono').textContent = c.telefono || 'No registrado';
+                    document.getElementById('det_cliente_email').textContent = c.email || 'No registrado';
+                    document.getElementById('det_cliente_giro').textContent = c.giro || 'No registrado';
+                    
+                    // Comercial
+                    const formattedLimite = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(c.limite_credito);
+                    document.getElementById('det_cliente_limite').textContent = formattedLimite;
+                    document.getElementById('det_cliente_plazo').textContent = `${c.plazo_pago} Días`;
+                    document.getElementById('det_cliente_descuento').textContent = `${c.descuento_porcentaje} %`;
+                    document.getElementById('det_cliente_vendedor').textContent = c.vendedor_nombre || 'Sin vendedor';
+                    
+                    // Aseguramos que el elemento det_cliente_ruta exista en el modal_detalle si queremos mostrarlo
+                    const rutaEl = document.getElementById('det_cliente_ruta');
+                    if (rutaEl) rutaEl.textContent = c.ruta_nombre || 'Sin ruta';
+
+                    document.getElementById('det_cliente_obs').textContent = c.observaciones || 'Sin observaciones.';
+                    
+                    // Botón Editar
+                    document.getElementById('btn_ir_a_editar').onclick = () => {
+                        modal.hide();
+                        setTimeout(() => abrirModalEditarCliente(id), 400);
+                    };
+                    
+                    modal.show();
+                } else {
+                    Swal.fire('Error', 'No se pudo cargar el detalle: ' + data.message, 'error');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.fire('Error', 'Falla en la conexión al servidor', 'error');
+            });
+        }
+    </script>
+    
+<script>document.addEventListener('clienteCreado', function(){ window.location.reload(); });</script>
 {% endblock %}
+

@@ -839,6 +839,9 @@
                         <div class="input-group input-group-sm" style="display: flex; align-items: stretch;">
                             <span class="input-group-text" style="padding: 0.25rem 0.5rem;"><i class="fas fa-user"></i></span>
                             {{ form.cliente }}
+                            <button class="btn btn-outline-primary" type="button" onclick="abrirModalNuevoCliente()" title="Crear nuevo cliente" style="padding: 0.25rem 0.6rem; border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                                <i class="fas fa-plus"></i>
+                            </button>
                         </div>
                         {% if form.cliente.errors %}
                             <div class="text-danger small">{{ form.cliente.errors.0 }}</div>
@@ -1065,45 +1068,30 @@
 <script>
 function eliminarItem(button) {
     console.log('*** ELIMINANDO ITEM - FUNCIÓN GLOBAL ***');
-    console.log('Botón:', button);
-
     const itemForm = button.closest('.item-form-compact');
-    console.log('Form encontrado:', itemForm);
+    if (!itemForm) return;
 
-    if (!itemForm) {
-        console.error('No se encontró el formulario del item');
-        return;
-    }
-
-    // Verificar si es un item existente (tiene checkbox DELETE)
-    const deleteCheckbox = itemForm.querySelector('input[name$="-DELETE"]');
-    if (deleteCheckbox) {
-        deleteCheckbox.checked = true;
-        console.log('Checkbox DELETE marcado para item existente');
+    // Buscar o crear el campo DELETE
+    let deleteInput = itemForm.querySelector('input[name$="-DELETE"]');
+    if (deleteInput) {
+        deleteInput.value = 'on';
+        if (deleteInput.type === 'checkbox') deleteInput.checked = true;
     } else {
-        // Si no tiene checkbox DELETE, es un item nuevo - crear uno
-        const formIndex = button.getAttribute('data-form-index');
-        const deleteInput = document.createElement('input');
+        const formIndex = itemForm.getAttribute('data-form-index');
+        deleteInput = document.createElement('input');
         deleteInput.type = 'hidden';
         deleteInput.name = `items-${formIndex}-DELETE`;
         deleteInput.value = 'on';
         itemForm.appendChild(deleteInput);
-        console.log('Checkbox DELETE creado para item nuevo');
     }
 
-    // Ocultar el formulario
     itemForm.style.display = 'none';
-    console.log('Item ocultado');
-
-    // Recalcular totales usando la función global
-    setTimeout(function() {
-        if (typeof calculateTotals === 'function') {
-            calculateTotals();
-        } else {
-            console.log('Función calculateTotals no disponible');
-        }
-    }, 100);
+    if (typeof calculateTotals === 'function') calculateTotals();
 }
+
+// Alias para compatibilidad
+window.deleteItem = eliminarItem;
+
 </script>
 
 <script>
@@ -1356,58 +1344,8 @@ document.addEventListener('DOMContentLoaded', function() {
          calculateTotals();
      }
 
-    // Función para eliminar item directamente
-    function deleteItem(button) {
-        console.log('Eliminando item...');
-        const formIndex = button.getAttribute('data-form-index');
-        const itemForm = button.closest('.item-form-compact');
+    // Nota: deleteItem ahora es un alias global de eliminarItem
 
-        console.log('Form index:', formIndex);
-        console.log('Item form:', itemForm);
-
-        // Verificar si es un item existente (tiene ID)
-        const deleteCheckbox = itemForm.querySelector('input[name$="-DELETE"]');
-        if (deleteCheckbox) {
-            // Es un item existente, marcarlo para eliminación
-            deleteCheckbox.checked = true;
-            console.log('Checkbox DELETE marcado para item existente');
-        }
-
-        // Ocultar el formulario
-        itemForm.style.display = 'none';
-        console.log('Item ocultado');
-
-        // Recalcular totales si la función está disponible
-        if (typeof calculateTotals === 'function') {
-            calculateTotals();
-        } else {
-            console.log('Función calculateTotals no disponible, recalculando manualmente...');
-            // Recalcular manualmente
-            setTimeout(function() {
-                let subtotal = 0;
-                document.querySelectorAll('.item-form-compact:not([style*="display: none"])').forEach(function(form) {
-                    const cantidadInput = form.querySelector('input[name*="cantidad"]');
-                    const precioInput = form.querySelector('input[name*="precio_unitario"]');
-                    const cantidad = parseInt(cantidadInput?.value) || 0;
-                    const precioUnitario = parseInt(precioInput?.value) || 0;
-                    subtotal += cantidad * precioUnitario;
-                });
-
-                const iva = Math.round(subtotal * 0.19);
-                const total = subtotal + iva;
-
-                const subtotalElement = document.getElementById('subtotal-total');
-                const ivaElement = document.getElementById('iva-total');
-                const totalElement = document.getElementById('total-documento');
-
-                if (subtotalElement) subtotalElement.textContent = '$' + subtotal.toLocaleString();
-                if (ivaElement) ivaElement.textContent = '$' + iva.toLocaleString();
-                if (totalElement) totalElement.textContent = '$' + total.toLocaleString();
-
-                console.log('Totales recalculados manualmente:', {subtotal: subtotal, iva: iva, total: total});
-            }, 100);
-        }
-    }
 
     // Configurar botón agregar
     console.log('DOM cargado, configurando botón...');
@@ -1851,7 +1789,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="hidden" name="items-${index}-descripcion" value="${item.nombre || ''}">
 
                 <input type="hidden" name="items-${index}-id" value="">
-                <input type="hidden" name="items-${index}-DELETE" value="false">
+                <input type="hidden" name="items-${index}-DELETE" value="">
             </div>
         `;
     }
@@ -2065,6 +2003,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log('✅ Select2 inicializado correctamente');
     });
+
+    // Función para abrir el modal de nuevo cliente
+    window.abrirModalNuevoCliente = function() {
+        const modalEl = document.getElementById('modalCliente');
+        if (!modalEl) {
+            console.error('Modal de cliente no encontrado en el DOM');
+            return;
+        }
+        
+        // Reiniciar formulario
+        const form = document.getElementById('formNuevoCliente');
+        if (form) form.reset();
+        
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    };
+
+    // Escuchar el evento de cliente creado con éxito
+    document.addEventListener('clienteCreado', function(e) {
+        const cliente = e.detail;
+        console.log('Cliente creado y capturado por la Nota de Crédito:', cliente);
+        
+        // 1. Agregar el nuevo cliente al Select2
+        const selectCliente = $('#{{ form.cliente.id_for_label }}');
+        
+        // Verificar si ya existe (por si acaso)
+        if (selectCliente.find("option[value='" + cliente.id + "']").length) {
+            selectCliente.val(cliente.id).trigger('change');
+        } else {
+            // Crear nueva opción y seleccionarla
+            const newOption = new Option(cliente.nombre + " (" + cliente.rut + ")", cliente.id, true, true);
+            selectCliente.append(newOption).trigger('change');
+        }
+        
+        // 2. Feedback visual
+        Swal.fire({
+            icon: 'success',
+            title: 'Cliente Seleccionado',
+            text: `${cliente.nombre} ha sido creado y asociado a esta Nota de Crédito.`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+    });
 });
 </script>
+
+{% include 'clientes/cliente_form_modal.html' %}
 {% endblock %}

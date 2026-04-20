@@ -46,6 +46,7 @@ urlpatterns = [
     path('dte/<int:dte_id>/descargar-pdf-gdexpress/', views_dte.descargar_pdf_gdexpress, name='descargar_pdf_gdexpress'),
     path('dte/<int:dte_id>/regenerar-xml/', views_dte.regenerar_xml_dte, name='regenerar_xml_dte'),
     path('dte/<int:dte_id>/enviar-gdexpress/', views_dte.enviar_gdexpress_directo, name='enviar_gdexpress_directo'),
+    path('dte/sincronizar-pendientes/', views_dte.sincronizar_pendientes_sii, name='sincronizar_pendientes_sii'),
     
     # Monitor de envíos
     path('monitor/', views_monitor.monitor_envios, name='monitor_envios'),

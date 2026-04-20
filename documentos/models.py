@@ -58,8 +58,21 @@ class DocumentoCompra(models.Model):
     estado_pago = models.CharField(max_length=20, choices=ESTADO_PAGO_CHOICES, default='pendiente', verbose_name="Estado de Pago")
     
     # Totales
-    subtotal = models.IntegerField(default=0, verbose_name="Subtotal")
-    descuentos_totales = models.IntegerField(default=0, verbose_name="Descuentos Totales")
+    subtotal = models.IntegerField(default=0, verbose_name="Subtotal (Items Bruto)")
+    
+    # Sistema de Cuatro Descuentos Globales (Aplicados al NETO)
+    descuento_porcentaje_1 = models.IntegerField(default=0, verbose_name="Descuento 1 (%)")
+    descuento_porcentaje_2 = models.IntegerField(default=0, verbose_name="Descuento 2 (%)")
+    descuento_porcentaje_3 = models.IntegerField(default=0, verbose_name="Descuento 3 (%)")
+    descuento_monto_directo = models.IntegerField(default=0, verbose_name="Descuento Directo ($)")
+    
+    descuentos_totales = models.IntegerField(default=0, verbose_name="Suma Descuentos")
+    
+    # Ajustes Manuales e Impuestos
+    neto_ajustado = models.IntegerField(default=0, verbose_name="Neto Final")
+    iva_ajustado = models.IntegerField(default=0, verbose_name="IVA Final")
+    impuesto_especifico = models.IntegerField(default=0, verbose_name="Impuesto Específico")
+    
     impuestos_totales = models.IntegerField(default=0, verbose_name="Impuestos Totales")
     total_documento = models.IntegerField(default=0, verbose_name="Total Documento")
     
@@ -81,23 +94,44 @@ class DocumentoCompra(models.Model):
     class Meta:
         verbose_name = "Documento de Compra"
         verbose_name_plural = "Documentos de Compra"
-        unique_together = ['empresa', 'numero_documento', 'tipo_documento']
+        unique_together = ['empresa', 'proveedor', 'numero_documento', 'tipo_documento']
         ordering = ['-fecha_creacion']
     
     def __str__(self):
         return f"{self.get_tipo_documento_display()} {self.numero_documento} - {self.proveedor.nombre}"
     
     def calcular_totales(self):
-        """Calcula los totales del documento basado en sus items"""
+        """Calcula los totales del documento basado en sus items y descuentos escalonados"""
         items = self.items.all()
         
         self.subtotal = sum(item.get_subtotal() for item in items)
-        self.descuentos_totales = sum(item.get_descuento_monto() for item in items)
-        self.impuestos_totales = sum(item.get_impuesto_monto() for item in items)
-        self.total_documento = self.subtotal - self.descuentos_totales + self.impuestos_totales
+        
+        # 1. Descuentos por ítem
+        descuento_items = sum(item.get_descuento_monto() for item in items)
+        neto_base = self.subtotal - descuento_items
+        
+        # 2. Triple Descuento en Cascada
+        neto_1 = neto_base * (1 - self.descuento_porcentaje_1 / 100)
+        neto_2 = neto_1 * (1 - self.descuento_porcentaje_2 / 100)
+        neto_3 = neto_2 * (1 - self.descuento_porcentaje_3 / 100)
+        
+        # 3. Descuento Directo
+        neto_final_calculado = round(neto_3) - self.descuento_monto_directo
+        
+        self.descuentos_totales = self.subtotal - neto_final_calculado
+        
+        # Si no hay ajuste manual, usamos el calculado
+        if self.neto_ajustado == 0:
+            self.neto_ajustado = round(neto_final_calculado)
+            
+        if self.iva_ajustado == 0:
+            self.iva_ajustado = round(self.neto_ajustado * 0.19)
+            
+        self.impuestos_totales = self.iva_ajustado + self.impuesto_especifico
+        self.total_documento = self.neto_ajustado + self.impuestos_totales
         
         # Actualizar saldo pendiente
-        self.saldo_pendiente = self.total_documento - self.monto_pagado
+        self.saldo_pendiente = Decimal(self.total_documento) - self.monto_pagado
         
         # Actualizar estado de pago
         if self.monto_pagado >= self.total_documento:
@@ -160,15 +194,18 @@ class ItemDocumentoCompra(models.Model):
         return f"{self.articulo.nombre} - {self.cantidad}"
     
     def save(self, *args, **kwargs):
-        """Calcula automáticamente los totales al guardar"""
-        # Failsafe para asegurar que el impuesto nunca sea nulo en la BD
-        if self.impuesto_porcentaje is None:
-            self.impuesto_porcentaje = 19
+        """Calcula automáticamente los totales al guardar (BLINDADO CONTRA NULOS)"""
+        # Asegurar valores no nulos en el objeto para evitar errores de BD
+        if self.cantidad is None: self.cantidad = 1
+        if self.precio_unitario is None: self.precio_unitario = 0
+        if self.descuento_porcentaje is None: self.descuento_porcentaje = 0
+        if self.impuesto_porcentaje is None: self.impuesto_porcentaje = 19
             
         self.subtotal = self.cantidad * self.precio_unitario
         self.descuento_monto = round(self.subtotal * (self.descuento_porcentaje / 100))
         self.impuesto_monto = round((self.subtotal - self.descuento_monto) * (self.impuesto_porcentaje / 100))
         self.total_item = self.subtotal - self.descuento_monto + self.impuesto_monto
+        
         super().save(*args, **kwargs)
     
     def get_subtotal(self):

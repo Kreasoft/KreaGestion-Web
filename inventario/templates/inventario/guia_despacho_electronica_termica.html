@@ -7,13 +7,24 @@
     <title>Guía de Despacho - {{ dte.folio }}</title>
 
     {% load format_filters %}
+    {% load static %}
 
     <style>
         @page {
-            size: 80mm auto;
+            size: 75mm auto;
             margin: 0;
         }
 
+        @media print {
+            .page-break {
+                display: block;
+                page-break-after: always;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -25,7 +36,7 @@
             font-size: 9pt;
             line-height: 1.2;
             color: #000;
-            width: 80mm;
+            width: 75mm;
             margin: 0 auto;
             padding: 2mm;
             background: white;
@@ -33,6 +44,14 @@
 
         .ticket-container {
             width: 100%;
+            padding: 2mm;
+            border-bottom: 2px dashed #eee; /* Separador visual en pantalla */
+        }
+        
+        @media print {
+            .ticket-container {
+                border-bottom: none;
+            }
         }
 
         /* Cabecera */
@@ -122,30 +141,33 @@
             font-weight: bold;
             border-bottom: 1px solid #000;
             padding-bottom: 1mm;
-            margin-bottom: 2mm;
+            margin-bottom: 1mm;
             text-align: center;
         }
 
-        .producto-item {
-            margin-bottom: 2mm;
+        .producto-item-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 8pt;
             border-bottom: 1px dotted #ccc;
-            padding-bottom: 2mm;
-        }
-
-        .producto-codigo {
-            font-size: 7pt;
-            color: #666;
+            padding: 1mm 0;
+            width: 100%;
         }
 
         .producto-nombre {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 2mm;
             font-weight: bold;
-            margin: 1mm 0;
         }
 
-        .producto-detalle {
-            display: flex;
-            justify-content: space-between;
-            font-size: 8pt;
+        .producto-cantidad {
+            min-width: 18mm;
+            text-align: right;
+            font-weight: bold;
         }
 
         /* Totales */
@@ -189,9 +211,12 @@
         }
 
         .timbre-img {
-            max-width: 60mm;
+            width: 60mm;
             height: auto;
-            margin: 2mm 0;
+            max-height: 35mm;
+            object-fit: contain;
+            margin: 1mm auto;
+            display: block;
         }
 
         .timbre-info {
@@ -228,7 +253,8 @@
 </head>
 
 <body>
-    <div class="ticket-container">
+    {% for i in copias_range %}
+    <div class="ticket-container {% if not forloop.last %}page-break{% endif %}">
 
         <!-- CABECERA -->
         <div class="header">
@@ -300,21 +326,13 @@
         <div class="productos-section">
             <div class="productos-header">DETALLE DE PRODUCTOS</div>
             {% for detalle in detalles %}
-            <div class="producto-item">
+            <div class="producto-item-line">
                 {% if detalle.item_pedido %}
-                {# Template para transferencias/órdenes de despacho #}
-                <div class="producto-codigo">Cód: {{ detalle.item_pedido.articulo.codigo }}</div>
-                <div class="producto-nombre">{{ detalle.item_pedido.articulo.nombre }}</div>
-                <div class="producto-detalle">
-                    <span class="producto-cantidad">Cant: {{ detalle.cantidad|floatformat:0 }} {{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UN" }}</span>
-                </div>
+                <span class="producto-nombre">{{ detalle.item_pedido.articulo.nombre }}</span>
+                <span class="producto-cantidad">{{ detalle.cantidad|floatformat:0 }} {{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UN" }}</span>
                 {% else %}
-                {# Template para ventas #}
-                <div class="producto-codigo">Cód: {{ detalle.articulo.codigo }}</div>
-                <div class="producto-nombre">{{ detalle.articulo.nombre }}</div>
-                <div class="producto-detalle">
-                    <span class="producto-cantidad">Cant: {{ detalle.cantidad|floatformat:0 }} {{ detalle.articulo.unidad_medida.simbolo|default:"UN" }}</span>
-                </div>
+                <span class="producto-nombre">{{ detalle.articulo.nombre }}</span>
+                <span class="producto-cantidad">{{ detalle.cantidad|floatformat:0 }} {{ detalle.articulo.unidad_medida.simbolo|default:"UN" }}</span>
                 {% endif %}
             </div>
             {% endfor %}
@@ -396,6 +414,11 @@
         </div>
 
     </div>
+    {% empty %}
+    <div class="ticket-container">
+        <p style="text-align:center; padding: 20px;">No se pudo cargar el contenido del ticket (copias_range vacío)</p>
+    </div>
+    {% endfor %}
 
     <!-- Botones de acción (solo en pantalla) -->
     <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
@@ -403,64 +426,107 @@
             style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             🖨️ Imprimir
         </button>
-        <a href="{% url 'facturacion_electronica:dte_list' %}"
-            style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
+        <button onclick="cerrarVentana()"
+            style="padding: 5px 15px; font-size: 10pt; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             📋 Libro de Ventas
-        </a>
-        <a href="javascript:history.back()"
-            style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
+        </button>
+        <button onclick="cerrarVentana()"
+            style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
             ← Volver
-        </a>
+        </button>
     </div>
 
+    <!-- QZ Tray y dependencias -->
+    <script src="https://cdn.jsdelivr.net/npm/dependencies/rsvp-3.1.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dependencies/sha-256.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/qz-tray/qz-tray.js"></script>
+    <script src="{% static 'js/qz_interface.js' %}"></script>
+
     <script>
+        // Definir cerrarVentana en el scope global para que sea accesible desde onclick
+        window.cerrarVentana = function() {
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return_url');
+            const referrer = document.referrer;
+
+            // Si es un popup, cerrarlo INSTANTÁNEAMENTE para no bloquear el POS
+            if (window.opener) {
+                console.log('[GUIA] Cerrando popup...');
+                window.close();
+                // Fallback por si window.close es bloqueado
+                setTimeout(() => {
+                    if (!window.closed) {
+                         if (returnUrl) window.location.href = decodeURIComponent(returnUrl);
+                         else window.close();
+                    }
+                }, 100);
+                return;
+            }
+
+            // PRIORIDAD: Si hay return_url y no es popup, ir ahí
+            if (returnUrl) {
+                console.log('[GUIA] Volviendo a:', decodeURIComponent(returnUrl));
+                window.location.href = decodeURIComponent(returnUrl);
+                return;
+            }
+
+            // Fallback: usar referrer si viene del POS
+            if (referrer && referrer.includes('/pos/')) {
+                console.log('[GUIA] Volviendo al POS (referrer)');
+                window.location.href = referrer;
+                return;
+            }
+
+            // Fallback: volver atrás o al libro de ventas
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
+            }
+        };
+
         (function () {
             try {
                 const params = new URLSearchParams(window.location.search);
                 const auto = params.get('auto');
                 const autoClose = params.get('autoclose');
                 const autoCloseDelay = parseInt(params.get('autoclose_delay')) || 2000;
-                const returnUrl = params.get('return_url');
-                const nombreImpresora = "{{ nombre_impresora|default:'' }}";
-
-                console.log('[GUIA AUTO] Parámetros:', { auto, autoClose, autoCloseDelay, returnUrl });
-
-                // Función para cerrar o volver
-                function cerrarVentana() {
-                    // Si es un popup, cerrarlo
-                    if (window.opener) {
-                        console.log('[GUIA AUTO] Cerrando popup...');
-                        try { window.close(); } catch (e) { }
-                        return;
-                    }
-
-                    // PRIORIDAD: Si hay return_url, ir ahí (para emisión directa desde POS)
-                    if (returnUrl) {
-                        console.log('[GUIA AUTO] Volviendo a:', decodeURIComponent(returnUrl));
-                        window.location.href = decodeURIComponent(returnUrl);
-                        return;
-                    }
-
-                    // Fallback: volver atrás
-                    console.log('[GUIA AUTO] Volviendo atrás...');
-                    window.history.back();
-                }
+                const nCopiasConfig = parseInt("{{ n_copias|default:1 }}") || 1;
 
                 if (auto === '1') {
-                    setTimeout(() => {
-                        try {
-                            if (nombreImpresora) {
-                                console.log('[PRINT] Impresora configurada:', nombreImpresora);
-                            }
-                            window.print();
+                    window.addEventListener('load', function () {
+                        console.log('[GUIA AUTO] Iniciando impresión automática...');
+                        
+                        // Intentar usar QZ Tray si está disponible y configurado
+                        if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
+                            console.log('[GUIA AUTO] Usando QZ Tray para ' + nCopiasConfig + ' copias...');
+                            QZ_Printers.printHTML(document.body.innerHTML, nCopiasConfig)
+                                .then(() => {
+                                    if (autoClose === '1') {
+                                        setTimeout(cerrarVentana, 500);
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error('[GUIA AUTO] Error QZ:', err);
+                                    window.print();
+                                    if (autoClose === '1') {
+                                        setTimeout(cerrarVentana, autoCloseDelay);
+                                    }
+                                });
+                        } else {
+                            setTimeout(() => {
+                                try {
+                                    window.print();
 
-                            // Si autoclose está activo, cerrar después del delay
-                            if (autoClose === '1') {
-                                console.log('[GUIA AUTO] Programando cierre en', autoCloseDelay, 'ms');
-                                setTimeout(cerrarVentana, autoCloseDelay);
-                            }
-                        } catch (e) { console.error(e); }
-                    }, 150);
+                                    // Si autoclose está activo, cerrar después del delay
+                                    if (autoClose === '1') {
+                                        console.log('[GUIA AUTO] Programando cierre en', autoCloseDelay, 'ms');
+                                        setTimeout(cerrarVentana, autoCloseDelay);
+                                    }
+                                } catch (e) { console.error(e); }
+                            }, 500);
+                        }
+                    });
 
                     // También cerrar cuando se complete la impresión
                     if ('onafterprint' in window) {

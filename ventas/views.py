@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum, Count
+from django.db import transaction
 from django.http import JsonResponse, HttpResponse, Http404
 from django.utils import timezone
 from django.urls import reverse
@@ -13,6 +14,7 @@ from core.decorators import requiere_empresa
 from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TIPO_DOCUMENTO_CHOICES
 from .forms import VendedorForm, FormaPagoForm, EstacionTrabajoForm
 from articulos.models import Articulo, KitOferta
+from clientes.models import Cliente
 import io
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -1213,6 +1215,14 @@ def pos_session_info(request):
                         'guia': estacion.max_items_guia,
                         'cotizacion': estacion.max_items_cotizacion,
                         'vale': estacion.max_items_vale,
+                    },
+                    'copias': {
+                        'factura': estacion.copias_factura,
+                        'boleta': estacion.copias_boleta,
+                        'guia': estacion.copias_guia,
+                        'cotizacion': estacion.copias_cotizacion,
+                        'ticket': estacion.copias_ticket,
+                        'vale': estacion.copias_vale,
                     },
                     'folios_factura': folios_factura,
                     'folios_boleta': folios_boleta,
@@ -3037,29 +3047,62 @@ def estaciontrabajo_edit(request, pk):
                     <i class="fas fa-list-ol me-2"></i>Límites de Items por Documento
                 </h6>
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Máx. Items Factura</label>
-                            <input type="number" name="max_items_factura" class="form-control" value="{estacion.max_items_factura}" min="1" max="100">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Máx. Items Boleta</label>
-                            <input type="number" name="max_items_boleta" class="form-control" value="{estacion.max_items_boleta}" min="1" max="100">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Máx. Items Guía</label>
-                            <input type="number" name="max_items_guia" class="form-control" value="{estacion.max_items_guia}" min="1" max="100">
-                        </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">Máx. Factura</label>
+                        <input type="number" name="max_items_factura" class="form-control form-control-sm" value="{estacion.max_items_factura}" min="1" max="100">
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Máx. Items Cotización</label>
-                            <input type="number" name="max_items_cotizacion" class="form-control" value="{estacion.max_items_cotizacion}" min="1" max="100">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Máx. Items Vale</label>
-                            <input type="number" name="max_items_vale" class="form-control" value="{estacion.max_items_vale}" min="1" max="100">
-                        </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">Máx. Boleta</label>
+                        <input type="number" name="max_items_boleta" class="form-control form-control-sm" value="{estacion.max_items_boleta}" min="1" max="100">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">Máx. Guía</label>
+                        <input type="number" name="max_items_guia" class="form-control form-control-sm" value="{estacion.max_items_guia}" min="1" max="100">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">Máx. Cotiz.</label>
+                        <input type="number" name="max_items_cotizacion" class="form-control form-control-sm" value="{estacion.max_items_cotizacion}" min="1" max="100">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">Máx. Vale</label>
+                        <input type="number" name="max_items_vale" class="form-control form-control-sm" value="{estacion.max_items_vale}" min="1" max="100">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuración de Copias -->
+            <div class="mb-4">
+                <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
+                    <i class="fas fa-copy me-2"></i>Copias por Documento (Impresión Directa)
+                </h6>
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">C. Factura</label>
+                        <input type="number" name="copias_factura" class="form-control form-control-sm" value="{estacion.copias_factura}" min="1" max="10">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">C. Boleta</label>
+                        <input type="number" name="copias_boleta" class="form-control form-control-sm" value="{estacion.copias_boleta}" min="1" max="10">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">C. Guía</label>
+                        <input type="number" name="copias_guia" class="form-control form-control-sm" value="{estacion.copias_guia}" min="1" max="10">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">C. N. Crédito</label>
+                        <input type="number" name="copias_notacredito" class="form-control form-control-sm" value="{estacion.copias_notacredito}" min="1" max="10">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">C. Cotiz.</label>
+                        <input type="number" name="copias_cotizacion" class="form-control form-control-sm" value="{estacion.copias_cotizacion}" min="1" max="10">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">C. Ticket</label>
+                        <input type="number" name="copias_ticket" class="form-control form-control-sm" value="{estacion.copias_ticket}" min="1" max="10">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label small mb-1">C. Vale</label>
+                        <input type="number" name="copias_vale" class="form-control form-control-sm" value="{estacion.copias_vale}" min="1" max="10">
                     </div>
                 </div>
             </div>
@@ -3752,6 +3795,20 @@ def venta_html(request, pk):
     except Exception as e:
         print(f"[WARN] Error al obtener formas de pago: {str(e)}")
     
+    # Obtener configuración de copias de la estación (prioritario)
+    n_copias = 1
+    estacion = getattr(venta, 'estacion_trabajo', None)
+    if not estacion:
+        estacion_id = request.session.get('pos_estacion_id')
+        if estacion_id:
+            from .models import EstacionTrabajo
+            try:
+                estacion = EstacionTrabajo.objects.get(id=estacion_id)
+            except: pass
+    
+    if estacion:
+        n_copias = estacion.get_copias_por_tipo(venta.tipo_documento)
+
     context = {
         'venta': venta,
         'detalles': detalles,
@@ -4210,7 +4267,9 @@ def pos_tickets_hoy(request):
         empresa=request.empresa,
         tipo_documento__in=['ticket', 'vale'],
         fecha_creacion__gte=hoy_inicio,
-        fecha_creacion__lte=hoy_fin
+        fecha_creacion__lte=hoy_fin,
+        facturado=False,
+        venta_preventa__isnull=True  # Excluir tickets ya procesados en caja
     ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')
     
     # Convertir a JSON
@@ -4284,19 +4343,24 @@ def libro_ventas(request):
     
     # Consulta base: ventas confirmadas SIN DTE asociado
     # (Excluimos todas las ventas del POS que no han sido convertidas a DTE para que el Libro de Ventas sea oficial)
+    # EXCLUIMOS Guías de Despacho ya que ahora tienen su propio libro
     ventas = Venta.objects.filter(
         empresa=request.empresa,
         estado='confirmada',
         dte__isnull=True
     ).exclude(
         Q(numero_venta__icontains='test') | 
-        Q(tipo_documento='cotizacion')
+        Q(tipo_documento__in=['cotizacion', 'guia'])
     ).select_related('cliente', 'vendedor', 'forma_pago', 'estacion_trabajo')
     
     # Consulta DTEs (Documentos Tributarios Electrónicos)
+    # EXCLUIMOS Guías de Despacho (Tipo 52)
     dtes = DocumentoTributarioElectronico.objects.filter(
         empresa=request.empresa
-    ).exclude(folio__icontains='test').select_related('caf_utilizado', 'usuario_creacion', 'venta').prefetch_related('usuario_creacion', 'notas_credito')
+    ).exclude(
+        Q(folio__icontains='test') |
+        Q(tipo_dte='52')
+    ).select_related('caf_utilizado', 'usuario_creacion', 'venta').prefetch_related('usuario_creacion', 'notas_credito')
     
     # Aplicar filtros de fecha
     try:
@@ -4548,6 +4612,12 @@ def precio_cliente_list(request):
     articulo_id = request.GET.get('articulo', '').strip()
     estado = request.GET.get('estado', '').strip()  # 'activo' | 'inactivo'
     vigencia = request.GET.get('vigencia', '').strip()  # 'vigente' | 'futura' | 'vencida'
+
+    # Limpiar IDs de posibles caracteres no numéricos (como espacios de miles: \xa0)
+    if cliente_id:
+        cliente_id = ''.join(filter(str.isdigit, cliente_id))
+    if articulo_id:
+        articulo_id = ''.join(filter(str.isdigit, articulo_id))
     
     if q:
         precios = precios.filter(
@@ -4775,25 +4845,78 @@ def mobile_sales_gestion(request):
     Vista de administración para gestionar las ventas enviadas desde el móvil
     que quedaron pendientes de procesamiento (Preventas).
     """
-    # Buscamos ventas que vengan del móvil y que sean preventas (tipo vale)
-    # Si no hemos agregado el campo es_movil todavía, podemos buscarlas por observaciones o vendedor
+    from caja.models import VentaProcesada
     from .models import DispositivoMovil
-    ventas_moviles = Venta.objects.filter(
+    from django.utils import timezone
+    from datetime import datetime, time
+    
+    # Obtener fechas del filtro o usar HOY por defecto
+    fecha_desde_str = request.GET.get('desde')
+    fecha_hasta_str = request.GET.get('hasta')
+    
+    hoy = timezone.now().date()
+    
+    try:
+        if fecha_desde_str:
+            fecha_desde = datetime.strptime(fecha_desde_str, '%Y-%m-%d').date()
+        else:
+            fecha_desde = hoy
+            
+        if fecha_hasta_str:
+            fecha_hasta = datetime.strptime(fecha_hasta_str, '%Y-%m-%d').date()
+        else:
+            fecha_hasta = hoy
+    except:
+        fecha_desde = hoy
+        fecha_hasta = hoy
+
+    # Convertir a datetime para filtros precisos si es necesario
+    dt_inicio = datetime.combine(fecha_desde, time.min)
+    dt_fin = datetime.combine(fecha_hasta, time.max)
+    
+    # 1. Ventas Pendientes (Tickets/Vales móviles no facturados aún)
+    ventas_pendientes = Venta.objects.filter(
         empresa=request.empresa,
-        tipo_documento='vale',
+        tipo_documento__in=['vale', 'ticket'],
         facturado=False,
-        observaciones__icontains='[MOVIL]'
+        observaciones__icontains='[MOVIL]',
+        fecha__range=[fecha_desde, fecha_hasta]
     ).order_by('-fecha_creacion')
     
+    # 2. Ventas Procesadas (Trazabilidad de lo facturado realmente)
+    ventas_facturadas = VentaProcesada.objects.filter(
+        venta_preventa__empresa=request.empresa,
+        venta_preventa__observaciones__icontains='[MOVIL]',
+        fecha_proceso__range=[dt_inicio, dt_fin]
+    ).select_related('venta_preventa', 'venta_final', 'usuario_proceso', 'venta_final__vendedor').order_by('-fecha_proceso')
+    
     dispositivos = DispositivoMovil.objects.filter(empresa=request.empresa).order_by('-fecha_registro')
+    vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
     
     context = {
-        'ventas': ventas_moviles,
+        'ventas': ventas_pendientes,
+        'ventas_facturadas': ventas_facturadas,
         'dispositivos': dispositivos,
+        'vendedores': vendedores,
+        'fecha_desde': fecha_desde.strftime('%Y-%m-%d'),
+        'fecha_hasta': fecha_hasta.strftime('%Y-%m-%d'),
         'titulo': 'Gestión de Ventas Móviles'
     }
     
     return render(request, 'ventas/mobile_sales_gestion.html', context)
+
+@login_required
+@requiere_empresa
+def venta_detail(request, pk):
+    """Vista genérica para redirigir al detalle correcto de una venta"""
+    venta = get_object_or_404(Venta, pk=pk, empresa=request.empresa)
+    if venta.tipo_documento in ['ticket', 'vale']:
+        return redirect('ventas:ticket_detail', pk=pk)
+    elif venta.tipo_documento == 'cotizacion':
+        return redirect('ventas:cotizacion_detail', pk=pk)
+    else:
+        # Para documentos finales, mostramos el HTML de impresión/vista
+        return redirect('ventas:venta_html', pk=pk)
 
 
 @login_required
@@ -4805,6 +4928,33 @@ def mobile_api_toggle_device(request, pk):
     dispositivo.autorizado = not dispositivo.autorizado
     dispositivo.save()
     return JsonResponse({'success': True, 'authorized': dispositivo.autorizado})
+
+
+@login_required
+@requiere_empresa
+def mobile_api_assign_vendedor(request, pk):
+    """API para asignar/cambiar el vendedor de un dispositivo móvil"""
+    from .models import DispositivoMovil, Vendedor
+    dispositivo = get_object_or_404(DispositivoMovil, pk=pk, empresa=request.empresa)
+    
+    if request.method == 'POST':
+        import json
+        try:
+            data = json.loads(request.body)
+            vendedor_id = data.get('vendedor_id')
+            
+            if vendedor_id:
+                vendedor = get_object_or_404(Vendedor, pk=vendedor_id, empresa=request.empresa)
+                dispositivo.vendedor = vendedor
+            else:
+                dispositivo.vendedor = None
+                
+            dispositivo.save()
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+            
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
 
 @login_required
@@ -4828,8 +4978,8 @@ def mobile_api_sync(request):
             'rut': request.empresa.rut,
         }
         
-        # Categorías
-        categorias = CategoriaArticulo.objects.filter(empresa=request.empresa, activa=True)
+        # Categorías (Ordenadas alfabéticamente para mejor navegación móvil)
+        categorias = CategoriaArticulo.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
         categorias_data = [{
             'id': cat.id,
             'nombre': cat.nombre,
@@ -4970,10 +5120,19 @@ def mobile_api_verify_device(request):
             dispositivo.modelo = modelo
             dispositivo.save()
             
+        vendedor_data = None
+        if dispositivo.vendedor:
+            vendedor_data = {
+                'id': dispositivo.vendedor.id,
+                'nombre': dispositivo.vendedor.nombre,
+                'codigo': dispositivo.vendedor.codigo
+            }
+            
         return JsonResponse({
             'success': True,
             'authorized': dispositivo.autorizado,
-            'deviceId': dispositivo.unique_id
+            'deviceId': dispositivo.unique_id,
+            'vendedor': vendedor_data
         })
         
     except Exception as e:
@@ -5144,7 +5303,15 @@ def mobile_api_save_sale(request):
             
         numero_vale = f"M{numero_ticket:05d}"
         
-        # 3. Crear la Venta (como VALE / PREVENTA)
+        # 3. Crear la Venta (como TICKET / COTIZACION según corresponda)
+        # Determinar tipo real de documento en el sistema
+        tipo_final = 'ticket' # Por defecto preventa facturable
+        estado_cot = None
+        
+        if tipo_documento_solicitado == 'cotizacion':
+            tipo_final = 'cotizacion'
+            estado_cot = 'pendiente'
+
         # Intentar usar la fecha del móvil si es válida, sino usar hoy
         fecha_final = timezone.now().date()
         if fecha_movil:
@@ -5169,10 +5336,11 @@ def mobile_api_save_sale(request):
             vendedor=vendedor,
             forma_pago=forma_pago,
             estacion_trabajo=estacion,
-            tipo_documento='vale', # Se guarda como vale para que sea procesado
+            tipo_documento=tipo_final,
             tipo_documento_planeado=tipo_documento_solicitado,
             total=total_movil,
             estado='confirmada',
+            estado_cotizacion=estado_cot,
             facturado=False,
             usuario_creacion=request.user,
             observaciones=data.get('observaciones', f"[MOVIL] Doc Solicitado: {tipo_documento_solicitado}")
@@ -5241,6 +5409,12 @@ def mobile_api_sales_history(request):
         ventas_data = []
         for v in ventas:
             cliente_name = v.get_cliente_nombre()
+            
+            # Intentar obtener info de la venta final si ya fue procesada
+            proceso = v.venta_preventa.first() if v.facturado else None
+            doc_final = None
+            if proceso:
+                doc_final = f"{proceso.venta_final.get_tipo_documento_display().upper()} {proceso.venta_final.numero_venta}"
                     
             ventas_data.append({
                 'id': v.id,
@@ -5249,7 +5423,9 @@ def mobile_api_sales_history(request):
                 'total': int(v.total),
                 'cliente': cliente_name,
                 'tipo_doc': v.tipo_documento_planeado or v.tipo_documento,
-                'estado': v.estado
+                'estado': v.estado,
+                'facturado': v.facturado,
+                'doc_final': doc_final
             })
             
         return JsonResponse({
@@ -5363,3 +5539,658 @@ def mobile_api_cliente_historial(request):
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@requiere_empresa
+def libro_ventas_excel(request):
+    """
+    Exporta el Libro de Ventas a Excel con formato elegante, sucursal y vendedor.
+    """
+    from facturacion_electronica.models import DocumentoTributarioElectronico
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from django.http import HttpResponse
+    from django.db.models import Q
+    from datetime import datetime
+    import re
+    
+    # --- LOGICA DE FILTRADO (Consistente con libro_ventas) ---
+    hoy = timezone.now().date()
+    primer_dia_ano = hoy.replace(month=1, day=1)
+    
+    fecha_desde = request.GET.get('fecha_desde', primer_dia_ano.strftime('%Y-%m-%d'))
+    fecha_hasta = request.GET.get('fecha_hasta', hoy.strftime('%Y-%m-%d'))
+    tipo_documento = request.GET.get('tipo_documento', '')
+    cliente_id = request.GET.get('cliente', '')
+    vendedor_id = request.GET.get('vendedor', '')
+    forma_pago_id = request.GET.get('forma_pago', '')
+    search = request.GET.get('search', '')
+
+    # Consultas base
+    # Solo Boletas y Facturas confirmadas (oficiales)
+    ventas = Venta.objects.filter(
+        empresa=request.empresa, 
+        estado='confirmada', 
+        tipo_documento__in=['boleta', 'factura'],
+        dte__isnull=True
+    ).select_related('cliente', 'vendedor', 'forma_pago', 'sucursal')
+    
+    dtes = DocumentoTributarioElectronico.objects.filter(
+        empresa=request.empresa
+    ).exclude(
+        tipo_dte='52'
+    ).select_related('venta', 'venta__cliente', 'venta__vendedor', 'venta__sucursal')
+
+    # Aplicar filtros
+    try:
+        f_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+        f_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+        ventas = ventas.filter(fecha__gte=f_desde, fecha__lte=f_hasta)
+        dtes = dtes.filter(fecha_emision__gte=f_desde, fecha_emision__lte=f_hasta)
+    except: pass
+
+    if tipo_documento:
+        if tipo_documento in ['33', '34', '39', '41', '52', '56', '61']:
+            dtes = dtes.filter(tipo_dte=tipo_documento)
+            ventas = ventas.none()
+        else:
+            ventas = ventas.filter(tipo_documento=tipo_documento)
+            dtes = dtes.none()
+
+    if cliente_id:
+        ventas = ventas.filter(cliente_id=cliente_id)
+        dtes = dtes.filter(Q(venta__cliente_id=cliente_id) | Q(rut_receptor__icontains=cliente_id))
+    
+    if vendedor_id:
+        ventas = ventas.filter(vendedor_id=vendedor_id)
+        dtes = dtes.filter(venta__vendedor_id=vendedor_id)
+
+    if forma_pago_id:
+        ventas = ventas.filter(forma_pago_id=forma_pago_id)
+        dtes = dtes.filter(venta__forma_pago_id=forma_pago_id)
+
+    if search:
+        ventas = ventas.filter(
+            Q(numero_venta__icontains=search) | 
+            Q(cliente__nombre__icontains=search) |
+            Q(cliente__rut__icontains=search)
+        )
+        dtes = dtes.filter(
+            Q(folio__icontains=search) | 
+            Q(razon_social_receptor__icontains=search) |
+            Q(rut_receptor__icontains=search)
+        )
+
+    # Procesar documentos para el reporte
+    documentos = []
+    for v in ventas:
+        documentos.append({
+            'fecha': v.fecha,
+            'tipo': v.get_tipo_documento_display(),
+            'folio': v.numero_venta,
+            'rut': v.cliente.rut if v.cliente else '-',
+            'nombre': v.cliente.nombre if v.cliente else 'Cliente General',
+            'neto': v.subtotal or 0,
+            'iva': v.iva or 0,
+            'total': v.total or 0,
+            'estado': v.estado.upper(),
+            'vendedor': v.vendedor.nombre if v.vendedor else 'Sin asignar',
+            'vendedor_cod': v.vendedor.codigo if v.vendedor else '-',
+            'sucursal': v.sucursal.nombre if v.sucursal else 'Casa Matriz'
+        })
+    
+    for d in dtes:
+        monto_factor = -1 if d.tipo_dte == '61' else 1
+        documentos.append({
+            'fecha': d.fecha_emision,
+            'tipo': d.get_tipo_dte_display(),
+            'folio': d.folio or '-',
+            'rut': d.rut_receptor or '-',
+            'nombre': d.razon_social_receptor or 'Cliente General',
+            'neto': (d.monto_neto or 0) * monto_factor,
+            'iva': (d.monto_iva or 0) * monto_factor,
+            'total': (d.monto_total or 0) * monto_factor,
+            'estado': d.estado_sii.upper() if d.estado_sii else 'GENERADO',
+            'vendedor': (d.venta.vendedor.nombre if d.venta and d.venta.vendedor else 'Sin asignar'),
+            'vendedor_cod': (d.venta.vendedor.codigo if d.venta and d.venta.vendedor else '-'),
+            'sucursal': (d.venta.sucursal.nombre if d.venta and d.venta.sucursal else 'Casa Matriz')
+        })
+    
+    # Ordenar por fecha y folio (numérico si es posible)
+    def sort_folio(val):
+        try: return int(re.sub(r'\D', '', str(val)))
+        except: return 0
+    
+    documentos.sort(key=lambda x: (x['fecha'], sort_folio(x['folio'])), reverse=True)
+
+    # --- GENERACION EXCEL ---
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Libro de Ventas"
+
+    # Estilos
+    header_fill = PatternFill(start_color="8B7355", end_color="6F5B44", fill_type="solid")
+    white_font = Font(color="FFFFFF", bold=True)
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    center_align = Alignment(horizontal="center")
+    
+    # Cabecera élégante
+    ws.merge_cells('A1:L1')
+    cell_title = ws['A1']
+    cell_title.value = f"LIBRO DE VENTAS - {request.empresa.nombre.upper()}"
+    cell_title.font = Font(size=16, bold=True, color="8B7355")
+    cell_title.alignment = center_align
+    
+    ws.merge_cells('A2:L2')
+    ws['A2'] = f"PERIODO: DE {fecha_desde} A {fecha_hasta}"
+    ws['A2'].alignment = center_align
+    ws['A2'].font = Font(size=11, italic=True)
+
+    # Encabezados de tabla
+    headers = ["FECHA", "TIPO DOCTO", "FOLIO", "RUT CLIENTE", "CLIENTE / RAZÓN SOCIAL", "NETO", "IVA", "TOTAL", "ESTADO SII", "VENDEDOR", "COD. VENDEDOR", "SUCURSAL"]
+    for col, text in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col)
+        cell.value = text
+        cell.fill = header_fill
+        cell.font = white_font
+        cell.alignment = center_align
+        cell.border = border
+
+    # Cuerpo de datos
+    current_row = 5
+    for doc in documentos:
+        ws.cell(row=current_row, column=1, value=doc['fecha'].strftime('%d/%m/%Y')).alignment = center_align
+        ws.cell(row=current_row, column=2, value=doc['tipo'].upper())
+        ws.cell(row=current_row, column=3, value=doc['folio']).alignment = center_align
+        ws.cell(row=current_row, column=4, value=doc['rut']).alignment = center_align
+        ws.cell(row=current_row, column=5, value=doc['nombre'].upper())
+        
+        cell_neto = ws.cell(row=current_row, column=6, value=float(doc['neto']))
+        cell_iva = ws.cell(row=current_row, column=7, value=float(doc['iva']))
+        cell_total = ws.cell(row=current_row, column=8, value=float(doc['total']))
+        
+        for cell in [cell_neto, cell_iva, cell_total]:
+            cell.number_format = '#,##0'
+            cell.alignment = Alignment(horizontal="right")
+        
+        ws.cell(row=current_row, column=9, value=doc['estado']).alignment = center_align
+        ws.cell(row=current_row, column=10, value=doc['vendedor'].upper())
+        ws.cell(row=current_row, column=11, value=doc['vendedor_cod']).alignment = center_align
+        ws.cell(row=current_row, column=12, value=doc['sucursal'].upper())
+        
+        # Bordes suaves para filas
+        for col in range(1, 13):
+            ws.cell(row=current_row, column=col).border = border
+            
+        current_row += 1
+
+    # Fila de Totales
+    ws.cell(row=current_row+1, column=5, value="TOTALES GENERALES:").font = Font(bold=True)
+    ws.cell(row=current_row+1, column=5).alignment = Alignment(horizontal="right")
+    
+    for col_idx, col_let in enumerate(['F', 'G', 'H'], 6):
+        # La fórmula suma desde row 5 hasta current_row-1
+        formula = f"=SUM({col_let}5:{col_let}{current_row-1})"
+        cell_sum = ws.cell(row=current_row+1, column=col_idx, value=formula)
+        cell_sum.font = Font(bold=True)
+        cell_sum.number_format = '#,##0'
+        cell_sum.border = border
+        cell_sum.alignment = Alignment(horizontal="right")
+
+    # Ajuste automático de anchos
+    widths = [12, 18, 10, 15, 45, 14, 14, 14, 15, 25, 15, 20]
+    for i, width in enumerate(widths, 1):
+        ws.column_dimensions[chr(64 + i) if i <= 26 else 'A' + chr(64 + i - 26)].width = width
+
+    # Retornar el archivo
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"LibroVentas_{request.empresa.nombre.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    
+    return response
+
+
+@login_required
+@requiere_empresa
+def libro_guias(request):
+    """
+    Libro de Guías - Listado exclusivo de Guías de Despacho (tipo 52)
+    """
+    from facturacion_electronica.models import DocumentoTributarioElectronico
+    from itertools import chain
+    from operator import attrgetter
+    
+    hoy = timezone.now().date()
+    primer_dia_ano = hoy.replace(month=1, day=1)
+    
+    fecha_desde = request.GET.get('fecha_desde', primer_dia_ano.strftime('%Y-%m-%d'))
+    fecha_hasta = request.GET.get('fecha_hasta', hoy.strftime('%Y-%m-%d'))
+    cliente_id = request.GET.get('cliente', '')
+    vendedor_id = request.GET.get('vendedor', '')
+    search = request.GET.get('search', '')
+    
+    # Solo Guías (ventas tipo 'guia' sin DTE o DTEs tipo '52')
+    ventas = Venta.objects.filter(
+        empresa=request.empresa,
+        estado='confirmada',
+        tipo_documento='guia',
+        dte__isnull=True
+    ).exclude(numero_venta__icontains='test').select_related('cliente', 'vendedor', 'forma_pago')
+    
+    dtes = DocumentoTributarioElectronico.objects.filter(
+        empresa=request.empresa,
+        tipo_dte='52'
+    ).exclude(folio__icontains='test').select_related('venta', 'venta__cliente', 'venta__vendedor')
+    
+    # Aplicar filtros
+    try:
+        f_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+        f_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+        ventas = ventas.filter(fecha__gte=f_desde, fecha__lte=f_hasta)
+        dtes = dtes.filter(fecha_emision__gte=f_desde, fecha_emision__lte=f_hasta)
+    except: pass
+    
+    if cliente_id:
+        ventas = ventas.filter(cliente_id=cliente_id)
+        dtes = dtes.filter(Q(venta__cliente_id=cliente_id) | Q(rut_receptor__icontains=cliente_id))
+        
+    if vendedor_id:
+        ventas = ventas.filter(vendedor_id=vendedor_id)
+        dtes = dtes.filter(venta__vendedor_id=vendedor_id)
+        
+    if search:
+        ventas = ventas.filter(Q(numero_venta__icontains=search) | Q(cliente__nombre__icontains=search))
+        dtes = dtes.filter(Q(folio__icontains=search) | Q(razon_social_receptor__icontains=search))
+        
+    # Preparar lista unificada
+    documentos = []
+    for v in ventas:
+        v.fecha_documento = v.fecha
+        v.es_dte = False
+        v.sort_tipo = '52'
+        try: v.sort_folio = int(re.sub(r'\D', '', str(v.numero_venta)))
+        except: v.sort_folio = 0
+        documentos.append(v)
+        
+    for d in dtes:
+        d.fecha_documento = d.fecha_emision
+        d.es_dte = True
+        d.sort_tipo = '52'
+        try: d.sort_folio = int(d.folio)
+        except: d.sort_folio = 0
+        documentos.append(d)
+        
+    documentos.sort(key=attrgetter('fecha_documento', 'sort_folio'), reverse=True)
+    
+    # Paginación
+    paginator = Paginator(documentos, 50)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    
+    context = {
+        'page_obj': page_obj,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'cliente_id': cliente_id,
+        'vendedor_id': vendedor_id,
+        'search': search,
+        'clientes': Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')[:100],
+        'vendedores': Vendedor.objects.filter(empresa=request.empresa, activo=True),
+    }
+    
+    return render(request, 'ventas/libro_guias.html', context)
+
+
+@login_required
+@requiere_empresa
+def libro_guias_excel(request):
+    """
+    Exporta el Libro de Guías a Excel
+    """
+    from facturacion_electronica.models import DocumentoTributarioElectronico
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from django.http import HttpResponse
+    from datetime import datetime
+    import re
+    
+    hoy = timezone.now().date()
+    primer_dia_ano = hoy.replace(month=1, day=1)
+    fecha_desde = request.GET.get('fecha_desde', primer_dia_ano.strftime('%Y-%m-%d'))
+    fecha_hasta = request.GET.get('fecha_hasta', hoy.strftime('%Y-%m-%d'))
+    
+    # Filtros específicos para el LIBRO DE GUÍAS (Tipo 52)
+    ventas = Venta.objects.filter(
+        empresa=request.empresa, 
+        estado='confirmada', 
+        tipo_documento='guia',
+        dte__isnull=True
+    ).select_related('cliente', 'vendedor', 'sucursal')
+    # Solo DTEs de tipo Guía (52)
+    dtes = DocumentoTributarioElectronico.objects.filter(
+        empresa=request.empresa,
+        tipo_dte='52'
+    ).select_related('venta', 'venta__cliente', 'venta__vendedor', 'venta__sucursal')
+    
+    try:
+        f_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+        f_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+        ventas = ventas.filter(fecha__gte=f_desde, fecha__lte=f_hasta)
+        dtes = dtes.filter(fecha_emision__gte=f_desde, fecha_emision__lte=f_hasta)
+    except: pass
+
+    # ... logic simplified to reuse style ...
+    documentos = []
+    for v in ventas:
+        documentos.append({
+            'fecha': v.fecha, 'tipo': 'GUÍA DESPACHO', 'folio': v.numero_venta,
+            'rut': v.cliente.rut if v.cliente else '-', 'nombre': v.cliente.nombre if v.cliente else 'CLIENTE GENERAL',
+            'neto': v.subtotal or 0, 'iva': v.iva or 0, 'total': v.total or 0, 'estado': v.estado.upper(),
+            'vendedor': v.vendedor.nombre if v.vendedor else 'SIN ASIGNAR', 'vendedor_cod': v.vendedor.codigo if v.vendedor else '-',
+            'sucursal': v.sucursal.nombre if v.sucursal else 'CASA MATRIZ'
+        })
+    for d in dtes:
+        documentos.append({
+            'fecha': d.fecha_emision, 'tipo': 'GUÍA DESPACHO ELECTRÓNICA', 'folio': d.folio or '-',
+            'rut': d.rut_receptor or '-', 'nombre': d.razon_social_receptor or 'CLIENTE GENERAL',
+            'neto': d.monto_neto or 0, 'iva': d.monto_iva or 0, 'total': d.monto_total or 0, 'estado': d.estado_sii.upper() if d.estado_sii else 'GENERADO',
+            'vendedor': d.venta.vendedor.nombre if d.venta and d.venta.vendedor else 'SIN ASIGNAR', 'vendedor_cod': d.venta.vendedor.codigo if d.venta and d.venta.vendedor else '-',
+            'sucursal': d.venta.sucursal.nombre if d.venta and d.venta.sucursal else 'CASA MATRIZ'
+        })
+    
+    documentos.sort(key=lambda x: x['fecha'], reverse=True)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Libro de Guías"
+    
+    # Estilos Premium (Mismo que Libro de Ventas)
+    header_fill = PatternFill(start_color="8B7355", end_color="6F5B44", fill_type="solid")
+    white_font = Font(color="FFFFFF", bold=True)
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    
+    ws.merge_cells('A1:L1')
+    ws['A1'] = f"LIBRO DE GUÍAS DE DESPACHO - {request.empresa.nombre.upper()}"
+    ws['A1'].font = Font(size=16, bold=True, color="8B7355")
+    ws['A1'].alignment = Alignment(horizontal="center")
+    
+    ws.merge_cells('A2:L2')
+    ws['A2'] = f"PERIODO: DE {fecha_desde} A {fecha_hasta}"
+    ws['A2'].alignment = Alignment(horizontal="center")
+
+    headers = ["FECHA", "TIPO DOCTO", "FOLIO", "RUT CLIENTE", "CLIENTE / RAZÓN SOCIAL", "NETO", "IVA", "TOTAL", "ESTADO", "VENDEDOR", "COD. VENDEDOR", "SUCURSAL"]
+    for col, text in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col)
+        cell.value = text
+        cell.fill = header_fill
+        cell.font = white_font
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = border
+
+    row_idx = 5
+    for doc in documentos:
+        ws.cell(row=row_idx, column=1, value=doc['fecha'].strftime('%d/%m/%Y'))
+        ws.cell(row=row_idx, column=2, value=doc['tipo'])
+        ws.cell(row=row_idx, column=3, value=doc['folio'])
+        ws.cell(row=row_idx, column=4, value=doc['rut'])
+        ws.cell(row=row_idx, column=5, value=doc['nombre'].upper())
+        ws.cell(row=row_idx, column=6, value=float(doc['neto'])).number_format = '#,##0'
+        ws.cell(row=row_idx, column=7, value=float(doc['iva'])).number_format = '#,##0'
+        ws.cell(row=row_idx, column=8, value=float(doc['total'])).number_format = '#,##0'
+        ws.cell(row=row_idx, column=9, value=doc['estado'])
+        ws.cell(row=row_idx, column=10, value=doc['vendedor'].upper())
+        ws.cell(row=row_idx, column=11, value=doc['vendedor_cod'])
+        ws.cell(row=row_idx, column=12, value=doc['sucursal'].upper())
+        for col in range(1, 13): ws.cell(row=row_idx, column=col).border = border
+        row_idx += 1
+    
+    # Fila de Totales
+    ws.cell(row=row_idx+1, column=5, value="TOTALES GENERALES:").font = Font(bold=True)
+    ws.cell(row=row_idx+1, column=5).alignment = Alignment(horizontal="right")
+    
+    for col_idx, col_let in enumerate(['F', 'G', 'H'], 6):
+        formula = f"=SUM({col_let}5:{col_let}{row_idx-1})"
+        cell_sum = ws.cell(row=row_idx+1, column=col_idx, value=formula)
+        cell_sum.font = Font(bold=True)
+        cell_sum.number_format = '#,##0'
+        cell_sum.border = border
+        cell_sum.alignment = Alignment(horizontal="right")
+
+    widths = [12, 22, 10, 15, 45, 14, 14, 14, 15, 25, 15, 20]
+    for i, w in enumerate(widths, 1): ws.column_dimensions[chr(64+i) if i <= 26 else 'A'+chr(64+i-26)].width = w
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="LibroGuias_{datetime.now().strftime("%Y%m%d")}.xlsx"'
+    wb.save(response)
+    return response
+
+# ========== FACTURACIÓN CONSOLIDADA DE GUÍAS ==========
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.add_venta', raise_exception=True)
+def facturar_guias_list(request):
+    """
+    Lista de clientes con opción de filtrar los que tienen guías pendientes
+    """
+    from facturacion_electronica.models import DocumentoTributarioElectronico
+    
+    empresa = request.empresa
+    search = request.GET.get('search', '').strip()
+    solo_pendientes = request.GET.get('solo_pendientes', '1') == '1' # Por defecto solo pendientes
+    
+    # 1. Obtener IDs de ventas que YA están en facturas
+    invoiced_ventas_ids = DocumentoTributarioElectronico.objects.filter(
+        empresa=empresa,
+        tipo_dte__in=['33', '34'],
+        orden_despacho__isnull=False
+    ).values_list('orden_despacho__id', flat=True)
+    
+    # 2. Guías pendientes globalmente (para el contador y filtro rápido)
+    # Una venta es facturable si: es tipo 'guia' O tiene un DTE de tipo '52' asociado
+    guias_pendientes_qs = Venta.objects.filter(
+        empresa=empresa,
+        estado='confirmada'
+    ).filter(
+        Q(tipo_documento='guia') | Q(dte__tipo_dte='52')
+    ).exclude(id__in=invoiced_ventas_ids).distinct()
+    
+    clientes_con_pendientes_ids = guias_pendientes_qs.values_list('cliente_id', flat=True).distinct()
+    total_clientes_pendientes = len(clientes_con_pendientes_ids)
+    
+    # 3. Filtrar clientes
+    if solo_pendientes:
+        clientes = Cliente.objects.filter(id__in=clientes_con_pendientes_ids, empresa=empresa)
+    else:
+        clientes = Cliente.objects.filter(empresa=empresa)
+    
+    if search:
+        clientes = clientes.filter(Q(nombre__icontains=search) | Q(rut__icontains=search))
+    
+    clientes = clientes.order_by('nombre')
+    
+    # 4. Enriquecer datos de clientes (Solo si es necesario para el listado actual)
+    for cliente in clientes:
+        cliente_pendientes = guias_pendientes_qs.filter(cliente=cliente)
+        cliente.cant_guias_pendientes = cliente_pendientes.count()
+        cliente.total_pendiente = cliente_pendientes.aggregate(Sum('total'))['total__sum'] or 0
+        cliente.tiene_pendientes = cliente.id in clientes_con_pendientes_ids
+    
+    # Paginación
+    paginator = Paginator(clientes, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+        'solo_pendientes': solo_pendientes,
+        'total_clientes_pendientes': total_clientes_pendientes,
+    }
+    
+    return render(request, 'ventas/facturar_guias_list.html', context)
+
+@login_required
+@requiere_empresa
+def api_guias_pendientes_cliente(request, cliente_id):
+    """
+    Retorna las guías pendientes de un cliente específico en JSON
+    """
+    from facturacion_electronica.models import DocumentoTributarioElectronico
+    
+    empresa = request.empresa
+    
+    # Usar EXACTAMENTE la misma lógica que el queryset de pendientes global
+    invoiced_ventas_ids = DocumentoTributarioElectronico.objects.filter(
+        empresa=empresa,
+        tipo_dte__in=['33', '34'],
+        orden_despacho__isnull=False
+    ).values_list('orden_despacho__id', flat=True)
+    
+    guias = Venta.objects.filter(
+        empresa=empresa,
+        cliente_id=cliente_id,
+        estado='confirmada'
+    ).filter(
+        Q(tipo_documento='guia') | Q(dte__tipo_dte='52')
+    ).exclude(id__in=invoiced_ventas_ids).distinct().order_by('fecha', 'numero_venta')
+    
+    data = []
+    for g in guias:
+        try:
+            # Buscar DTE de forma directa (campo dte es el related_name del OneToOne)
+            dte = getattr(g, 'dte', None)
+            
+            # Fallback a dte_asociado solo si dte es None
+            if not dte:
+                dte = g.dte_asociado
+            
+            folio = dte.folio if dte else g.numero_venta
+            
+            data.append({
+                'id': g.id,
+                'numero': folio,
+                'fecha': g.fecha.strftime('%d/%m/%Y'),
+                'total': float(g.total),
+                'observaciones': g.observaciones,
+                'es_dte': dte is not None
+            })
+        except Exception as e:
+            print(f"[ERROR API GUIAS] Guía ID {g.id}: {str(e)}")
+            # Fallback mínimo para no romper el listado
+            data.append({
+                'id': g.id,
+                'numero': g.numero_venta,
+                'fecha': g.fecha.strftime('%d/%m/%Y'),
+                'total': float(g.total),
+                'observaciones': g.observaciones,
+                'es_dte': False
+            })
+    
+    return JsonResponse({'success': True, 'guias': data, 'count': len(data)})
+
+@login_required
+@requiere_empresa
+@transaction.atomic
+def api_procesar_factura_consolidada(request):
+    """
+    Crea una factura consolidada a partir de múltiples guías
+    """
+    import json
+    from facturacion_electronica.dte_service import DTEService
+    from django.db import transaction
+    
+    try:
+        data = json.loads(request.body)
+        guia_ids = data.get('guia_ids', [])
+        cliente_id = data.get('cliente_id')
+        tipo_factura = data.get('tipo_documento', '33') # 33: Factura, 39: Boleta
+        
+        if not guia_ids:
+            return JsonResponse({'success': False, 'message': 'Debe seleccionar al menos una guía.'})
+        
+        guias = Venta.objects.filter(id__in=guia_ids, empresa=request.empresa)
+        cliente = Cliente.objects.get(id=cliente_id, empresa=request.empresa)
+        
+        # Consolidados de ítems
+        items_consolidados = {} # {articulo_id: {'articulo': obj, 'cantidad': X, 'precio_unitario': Y}}
+        
+        for guia in guias:
+            for detalle in guia.ventadetalle_set.all():
+                art_id = detalle.articulo_id
+                if art_id in items_consolidados:
+                    items_consolidados[art_id]['cantidad'] += detalle.cantidad
+                    # Podríamos promediar precio o usar el último, asumiendo mismos para el mismo cliente
+                else:
+                    items_consolidados[art_id] = {
+                        'articulo': detalle.articulo,
+                        'cantidad': detalle.cantidad,
+                        'precio_unitario': detalle.precio_unitario
+                    }
+        
+        # Obtener estación de trabajo para el correlativo
+        estacion_id = request.session.get('pos_estacion_id')
+        estacion = None
+        if estacion_id:
+            estacion = EstacionTrabajo.objects.filter(id=estacion_id, empresa=request.empresa).first()
+        
+        if not estacion:
+            estacion = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True).first()
+        
+        if not estacion:
+            return JsonResponse({'success': False, 'message': 'No hay estaciones de trabajo configuradas.'})
+
+        # Bloqueo atómico para correlativo
+        estacion_bloqueada = EstacionTrabajo.objects.select_for_update().get(pk=estacion.pk)
+        numero_ticket = estacion_bloqueada.incrementar_correlativo_ticket()
+        numero_venta = f"{numero_ticket:06d}"
+
+        # Crear nueva Venta para la Factura (Consolidada)
+        nueva_venta = Venta.objects.create(
+            empresa=request.empresa,
+            sucursal=guias[0].sucursal if guias.exists() else None,
+            numero_venta=numero_venta,
+            fecha=timezone.now().date(),
+            cliente=cliente,
+            tipo_documento='factura' if tipo_factura == '33' else 'boleta',
+            tipo_documento_planeado='factura' if tipo_factura == '33' else 'boleta',
+            estado='confirmada',
+            usuario_creacion=request.user,
+            vendedor=guias[0].vendedor if guias.exists() else None,
+            estacion_trabajo=estacion
+        )
+
+        # Crear detalles consolidados
+        for item in items_consolidados.values():
+            VentaDetalle.objects.create(
+                venta=nueva_venta,
+                articulo=item['articulo'],
+                cantidad=item['cantidad'],
+                precio_unitario=item['precio_unitario']
+            )
+
+        nueva_venta.calcular_totales()
+
+        # Generar DTE
+        dte_service = DTEService(request.empresa)
+        dte = dte_service.generar_dte_desde_venta(nueva_venta, tipo_factura)
+
+        if dte:
+            # Vincular guías originales en el many-to-many
+            for guia in guias:
+                dte.orden_despacho.add(guia)
+            
+            return JsonResponse({
+                'success': True, 
+                'message': f'Documento #{dte.folio} generado exitosamente.',
+                'dte_id': dte.id
+            })
+        else:
+            return JsonResponse({'success': False, 'message': 'Se creó el registro pero el servicio DTE no pudo generar el documento.'})
+
+    except Exception as e:
+        import traceback
+        print(f"[ERROR CONSOLIDACION] {str(e)}")
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})

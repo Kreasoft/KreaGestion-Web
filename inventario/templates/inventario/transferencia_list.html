@@ -58,7 +58,7 @@
     }
 
     .header-text h1 {
-        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+        color: var(--stone-text); font-size: 1.8rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300;
     }
     .header-text p {
         color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
@@ -304,6 +304,7 @@
                                     <th>Origen</th>
                                     <th>Destino</th>
                                     <th>Items</th>
+                                    <th>Guía SII</th>
                                     <th>Estado</th>
                                     <th>Usuario</th>
                                     <th class="text-center">Acciones</th>
@@ -317,6 +318,24 @@
                                     <td>{{ transferencia.bodega_origen.nombre }}</td>
                                     <td>{{ transferencia.bodega_destino.nombre }}</td>
                                     <td><span class="badge rounded-pill bg-light text-dark border">{{ transferencia.detalles.count }}</span></td>
+                                    <td>
+                                        {% if transferencia.guia_despacho %}
+                                            <div class="d-flex flex-column" style="gap: 2px;">
+                                                <span class="fw-bold" style="font-size: 0.75rem;">N° {{ transferencia.guia_despacho.folio }}</span>
+                                                {% if transferencia.guia_despacho.estado_sii == 'aceptado' %}
+                                                    <span class="badge w-100" style="background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; font-size: 0.65rem;">ACEPTADO</span>
+                                                {% elif transferencia.guia_despacho.estado_sii == 'rechazado' %}
+                                                    <span class="badge w-100" style="background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; font-size: 0.65rem;">RECHAZADO</span>
+                                                {% elif transferencia.guia_despacho.track_id %}
+                                                    <span class="badge w-100" style="background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; font-size: 0.65rem;">EN PROCESO</span>
+                                                {% else %}
+                                                    <span class="badge w-100 font-monospace" style="background: #F5F5F5; color: #616161; border: 1px solid #E0E0E0; font-size: 0.65rem;">GENERADA</span>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted small">Sin Guía</span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         {% if transferencia.estado == 'pendiente' %}
                                             <span class="badge-stone bg-pendiente">Pendiente</span>

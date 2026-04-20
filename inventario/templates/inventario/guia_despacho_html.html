@@ -445,8 +445,12 @@
                 if (window.history.length > 1) {
                     window.history.back();
                 } else {
-                    // Si no hay historial, redirigir al libro de ventas
+                    // Fallback inteligente según tipo de documento
+                    {% if guia.tipo_dte == '52' %}
+                    window.location.href = "{% url 'ventas:libro_guias' %}";
+                    {% else %}
                     window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
+                    {% endif %}
                 }
             } catch (e) {
                 console.log('No se pudo volver atrás');

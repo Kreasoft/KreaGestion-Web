@@ -59,6 +59,7 @@ class EstacionTrabajoForm(forms.ModelForm):
             'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale',
             'cierre_directo', 'flujo_cierre_directo', 'enviar_sii_directo',
             'max_items_factura', 'max_items_boleta', 'max_items_guia', 'max_items_cotizacion', 'max_items_vale',
+            'copias_factura', 'copias_boleta', 'copias_guia', 'copias_notacredito', 'copias_cotizacion', 'copias_ticket', 'copias_vale',
             'activo'
         ]
         widgets = {
@@ -81,6 +82,13 @@ class EstacionTrabajoForm(forms.ModelForm):
             'max_items_guia': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'max_items_cotizacion': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'max_items_vale': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'copias_factura': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '10'}),
+            'copias_boleta': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '10'}),
+            'copias_guia': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '10'}),
+            'copias_notacredito': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '10'}),
+            'copias_cotizacion': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '10'}),
+            'copias_ticket': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '10'}),
+            'copias_vale': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '10'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
@@ -103,6 +111,12 @@ class EstacionTrabajoForm(forms.ModelForm):
             'max_items_guia': 'Máx. Items Guía',
             'max_items_cotizacion': 'Máx. Items Cotización',
             'max_items_vale': 'Máx. Items Vale',
+            'copias_factura': 'Copias Factura',
+            'copias_boleta': 'Copias Boleta',
+            'copias_guia': 'Copias Guía',
+            'copias_cotizacion': 'Copias Cotización',
+            'copias_ticket': 'Copias Ticket',
+            'copias_vale': 'Copias Vale',
             'activo': 'Activa',
         }
 
