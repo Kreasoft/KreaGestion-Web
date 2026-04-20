@@ -127,6 +127,29 @@ def get_sort_icon(context, field):
     
     return mark_safe('<i class="fas fa-sort ms-1 opacity-25"></i>')
 
+# --- Filtros de Formateo Globales (Consolidados para asegurar su registro en Producción) ---
+
+@register.filter(name='format_miles')
+def format_miles_filter(value):
+    """Alias para formatear con separador de miles"""
+    return format_price(value)
+
+@register.filter(name='format_precio')
+def format_precio_filter(value):
+    """Alias para formatear precios"""
+    return format_price(value)
+
+@register.filter(name='format_moneda')
+def format_moneda_filter(value):
+    """Formatea como moneda con símbolo $"""
+    val = format_price(value)
+    return f"${val}"
+
+@register.filter(name='format_number')
+def format_number_filter(value):
+    """Alias para formatear números genéricos"""
+    return format_price(value)
+
 
 
 
