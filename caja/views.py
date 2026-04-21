@@ -110,7 +110,7 @@ def apertura_list(request):
     # Si es cajero, solo mostrar cajas de su sucursal
     cajas_base = Caja.objects.filter(empresa=request.empresa, activo=True)
     
-    if request.user.perfil.tipo_usuario == 'cajero' and request.user.perfil.sucursal:
+    if hasattr(request.user, 'perfil') and request.user.perfil.tipo_usuario == 'cajero' and request.user.perfil.sucursal:
         cajas_base = cajas_base.filter(sucursal=request.user.perfil.sucursal)
     
     cajas_disponibles = cajas_base.exclude(
