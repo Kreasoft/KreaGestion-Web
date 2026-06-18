@@ -8,6 +8,7 @@ from django.http import JsonResponse, HttpResponse, Http404
 from django.utils import timezone
 from django.urls import reverse
 from django.template.loader import get_template
+from django.views.decorators.csrf import ensure_csrf_cookie
 from decimal import Decimal
 from datetime import datetime, timedelta
 from core.decorators import requiere_empresa
@@ -424,20 +425,20 @@ def pos_buscar_articulo(request):
             try:
                 estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa)
                 codigo_comodin_estacion = (estacion.codigo_comodin or '999999').upper().strip()
-                print(f"=== CÓDIGO COMODÍN CONFIGURADO (Sesión): '{codigo_comodin_estacion}' ===")
-                print(f"=== COMPARACIÓN: query_limpio='{query_limpio}' == codigo_comodin='{codigo_comodin_estacion}' ===")
-                print(f"=== ¿SON IGUALES? {query_limpio == codigo_comodin_estacion} ===")
+                print(f"=== CODIGO COMODIN CONFIGURADO (Sesion): '{codigo_comodin_estacion}' ===")
+                print(f"=== COMPARACION: query_limpio='{query_limpio}' == codigo_comodin='{codigo_comodin_estacion}' ===")
+                print(f"=== SON IGUALES? {query_limpio == codigo_comodin_estacion} ===")
                 
                 if query_limpio == codigo_comodin_estacion:
                     # Es código comodín, retornar señal especial
-                    print(f"=== ✓✓✓ CÓDIGO COMODÍN DETECTADO (Sesión) ✓✓✓ ===")
+                    print(f"=== [OK] CODIGO COMODIN DETECTADO (Sesion) ===")
                     return JsonResponse({
                         'es_comodin': True,
                         'codigo_comodin': estacion.codigo_comodin or '999999',
                         'articulos': []
                     })
             except EstacionTrabajo.DoesNotExist:
-                print(f"=== ERROR: Estación {estacion_id} no encontrada ===")
+                print(f"=== ERROR: Estacion {estacion_id} no encontrada ===")
                 pass
         
         # Si no hay estación en sesión o no coincide, buscar en todas las estaciones activas
@@ -445,11 +446,11 @@ def pos_buscar_articulo(request):
         estaciones_activas = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True)
         for estacion in estaciones_activas:
             codigo_comodin_estacion = (estacion.codigo_comodin or '999999').upper().strip()
-            print(f"=== Estación {estacion.id} ({estacion.nombre}): código comodín='{codigo_comodin_estacion}' ===")
-            print(f"=== COMPARACIÓN: query_limpio='{query_limpio}' == codigo_comodin='{codigo_comodin_estacion}' ===")
-            print(f"=== ¿SON IGUALES? {query_limpio == codigo_comodin_estacion} ===")
+            print(f"=== Estacion {estacion.id} ({estacion.nombre}): codigo comodin='{codigo_comodin_estacion}' ===")
+            print(f"=== COMPARACION: query_limpio='{query_limpio}' == codigo_comodin='{codigo_comodin_estacion}' ===")
+            print(f"=== SON IGUALES? {query_limpio == codigo_comodin_estacion} ===")
             if query_limpio == codigo_comodin_estacion:
-                print(f"=== ✓✓✓ CÓDIGO COMODÍN DETECTADO (Estación {estacion.id}) ✓✓✓ ===")
+                print(f"=== [OK] CODIGO COMODIN DETECTADO (Estacion {estacion.id}) ===")
                 return JsonResponse({
                     'es_comodin': True,
                     'codigo_comodin': estacion.codigo_comodin or '999999',
@@ -818,7 +819,8 @@ def pos_view(request):
         form_apertura = AperturaCajaForm(empresa=request.empresa)
     
     # Obtener datos para el POS con impuesto específico incluido
-    articulos_queryset = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')[:500]  # Limitar para performance
+    # Limitar a 20 para máxima velocidad inicial. El resto se busca por AJAX.
+    articulos_queryset = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria', 'categoria__impuesto_especifico').order_by('-id')[:20]
     
     # Calcular precios finales directamente en la vista
     articulos = []
@@ -840,7 +842,10 @@ def pos_view(request):
         precio_final = round(precio_neto + iva + impuesto_especifico)
         articulo.precio_final_calculado = precio_final
         articulos.append(articulo)
-    clientes = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')  # Todos los clientes activos
+        
+    # Mejorar la velocidad inicial: limitar clientes iniciales a los 50 más recientes para evitar colapso de memoria
+    clientes = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('-id')[:50]
+    
     vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
     formas_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
     estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True).order_by('numero')
@@ -1255,23 +1260,12 @@ def pos_buscar_cliente(request):
         
         # Búsqueda con filtro de empresa correcto
         if hasattr(request, 'empresa') and request.empresa:
-            # Primero buscar en la empresa actual
+            # Buscar en la empresa actual
             clientes = Cliente.objects.filter(
                 Q(rut__icontains=q) | Q(nombre__icontains=q),
                 empresa=request.empresa,
                 estado='activo'
             ).order_by('nombre')[:10]
-            
-            # Si no hay clientes en esta empresa, mover todos los clientes a esta empresa
-            if clientes.count() == 0:
-                Cliente.objects.filter(estado='activo').update(empresa=request.empresa)
-                
-                # Buscar de nuevo
-                clientes = Cliente.objects.filter(
-                    Q(rut__icontains=q) | Q(nombre__icontains=q),
-                    empresa=request.empresa,
-                    estado='activo'
-                ).order_by('nombre')[:10]
         else:
             # Si no hay empresa, devolver error
             return JsonResponse({'success': False, 'message': 'No se pudo identificar la empresa'})
@@ -1915,7 +1909,7 @@ def pos_procesar_preventa(request):
                 print("=" * 80)
                 
                 if cierre_directo_ticket:
-                    print("[✓] CIERRE DIRECTO TICKET ACTIVO - Procesando automáticamente")
+                    print("[OK] CIERRE DIRECTO TICKET ACTIVO - Procesando automaticamente")
                     
                     try:
                         from caja.models import AperturaCaja, Caja, VentaProcesada, MovimientoCaja
@@ -2128,7 +2122,7 @@ def pos_procesar_preventa(request):
                             'error_cierre': str(e_cierre_ticket)
                         })
                 else:
-                    print("[✗] CIERRE DIRECTO TICKET DESACTIVADO")
+                    print("[INFO] CIERRE DIRECTO TICKET DESACTIVADO")
             
             # ============================================================================
             # PROCESAMIENTO PARA VALES INTERNOS (No se convierten, afectan caja inmediatamente)
@@ -2145,7 +2139,7 @@ def pos_procesar_preventa(request):
                         break
                 
                 if apertura_activa:
-                    print("[✓] PROCESANDO VALE INTERNO - Creando movimiento de caja")
+                    print("[OK] PROCESANDO VALE INTERNO - Creando movimiento de caja")
                     # Obtener forma de pago por defecto (Efectivo)
                     forma_pago = FormaPago.objects.filter(
                         empresa=request.empresa,
@@ -2403,9 +2397,9 @@ def pos_procesar_preventa(request):
                 print("=" * 80)
                 
                 if cierre_directo_activo:
-                    print("[✓] CIERRE DIRECTO ACTIVO - Procesando automáticamente")
+                    print("[OK] CIERRE DIRECTO ACTIVO - Procesando automaticamente")
                 else:
-                    print("[✗] CIERRE DIRECTO DESACTIVADO - NO procesará automáticamente")
+                    print("[INFO] CIERRE DIRECTO DESACTIVADO - NO procesara automaticamente")
                 
                 if cierre_directo_activo:
                     print(f"[CIERRE DIRECTO] Procesando ticket automaticamente")
@@ -2840,7 +2834,7 @@ def estaciontrabajo_create(request):
             response['Content-Type'] = 'application/json'
             return response
         else:
-            response = JsonResponse({'success': False, 'errors': form.errors})
+            response = JsonResponse({'success': False, 'errors': form.errors}, status=400)
             response['Content-Type'] = 'application/json'
             return response
 
@@ -3234,10 +3228,25 @@ def vale_termica(request, pk):
         
         detalles = VentaDetalle.objects.filter(venta=venta)
         
+        # Obtener configuración de copias de la estación (prioritario)
+        n_copias = 1
+        estacion = getattr(venta, 'estacion_trabajo', None)
+        if not estacion:
+            estacion_id = request.session.get('pos_estacion_id')
+            if estacion_id:
+                from .models import EstacionTrabajo
+                try:
+                    estacion = EstacionTrabajo.objects.get(id=estacion_id)
+                except: pass
+        
+        if estacion:
+            n_copias = estacion.get_copias_por_tipo(venta.tipo_documento)
+        
         context = {
             'vale': venta,
             'detalles': detalles,
-            'nombre_impresora': request.GET.get('printer', '')
+            'nombre_impresora': request.GET.get('printer', ''),
+            'copias_range': range(n_copias),
         }
         
         return render(request, 'ventas/vale_termica.html', context)
@@ -3816,6 +3825,7 @@ def venta_html(request, pk):
         'dte': dte,  # DTE si existe (puede ser None)
         'nombre_impresora': nombre_impresora,  # Nombre de impresora física
         'formas_pago_list': formas_pago_list,  # Lista de formas de pago múltiples
+        'copias_range': range(n_copias),
         # Alias para compatibilidad con templates específicos
         'boleta': venta if venta.tipo_documento == 'boleta' or (venta.tipo_documento == 'ticket' and venta.tipo_documento_planeado == 'boleta') else None,
         'factura': venta if venta.tipo_documento == 'factura' or (venta.tipo_documento == 'ticket' and venta.tipo_documento_planeado == 'factura') else None,
@@ -4341,17 +4351,20 @@ def libro_ventas(request):
     estado = request.GET.get('estado', '')
     search = request.GET.get('search', '')
     
-    # Consulta base: ventas confirmadas SIN DTE asociado
+    # Consulta base: ventas confirmadas y facturadas/cobradas SIN DTE asociado
     # (Excluimos todas las ventas del POS que no han sido convertidas a DTE para que el Libro de Ventas sea oficial)
     # EXCLUIMOS Guías de Despacho ya que ahora tienen su propio libro
     ventas = Venta.objects.filter(
         empresa=request.empresa,
         estado='confirmada',
-        dte__isnull=True
+        facturado=True,  # Solo incluir documentos ya finalizados/cobrados en caja
+        dte__isnull=True,
+        tipo_documento__in=['boleta', 'factura']
     ).exclude(
         Q(numero_venta__icontains='test') | 
         Q(tipo_documento__in=['cotizacion', 'guia'])
     ).select_related('cliente', 'vendedor', 'forma_pago', 'estacion_trabajo')
+
     
     # Consulta DTEs (Documentos Tributarios Electrónicos)
     # EXCLUIMOS Guías de Despacho (Tipo 52)
@@ -4360,7 +4373,7 @@ def libro_ventas(request):
     ).exclude(
         Q(folio__icontains='test') |
         Q(tipo_dte='52')
-    ).select_related('caf_utilizado', 'usuario_creacion', 'venta').prefetch_related('usuario_creacion', 'notas_credito')
+    ).select_related('caf_utilizado', 'usuario_creacion', 'venta').prefetch_related('usuario_creacion', 'notas_credito', 'notas_debito')
     
     # Aplicar filtros de fecha
     try:
@@ -4457,6 +4470,7 @@ def libro_ventas(request):
             dte.sort_folio = 0
         # Marcar y ajustar montos para Notas de Crédito (tipo 61) como negativos
         dte.es_nota_credito = (getattr(dte, 'tipo_dte', '') == '61')
+        dte.es_nota_debito = (getattr(dte, 'tipo_dte', '') == '56')
         if dte.es_nota_credito:
             dte.monto_neto = -(dte.monto_neto or 0)
             dte.monto_iva = -(dte.monto_iva or 0)
@@ -4467,6 +4481,12 @@ def libro_ventas(request):
                 dte.notacredito_id = nc.id if nc else None
             except Exception:
                 dte.notacredito_id = None
+        if dte.es_nota_debito:
+            try:
+                nd = dte.notas_debito.all()[0] if hasattr(dte, 'notas_debito') and dte.notas_debito.all() else None
+                dte.notadebito_id = nd.id if nd else None
+            except Exception:
+                dte.notadebito_id = None
     
     # Definir la función de clave para ordenamiento
     def get_sort_key(doc):
@@ -5966,6 +5986,402 @@ def libro_guias_excel(request):
     return response
 
 # ========== FACTURACIÓN CONSOLIDADA DE GUÍAS ==========
+
+def _decimal_from_payload(value, default='0'):
+    if value is None or value == '':
+        return Decimal(default)
+    if isinstance(value, (int, float, Decimal)):
+        return Decimal(str(value))
+    text = str(value).strip().replace('$', '').replace(' ', '')
+    text = text.replace('\xa0', '')
+    if ',' in text and '.' in text:
+        text = text.replace('.', '').replace(',', '.')
+    elif ',' in text:
+        text = text.replace(',', '.')
+    elif '.' in text:
+        parts = text.split('.')
+        if len(parts) > 1 and len(parts[-1]) == 3:
+            text = ''.join(parts)
+    try:
+        return Decimal(text)
+    except Exception:
+        return Decimal(default)
+
+
+def _id_from_payload(value):
+    if value is None or value == '':
+        return None
+    text = str(value).replace('\xa0', '').replace(' ', '').replace('.', '').strip()
+    return int(text) if text.isdigit() else None
+
+
+def _registrar_factura_directa_cuenta_corriente(venta, dte, monto_pagado, usuario):
+    saldo_pendiente = venta.total - monto_pagado
+    if not venta.cliente or saldo_pendiente <= 0:
+        return False
+
+    from tesoreria.models import CuentaCorrienteCliente as CuentaTesoreria
+    from tesoreria.models import MovimientoCuentaCorrienteCliente, DocumentoCliente, PagoDocumentoCliente
+
+    cuenta, _ = CuentaTesoreria.objects.get_or_create(
+        empresa=venta.empresa,
+        cliente=venta.cliente,
+        defaults={
+            'limite_credito': getattr(venta.cliente, 'limite_credito', Decimal('0.00')) or Decimal('0.00'),
+            'dias_credito': getattr(venta.cliente, 'plazo_pago', 30) or 30,
+        }
+    )
+
+    saldo_anterior = cuenta.saldo_pendiente
+    MovimientoCuentaCorrienteCliente.objects.create(
+        cuenta_corriente=cuenta,
+        venta=venta,
+        tipo_movimiento='debe',
+        monto=venta.total,
+        saldo_anterior=saldo_anterior,
+        saldo_nuevo=saldo_anterior + venta.total,
+        estado='confirmado',
+        observaciones=f"Factura directa DTE {dte.tipo_dte} folio {dte.folio}",
+        registrado_por=usuario,
+    )
+
+    if monto_pagado > 0:
+        MovimientoCuentaCorrienteCliente.objects.create(
+            cuenta_corriente=cuenta,
+            venta=venta,
+            tipo_movimiento='haber',
+            monto=monto_pagado,
+            saldo_anterior=saldo_anterior + venta.total,
+            saldo_nuevo=saldo_anterior + venta.total - monto_pagado,
+            estado='confirmado',
+            observaciones=f"Abono inicial factura directa folio {dte.folio}",
+            registrado_por=usuario,
+        )
+
+    cuenta.saldo_total = cuenta.saldo_total + venta.total
+    cuenta.saldo_pendiente = cuenta.saldo_pendiente + saldo_pendiente
+    cuenta.save(update_fields=['saldo_total', 'saldo_pendiente', 'fecha_modificacion'])
+
+    fecha_vencimiento = venta.fecha + timedelta(days=getattr(venta.cliente, 'plazo_pago', 30) or 30)
+    documento, created = DocumentoCliente.objects.get_or_create(
+        empresa=venta.empresa,
+        tipo_documento='factura',
+        numero_documento=f"{dte.tipo_dte}-{dte.folio}",
+        defaults={
+            'cliente': venta.cliente,
+            'fecha_emision': venta.fecha,
+            'fecha_vencimiento': fecha_vencimiento,
+            'total': int(venta.total),
+            'monto_pagado': monto_pagado,
+            'saldo_pendiente': saldo_pendiente,
+            'estado_pago': 'parcial' if monto_pagado > 0 else 'pendiente',
+            'observaciones': f"Factura directa DTE {dte.tipo_dte}",
+            'creado_por': usuario,
+        }
+    )
+    if not created:
+        documento.cliente = venta.cliente
+        documento.total = int(venta.total)
+        documento.monto_pagado = monto_pagado
+        documento.saldo_pendiente = saldo_pendiente
+        documento.estado_pago = 'parcial' if monto_pagado > 0 else 'pendiente'
+        documento.save()
+
+    if monto_pagado > 0:
+        PagoDocumentoCliente.objects.create(
+            documento=documento,
+            monto=monto_pagado,
+            forma_pago=venta.forma_pago.nombre if venta.forma_pago else 'Abono',
+            observaciones='Abono inicial registrado al emitir factura directa',
+            registrado_por=usuario,
+        )
+
+    try:
+        from clientes.models import CuentaCorrienteCliente as MovimientoCliente
+        MovimientoCliente.objects.create(
+            empresa=venta.empresa,
+            cliente=venta.cliente,
+            fecha=venta.fecha,
+            tipo_movimiento='venta',
+            monto=saldo_pendiente,
+            descripcion=f"Factura directa folio {dte.folio}",
+            observaciones=venta.observaciones,
+            creado_por=usuario,
+        )
+    except Exception as exc:
+        print(f"[FACTURA DIRECTA] No se pudo registrar movimiento legacy cliente: {exc}")
+
+    return True
+
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.add_venta', raise_exception=True)
+@ensure_csrf_cookie
+def facturar_directo(request):
+    from empresas.models import Sucursal
+
+    empresa = request.empresa
+
+    if request.method == 'POST':
+        import json
+        from facturacion_electronica.dte_service import DTEService
+
+        try:
+            data = json.loads(request.body.decode('utf-8') if request.body else '{}')
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'message': 'Solicitud invalida.'}, status=400)
+
+        tipo_dte = data.get('tipo_dte') or '33'
+        if tipo_dte not in ['33', '34']:
+            return JsonResponse({'success': False, 'message': 'Tipo de factura no valido.'}, status=400)
+
+        cliente_id = _id_from_payload(data.get('cliente_id'))
+        if not cliente_id:
+            return JsonResponse({'success': False, 'message': 'Selecciona un cliente.'}, status=400)
+        cliente = Cliente.objects.filter(pk=cliente_id, empresa=empresa).first()
+        if not cliente:
+            return JsonResponse({'success': False, 'message': 'Cliente no encontrado para la empresa actual.'}, status=404)
+
+        errores_cliente = []
+        for campo, etiqueta in [('rut', 'RUT'), ('giro', 'giro'), ('direccion', 'direccion'), ('comuna', 'comuna')]:
+            if not getattr(cliente, campo, None):
+                errores_cliente.append(etiqueta)
+        if errores_cliente:
+            return JsonResponse({
+                'success': False,
+                'message': 'El cliente debe tener ' + ', '.join(errores_cliente) + ' para emitir factura electronica.'
+            }, status=400)
+
+        lineas = data.get('items') or []
+        if not lineas:
+            return JsonResponse({'success': False, 'message': 'Agrega al menos un producto.'}, status=400)
+
+        forma_pago = None
+        forma_pago_id = _id_from_payload(data.get('forma_pago_id'))
+        if forma_pago_id:
+            forma_pago = FormaPago.objects.filter(pk=forma_pago_id, empresa=empresa).first()
+            if not forma_pago:
+                return JsonResponse({'success': False, 'message': 'Forma de pago no encontrada para la empresa actual.'}, status=404)
+
+        vendedor = None
+        vendedor_id = _id_from_payload(data.get('vendedor_id'))
+        if vendedor_id:
+            vendedor = Vendedor.objects.filter(pk=vendedor_id, empresa=empresa).first()
+            if not vendedor:
+                return JsonResponse({'success': False, 'message': 'Vendedor no encontrado para la empresa actual.'}, status=404)
+
+        sucursal = None
+        sucursal_id = _id_from_payload(data.get('sucursal_id'))
+        if sucursal_id:
+            sucursal = Sucursal.objects.filter(pk=sucursal_id, empresa=empresa).first()
+            if not sucursal:
+                return JsonResponse({'success': False, 'message': 'Sucursal no encontrada para la empresa actual.'}, status=404)
+        else:
+            sucursal = Sucursal.objects.filter(empresa=empresa, estado='activa', es_principal=True).first()
+
+        items_procesados = []
+        neto = Decimal('0.00')
+        exento = Decimal('0.00')
+        iva = Decimal('0.00')
+        total = Decimal('0.00')
+
+        for idx, linea in enumerate(lineas, start=1):
+            articulo_id = _id_from_payload(linea.get('articulo_id'))
+            articulo = Articulo.objects.filter(pk=articulo_id, empresa=empresa).first() if articulo_id else None
+            if not articulo:
+                return JsonResponse({'success': False, 'message': f'La linea {idx} tiene un producto invalido.'}, status=400)
+
+            cantidad = _decimal_from_payload(linea.get('cantidad'))
+            if cantidad <= 0:
+                return JsonResponse({'success': False, 'message': f'La linea {idx} debe tener cantidad mayor a cero.'}, status=400)
+
+            linea_neto = _decimal_from_payload(linea.get('neto'))
+            linea_exento = _decimal_from_payload(linea.get('exento'))
+            linea_iva = _decimal_from_payload(linea.get('iva'))
+            linea_total = _decimal_from_payload(linea.get('total'))
+
+            if tipo_dte == '34':
+                linea_exento = linea_total if linea_total > 0 else linea_exento
+                linea_neto = Decimal('0.00')
+                linea_iva = Decimal('0.00')
+                linea_total = linea_exento
+            else:
+                if linea_total <= 0:
+                    linea_total = linea_neto + linea_exento + linea_iva
+                if linea_iva <= 0 and linea_neto > 0:
+                    linea_iva = (linea_neto * Decimal('0.19')).quantize(Decimal('1'))
+                    linea_total = linea_neto + linea_exento + linea_iva
+
+            base_linea = linea_exento if tipo_dte == '34' else (linea_neto + linea_exento)
+            precio_unitario = (base_linea / cantidad).quantize(Decimal('0.01')) if cantidad else Decimal('0.00')
+            descripcion = (linea.get('descripcion') or articulo.descripcion or articulo.nombre or '').strip()
+
+            items_procesados.append({
+                'articulo': articulo,
+                'descripcion': descripcion,
+                'cantidad': cantidad,
+                'precio_unitario': precio_unitario,
+                'precio_total': base_linea,
+            })
+            neto += linea_neto
+            exento += linea_exento
+            iva += linea_iva
+            total += linea_total
+
+        if tipo_dte == '34':
+            neto = Decimal('0.00')
+            iva = Decimal('0.00')
+            total = exento
+        elif total <= 0:
+            total = neto + exento + iva
+
+        fecha_documento = timezone.now().date()
+        if data.get('fecha'):
+            try:
+                fecha_documento = datetime.strptime(data.get('fecha'), '%Y-%m-%d').date()
+            except Exception:
+                fecha_documento = timezone.now().date()
+
+        monto_pagado = _decimal_from_payload(data.get('monto_pagado'))
+        if not forma_pago or not forma_pago.es_cuenta_corriente:
+            monto_pagado = total
+        elif monto_pagado > total:
+            monto_pagado = total
+
+        with transaction.atomic():
+            temp_numero = 'FD' + timezone.now().strftime('%y%m%d%H%M%S%f')[:18]
+            venta = Venta.objects.create(
+                empresa=empresa,
+                sucursal=sucursal,
+                numero_venta=temp_numero,
+                fecha=fecha_documento,
+                cliente=cliente,
+                vendedor=vendedor,
+                forma_pago=forma_pago,
+                tipo_documento='factura',
+                tipo_documento_planeado='factura',
+                subtotal=neto + exento,
+                descuento=Decimal('0.00'),
+                neto=neto,
+                iva=iva,
+                impuesto_especifico=Decimal('0.00'),
+                total=total,
+                estado='confirmada',
+                observaciones='[FACTURA_DIRECTA] ' + (data.get('observaciones') or ''),
+                monto_pagado=monto_pagado,
+                saldo_pendiente=total - monto_pagado,
+                usuario_creacion=request.user,
+            )
+
+            for item in items_procesados:
+                VentaDetalle.objects.create(
+                    venta=venta,
+                    articulo=item['articulo'],
+                    descripcion=item['descripcion'],
+                    cantidad=item['cantidad'],
+                    precio_unitario=item['precio_unitario'],
+                    precio_total=item['precio_total'],
+                    impuesto_especifico=Decimal('0.00'),
+                )
+
+            venta.subtotal = neto + exento
+            venta.neto = neto
+            venta.iva = iva
+            venta.total = total
+            venta.monto_pagado = monto_pagado
+            venta.saldo_pendiente = total - monto_pagado
+            venta.save(update_fields=['subtotal', 'neto', 'iva', 'total', 'monto_pagado', 'saldo_pendiente'])
+
+            dte_service = DTEService(empresa)
+            try:
+                dte = dte_service.generar_dte_desde_venta(venta, tipo_dte)
+            except Exception as exc:
+                transaction.set_rollback(True)
+                return JsonResponse({'success': False, 'message': f'Error al generar DTE: {exc}'}, status=500)
+
+            numero_final = f"{dte.folio:06d}"
+            if not Venta.objects.filter(empresa=empresa, tipo_documento='factura', numero_venta=numero_final).exclude(pk=venta.pk).exists():
+                venta.numero_venta = numero_final
+                venta.save(update_fields=['numero_venta'])
+
+            cuenta_corriente = False
+            if forma_pago and forma_pago.es_cuenta_corriente and venta.saldo_pendiente > 0:
+                cuenta_corriente = _registrar_factura_directa_cuenta_corriente(venta, dte, monto_pagado, request.user)
+
+        envio = {'success': False, 'message': 'No enviado'}
+        try:
+            envio = dte_service.enviar_dte_al_sii(dte)
+        except Exception as exc:
+            envio = {'success': False, 'message': str(exc)}
+
+        return JsonResponse({
+            'success': True,
+            'message': f"Factura folio {dte.folio} generada.",
+            'dte_id': dte.id,
+            'folio': dte.folio,
+            'tipo_dte': tipo_dte,
+            'envio': envio,
+            'cuenta_corriente': cuenta_corriente,
+            'print_url': reverse('facturacion_electronica:ver_factura_electronica', kwargs={'dte_id': dte.id}),
+        })
+
+    clientes = Cliente.objects.filter(empresa=empresa, estado='activo').order_by('nombre')
+    articulos = Articulo.objects.filter(empresa=empresa, activo=True).select_related('categoria', 'unidad_medida').order_by('nombre')[:1000]
+    formas_pago = FormaPago.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+    vendedores = Vendedor.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+    sucursales = Sucursal.objects.filter(empresa=empresa, estado='activa').order_by('-es_principal', 'nombre')
+    from bodegas.models import Bodega
+    from inventario.models import Stock
+    bodegas = Bodega.objects.filter(empresa=empresa, activa=True).order_by('nombre')
+
+    articulo_ids = [articulo.id for articulo in articulos]
+    stock_total_por_articulo = {
+        row['articulo_id']: row['total'] or Decimal('0.00')
+        for row in Stock.objects.filter(empresa=empresa, articulo_id__in=articulo_ids)
+        .values('articulo_id')
+        .annotate(total=Sum('cantidad'))
+    }
+    stock_por_bodega = {}
+    for row in Stock.objects.filter(empresa=empresa, articulo_id__in=articulo_ids).values('articulo_id', 'bodega_id', 'cantidad'):
+        stock_por_bodega.setdefault(row['articulo_id'], {})[str(row['bodega_id'])] = float(row['cantidad'] or 0)
+
+    articulos_json = []
+    for articulo in articulos:
+        precio = _decimal_from_payload(getattr(articulo, 'precio_venta', 0))
+        stock_total = stock_total_por_articulo.get(articulo.id, Decimal('0.00'))
+        articulos_json.append({
+            'id': articulo.id,
+            'codigo': articulo.codigo or '',
+            'nombre': articulo.nombre or '',
+            'descripcion': articulo.descripcion or articulo.nombre or '',
+            'precio': float(precio),
+            'stock': float(stock_total),
+            'stock_bodegas': stock_por_bodega.get(articulo.id, {}),
+            'exento': bool(articulo.categoria.exenta_iva) if articulo.categoria else False,
+        })
+
+    clientes_json = [{
+        'id': cliente.id,
+        'rut': cliente.rut or '',
+        'nombre': cliente.nombre or '',
+        'giro': cliente.giro or '',
+        'direccion': cliente.direccion or '',
+        'comuna': cliente.comuna or '',
+    } for cliente in clientes]
+
+    return render(request, 'ventas/facturar_directo.html', {
+        'clientes': clientes,
+        'clientes_json': clientes_json,
+        'articulos': articulos,
+        'articulos_json': articulos_json,
+        'formas_pago': formas_pago,
+        'vendedores': vendedores,
+        'sucursales': sucursales,
+        'bodegas': bodegas,
+        'today': timezone.now().date(),
+    })
+
 
 @login_required
 @requiere_empresa

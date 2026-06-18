@@ -2469,6 +2469,24 @@
                 fetch(url)
                     .then(response => response.json())
                     .then(data => {
+                        // Si es código comodín, mostrar modal
+                        if (data.es_comodin === true || data.es_comodin === 'true') {
+                            console.log('*** CODIGO COMODIN DETECTADO EN BUSQUEDA GENERAL ***');
+                            const searchInput = document.getElementById('pos-search');
+                            if (searchInput) {
+                                searchInput.value = '';
+                            }
+                            // Restaurar la visualización original de productos (según categoría actual)
+                            filterProducts();
+                            
+                            if (typeof window.mostrarModalProductoComodin === 'function') {
+                                window.mostrarModalProductoComodin();
+                            } else if (typeof mostrarModalProductoComodin === 'function') {
+                                mostrarModalProductoComodin();
+                            }
+                            return;
+                        }
+
                         console.log('Resultados de búsqueda:', data.articulos ? data.articulos.length : 0);
 
                         if (data.articulos && data.articulos.length > 0) {
@@ -5464,10 +5482,7 @@
                             </thead>
                             <tbody>
                                 {% for cliente in clientes %}
-                                <tr class="cliente-item" data-cliente-id="{{ cliente.id }}"
-                                    data-cliente-nombre="{{ cliente.nombre }}"
-                                    data-cliente-rut="{{ cliente.rut|default:'Sin RUT' }}"
-                                    data-cliente-direccion="{{ cliente.direccion|default:'Sin dirección' }}"
+                                <tr class="cliente-item" onclick="seleccionarClienteDesdeModalInicio('{{ cliente.id }}', '{{ cliente.nombre|escapejs }}', '{{ cliente.rut|default:''|escapejs }}', '{{ cliente.direccion|default:''|escapejs }}')"
                                     style="cursor: pointer; transition: background 0.2s;">
                                     <td style="padding: 10px 12px; color: #8B7355; font-weight: 500;">
                                         {{ cliente.rut|default:"Sin RUT" }}
@@ -5502,77 +5517,98 @@
         document.addEventListener('DOMContentLoaded', function () {
             const modoPOS = '{{ modo_pos }}';
 
-            // 1. Vincular BUSCADOR de clientes (siempre, para que Cambiar Cliente funcione)
+            // 1. Vincular BUSCADOR de clientes (siempre, para que Cambiar Cliente funcione) - AHORA CON AJAX
             const inputBusquedaInicio = document.getElementById('buscarClienteInicio');
             if (inputBusquedaInicio) {
                 inputBusquedaInicio.addEventListener('input', function () {
-                    const query = this.value.toLowerCase();
-                    const items = document.querySelectorAll('.cliente-item');
+                    const query = this.value.trim();
+                    const listaBody = document.querySelector('#listaClientesInicio tbody');
+                    
+                    if (query.length > 0) {
+                        listaBody.innerHTML = '<tr><td colspan="2" class="text-center text-muted" style="padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Buscando...</td></tr>';
+                        
+                        fetch(`/ventas/pos/buscar-cliente/?q=${encodeURIComponent(query)}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success && data.clientes && data.clientes.length > 0) {
+                                    let html = '';
+                                    data.clientes.forEach(cliente => {
+                                        const rutDisplay = cliente.rut || cliente.rut_formatted || 'Sin RUT';
+                                        const nombreDisplay = cliente.nombre || 'Cliente';
+                                        
+                                        const encodedId = String(cliente.id).replace(/'/g, "\\'");
+                                        const encodedNombre = nombreDisplay.replace(/'/g, "\\'");
+                                        const encodedRut = rutDisplay.replace(/'/g, "\\'");
+                                        const encodedDir = (cliente.direccion || '').replace(/'/g, "\\'");
 
-                    items.forEach(item => {
-                        const nombre = item.dataset.clienteNombre ? item.dataset.clienteNombre.toLowerCase() : '';
-                        const rut = item.dataset.clienteRut ? item.dataset.clienteRut.toLowerCase() : '';
-
-                        if (nombre.includes(query) || rut.includes(query)) {
-                            item.style.display = '';
-                        } else {
-                            item.style.display = 'none';
-                        }
-                    });
+                                        html += `
+                                        <tr class="cliente-item" onclick="seleccionarClienteDesdeModalInicio('${encodedId}', '${encodedNombre}', '${encodedRut}', '${encodedDir}')" style="cursor: pointer; transition: background 0.2s;">
+                                            <td style="padding: 10px 12px; color: #8B7355; font-weight: 500;">
+                                                ${rutDisplay}
+                                            </td>
+                                            <td style="padding: 10px 12px; color: #6F5B44; font-weight: 600;">
+                                                ${nombreDisplay}
+                                            </td>
+                                        </tr>`;
+                                    });
+                                    listaBody.innerHTML = html;
+                                } else {
+                                    listaBody.innerHTML = '<tr><td colspan="2" class="text-center text-muted" style="padding: 20px;">No se encontraron clientes</td></tr>';
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error buscando clientes:', error);
+                                listaBody.innerHTML = '<tr><td colspan="2" class="text-center text-danger" style="padding: 20px;">Error al buscar clientes</td></tr>';
+                            });
+                    }
                 });
             }
 
-            // 2. Vincular CLIC en clientes (siempre)
-            document.querySelectorAll('.cliente-item').forEach(item => {
-                item.addEventListener('click', function () {
-                    const clienteId = this.dataset.clienteId ? this.dataset.clienteId.trim().replace(/\s+/g, '') : '';
-                    const clienteNombre = this.dataset.clienteNombre ? this.dataset.clienteNombre.trim() : 'Cliente';
-                    const clienteRut = this.dataset.clienteRut ? this.dataset.clienteRut.trim() : '';
-                    const clienteDireccion = this.dataset.clienteDireccion ? this.dataset.clienteDireccion.trim() : '';
+            // Función auxiliar para seleccionar cliente desde modal inicial
+            window.seleccionarClienteDesdeModalInicio = function(clienteId, clienteNombre, clienteRut, clienteDireccion) {
+                console.log('=== CLIENTE SELECCIONADO DESDE MODAL INICIO ===');
+                console.log('ID (limpio):', clienteId);
+                console.log('Nombre:', clienteNombre);
 
-                    console.log('=== CLIENTE SELECCIONADO DESDE MODAL INICIO ===');
-                    console.log('ID (limpio):', clienteId);
-                    console.log('Nombre:', clienteNombre);
+                window.clienteSeleccionado = {
+                    id: clienteId,
+                    nombre: clienteNombre,
+                    rut: clienteRut,
+                    rut_formatted: clienteRut,
+                    direccion: clienteDireccion
+                };
 
-                    // Guardar cliente seleccionado globalmente
-                    window.clienteSeleccionado = {
-                        id: clienteId,
-                        nombre: clienteNombre,
-                        rut: clienteRut,
-                        rut_formatted: clienteRut,
-                        direccion: clienteDireccion
-                    };
+                const clienteHeader = document.getElementById('clienteEnHeader');
+                if (clienteHeader) {
+                    clienteHeader.innerHTML = `
+                        <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
+                            <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
+                            <strong style="color: white; font-size: 0.95rem;">${clienteNombre}</strong>
+                            <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                                <i class="fas fa-exchange-alt me-1"></i>Cambiar
+                            </button>
+                        </div>
+                    `;
+                }
 
-                    // Mostrar cliente en header del POS
-                    const clienteHeader = document.getElementById('clienteEnHeader');
-                    if (clienteHeader) {
-                        clienteHeader.innerHTML = `
-                            <div style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); padding: 8px 18px; border-radius: 25px; display: inline-block; box-shadow: 0 2px 8px rgba(200, 168, 130, 0.3);">
-                                <i class="fas fa-user-circle me-2" style="color: white; font-size: 1.1rem;"></i>
-                                <strong style="color: white; font-size: 0.95rem;">${clienteNombre}</strong>
-                                <button onclick="cambiarCliente()" class="btn btn-sm ms-3" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; font-size: 0.75rem; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                                    <i class="fas fa-exchange-alt me-1"></i>Cambiar
-                                </button>
-                            </div>
-                        `;
-                    }
+                try {
+                    const modalElement = document.getElementById('modalSeleccionCliente');
+                    const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+                    modalInstance.hide();
+                } catch(e) { console.log('Error cerrando modal:', e); }
 
-                    // Cerrar modal de forma segura
-                    // Cerrar modal de forma segura
-                    try {
-                        const modalElement = document.getElementById('modalSeleccionCliente');
-                        const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
-                        modalInstance.hide();
-                    } catch(e) { console.log('Error cerrando modal:', e); }
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Cliente Seleccionado',
-                        text: `Venta para: ${clienteNombre}`,
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Cliente Seleccionado',
+                    text: `Venta para: ${clienteNombre}`,
+                    timer: 1500,
+                    showConfirmButton: false
                 });
+            };
+
+            // 2. Vincular CLIC en clientes iniciales
+            document.querySelectorAll('.cliente-item').forEach(item => {
+                // Ya vinculamos con onclick inline en los tags TR pero podemos dejar este fallback
             });
 
             // 3. Mostrar modal automáticamente si el modo lo requiere
