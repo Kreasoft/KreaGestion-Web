@@ -902,7 +902,7 @@ def pos_view(request):
     kits = KitOferta.objects.filter(
         empresa=request.empresa,
         activo=True
-    ).prefetch_related('items__articulo').order_by('-destacado', 'nombre')
+    ).prefetch_related('items__articulo').order_by('-destacado', 'nombre')[:10]
     
     # Filtrar solo kits vigentes (sin requerir stock - el stock se valida al agregar al carrito)
     kits_disponibles = [kit for kit in kits if kit.activo and kit.esta_vigente]
