@@ -129,6 +129,8 @@ urlpatterns = [
 
     # --- VENTAS MÓVILES (PWA / MOBILE) ---
     path('movil/', views.mobile_sales_app, name='mobile_sales_app'),
+    path('movil/manifest.webmanifest', views.mobile_sales_manifest, name='mobile_sales_manifest'),
+    path('movil/sw.js', views.mobile_sales_service_worker, name='mobile_sales_service_worker'),
     path('movil/gestion/', views.mobile_sales_gestion, name='mobile_sales_gestion'),
     path('movil/gestion/dispositivo/<int:pk>/toggle/', views.mobile_api_toggle_device, name='mobile_api_toggle_device'),
     path('movil/gestion/dispositivo/<int:pk>/asignar-vendedor/', views.mobile_api_assign_vendedor, name='mobile_api_assign_vendedor'),

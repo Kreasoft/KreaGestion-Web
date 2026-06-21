@@ -13,6 +13,7 @@ def format_price(value):
     try:
         # Convertir a Decimal si es necesario
         if isinstance(value, str):
+            value = value.replace(',', '').replace('.', '').replace(' ', '').replace('\xa0', '').strip()
             value = Decimal(value)
         else:
             value = Decimal(str(value))

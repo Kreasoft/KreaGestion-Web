@@ -190,9 +190,9 @@
                                 <div class="ticket-item-row {% if forloop.last %}border-0{% endif %}">
                                     <div>
                                         <div class="ticket-item-name">{{ detalle.articulo.nombre }}</div>
-                                        <div class="ticket-item-subtext">{{ detalle.cantidad }} x ${{ detalle.precio_unitario|floatformat:0|format_precio }}</div>
+                                        <div class="ticket-item-subtext">{{ detalle.cantidad }} x ${{ detalle.precio_unitario|format_precio }}</div>
                                     </div>
-                                    <div class="ticket-item-total">${{ detalle.precio_total|floatformat:0|format_precio }}</div>
+                                    <div class="ticket-item-total">${{ detalle.precio_total|format_precio }}</div>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -201,25 +201,25 @@
                             <div class="resumen-box-premium">
                                 <div class="resumen-row">
                                     <span>Subtotal:</span>
-                                    <strong>${{ ticket.subtotal|floatformat:0|format_precio }}</strong>
+                                    <strong>${{ ticket.subtotal|format_precio }}</strong>
                                 </div>
                                 {% if ticket.descuento > 0 %}
                                 <div class="resumen-row">
                                     <span>Descuento:</span>
-                                    <strong class="text-danger">-${{ ticket.descuento|floatformat:0|format_precio }}</strong>
+                                    <strong class="text-danger">-${{ ticket.descuento|format_precio }}</strong>
                                 </div>
                                 {% endif %}
                                 <div class="resumen-row">
                                     <span>Neto:</span>
-                                    <strong>${{ ticket.neto|floatformat:0|format_precio }}</strong>
+                                    <strong>${{ ticket.neto|format_precio }}</strong>
                                 </div>
                                 <div class="resumen-row">
                                     <span>IVA (19%):</span>
-                                    <strong>${{ ticket.iva|floatformat:0|format_precio }}</strong>
+                                    <strong>${{ ticket.iva|format_precio }}</strong>
                                 </div>
                                 <div class="resumen-total d-flex justify-content-between align-items-center">
                                     <span class="total-label text-uppercase">Total</span>
-                                    <span class="total-value">${{ ticket.total|floatformat:0|format_precio }}</span>
+                                    <span class="total-value">${{ ticket.total|format_precio }}</span>
                                 </div>
                             </div>
                         </div>
@@ -279,17 +279,33 @@
                                 </div>
                                 
                                 {% if disponibilidad_folios %}
-                                <div class="mt-3 p-2 px-3 bg-white border rounded-pill d-inline-flex align-items-center small">
-                                    <i class="fas fa-hashtag me-2 text-stone"></i>
-                                    <span class="text-muted me-2">Folios Disponibles:</span>
-                                    {% if ticket.tipo_documento_planeado == 'factura' %}
-                                        <span class="fw-bold text-dark">{{ disponibilidad_folios.factura.folios_disponibles }}</span>
-                                    {% elif ticket.tipo_documento_planeado == 'guia' %}
-                                        <span class="fw-bold text-dark">{{ disponibilidad_folios.guia.folios_disponibles }}</span>
-                                    {% elif ticket.tipo_documento_planeado == 'vale' %}
-                                        <span class="fw-bold text-dark">INTERNO</span>
-                                    {% else %}
-                                        <span class="fw-bold text-dark">{{ disponibilidad_folios.boleta.folios_disponibles }}</span>
+                                <div class="mt-3 d-flex flex-wrap gap-2">
+                                    <div class="p-2 px-3 bg-white border rounded-pill d-inline-flex align-items-center small">
+                                        <i class="fas fa-layer-group me-2 text-stone"></i>
+                                        <span class="text-muted me-2">Folios Disponibles:</span>
+                                        {% if ticket.tipo_documento_planeado == 'factura' %}
+                                            <span class="fw-bold text-dark">{{ disponibilidad_folios.factura.folios_disponibles }}</span>
+                                        {% elif ticket.tipo_documento_planeado == 'guia' %}
+                                            <span class="fw-bold text-dark">{{ disponibilidad_folios.guia.folios_disponibles }}</span>
+                                        {% elif ticket.tipo_documento_planeado == 'vale' %}
+                                            <span class="fw-bold text-dark">INTERNO</span>
+                                        {% else %}
+                                            <span class="fw-bold text-dark">{{ disponibilidad_folios.boleta.folios_disponibles }}</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if ticket.tipo_documento_planeado != 'vale' %}
+                                    <div class="p-2 px-3 bg-light border border-stone-light rounded-pill d-inline-flex align-items-center small">
+                                        <i class="fas fa-hashtag me-2 text-success"></i>
+                                        <span class="text-muted me-2">Se imprimirá Folio:</span>
+                                        {% if ticket.tipo_documento_planeado == 'factura' %}
+                                            <span class="fw-bold text-success">#{{ disponibilidad_folios.factura.siguiente_folio|default:"Sin folios" }}</span>
+                                        {% elif ticket.tipo_documento_planeado == 'guia' %}
+                                            <span class="fw-bold text-success">#{{ disponibilidad_folios.guia.siguiente_folio|default:"Sin folios" }}</span>
+                                        {% else %}
+                                            <span class="fw-bold text-success">#{{ disponibilidad_folios.boleta.siguiente_folio|default:"Sin folios" }}</span>
+                                        {% endif %}
+                                    </div>
                                     {% endif %}
                                 </div>
                                 {% endif %}
@@ -377,7 +393,7 @@
                                 <div class="mt-4 p-3 rounded-3" style="background: #F4F2EE; border: 1px solid var(--stone-light);">
                                     <div class="d-flex justify-content-between mb-2 small text-muted text-uppercase fw-bold">
                                         <span>Total Cobro:</span>
-                                        <strong id="totalAPagar" class="text-dark">${{ ticket.total|floatformat:0|format_precio }}</strong>
+                                        <strong id="totalAPagar" class="text-dark">${{ ticket.total|format_precio }}</strong>
                                     </div>
                                     <div class="d-flex justify-content-between mb-2 small text-muted text-uppercase fw-bold">
                                         <span>Total Ingresado:</span>

@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#8D7B68">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>Sincronización Móvil - {{ empresa.nombre }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -20,12 +23,46 @@
             --text-dark: #3C2A21;
             --text-muted: #8B8070;
             --success: #6D8B74;
+            --action-olive: #6D8B74;
+            --action-olive-dark: #4F6F52;
+            --action-olive-soft: rgba(109, 139, 116, 0.12);
             --gradient-stone: linear-gradient(135deg, #8D7B68 0%, #543E2B 100%);
             --gradient-earth: linear-gradient(135deg, #A75D5D 0%, #8D7B68 100%);
             --gradient-sage: linear-gradient(135deg, #6D8B74 0%, #543E2B 100%);
             --gradient-sand: linear-gradient(135deg, #D4A574 0%, #8D7B68 100%);
             --shadow: 0 12px 35px rgba(84, 62, 43, 0.15);
             --glass: rgba(255, 255, 255, 0.7);
+        }
+
+        .text-primary {
+            color: var(--action-olive) !important;
+        }
+
+        .text-info {
+            color: var(--action-olive) !important;
+        }
+
+        .bg-info-subtle {
+            background-color: var(--action-olive-soft) !important;
+        }
+
+        .btn-outline-primary {
+            color: var(--action-olive) !important;
+            border-color: var(--action-olive) !important;
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        .btn-outline-primary:hover,
+        .btn-outline-primary:focus,
+        .btn-outline-primary:active {
+            color: white !important;
+            background: var(--action-olive) !important;
+            border-color: var(--action-olive) !important;
+            box-shadow: 0 0 0 0.18rem rgba(109, 139, 116, 0.18) !important;
+        }
+
+        .bg-info.bg-opacity-10 {
+            background-color: var(--action-olive-soft) !important;
         }
 
         body {
@@ -43,7 +80,7 @@
         .app-container {
             flex: 1;
             overflow-y: auto;
-            padding-bottom: 110px; /* Un poco más de espacio para evitar solapamiento con nav inferior */
+            padding-bottom: 120px;
         }
 
         .view {
@@ -508,12 +545,338 @@
             font-size: 0.9rem;
             background: transparent;
         }
+        .search-premium input::placeholder {
+            color: #c8cfd8;
+            opacity: 1;
+        }
         .search-premium i { color: var(--primary); opacity: 0.6; }
 
         .product-grid {
             display: grid;
             grid-template-columns: repeat(1, 1fr);
+            gap: 8px;
+        }
+
+        .products-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .products-toolbar .small-stat {
+            background: rgba(255,255,255,0.82);
+            border: 1px solid rgba(139, 115, 85, 0.12);
+            border-radius: 14px;
+            padding: 8px 10px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            box-shadow: 0 5px 14px rgba(0,0,0,0.03);
+            flex: 1;
+        }
+
+        .product-card.compact {
+            padding: 9px 10px;
+            border-radius: 14px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+            position: relative;
+        }
+
+        .product-card.compact.selected {
+            border-color: rgba(111, 91, 68, 0.45);
+            box-shadow: 0 8px 18px rgba(111, 91, 68, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .product-card.compact.no-stock {
+            opacity: 0.72;
+            border-style: dashed;
+        }
+
+        .product-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .product-chip {
+            border-radius: 999px;
+            padding: 3px 7px;
+            font-size: 0.62rem;
+            font-weight: 700;
+            background: #F4EEE8;
+            color: #7D6851;
+        }
+
+        .product-chip.out {
+            background: #F8E5E2;
+            color: #B4554B;
+        }
+
+        .product-select-box {
+            width: 28px;
+            height: 28px;
+            border-radius: 10px;
+            background: rgba(141, 123, 104, 0.1);
+            border: 1px solid rgba(141, 123, 104, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: transparent;
+            transition: all 0.2s ease;
+        }
+
+        .product-card.compact.selected .product-select-box {
+            background: var(--gradient-stone);
+            color: white;
+            border-color: transparent;
+        }
+
+        #viewProducts {
+            padding-bottom: 160px;
+        }
+
+        .selection-bar {
+            position: fixed;
+            left: 12px;
+            right: 12px;
+            bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+            z-index: 2050;
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(139, 115, 85, 0.12);
+            box-shadow: 0 10px 24px rgba(66, 48, 29, 0.12);
+            border-radius: 16px;
+            padding: 8px 10px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .selection-bar.active {
+            display: flex;
+        }
+
+        .selection-bar .summary {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            min-width: 0;
+        }
+
+        .selection-bar .summary strong {
+            color: var(--secondary);
+            display: block;
+            font-size: 0.82rem;
+            line-height: 1.1;
+        }
+
+        .selection-bar .summary span {
+            display: block;
+            font-size: 0.68rem;
+            line-height: 1.1;
+        }
+
+        .selection-bar-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .selection-action-btn {
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 0.74rem;
+            line-height: 1;
+        }
+
+        .cart-item-card {
+            border-radius: 12px;
+            background: white;
+            border: 1px solid rgba(139, 115, 85, 0.1);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.035);
+            padding: 7px 8px;
+            margin-bottom: 6px;
+        }
+
+        .cart-item-top {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto auto;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .cart-item-meta {
+            min-width: 0;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            flex-wrap: nowrap;
+        }
+
+        .cart-item-name {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: var(--secondary);
+            line-height: 1.05;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .cart-item-price {
+            font-size: 0.62rem;
+            color: #b8bec7;
+            white-space: nowrap;
+        }
+
+        .cart-qty-control {
+            display: flex;
+            align-items: center;
+            background: #F8F5F1;
+            border: 1px solid rgba(139, 115, 85, 0.12);
+            border-radius: 999px;
+            padding: 1px 3px;
+            height: 26px;
+        }
+
+        .cart-qty-value {
+            min-width: 22px;
+            text-align: center;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .cart-item-total {
+            min-width: 54px;
+            text-align: right;
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: var(--secondary);
+        }
+
+        .cart-remove-btn {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            opacity: 0.62;
+        }
+
+        .cart-config-row {
+            display: grid;
+            grid-template-columns: 86px 1fr;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .cart-inline-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .cart-summary-card {
+            background: #FDFCF0;
+            border-radius: 16px;
+            padding: 12px;
+        }
+
+        .cart-total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             gap: 12px;
+            margin-top: 12px;
+        }
+
+        #stockPolicyHint,
+        #stockPolicyHint span,
+        #stockPolicyHint i,
+        .small-helper {
+            font-size: 0.72rem;
+            color: #7f8791 !important;
+            opacity: 1;
+        }
+
+        #stockPolicyHint i,
+        .small-helper i {
+            color: #7f8791 !important;
+        }
+
+        #sellerCodeInput::placeholder,
+        #productSearch::placeholder,
+        #occasionalClientName::placeholder,
+        #checkoutComment::placeholder,
+        #clientSearch::placeholder,
+        #nc_rut::placeholder,
+        #nc_nombre::placeholder,
+        #nc_giro::placeholder,
+        #nc_direccion::placeholder,
+        #nc_comuna::placeholder,
+        #nc_ciudad::placeholder,
+        #nc_tel::placeholder,
+        #nc_email::placeholder,
+        .form-control::placeholder,
+        input::placeholder,
+        textarea::placeholder {
+            color: #cbd2db !important;
+            opacity: 1 !important;
+        }
+
+        #sellerCodeInput::-webkit-input-placeholder,
+        #productSearch::-webkit-input-placeholder,
+        #occasionalClientName::-webkit-input-placeholder,
+        #checkoutComment::-webkit-input-placeholder,
+        #clientSearch::-webkit-input-placeholder,
+        #nc_rut::-webkit-input-placeholder,
+        #nc_nombre::-webkit-input-placeholder,
+        #nc_giro::-webkit-input-placeholder,
+        #nc_direccion::-webkit-input-placeholder,
+        #nc_comuna::-webkit-input-placeholder,
+        #nc_ciudad::-webkit-input-placeholder,
+        #nc_tel::-webkit-input-placeholder,
+        #nc_email::-webkit-input-placeholder {
+            color: #cbd2db !important;
+            opacity: 1 !important;
+        }
+
+        #sellerCodeInput::-moz-placeholder,
+        #productSearch::-moz-placeholder,
+        #occasionalClientName::-moz-placeholder,
+        #checkoutComment::-moz-placeholder,
+        #clientSearch::-moz-placeholder,
+        #nc_rut::-moz-placeholder,
+        #nc_nombre::-moz-placeholder,
+        #nc_giro::-moz-placeholder,
+        #nc_direccion::-moz-placeholder,
+        #nc_comuna::-moz-placeholder,
+        #nc_ciudad::-moz-placeholder,
+        #nc_tel::-moz-placeholder,
+        #nc_email::-moz-placeholder {
+            color: #cbd2db !important;
+            opacity: 1 !important;
+        }
+
+        #sellerCodeInput:-ms-input-placeholder,
+        #productSearch:-ms-input-placeholder,
+        #occasionalClientName:-ms-input-placeholder,
+        #checkoutComment:-ms-input-placeholder,
+        #clientSearch:-ms-input-placeholder,
+        #nc_rut:-ms-input-placeholder,
+        #nc_nombre:-ms-input-placeholder,
+        #nc_giro:-ms-input-placeholder,
+        #nc_direccion:-ms-input-placeholder,
+        #nc_comuna:-ms-input-placeholder,
+        #nc_ciudad:-ms-input-placeholder,
+        #nc_tel:-ms-input-placeholder,
+        #nc_email:-ms-input-placeholder {
+            color: #cbd2db !important;
         }
     </style>
 </head>
@@ -538,7 +901,7 @@
             <a href="#" class="sidebar-item" onclick="app.showView('viewClients', this); app.toggleSidebar()">
                 <i class="fas fa-users"></i> Mis Clientes
             </a>
-            <a href="#" class="sidebar-item" onclick="app.showView('viewNewClient', this); app.toggleSidebar()">
+            <a href="#" class="sidebar-item" onclick="app.returnViewAfterClient='viewDashboard'; app.showView('viewNewClient', this); app.toggleSidebar()">
                 <i class="fas fa-user-plus"></i> Registrar Nuevo Cliente
             </a>
             <a href="#" class="sidebar-item" onclick="app.showView('viewSalesHistory', this); app.toggleSidebar()">
@@ -590,6 +953,7 @@
         <i class="fas fa-wifi-slash me-2"></i> MODO OFFLINE ACTIVADO
     </div>
 
+    <div id="mainApp" style="display: none;">
     <header class="app-header">
         <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
@@ -668,7 +1032,7 @@
                     <span>Nueva Venta</span>
                     <small>Registrar pedido</small>
                 </button>
-                <button class="earth-button" style="background: var(--gradient-sage);" onclick="app.showView('viewNewClient', this)">
+                <button class="earth-button" style="background: var(--gradient-sage);" onclick="app.returnViewAfterClient='viewDashboard'; app.showView('viewNewClient', this)">
                     <i class="fas fa-user-plus bg-icon"></i>
                     <span>Alta Cliente</span>
                     <small>Reg. nuevo prospecto</small>
@@ -690,7 +1054,7 @@
                 <a href="#" onclick="app.showView('viewHistory')" class="small text-decoration-none fw-bold" style="color: var(--terracota);">HISTORIAL</a>
             </div>
             <div id="recentSalesList" class="fancy-list">
-                <div class="text-center py-4 text-muted small bg-white rounded-4 shadow-sm">No se registran movimientos hoy</div>
+                <div class="text-center py-4 text-muted small bg-white rounded-4 shadow-sm">No se registran operaciones recientes</div>
             </div>
         </div>
 
@@ -701,12 +1065,32 @@
                 <input type="text" id="productSearch" placeholder="Buscar por nombre o código..." onkeyup="app.filterProducts()">
             </div>
 
+            <div class="products-toolbar">
+                <div class="small-stat">
+                    <div class="fw-bold" id="productCounterLabel">0 productos visibles</div>
+                    <div>Toca varios productos y usa la barra inferior</div>
+                </div>
+            </div>
+
             <div id="categoriesList" class="category-scroll">
                 <!-- Categories will be injected here -->
             </div>
 
             <div id="productsList" class="product-grid">
                 <!-- Products will be injected here -->
+            </div>
+
+            <div id="productSelectionBar" class="selection-bar">
+                <div class="summary">
+                    <strong id="selectedProductsCount">0 artículos</strong>
+                    <span id="selectedProductsTotal">Total estimado $0</span>
+                </div>
+                <div class="selection-bar-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary selection-action-btn" onclick="app.clearProductSelection()">Cancelar</button>
+                    <button type="button" class="btn btn-sm btn-terroso selection-action-btn" onclick="app.addSelectedProductsToCart()">
+                        <i class="fas fa-cart-plus me-1"></i> Al carrito
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -723,37 +1107,52 @@
 
             <div id="cartSummary" style="display: none;">
                 <hr>
-                <div class="card p-3 mb-3 border-0 shadow-sm" style="background: #FDFCF0;">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Documento:</span>
-                        <select id="docTypeSelect" class="form-select form-select-sm w-auto">
-                            <option value="boleta">Boleta</option>
-                            <option value="factura">Factura</option>
+                <div class="card cart-summary-card mb-3 border-0 shadow-sm">
+                    <div class="cart-config-row">
+                        <span>Modo:</span>
+                        <select id="docTypeSelect" class="form-select form-select-sm" onchange="app.toggleDocumentFlow()">
+                            <option value="nota_venta">Nota de Venta</option>
                             <option value="cotizacion">Cotización</option>
                         </select>
                     </div>
-                    <div class="d-flex justify-content-between mb-2">
+                    <div id="finalDocumentRow" class="cart-config-row">
+                        <span>Emitir luego:</span>
+                        <select id="finalDocTypeSelect" class="form-select form-select-sm">
+                            <option value="boleta">Como Boleta</option>
+                            <option value="factura">Como Factura</option>
+                        </select>
+                    </div>
+                    <div class="cart-config-row">
                         <span>Cliente:</span>
-                        <select id="clientSelect" class="form-select form-select-sm w-auto" onchange="app.toggleOccasionalClientName()">
-                            <option value="">Cliente Ocasional</option>
-                        </select>
+                        <div class="cart-inline-actions">
+                            <div class="w-100">
+                                <input type="text" id="clientPickerSearch" class="form-control form-control-sm mb-2" placeholder="Buscar cliente por nombre o RUT..." oninput="app.filterCartClients()">
+                                <div class="d-flex gap-2 align-items-center">
+                                    <select id="clientSelect" class="form-select form-select-sm" onchange="app.handleClientSelection(this.value)">
+                                    <option value="">Cliente Ocasional</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="app.openQuickClientForm()">
+                                        <i class="fas fa-user-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div id="occasionalClientNameRow" class="d-flex justify-content-between mb-2">
+                    <div id="occasionalClientNameRow" class="cart-config-row">
                         <span>Nombre:</span>
-                        <input type="text" id="occasionalClientName" class="form-control form-control-sm w-auto" placeholder="Nombre para el vale">
+                        <input type="text" id="occasionalClientName" class="form-control form-control-sm" placeholder="Nombre para la nota">
                     </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>F. Pago:</span>
-                        <select id="paymentMethodSelect" class="form-select form-select-sm w-auto">
-                            <!-- Formas de pago will be injected here -->
-                        </select>
+                    <div class="mb-2">
+                        <label for="checkoutComment" class="small fw-bold text-muted mb-1">Comentario de cierre</label>
+                        <textarea id="checkoutComment" class="form-control form-control-sm" rows="2" placeholder="Observación general para esta nota o cotización"></textarea>
                     </div>
-                    <div class="d-flex justify-content-between mt-3">
-                        <h4 class="fw-bold">TOTAL:</h4>
-                        <h4 class="fw-bold" id="cartTotal">$0</h4>
+                    <div class="small-helper mb-2" id="stockPolicyHint"></div>
+                    <div class="cart-total-row">
+                        <h6 class="fw-bold mb-0">TOTAL</h6>
+                        <h5 class="fw-bold mb-0" id="cartTotal">$0</h5>
                     </div>
                 </div>
-                <button onclick="app.checkout()" class="btn-terroso btn-lg mb-2">FINALIZAR VENTA <i class="fas fa-check-circle ms-2"></i></button>
+                <button onclick="app.checkout()" class="btn-terroso btn-lg mb-2">GUARDAR DOCUMENTO <i class="fas fa-check-circle ms-2"></i></button>
                 <button onclick="app.clearCart()" class="btn btn-outline-danger w-100 btn-sm">Vaciar Carrito</button>
             </div>
         </div>
@@ -779,7 +1178,7 @@
             </div>
 
             <!-- Botón flotante para nuevo cliente dentro de la vista -->
-            <button class="fab-premium" style="bottom: 110px; right: 20px; background: var(--success); width: 60px; height: 60px; box-shadow: 0 10px 25px rgba(109, 139, 116, 0.4);" onclick="app.showView('viewNewClient')">
+            <button class="fab-premium" style="bottom: 110px; right: 20px; background: var(--success); width: 60px; height: 60px; box-shadow: 0 10px 25px rgba(109, 139, 116, 0.4);" onclick="app.returnViewAfterClient='viewClients'; app.showView('viewNewClient')">
                 <i class="fas fa-user-plus"></i>
             </button>
         </div>
@@ -818,19 +1217,19 @@
                     </div>
                     <div class="form-group-terroso">
                         <label>Dirección</label>
-                        <input type="text" id="nc_direccion" class="form-control" required placeholder="Calle 123">
+                        <input type="text" id="nc_direccion" class="form-control" placeholder="Calle 123">
                     </div>
                     <div class="row">
                         <div class="col-6">
                             <div class="form-group-terroso">
                                 <label>Comuna</label>
-                                <input type="text" id="nc_comuna" class="form-control" required placeholder="Las Condes">
+                                <input type="text" id="nc_comuna" class="form-control" placeholder="Las Condes">
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="form-group-terroso">
                                 <label>Ciudad</label>
-                                <input type="text" id="nc_ciudad" class="form-control" required placeholder="Santiago">
+                                <input type="text" id="nc_ciudad" class="form-control" placeholder="Santiago">
                             </div>
                         </div>
                     </div>
@@ -843,7 +1242,7 @@
                         <input type="email" id="nc_email" class="form-control" placeholder="cliente@correo.com">
                     </div>
                     <button type="submit" id="btnSaveClient" class="btn-terroso mt-3">GUARDAR CLIENTE <i class="fas fa-save ms-2"></i></button>
-                    <button type="button" class="btn btn-outline-secondary w-100 mt-2" onclick="app.showView('viewDashboard')">Cancelar</button>
+                    <button type="button" class="btn btn-outline-secondary w-100 mt-2" onclick="app.showView(app.returnViewAfterClient || 'viewDashboard')">Cancelar</button>
                 </form>
             </div>
         </div>
@@ -950,6 +1349,7 @@
             Mapa
         </a>
     </nav>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -963,11 +1363,23 @@
                 clients: [],
                 pendingClients: [],
                 vendedores: [],
-                formas_pago: []
+                formas_pago: [],
+                configuracion: {
+                    permite_sin_stock: true,
+                    intervalo_sync_minutos: 5
+                }
             },
             cart: [],
+            selectedProducts: {},
+            selectedClientValue: '',
+            currentClientQuery: '',
+            activeCategoryId: null,
+            currentProductQuery: '',
+            filteredProducts: [],
+            returnViewAfterClient: 'viewDashboard',
             deviceId: localStorage.getItem('gc_deviceId'),
             isAuthorized: localStorage.getItem('gc_isAuthorized') === 'true',
+            syncTimer: null,
             
             // Map properties
             map: null,
@@ -983,6 +1395,7 @@
 
                 // Inicializar DB local (IndexedDB)
                 await this.initDB();
+                this.registerServiceWorker();
                 
                 // Ahora que la DB está lista, podemos verificar estado de red
                 this.updateNetworkStatus();
@@ -1015,12 +1428,23 @@
                 // Verificar dispositivo
                 await this.checkDevice();
 
+                if (this.seller && this.isAuthorized) {
+                    const mainApp = document.getElementById('mainApp');
+                    const loginView = document.getElementById('loginView');
+                    if (loginView) loginView.style.display = 'none';
+                    if (mainApp) mainApp.style.display = 'block';
+                    this.showView('viewDashboard');
+                }
+
                 this.renderCategories();
                 this.renderProducts();
                 this.renderClients();
-                this.renderFormasPago();
                 this.updateCartCount();
                 this.updateDebugCounters();
+                this.updateSelectionBar();
+                this.scheduleBackgroundSync();
+                this.forceVisualOverrides();
+                setTimeout(() => this.forceVisualOverrides(), 150);
                 console.log("App iniciada correctamente");
             },
 
@@ -1033,16 +1457,88 @@
                 if (catDisp) catDisp.innerText = this.data.categories.length;
             },
 
+            forceVisualOverrides: function() {
+                const placeholderIds = [
+                    'sellerCodeInput',
+                    'productSearch',
+                    'clientPickerSearch',
+                    'occasionalClientName',
+                    'checkoutComment',
+                    'clientSearch',
+                    'nc_rut',
+                    'nc_nombre',
+                    'nc_giro',
+                    'nc_direccion',
+                    'nc_comuna',
+                    'nc_ciudad',
+                    'nc_tel',
+                    'nc_email'
+                ];
+                const selectIds = [
+                    'docTypeSelect',
+                    'finalDocTypeSelect',
+                    'clientSelect'
+                ];
+
+                let styleTag = document.getElementById('gcRuntimePlaceholderStyles');
+                if (!styleTag) {
+                    styleTag = document.createElement('style');
+                    styleTag.id = 'gcRuntimePlaceholderStyles';
+                    document.head.appendChild(styleTag);
+                }
+
+                styleTag.textContent = placeholderIds.map(id => `
+#${id}::placeholder { color: #cfd5dd !important; opacity: 1 !important; }
+#${id}::-webkit-input-placeholder { color: #cfd5dd !important; opacity: 1 !important; }
+#${id}::-moz-placeholder { color: #cfd5dd !important; opacity: 1 !important; }
+`).join('\n');
+
+                selectIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.style.setProperty('color', '#6f7782', 'important');
+                    }
+                });
+
+                const hint = document.getElementById('stockPolicyHint');
+                if (hint) {
+                    hint.style.setProperty('color', '#6f7782', 'important');
+                    hint.style.setProperty('opacity', '1', 'important');
+                    hint.style.setProperty('font-weight', '500', 'important');
+                    hint.querySelectorAll('*').forEach(node => {
+                        node.style.setProperty('color', '#6f7782', 'important');
+                        node.style.setProperty('opacity', '1', 'important');
+                    });
+                }
+            },
+
             updateNetworkStatus: function() {
                 this.isOffline = !navigator.onLine;
                 const banner = document.getElementById('offlineBanner');
+                const indicator = document.getElementById('syncIndicator');
                 if (banner) banner.style.display = this.isOffline ? 'block' : 'none';
+                if (indicator) indicator.innerText = this.isOffline ? 'Offline' : 'Online';
                 
                 if (this.isOffline) {
                     document.body.classList.add('is-offline');
                 } else {
                     document.body.classList.remove('is-offline');
                     this.autoSyncPending();
+                    this.maybeSyncInBackground(true);
+                }
+            },
+
+            registerServiceWorker: function() {
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations()
+                        .then(registrations => Promise.all(registrations.map(reg => reg.unregister())))
+                        .catch(err => console.warn('No se pudo desregistrar service workers:', err));
+                }
+
+                if ('caches' in window) {
+                    caches.keys()
+                        .then(keys => Promise.all(keys.map(key => caches.delete(key))))
+                        .catch(err => console.warn('No se pudo limpiar cache del navegador:', err));
                 }
             },
 
@@ -1287,8 +1783,11 @@
                         updateProgress(currentStep);
                         this.data.vendedores = result.vendedores;
                         this.data.formas_pago = result.formas_pago;
+                        this.data.configuracion = result.configuracion || this.data.configuracion;
                         localStorage.setItem('gc_vendedores', JSON.stringify(result.vendedores));
                         localStorage.setItem('gc_formas_pago', JSON.stringify(result.formas_pago));
+                        localStorage.setItem('gc_mobile_config', JSON.stringify(this.data.configuracion));
+                        localStorage.setItem('gc_last_sync_ts', String(Date.now()));
 
                         // Step 5: Render
                         currentStep++;
@@ -1296,8 +1795,9 @@
                         this.renderCategories();
                         this.renderProducts();
                         this.renderClients();
-                        this.renderFormasPago();
                         this.updateDebugCounters();
+                        await this.renderDashboard();
+                        this.updateStockPolicyHint();
                         
                         // Final step
                         updateProgress(steps.length);
@@ -1326,6 +1826,52 @@
                 this.data.pendingClients = await this.loadFromDB('pendingClients');
                 this.data.vendedores = JSON.parse(localStorage.getItem('gc_vendedores') || '[]');
                 this.data.formas_pago = JSON.parse(localStorage.getItem('gc_formas_pago') || '[]');
+                this.data.configuracion = JSON.parse(localStorage.getItem('gc_mobile_config') || '{"permite_sin_stock": true, "intervalo_sync_minutos": 5}');
+                this.filteredProducts = this.data.products.slice();
+            },
+
+            scheduleBackgroundSync: function() {
+                if (this.syncTimer) clearInterval(this.syncTimer);
+                const minutes = Math.max(parseInt(this.data.configuracion?.intervalo_sync_minutos || 5, 10), 2);
+                this.syncTimer = setInterval(() => this.maybeSyncInBackground(), minutes * 60 * 1000);
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden) this.maybeSyncInBackground();
+                });
+            },
+
+            maybeSyncInBackground: async function(force = false) {
+                if (this.isOffline || !this.seller || !this.isAuthorized) return;
+                const lastSync = parseInt(localStorage.getItem('gc_last_sync_ts') || '0', 10);
+                const intervalMs = Math.max(parseInt(this.data.configuracion?.intervalo_sync_minutos || 5, 10), 2) * 60 * 1000;
+                if (!force && Date.now() - lastSync < intervalMs) return;
+
+                try {
+                    const result = await this.apiRequest('/ventas/movil/api/sincronizar/?vendedor_id=' + (this.seller ? this.seller.id : ''));
+                    if (!result.success) return;
+                    this.data.categories = result.categorias || [];
+                    this.data.products = result.articulos || [];
+                    this.data.clients = result.clientes || [];
+                    this.data.vendedores = result.vendedores || [];
+                    this.data.formas_pago = result.formas_pago || [];
+                    this.data.configuracion = result.configuracion || this.data.configuracion;
+                    await this.clearObjectStore('categories');
+                    await this.clearObjectStore('products');
+                    await this.clearObjectStore('clients');
+                    await this.saveDataToDB('categories', this.data.categories);
+                    await this.saveDataToDB('products', this.data.products);
+                    await this.saveDataToDB('clients', this.data.clients);
+                    localStorage.setItem('gc_vendedores', JSON.stringify(this.data.vendedores));
+                    localStorage.setItem('gc_formas_pago', JSON.stringify(this.data.formas_pago));
+                    localStorage.setItem('gc_mobile_config', JSON.stringify(this.data.configuracion));
+                    localStorage.setItem('gc_last_sync_ts', String(Date.now()));
+                    this.renderCategories();
+                    this.renderProducts();
+                    this.renderClients();
+                    await this.renderDashboard();
+                    this.updateStockPolicyHint();
+                } catch (err) {
+                    console.warn('Sync liviana omitida:', err.message);
+                }
             },
 
             // -- UI RENDERING --
@@ -1440,12 +1986,15 @@
                 }
 
                 // Render logic por vista
+                if (viewId === 'viewProducts') this.renderProducts();
                 if (viewId === 'viewCart') this.renderCart();
                 if (viewId === 'viewHistory') this.renderPendingData();
                 if (viewId === 'viewDashboard') this.renderDashboard();
                 if (viewId === 'viewClients') this.renderClientsFull();
                 if (viewId === 'viewLocation') this.initLocationMap();
                 if (viewId === 'viewSalesHistory') this.initSalesHistoryView();
+                this.forceVisualOverrides();
+                setTimeout(() => this.forceVisualOverrides(), 100);
 
                 // FAB Visibility: Mostrar siempre excepto en vistas de formulario o mapa
                 const fab = document.getElementById('fabBtn');
@@ -1544,13 +2093,38 @@
             },
 
             initSalesHistoryView: function() {
-                const hoy = new Date().toISOString().split('T')[0];
+                const hoy = this.getLocalDateString();
                 const dInput = document.getElementById('historyDateDesde');
                 const hInput = document.getElementById('historyDateHasta');
                 
                 if (dInput && !dInput.value) dInput.value = hoy;
                 if (hInput && !hInput.value) hInput.value = hoy;
                 this.loadSalesHistory();
+            },
+
+            getLocalDateString: function(dateValue = new Date()) {
+                const date = new Date(dateValue);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            },
+
+            escapeHtml: function(value) {
+                return String(value ?? '').replace(/[&<>"']/g, char => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[char]));
+            },
+
+            fetchSellerHistory: async function(desde, hasta) {
+                if (!this.seller) {
+                    return { success: false, ventas: [] };
+                }
+                return await this.apiRequest(`/ventas/movil/api/historial-ventas/?vendedor_id=${this.seller.id}&fecha_inicio=${desde}&fecha_fin=${hasta}`);
             },
 
             loadSalesHistory: async function() {
@@ -1564,14 +2138,14 @@
 
                 try {
                     // 1. Obtener de Servidor (Historial Completo)
-                    const response = await this.apiRequest(`/ventas/movil/api/historial-ventas/?vendedor_id=${this.seller.id}&fecha_inicio=${desde}&fecha_fin=${hasta}`);
+                    const response = await this.fetchSellerHistory(desde, hasta);
                     
                     if (response.success) {
                         this.data.fullHistory = response.ventas;
                         
                         // 2. Obtener Locales (Aún no enviadas)
                         const rawLocalSales = await this.loadFromDB('sales');
-                        this.data.localHistory = rawLocalSales || [];
+                        this.data.localHistory = (rawLocalSales || []).filter(s => String(s.vendedor_id || '') === String(this.seller.id));
                         
                         // Activar pestaña por defecto
                         if (!this.currentHistoryTab) this.currentHistoryTab = 'pendientes';
@@ -1582,6 +2156,120 @@
                 } catch (e) {
                     console.error("Error historial:", e);
                     list.innerHTML = '<div class="alert alert-warning mx-3 small">Sin conexión remota</div>';
+                }
+            },
+
+            isCotizacionItem: function(item) {
+                return !!(item && (
+                    item.share?.es_cotizacion ||
+                    item.tipo_doc === 'cotizacion' ||
+                    item.tipo_documento === 'cotizacion'
+                ));
+            },
+
+            getCotizacionItem: function(id) {
+                const items = [
+                    ...(this.data.fullHistory || []),
+                    ...(this.data.recentHistory || []),
+                    ...(this.data.localHistory || [])
+                ];
+                return items.find(item => String(item.id || item.localId) === String(id));
+            },
+
+            normalizeWhatsappPhone: function(phone) {
+                const digits = String(phone || '').replace(/\D/g, '');
+                if (!digits || digits.length < 8) return '';
+                if (digits.startsWith('56')) return digits;
+                if (digits.length === 9 && digits.startsWith('9')) return `56${digits}`;
+                return '';
+            },
+
+            buildCotizacionSharePayload: function(item) {
+                const share = item?.share || {};
+                if (!share.es_cotizacion && !this.isCotizacionItem(item)) return null;
+
+                const numero = item?.numero || item?.venta_id || 'MOVIL';
+                const cliente = item?.cliente || item?.cliente_nombre || 'Cliente';
+                const total = Number(item?.total || 0).toLocaleString('es-CL');
+                const url = share.url || (item?.id ? `${window.location.origin}/ventas/cotizaciones/${item.id}/html/` : '');
+                const subject = share.subject || `Cotizacion ${numero}`;
+                const body = share.body || `Hola ${cliente},\n\nTe enviamos la cotizacion ${numero} por $${total}.\n\n${url}`;
+
+                return {
+                    url,
+                    email: share.email || '',
+                    telefono: share.telefono || '',
+                    subject,
+                    body
+                };
+            },
+
+            openCotizacionSharePayload: function(share, channel) {
+                if (!share) {
+                    Swal.fire('Cotizacion no disponible', 'Primero sincroniza la cotizacion para obtener el enlace.', 'warning');
+                    return;
+                }
+
+                if (channel === 'email') {
+                    const recipient = share.email || '';
+                    window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(share.subject)}&body=${encodeURIComponent(share.body)}`;
+                    return;
+                }
+
+                const phone = this.normalizeWhatsappPhone(share.telefono);
+                const baseUrl = phone ? `https://wa.me/${phone}` : 'https://wa.me/';
+                window.open(`${baseUrl}?text=${encodeURIComponent(share.body)}`, '_blank');
+            },
+
+            shareCotizacion: function(id, channel) {
+                const item = this.getCotizacionItem(id);
+                const share = this.buildCotizacionSharePayload(item);
+                this.openCotizacionSharePayload(share, channel);
+            },
+
+            renderCotizacionShareActions: function(item) {
+                if (!this.isCotizacionItem(item)) return '';
+                if (!item.share?.es_cotizacion && !item.id) {
+                    return `<div class="small text-muted mt-2"><i class="fas fa-cloud-upload-alt me-1"></i>Sincroniza para compartir</div>`;
+                }
+                const id = this.escapeHtml(item.id || item.localId);
+                return `
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="button" class="btn btn-sm btn-light flex-fill border" style="border-radius: 10px; font-size: 0.72rem;" onclick="app.shareCotizacion('${id}', 'email')">
+                            <i class="fas fa-envelope me-1"></i>Correo
+                        </button>
+                        <button type="button" class="btn btn-sm btn-light flex-fill border" style="border-radius: 10px; font-size: 0.72rem;" onclick="app.shareCotizacion('${id}', 'whatsapp')">
+                            <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                        </button>
+                    </div>
+                `;
+            },
+
+            showCotizacionShareDialog: async function(responseData, sale) {
+                const item = {
+                    id: responseData.venta_id,
+                    numero: responseData.numero,
+                    cliente: sale?.cliente_nombre,
+                    total: sale?.total,
+                    tipo_doc: responseData.tipo_documento || sale?.tipo_documento,
+                    share: responseData.share
+                };
+                const share = this.buildCotizacionSharePayload(item);
+                const result = await Swal.fire({
+                    title: 'Cotizacion guardada',
+                    text: 'Puedes enviarla ahora al cliente.',
+                    icon: 'success',
+                    showDenyButton: true,
+                    showCancelButton: true,
+                    confirmButtonText: 'Correo',
+                    denyButtonText: 'WhatsApp',
+                    cancelButtonText: 'Cerrar'
+                });
+
+                if (result.isConfirmed) {
+                    this.openCotizacionSharePayload(share, 'email');
+                } else if (result.isDenied) {
+                    this.openCotizacionSharePayload(share, 'whatsapp');
                 }
             },
 
@@ -1611,6 +2299,7 @@
                     }
 
                     localHistory.forEach(s => {
+                        const localTipo = s.tipo_doc || s.tipo_documento || s.modo_documento || 'documento';
                         html += `
                             <div class="card p-3 border-0 shadow-sm mb-2" style="border-radius: 12px; border-left: 4px solid #E6B8A2 !important;">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -1619,15 +2308,17 @@
                                 </div>
                                 <div class="fw-bold mb-1" style="font-size: 0.9rem;">${s.cliente_nombre || 'Sin Cliente'}</div>
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <div class="small text-muted uppercase" style="font-size: 0.7rem;">${s.tipo_doc}</div>
+                                    <div class="small text-muted uppercase" style="font-size: 0.7rem;">${localTipo}</div>
                                     <div class="fw-bold text-dark">$${s.total.toLocaleString('es-CL')}</div>
                                 </div>
+                                ${this.renderCotizacionShareActions(s)}
                             </div>
                         `;
                     });
 
                     pendingRemote.forEach(v => {
                         const date = new Date(v.fecha);
+                        const esCotizacion = this.isCotizacionItem(v);
                         html += `
                             <div class="card p-3 border-0 shadow-sm mb-2" style="border-radius: 12px; border-left: 4px solid var(--terracota) !important;">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -1636,9 +2327,12 @@
                                 </div>
                                 <div class="fw-bold mb-1" style="font-size: 0.9rem;">${v.cliente}</div>
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <div class="small text-muted uppercase" style="font-size: 0.7rem;"><i class="fas fa-spinner fa-spin me-1"></i>PENDIENTE CAJA</div>
+                                    <div class="small text-muted uppercase" style="font-size: 0.7rem;">
+                                        <i class="fas ${esCotizacion ? 'fa-file-signature' : 'fa-spinner fa-spin'} me-1"></i>${esCotizacion ? 'COTIZACION' : 'PENDIENTE CAJA'}
+                                    </div>
                                     <div class="fw-bold text-dark">$${v.total.toLocaleString('es-CL')}</div>
                                 </div>
+                                ${this.renderCotizacionShareActions(v)}
                             </div>
                         `;
                     });
@@ -1665,6 +2359,7 @@
                                 <div class="p-2 rounded-2 bg-white small" style="font-size: 0.65rem; border: 1px dashed #b2d8d8; color: #004d4d;">
                                     <i class="fas fa-receipt me-1 text-teal"></i><b>${v.doc_final}</b>
                                 </div>
+                                ${this.renderCotizacionShareActions(v)}
                             </div>
                         `;
                     });
@@ -1673,9 +2368,59 @@
             },
 
             renderDashboard: async function() {
-                const sales = await this.loadFromDB('sales');
-                const today = new Date().toISOString().split('T')[0];
-                const todaySales = sales.filter(s => s.fecha.startsWith(today));
+                const today = this.getLocalDateString();
+                const desdeRecientesDate = new Date();
+                desdeRecientesDate.setDate(desdeRecientesDate.getDate() - 30);
+                const desdeRecientes = this.getLocalDateString(desdeRecientesDate);
+                const localSales = await this.loadFromDB('sales');
+                const todayLocalSales = (localSales || [])
+                    .filter(s => String(s.vendedor_id || '') === String(this.seller ? this.seller.id : ''))
+                    .filter(s => this.getLocalDateString(s.fecha) >= desdeRecientes && this.getLocalDateString(s.fecha) <= today)
+                    .map(s => ({
+                        localId: s.localId,
+                        fecha: s.fecha,
+                        cliente: s.cliente_nombre || 'Sin cliente',
+                        cliente_nombre: s.cliente_nombre,
+                        total: Number(s.total || 0),
+                        facturado: false,
+                        tipo_doc: s.tipo_doc || s.tipo_documento || s.modo_documento,
+                        doc_final: null,
+                        status_label: (s.tipo_documento === 'cotizacion' || s.modo_documento === 'cotizacion') ? 'Cotizacion sin enviar' : 'Sin Enviar',
+                        status_color: '#C9892F',
+                        source: 'local'
+                    }));
+
+                let todayRemoteSales = [];
+                if (!this.isOffline && this.seller) {
+                    try {
+                        const response = await this.fetchSellerHistory(desdeRecientes, today);
+                        if (response.success) {
+                            this.data.recentHistory = response.ventas || [];
+                            todayRemoteSales = (response.ventas || []).map(v => {
+                                const esCotizacion = this.isCotizacionItem(v);
+                                return {
+                                    id: v.id,
+                                    fecha: v.fecha,
+                                    cliente: v.cliente || 'Sin cliente',
+                                    total: Number(v.total || 0),
+                                    facturado: !!v.facturado,
+                                    tipo_doc: v.tipo_doc,
+                                    share: v.share,
+                                    doc_final: v.doc_final,
+                                    status_label: esCotizacion ? 'Cotizacion' : (v.facturado ? 'Facturado' : 'Pendiente Caja'),
+                                    status_color: esCotizacion ? '#8B7355' : (v.facturado ? '#6D8B74' : '#A75D5D'),
+                                    source: 'remote'
+                                };
+                            });
+                        }
+                    } catch (err) {
+                        console.warn('No se pudo cargar operaciones recientes desde servidor:', err.message);
+                    }
+                }
+
+                const todaySales = [...todayLocalSales, ...todayRemoteSales]
+                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+                    .slice(0, 5);
                 const total = todaySales.reduce((sum, s) => sum + (s.total || 0), 0);
                 
                 const cDisp = document.getElementById('statsSalesCount');
@@ -1687,14 +2432,19 @@
                 if (list) {
                     if (todaySales.length > 0) {
                         let html = '<div class="list-group list-group-flush">';
-                        todaySales.slice(-5).reverse().forEach(s => {
+                        todaySales.forEach(s => {
                             html += `
-                                <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-2 py-1">
-                                    <div class="d-flex flex-column">
-                                        <span class="small text-muted">${new Date(s.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                        <span class="small fw-bold">${s.cliente_nombre || 'Sin cliente'}</span>
+                                <div class="list-group-item bg-transparent border-0 px-2 py-2">
+                                    <div class="d-flex justify-content-between align-items-start gap-2">
+                                        <div class="d-flex flex-column" style="min-width:0;">
+                                            <span class="small text-muted">${new Date(s.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                            <span class="small fw-bold text-truncate">${s.cliente}</span>
+                                            <span class="small mt-1" style="color:${s.status_color}; font-weight:700;">${s.status_label}</span>
+                                            ${s.doc_final ? `<span class="small text-muted">${s.doc_final}</span>` : ''}
+                                        </div>
+                                        <span class="fw-bold">$${s.total.toLocaleString('es-CL')}</span>
                                     </div>
-                                    <span class="fw-bold">$${s.total.toLocaleString('es-CL')}</span>
+                                    ${this.renderCotizacionShareActions(s)}
                                 </div>
                             `;
                         });
@@ -1702,10 +2452,38 @@
                         list.innerHTML = html;
                         list.classList.remove('text-center', 'py-4');
                     } else {
-                        list.innerHTML = 'No hay ventas registradas hoy';
+                        list.innerHTML = 'No se registran operaciones recientes';
                         list.classList.add('text-center', 'py-4');
                     }
                 }
+            },
+
+            updateStockPolicyHint: function() {
+                const hint = document.getElementById('stockPolicyHint');
+                if (!hint) return;
+                hint.innerHTML = this.data.configuracion?.permite_sin_stock
+                    ? '<span style="color:#7f8791;"><i class="fas fa-box-open me-1"></i>La app móvil permite vender sin stock y sincroniza inventario cada pocos minutos.</span>'
+                    : '<span style="color:#7f8791;"><i class="fas fa-shield-alt me-1"></i>La app móvil bloquea artículos sin stock disponible al sincronizar y al guardar.</span>';
+                this.forceVisualOverrides();
+            },
+
+            canSellProduct: function(product) {
+                const stock = Number(product.stock || 0);
+                if (!product.control_stock) return true;
+                if (this.data.configuracion?.permite_sin_stock) return true;
+                return stock > 0;
+            },
+
+            getFilteredProducts: function() {
+                const query = (this.currentProductQuery || '').toLowerCase();
+                return this.data.products.filter(product => {
+                    const matchesCategory = this.activeCategoryId === null || product.categoria_id === this.activeCategoryId;
+                    const matchesQuery = !query ||
+                        product.nombre.toLowerCase().includes(query) ||
+                        (product.codigo && product.codigo.toLowerCase().includes(query)) ||
+                        (product.codigo_barras && product.codigo_barras.toLowerCase().includes(query));
+                    return matchesCategory && matchesQuery;
+                });
             },
 
             renderCategories: function() {
@@ -1721,80 +2499,101 @@
             renderProducts: function(productsToRender) {
                 const container = document.getElementById('productsList');
                 if (!container) return;
-                const list = productsToRender || this.data.products;
+                const list = productsToRender || this.getFilteredProducts();
+                this.filteredProducts = list;
+                const counter = document.getElementById('productCounterLabel');
+                if (counter) counter.innerText = `${list.length} productos visibles`;
                 if (!list || list.length === 0) {
                     container.innerHTML = '<div class="text-center py-5 text-muted col-12">No se encontraron productos.</div>';
+                    this.updateSelectionBar();
                     return;
                 }
                 let html = '';
-                list.slice(0, 100).forEach(prod => {
+                list.slice(0, 120).forEach(prod => {
+                    const selected = !!this.selectedProducts[prod.id];
+                    const stock = Number(prod.stock || 0);
+                    const canSell = this.canSellProduct(prod);
+                    const category = this.data.categories.find(cat => cat.id === prod.categoria_id);
                     html += `
-                        <div class="product-card d-flex align-items-center" onclick="app.addToCart(${prod.id})">
-                            <div class="product-info flex-grow-1">
-                                <div class="product-name fw-bold mb-1" style="color: var(--secondary); font-size: 0.95rem;">${prod.nombre}</div>
-                                <div class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-barcode me-1 opacity-50"></i> ${prod.codigo || 'S/R'}</div>
-                                <div class="product-price fw-bold mt-1" style="color: var(--primary); font-size: 1.1rem;">$${(prod.precio || 0).toLocaleString('es-CL')}</div>
+                        <div class="product-card compact ${selected ? 'selected' : ''} ${canSell ? '' : 'no-stock'}" onclick="app.toggleProductSelection(${prod.id})">
+                            <div class="product-info">
+                                <div class="d-flex align-items-start justify-content-between gap-2">
+                                    <div class="product-name fw-bold" style="color: var(--secondary); font-size: 0.82rem; line-height: 1.15;">${prod.nombre}</div>
+                                    <div class="fw-bold" style="color: var(--primary); font-size: 0.9rem; white-space: nowrap;">$${(prod.precio || 0).toLocaleString('es-CL')}</div>
+                                </div>
+                                <div class="text-muted mt-1" style="font-size: 0.66rem; line-height: 1.1;"><i class="fas fa-barcode me-1 opacity-50"></i>${prod.codigo || prod.codigo_barras || 'S/C'}</div>
+                                <div class="product-meta">
+                                    <span class="product-chip">${category ? category.nombre : 'General'}</span>
+                                    <span class="product-chip ${canSell ? '' : 'out'}">${prod.control_stock ? `Stock ${stock}` : 'Sin control stock'}</span>
+                                </div>
                             </div>
-                            <button class="btn-add">
-                                <i class="fas fa-plus"></i>
-                            </button>
+                            <div class="product-select-box"><i class="fas fa-check"></i></div>
                         </div>
                     `;
                 });
                 container.innerHTML = html;
+                this.updateSelectionBar();
             },
 
             renderClients: function() {
                 const select = document.getElementById('clientSelect');
                 if (!select) return;
+                const currentValue = this.selectedClientValue || select.value || '';
+                const query = (this.currentClientQuery || '').trim().toLowerCase();
                 let html = '<option value="">Cliente Ocasional</option>';
-                
-                // Clientes reales
-                this.data.clients.forEach(c => {
+
+                const filteredClients = this.data.clients.filter(c => {
+                    if (!query) return true;
+                    return (c.nombre || '').toLowerCase().includes(query) || ((c.rut || '').toLowerCase().includes(query));
+                });
+                const filteredPendingClients = this.data.pendingClients.filter(c => {
+                    if (!query) return true;
+                    return (c.nombre || '').toLowerCase().includes(query) || ((c.rut || '').toLowerCase().includes(query));
+                });
+
+                filteredClients.forEach(c => {
                     html += `<option value="${c.id}" data-rut="${c.rut || ''}">${c.nombre}</option>`;
                 });
-                
-                // Clientes pendientes (locales)
-                this.data.pendingClients.forEach(c => {
-                    html += `<option value="PENDING_${c.localId}" data-rut="${c.rut || ''}" style="color: #0d6efd;">[PENDIENTE] ${c.nombre}</option>`;
+
+                filteredPendingClients.forEach(c => {
+                    html += `<option value="PENDING_${c.localId}" data-rut="${c.rut || ''}" style="color: #6D8B74;">[PENDIENTE] ${c.nombre}</option>`;
                 });
-                
+
+                if (filteredClients.length === 0 && filteredPendingClients.length === 0) {
+                    html += '<option value="" disabled>Sin clientes disponibles</option>';
+                }
+
                 select.innerHTML = html;
+                if ([...select.options].some(opt => opt.value === currentValue)) {
+                    select.value = currentValue;
+                } else {
+                    select.value = '';
+                }
+                this.selectedClientValue = select.value || '';
             },
 
-            renderFormasPago: function() {
-                const select = document.getElementById('paymentMethodSelect');
-                if (!select) return;
-                
-                let html = '';
-                if (this.data.formas_pago && this.data.formas_pago.length > 0) {
-                    this.data.formas_pago.forEach(fp => {
-                        html += `<option value="${fp.id}">${fp.nombre}</option>`;
-                    });
-                } else {
-                    html = '<option value="">Efectivo (Default)</option>';
-                }
-                select.innerHTML = html;
+            handleClientSelection: function(value) {
+                this.selectedClientValue = value || '';
+                this.toggleOccasionalClientName();
+            },
+
+            filterCartClients: function() {
+                const input = document.getElementById('clientPickerSearch');
+                this.currentClientQuery = input ? input.value || '' : '';
+                this.renderClients();
+                this.toggleOccasionalClientName();
             },
 
             filterProducts: function() {
-                const query = document.getElementById('productSearch').value.toLowerCase();
-                const filtered = this.data.products.filter(p => 
-                    p.nombre.toLowerCase().includes(query) || 
-                    (p.codigo && p.codigo.toLowerCase().includes(query))
-                );
-                this.renderProducts(filtered);
+                this.currentProductQuery = document.getElementById('productSearch').value || '';
+                this.renderProducts();
             },
 
             filterByCategory: function(catId, btn) {
                 document.querySelectorAll('.category-pill').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                if (catId === null) {
-                    this.renderProducts();
-                } else {
-                    const filtered = this.data.products.filter(p => p.categoria_id === catId);
-                    this.renderProducts(filtered);
-                }
+                this.activeCategoryId = catId;
+                this.renderProducts();
             },
 
             filterClientsList: function() {
@@ -1821,7 +2620,7 @@
                 pendingList.forEach(c => {
                     html += `
                         <div class="list-group-item bg-white border-0 mb-2 rounded-4 shadow-sm p-3 d-flex align-items-center" onclick="Swal.fire('Cliente Pendiente', 'Este cliente aún no se ha sincronizado.', 'info')">
-                            <div class="flex-shrink-0 bg-info bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; color: #0d6efd;">
+                            <div class="flex-shrink-0 bg-info bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; color: var(--action-olive);">
                                 <i class="fas fa-user-clock"></i>
                             </div>
                             <div class="flex-grow-1">
@@ -1974,10 +2773,22 @@
                     fecha: new Date().toISOString()
                 };
                 await this.saveDataToDB('pendingClients', client);
+                const pendingClients = await this.loadFromDB('pendingClients');
+                const savedClient = pendingClients[pendingClients.length - 1];
                 Swal.fire('Cliente Guardado', 'El cliente se sincronizará pronto.', 'success');
                 document.getElementById('newClientForm').reset();
                 document.getElementById('rutValidationMsg').style.display = 'none';
-                this.showView('viewDashboard');
+                await this.loadLocalData();
+                this.renderClients();
+                if (savedClient) {
+                    const clientSelect = document.getElementById('clientSelect');
+                    if (clientSelect) {
+                        clientSelect.value = `PENDING_${savedClient.localId}`;
+                        this.selectedClientValue = clientSelect.value;
+                    }
+                }
+                this.toggleOccasionalClientName();
+                this.showView(this.returnViewAfterClient || 'viewDashboard');
             },
 
             // -- RUT VALIDATION & FORMATTING --
@@ -2037,37 +2848,84 @@
             },
 
             // -- CART LOGIC --
-            addToCart: async function(prodId) {
+            toggleProductSelection: function(prodId) {
                 const prod = this.data.products.find(p => p.id === prodId);
-                const { value: qty } = await Swal.fire({
-                    title: prod.nombre,
-                    text: 'Cantidad a vender:',
-                    input: 'number',
-                    inputValue: 1,
-                    showCancelButton: true
+                if (!prod) return;
+                if (!this.canSellProduct(prod)) {
+                    Swal.fire('Sin stock', 'Este artículo no puede agregarse porque el stock actual es cero.', 'warning');
+                    return;
+                }
+
+                if (this.selectedProducts[prodId]) {
+                    delete this.selectedProducts[prodId];
+                } else {
+                    this.selectedProducts[prodId] = {
+                        id: prod.id,
+                        nombre: prod.nombre,
+                        precio: Number(prod.precio || 0),
+                        cantidad: 1,
+                        total: Number(prod.precio || 0)
+                    };
+                }
+                this.renderProducts();
+            },
+
+            addSelectedProductsToCart: function() {
+                const selected = Object.values(this.selectedProducts);
+                if (selected.length === 0) return;
+
+                selected.forEach(item => {
+                    const existing = this.cart.find(i => i.id === item.id);
+                    if (existing) {
+                        existing.cantidad += item.cantidad;
+                        existing.total = existing.cantidad * existing.precio;
+                    } else {
+                        this.cart.push({ ...item });
+                    }
                 });
-                if (!qty || qty <= 0) return;
-                const cantidad = parseFloat(qty);
+
+                this.selectedProducts = {};
+                this.updateCartCount();
+                this.renderCart();
+                this.renderProducts();
+                this.showView('viewCart');
+            },
+
+            clearProductSelection: function() {
+                this.selectedProducts = {};
+                this.updateSelectionBar();
+                this.renderProducts();
+            },
+
+            updateSelectionBar: function() {
+                const selected = Object.values(this.selectedProducts);
+                const bar = document.getElementById('productSelectionBar');
+                const count = document.getElementById('selectedProductsCount');
+                const total = document.getElementById('selectedProductsTotal');
+                if (!bar || !count || !total) return;
+                const estimated = selected.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+                count.innerText = `${selected.length} ${selected.length === 1 ? 'artículo' : 'artículos'}`;
+                total.innerText = `Total estimado $${estimated.toLocaleString('es-CL')}`;
+                bar.classList.toggle('active', selected.length > 0);
+            },
+
+            addToCart: function(prodId, cantidad = 1) {
+                const prod = this.data.products.find(p => p.id === prodId);
+                if (!prod) return;
                 const existing = this.cart.find(i => i.id === prodId);
                 if (existing) {
                     existing.cantidad += cantidad;
                     existing.total = existing.cantidad * existing.precio;
                 } else {
-                    this.cart.push({ id: prod.id, nombre: prod.nombre, precio: prod.precio, cantidad: cantidad, total: cantidad * prod.precio });
+                    this.cart.push({
+                        id: prod.id,
+                        nombre: prod.nombre,
+                        precio: Number(prod.precio || 0),
+                        cantidad: cantidad,
+                        total: cantidad * Number(prod.precio || 0)
+                    });
                 }
                 this.updateCartCount();
-                Swal.fire({ 
-                    text: '¡Agregado!', 
-                    toast: true, 
-                    position: 'top', 
-                    timer: 800, 
-                    showConfirmButton: false, 
-                    background: 'var(--success)', 
-                    color: 'white',
-                    customClass: {
-                        container: 'swal2-safe-top'
-                    }
-                });
             },
 
             updateCartCount: function() {
@@ -2091,21 +2949,21 @@
                 let total = 0;
                 this.cart.forEach((item, idx) => {
                     total += item.total;
-                    html += `<div class="card mb-2 p-2 border-0 shadow-sm" style="border-radius: 12px;">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-grow-1" style="min-width: 0;">
-                                <div class="fw-bold small mb-0 text-truncate">${item.nombre}</div>
-                                <div class="text-muted" style="font-size: 0.75rem;">$${item.precio.toLocaleString()} c/u</div>
+                    html += `<div class="cart-item-card">
+                        <div class="cart-item-top">
+                            <div class="cart-item-meta">
+                                <div class="cart-item-name text-truncate">${item.nombre}</div>
+                                <div class="cart-item-price">$${item.precio.toLocaleString('es-CL')} c/u</div>
                             </div>
-                            <div class="d-flex align-items-center bg-light rounded-pill p-1 mx-2 border" style="height: 34px;">
-                                <button class="btn btn-sm p-0 px-2 border-0" onclick="app.updateCartQuantity(${idx}, -1)" style="color: var(--primary);"><i class="fas fa-minus" style="font-size: 0.8rem;"></i></button>
-                                <span class="px-1 fw-bold" style="min-width: 32px; text-align: center; font-size: 0.9rem;" onclick="app.editCartQuantity(${idx})">${item.cantidad}</span>
-                                <button class="btn btn-sm p-0 px-2 border-0" onclick="app.updateCartQuantity(${idx}, 1)" style="color: var(--primary);"><i class="fas fa-plus" style="font-size: 0.8rem;"></i></button>
+                            <div class="cart-qty-control">
+                                <button class="btn btn-sm p-0 px-2 border-0" onclick="app.updateCartQuantity(${idx}, -1)" style="color: var(--primary);"><i class="fas fa-minus" style="font-size: 0.65rem;"></i></button>
+                                <span class="cart-qty-value" onclick="app.editCartQuantity(${idx})">${item.cantidad}</span>
+                                <button class="btn btn-sm p-0 px-2 border-0" onclick="app.updateCartQuantity(${idx}, 1)" style="color: var(--primary);"><i class="fas fa-plus" style="font-size: 0.65rem;"></i></button>
                             </div>
-                            <div class="text-end me-2" style="min-width: 75px;">
-                                <div class="fw-bold" style="font-size: 0.9rem; color: var(--secondary);">$${item.total.toLocaleString()}</div>
+                            <div class="cart-item-total">
+                                $${item.total.toLocaleString('es-CL')}
                             </div>
-                            <button class="btn btn-sm btn-outline-danger border-0 p-1" onclick="app.removeFromCart(${idx})" style="width: 28px; height: 28px; border-radius: 8px; opacity: 0.7;">
+                            <button class="btn btn-sm btn-outline-danger border-0 p-1 cart-remove-btn" onclick="app.removeFromCart(${idx})">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
@@ -2118,8 +2976,10 @@
 
                 // Inyectar clientes en el select si no están ya
                 this.renderClients();
-                this.renderFormasPago();
                 this.toggleOccasionalClientName();
+                this.toggleDocumentFlow();
+                this.updateStockPolicyHint();
+                this.forceVisualOverrides();
             },
 
             removeFromCart: function(idx) { this.cart.splice(idx, 1); this.renderCart(); this.updateCartCount(); },
@@ -2166,19 +3026,42 @@
                     }
                 }
             },
-            clearCart: function() { this.cart = []; this.renderCart(); this.updateCartCount(); },
+            clearCart: function() {
+                this.cart = [];
+                this.selectedClientValue = '';
+                const checkoutComment = document.getElementById('checkoutComment');
+                if (checkoutComment) checkoutComment.value = '';
+                this.renderCart();
+                this.updateCartCount();
+            },
 
             toggleOccasionalClientName: function() {
                 const select = document.getElementById('clientSelect');
                 const row = document.getElementById('occasionalClientNameRow');
                 if (select && row) {
-                    row.style.display = select.value === "" ? "flex" : "none";
+                    this.selectedClientValue = select.value || '';
+                    row.style.display = select.value === "" ? "grid" : "none";
                 }
+            },
+
+            toggleDocumentFlow: function() {
+                const docType = document.getElementById('docTypeSelect');
+                const finalRow = document.getElementById('finalDocumentRow');
+                if (!docType || !finalRow) return;
+                finalRow.style.display = docType.value === 'cotizacion' ? 'none' : 'grid';
+            },
+
+            openQuickClientForm: function() {
+                this.returnViewAfterClient = 'viewCart';
+                this.showView('viewNewClient');
             },
 
             checkout: async function() {
                 if (this.cart.length === 0) return;
                 const clientSelect = document.getElementById('clientSelect');
+                if (clientSelect && this.selectedClientValue !== clientSelect.value) {
+                    clientSelect.value = this.selectedClientValue || '';
+                }
                 let clientName = clientSelect.options[clientSelect.selectedIndex]?.text || 'Sin cliente';
                 
                 const cliente_id = clientSelect.value;
@@ -2192,17 +3075,25 @@
                     }
                 }
 
+                const modoDocumento = document.getElementById('docTypeSelect').value;
+                const tipoFinal = modoDocumento === 'cotizacion'
+                    ? 'cotizacion'
+                    : document.getElementById('finalDocTypeSelect').value;
+                const comentarioCierre = document.getElementById('checkoutComment')?.value.trim() || '';
+
                 const sale = {
                     localId: Date.now(),
                     cliente_id: cliente_id,
                     cliente_rut: cliente_rut,
                     cliente_nombre: clientName,
-                    items: [...this.cart],
+                    items: this.cart.map(item => ({ ...item })),
                     total: this.cart.reduce((s, i) => s + i.total, 0),
                     fecha: new Date().toISOString(),
                     vendedor_id: this.seller ? this.seller.id : '',
-                    forma_pago_id: document.getElementById('paymentMethodSelect').value,
-                    tipo_documento: document.getElementById('docTypeSelect').value,
+                    deviceId: this.deviceId,
+                    tipo_documento: tipoFinal,
+                    modo_documento: modoDocumento,
+                    comentario_cierre: comentarioCierre,
                     observaciones: `[MOVIL] Cliente: ${clientName}`
                 };
                 if (this.isOffline) {
@@ -2211,7 +3102,12 @@
                     this.clearCart();
                     this.showView('viewDashboard');
                 } else {
-                    Swal.fire({ title: '¿Enviar Venta?', text: `Total: $${sale.total.toLocaleString()}`, showCancelButton: true, confirmButtonText: 'Sí, enviar' })
+                    Swal.fire({
+                        title: '¿Guardar documento?',
+                        text: `${modoDocumento === 'cotizacion' ? 'Cotización' : 'Nota de venta'} por $${sale.total.toLocaleString()}`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, guardar'
+                    })
                     .then(res => { if (res.isConfirmed) this.sendSaleToServer(sale); });
                 }
             },
@@ -2221,10 +3117,14 @@
                     Swal.fire({ title: 'Enviando...', didOpen: () => Swal.showLoading() });
                     const data = await this.apiRequest('/ventas/movil/api/guardar-venta/', {
                         method: 'POST',
-                        body: sale
+                        body: { ...sale, deviceId: this.deviceId }
                     });
                     if (data.success) {
-                        Swal.fire('Éxito', 'Venta enviada correctamente.', 'success');
+                        if (data.share?.es_cotizacion) {
+                            await this.showCotizacionShareDialog(data, sale);
+                        } else {
+                            await Swal.fire('Exito', 'Documento enviado correctamente.', 'success');
+                        }
                         this.clearCart();
                         this.showView('viewDashboard');
                     } else throw new Error(data.error || 'Error desconocido');
@@ -2303,8 +3203,14 @@
                         tx.objectStore('sales').delete(localId);
                         await new Promise(r => tx.oncomplete = r);
                         this.renderPendingData();
-                        if (!silent) Swal.fire('Sincronizado', 'Venta subida correctamente.', 'success');
-                        return { success: true };
+                        if (!silent) {
+                            if (data.share?.es_cotizacion) {
+                                await this.showCotizacionShareDialog(data, sale);
+                            } else {
+                                await Swal.fire('Sincronizado', 'Venta subida correctamente.', 'success');
+                            }
+                        }
+                        return { success: true, share: data.share };
                     } else throw new Error(data.error || 'Error desconocido');
                 } catch (e) { 
                     if (!silent && e.message !== "SESION_EXPIRADA") {
@@ -2453,6 +3359,8 @@
                 }
             }
         };
+
+        window.app = app;
 
         // Iniciar app
         app.init();

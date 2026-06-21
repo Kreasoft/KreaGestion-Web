@@ -313,6 +313,7 @@ class VentaDetalle(models.Model):
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], verbose_name="Precio Unitario")
     precio_total = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))], verbose_name="Precio Total")
     impuesto_especifico = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Impuesto Específico")
+    comentario = models.TextField(blank=True, verbose_name="Comentario")
     
     # Auditoría
     fecha_creacion = models.DateTimeField(auto_now_add=True)

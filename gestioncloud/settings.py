@@ -183,6 +183,9 @@ USE_TZ = True
 USE_THOUSAND_SEPARATOR = True
 THOUSAND_SEPARATOR = '.'
 NUMBER_GROUPING = 3
+FORMAT_MODULE_PATH = [
+    'gestioncloud.formats',
+]
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'

@@ -1,0 +1,885 @@
+{% extends "base.html" %}
+{% load static l10n %}
+
+{% block title %}Facturacion Directa - GestionCloud{% endblock %}
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-border: #D4C4A8;
+        --stone-soft: #F7F2EA;
+        --ink: #2f343b;
+        --green: #1f8a5b;
+        --red: #c0364c;
+    }
+
+    body { background: #FAFAF8 !important; }
+
+    .direct-page {
+        padding: 10px 15px;
+        background: #FAFAF8;
+        min-height: 100vh;
+    }
+
+    .card-piedra {
+        border: 2px solid #E8DCC8;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+        background: white;
+    }
+
+    .direct-page-header {
+        background: var(--gradient-piedra, linear-gradient(135deg, #8B7355 0%, #6F5B44 100%));
+        border-bottom: 3px solid var(--color-piedra-borde, #D4C4A8);
+        padding: 8px 14px;
+    }
+
+    .direct-page-icon {
+        width: auto;
+        height: auto;
+        border-radius: 0;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-piedra-texto, #fff);
+        margin-right: 14px;
+        font-size: 2.65rem;
+        line-height: 1;
+        opacity: 0.88;
+    }
+
+    .direct-page-title {
+        font-size: 1.35rem;
+        line-height: 1.1;
+        color: var(--color-piedra-texto, #fff);
+        letter-spacing: 0;
+    }
+
+    .direct-page-subtitle {
+        font-size: 0.74rem;
+        color: var(--color-piedra-texto, #fff);
+        opacity: 0.82;
+        line-height: 1.2;
+    }
+
+    .direct-page-body {
+        background: #FAFAF8;
+        padding: 10px;
+    }
+
+    .direct-card {
+        background: #fff;
+        border: 1px solid #E8DCC8;
+        border-radius: 8px;
+        box-shadow: none;
+        overflow: hidden;
+    }
+
+    .direct-header {
+        display: grid;
+        grid-template-columns: 1.05fr 1.65fr 0.78fr 1fr 1fr 1fr;
+        gap: 6px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--stone-border);
+        background: #fffdf9;
+    }
+
+    .field label {
+        display: block;
+        margin-bottom: 2px;
+        font-size: 0.66rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--stone-secondary);
+    }
+
+    .field input,
+    .field select,
+    .field textarea,
+    .line-table input,
+    .line-table select,
+    .line-table textarea {
+        border: 1px solid #d8c9b5;
+        border-radius: 6px;
+        font-size: 0.78rem;
+        height: 30px;
+        min-height: 30px;
+        padding-top: 3px;
+        padding-bottom: 3px;
+    }
+
+    .field textarea { min-height: 30px; resize: vertical; }
+
+    .doc-toggle {
+        display: inline-flex;
+        border: 1px solid var(--stone-border);
+        border-radius: 6px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .doc-toggle button {
+        border: 0;
+        background: #fff;
+        color: var(--stone-secondary);
+        padding: 5px 10px;
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+
+    .doc-toggle button.active {
+        background: var(--stone-primary);
+        color: #fff;
+    }
+
+    .select2-container--default .select2-selection--single {
+        border: 1px solid #d8c9b5;
+        border-radius: 6px;
+        height: 30px;
+        min-height: 30px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 28px;
+        font-size: 0.78rem;
+        color: var(--ink);
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 28px;
+    }
+
+    .select2-dropdown.product-select2-dropdown {
+        width: 760px !important;
+        max-width: calc(100vw - 40px);
+        border-color: #d8c9b5;
+        box-shadow: 0 12px 30px rgba(94, 74, 52, 0.18);
+    }
+
+    .select2-dropdown.client-select2-dropdown {
+        width: 860px !important;
+        max-width: calc(100vw - 40px);
+        border-color: #d8c9b5;
+        box-shadow: 0 12px 30px rgba(94, 74, 52, 0.18);
+    }
+
+    .product-select2-dropdown .select2-search__field,
+    .client-select2-dropdown .select2-search__field {
+        height: 34px;
+        font-size: 0.86rem;
+        border-color: #d8c9b5 !important;
+        border-radius: 6px;
+    }
+
+    .product-select2-header {
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr) 112px 86px;
+        gap: 8px;
+        padding: 5px 8px;
+        background: #fbf8f3;
+        border-top: 1px solid #efe3d4;
+        border-bottom: 1px solid var(--stone-border);
+        color: var(--stone-secondary);
+        font-size: 0.64rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .product-select2-dropdown .select2-results__options,
+    .client-select2-dropdown .select2-results__options {
+        max-height: 430px !important;
+    }
+
+    .product-select2-dropdown .select2-results__option {
+        padding: 3px 8px;
+    }
+
+    .client-select2-dropdown .select2-results__option {
+        padding: 6px 8px;
+    }
+
+    .product-option {
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr) 112px 86px;
+        gap: 8px;
+        align-items: center;
+        min-height: 28px;
+    }
+
+    .product-option-name,
+    .product-option-code {
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.15;
+    }
+
+    .product-option-name {
+        color: var(--ink);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .product-option-code {
+        color: var(--stone-secondary);
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .product-option-meta {
+        text-align: right;
+        color: #45515c;
+        font-size: 0.74rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .client-option {
+        display: grid;
+        grid-template-columns: 140px minmax(0, 1fr);
+        gap: 10px;
+        min-height: 58px;
+        align-items: start;
+    }
+
+    .client-option-rut {
+        color: var(--stone-secondary);
+        font-size: 0.76rem;
+        font-weight: 700;
+        padding-top: 1px;
+        white-space: nowrap;
+    }
+
+    .client-option-main {
+        min-width: 0;
+    }
+
+    .client-option-name {
+        color: var(--ink);
+        font-size: 0.82rem;
+        font-weight: 800;
+        line-height: 1.15;
+    }
+
+    .client-option-detail {
+        color: #5c6570;
+        font-size: 0.7rem;
+        line-height: 1.2;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .line-zone { padding: 8px 10px 0; }
+
+    .line-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
+    }
+
+    .line-table th {
+        padding: 4px 4px;
+        height: 28px;
+        font-size: 0.66rem;
+        text-transform: uppercase;
+        color: var(--stone-secondary);
+        border-bottom: 1px solid var(--stone-border);
+        background: #fbf8f3;
+    }
+
+    .line-table td {
+        padding: 1px 3px;
+        border-bottom: 0;
+        vertical-align: middle;
+        height: 32px;
+    }
+
+    .line-table tr { height: 32px; }
+
+    .line-table input,
+    .line-table select,
+    .line-table textarea {
+        height: 30px;
+        min-height: 30px;
+        padding-top: 3px;
+        padding-bottom: 3px;
+    }
+
+    .line-table textarea {
+        resize: none;
+        overflow: hidden;
+        line-height: 1.25;
+        transition: height 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .line-table textarea:focus {
+        height: 96px;
+        min-height: 96px;
+        resize: vertical;
+        overflow: auto;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.18);
+        z-index: 3;
+        position: relative;
+    }
+
+    .line-table .select2-container { width: 100% !important; }
+
+    .col-product { width: 28%; }
+    .col-desc { width: 28%; }
+    .col-qty { width: 8%; }
+    .col-price { width: 11%; }
+    .col-disc { width: 7%; }
+    .col-net { width: 11%; }
+    .col-total { width: 11%; }
+    .col-action { width: 42px; }
+
+    .totals-strip {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 12px;
+        padding: 10px 12px 12px;
+        align-items: end;
+    }
+
+    .totals-box {
+        border: 1px solid var(--stone-border);
+        border-radius: 8px;
+        padding: 8px;
+        background: #fffdf9;
+    }
+
+    .total-line {
+        display: grid;
+        grid-template-columns: 1fr 130px;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 4px;
+        font-size: 0.78rem;
+    }
+
+    .total-line input {
+        text-align: right;
+        border: 0;
+        background: transparent;
+        font-weight: 700;
+        color: var(--ink);
+    }
+
+    .total-line.final {
+        border-top: 1px solid var(--stone-border);
+        margin-top: 7px;
+        padding-top: 7px;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .action-row {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        align-items: center;
+    }
+
+    .btn-stone {
+        border: 0;
+        border-radius: 7px;
+        background: var(--stone-primary);
+        color: #fff;
+        font-weight: 800;
+        padding: 9px 14px;
+    }
+
+    .btn-light-stone {
+        border: 1px solid var(--stone-border);
+        border-radius: 7px;
+        background: #fff;
+        color: var(--stone-secondary);
+        font-weight: 800;
+        padding: 8px 12px;
+    }
+
+    .icon-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        border: 1px solid #efc4c9;
+        color: var(--red);
+        background: #fff6f7;
+    }
+
+    .status-box {
+        min-height: 34px;
+        font-size: 0.82rem;
+        color: var(--stone-secondary);
+    }
+
+    .status-box.ok { color: var(--green); font-weight: 700; }
+    .status-box.err { color: var(--red); font-weight: 700; }
+
+    @media (max-width: 1100px) {
+        .direct-header { grid-template-columns: 1fr 1fr; }
+        .totals-strip { grid-template-columns: 1fr; }
+        .line-table { min-width: 1040px; }
+        .line-zone { overflow-x: auto; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ articulos_json|json_script:"articulos-data" }}
+{{ clientes_json|json_script:"clientes-data" }}
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+<input type="hidden" id="monto_pagado" value="0">
+
+<div class="container-fluid direct-page">
+    <div class="row">
+        <div class="col-12">
+            <div class="card card-piedra">
+                <div class="card-header direct-page-header">
+                    <div class="d-flex align-items-center">
+                        <div class="direct-page-icon">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                        <div>
+                            <h2 class="mb-0 fw-light direct-page-title">Facturacion <span class="fw-bold">Directa</span></h2>
+                            <div class="direct-page-subtitle">Emision inmediata de facturas afectas y exentas</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body direct-page-body">
+                    <div class="direct-card">
+                        <div class="direct-header">
+                            <div class="field">
+                                <label>Documento</label>
+                                <div class="doc-toggle" role="group">
+                                    <button type="button" class="active" data-doc="33">Factura afecta</button>
+                                    <button type="button" data-doc="34">Factura exenta</button>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>Cliente</label>
+                                <select id="cliente_id" class="form-select form-select-sm">
+                                    <option value="">Seleccionar cliente</option>
+                                    {% for cliente in clientes %}
+                                    <option value="{{ cliente.id|unlocalize }}">{{ cliente.rut }} - {{ cliente.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Fecha</label>
+                                <input id="fecha" type="date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}">
+                            </div>
+                            <div class="field">
+                                <label>Bodega</label>
+                                <select id="bodega_id" class="form-select form-select-sm">
+                                    <option value="">Seleccionar</option>
+                                    {% for bodega in bodegas %}
+                                    <option value="{{ bodega.id|unlocalize }}">{{ bodega.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Forma de pago</label>
+                                <select id="forma_pago_id" class="form-select form-select-sm">
+                                    <option value="">Seleccionar</option>
+                                    {% for forma in formas_pago %}
+                                    <option value="{{ forma.id|unlocalize }}" data-cc="{{ forma.es_cuenta_corriente|yesno:'1,0' }}">{{ forma.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Vendedor</label>
+                                <select id="vendedor_id" class="form-select form-select-sm">
+                                    <option value="">Seleccionar</option>
+                                    {% for vendedor in vendedores %}
+                                    <option value="{{ vendedor.id|unlocalize }}">{{ vendedor.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="line-zone">
+                            <table class="line-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-product">Producto</th>
+                                        <th class="col-desc">Descripcion extendida</th>
+                                        <th class="col-qty">Cant.</th>
+                                        <th class="col-price">P. unitario</th>
+                                        <th class="col-disc">Desc</th>
+                                        <th class="col-net">Precio neto</th>
+                                        <th class="col-total">Total</th>
+                                        <th class="col-action"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="items-body"></tbody>
+                            </table>
+                        </div>
+
+                        <div class="totals-strip">
+                            <div>
+                                <button type="button" id="add-row" class="btn-light-stone">
+                                    <i class="fas fa-plus me-1"></i> Linea
+                                </button>
+                                <div id="status" class="status-box mt-2"></div>
+                            </div>
+                            <div class="totals-box">
+                                <div class="total-line"><span>Subtotal</span><input id="subtotal" class="money" value="0"></div>
+                                <div class="total-line"><span>Neto</span><input id="neto" class="money" value="0"></div>
+                                <div class="total-line"><span>Exento</span><input id="exento" class="money" value="0"></div>
+                                <div class="total-line"><span>IVA</span><input id="iva" class="money" value="0"></div>
+                                <div class="total-line final"><span>Total</span><input id="total" class="money" value="0"></div>
+                                <div class="action-row mt-2">
+                                    <a id="print-link" class="btn-light-stone d-none" href="#">Ver / imprimir</a>
+                                    <button type="button" id="cancel-btn" class="btn-light-stone">
+                                        <i class="fas fa-arrow-left me-1"></i> Cancelar
+                                    </button>
+                                    <button type="button" id="submit-btn" class="btn-stone">
+                                        <i class="fas fa-paper-plane me-1"></i> Emitir y enviar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const articulos = JSON.parse(document.getElementById('articulos-data').textContent);
+const clientes = JSON.parse(document.getElementById('clientes-data').textContent);
+let tipoDte = '33';
+
+function csrfToken() {
+    const inputToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (inputToken && inputToken.value) return inputToken.value;
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? match[1] : '';
+}
+
+function errorFromHtml(html, status) {
+    const title = String(html || '').match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const cleanTitle = title ? title[1].replace(/\s+/g, ' ').trim() : '';
+    if (cleanTitle) return `Error del servidor (${status}): ${cleanTitle}`;
+    return `Error del servidor (${status}). Revisa la consola de Django para el detalle.`;
+}
+
+function toNumber(value) {
+    if (!value) return 0;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    const text = String(value).replace(/\u00a0/g, '').trim();
+    if (text.includes(',')) {
+        return Number(text.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '')) || 0;
+    }
+    return Number(text.replace(/\./g, '').replace(/[^\d-]/g, '')) || 0;
+}
+
+function money(value) {
+    return Math.round(toNumber(value)).toLocaleString('es-CL');
+}
+
+function quantity(value) {
+    const number = Number(value) || 0;
+    return number.toLocaleString('es-CL', {maximumFractionDigits: Number.isInteger(number) ? 0 : 2});
+}
+
+function setMoney(input, value) {
+    input.value = money(value);
+}
+
+function productById(id) {
+    return articulos.find(a => String(a.id) === String(id));
+}
+
+function clientById(id) {
+    return clientes.find(c => String(c.id) === String(id));
+}
+
+function stockForArticle(art) {
+    const bodegaId = document.getElementById('bodega_id').value;
+    if (bodegaId && art.stock_bodegas && Object.prototype.hasOwnProperty.call(art.stock_bodegas, bodegaId)) {
+        return Number(art.stock_bodegas[bodegaId]) || 0;
+    }
+    return Number(art.stock) || 0;
+}
+
+function productOptionText(art) {
+    const code = art.codigo ? `${art.codigo} - ` : '';
+    return `${code}${art.nombre}`;
+}
+
+function articleOptions() {
+    return ['<option value="">Seleccionar</option>'].concat(articulos.map(a =>
+        `<option value="${a.id}">${productOptionText(a)}</option>`
+    )).join('');
+}
+
+function productResult(option) {
+    if (!option.id) return option.text;
+    const art = productById(option.id);
+    if (!art) return option.text;
+    const stock = stockForArticle(art);
+    const $row = jQuery('<div class="product-option"></div>');
+    jQuery('<div class="product-option-code"></div>').text(art.codigo || '-').appendTo($row);
+    jQuery('<div class="product-option-name"></div>').text(art.nombre || option.text).appendTo($row);
+    jQuery('<div class="product-option-meta"></div>').text(`$${money(art.precio || 0)}`).appendTo($row);
+    jQuery('<div class="product-option-meta"></div>').text(quantity(stock)).appendTo($row);
+    return $row;
+}
+
+function productSelection(option) {
+    if (!option.id) return option.text;
+    const art = productById(option.id);
+    return art ? productOptionText(art) : option.text;
+}
+
+function clientResult(option) {
+    if (!option.id) return option.text;
+    const client = clientById(option.id);
+    if (!client) return option.text;
+    const address = [client.direccion, client.comuna].filter(Boolean).join(', ') || 'Sin direccion';
+    const $row = jQuery('<div class="client-option"></div>');
+    jQuery('<div class="client-option-rut"></div>').text(client.rut || 'Sin RUT').appendTo($row);
+    const $main = jQuery('<div class="client-option-main"></div>');
+    jQuery('<div class="client-option-name"></div>').text(client.nombre || option.text).appendTo($main);
+    jQuery('<div class="client-option-detail"></div>').text(client.giro || 'Sin giro').appendTo($main);
+    jQuery('<div class="client-option-detail"></div>').text(address).appendTo($main);
+    $row.append($main);
+    return $row;
+}
+
+function clientSelection(option) {
+    if (!option.id) return option.text;
+    const client = clientById(option.id);
+    return client ? `${client.rut || 'Sin RUT'} - ${client.nombre || ''}` : option.text;
+}
+
+function addProductDropdownHeader() {
+    const $dropdown = jQuery('.select2-dropdown.product-select2-dropdown');
+    if (!$dropdown.length || $dropdown.find('.product-select2-header').length) return;
+    const $header = jQuery(`
+        <div class="product-select2-header">
+            <span>Codigo</span>
+            <span>Producto</span>
+            <span class="text-end">Precio</span>
+            <span class="text-end">Stock</span>
+        </div>
+    `);
+    $dropdown.find('.select2-results').prepend($header);
+}
+
+function addRow(data = {}) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><select class="form-select form-select-sm item-articulo">${articleOptions()}</select></td>
+        <td><textarea class="form-control form-control-sm item-desc"></textarea></td>
+        <td><input class="form-control form-control-sm item-cant" value="1" inputmode="decimal"></td>
+        <td><input class="form-control form-control-sm item-precio money" value="0" inputmode="numeric"></td>
+        <td><input class="form-control form-control-sm item-descuento" value="0" inputmode="decimal"></td>
+        <td><input class="form-control form-control-sm line-neto money" value="0" inputmode="numeric"></td>
+        <td><input class="form-control form-control-sm line-total money" value="0" inputmode="numeric"></td>
+        <td><button type="button" class="icon-btn remove-row" title="Eliminar"><i class="fas fa-times"></i></button></td>
+    `;
+    document.getElementById('items-body').appendChild(tr);
+    if (data.articulo_id) tr.querySelector('.item-articulo').value = data.articulo_id;
+    initProductSelect(tr.querySelector('.item-articulo'));
+    bindRow(tr);
+    recalcRow(tr);
+}
+
+function initSelect2() {
+    if (!window.jQuery || !jQuery.fn.select2) return;
+    jQuery('#cliente_id').select2({
+        width: '100%',
+        dropdownAutoWidth: true,
+        dropdownCssClass: 'client-select2-dropdown',
+        templateResult: clientResult,
+        templateSelection: clientSelection
+    });
+    jQuery('#bodega_id, #forma_pago_id, #vendedor_id').select2({ width: '100%' });
+    jQuery('#forma_pago_id').on('change', updateTotals);
+    jQuery(document).on('select2:open', addProductDropdownHeader);
+}
+
+function initProductSelect(select) {
+    if (!window.jQuery || !jQuery.fn.select2) return;
+    jQuery(select).select2({
+        width: '100%',
+        dropdownAutoWidth: true,
+        dropdownCssClass: 'product-select2-dropdown',
+        templateResult: productResult,
+        templateSelection: productSelection
+    });
+}
+
+function bindRow(row) {
+    jQuery(row.querySelector('.item-articulo')).on('change', () => {
+        const art = articulos.find(a => String(a.id) === row.querySelector('.item-articulo').value);
+        if (art) {
+            row.querySelector('.item-desc').value = art.descripcion || art.nombre;
+            setMoney(row.querySelector('.item-precio'), art.precio || 0);
+            row.dataset.exentoArticulo = art.exento ? '1' : '0';
+        }
+        recalcRow(row);
+    });
+    row.querySelectorAll('.item-cant,.item-precio,.item-descuento').forEach(el => {
+        el.addEventListener('input', () => recalcRow(row));
+        el.addEventListener('change', () => recalcRow(row));
+    });
+    row.querySelectorAll('.line-neto,.line-total').forEach(el => {
+        el.addEventListener('input', updateTotals);
+        el.addEventListener('blur', () => { el.value = money(el.value); updateTotals(); });
+    });
+    row.querySelector('.remove-row').addEventListener('click', () => {
+        if (window.jQuery && jQuery.fn.select2) jQuery(row.querySelector('.item-articulo')).select2('destroy');
+        row.remove();
+        updateTotals();
+    });
+}
+
+function recalcRow(row) {
+    const qty = toNumber(row.querySelector('.item-cant').value);
+    const price = toNumber(row.querySelector('.item-precio').value);
+    const discount = toNumber(row.querySelector('.item-descuento').value);
+    const base = Math.max(0, Math.round(qty * price * (1 - discount / 100)));
+    const exenta = tipoDte === '34' || row.dataset.exentoArticulo === '1';
+
+    if (exenta) {
+        setMoney(row.querySelector('.line-neto'), base);
+        setMoney(row.querySelector('.line-total'), base);
+    } else {
+        const iva = Math.round(base * 0.19);
+        setMoney(row.querySelector('.line-neto'), base);
+        setMoney(row.querySelector('.line-total'), base + iva);
+    }
+    updateTotals();
+}
+
+function updateTotals() {
+    let neto = 0, exento = 0, iva = 0, total = 0;
+    document.querySelectorAll('#items-body tr').forEach(row => {
+        const lineNeto = toNumber(row.querySelector('.line-neto').value);
+        const lineTotal = toNumber(row.querySelector('.line-total').value);
+        const exenta = tipoDte === '34' || row.dataset.exentoArticulo === '1';
+        if (exenta) {
+            exento += lineNeto;
+        } else {
+            neto += lineNeto;
+            iva += Math.max(0, lineTotal - lineNeto);
+        }
+        total += lineTotal;
+    });
+    setMoney(document.getElementById('subtotal'), neto + exento);
+    setMoney(document.getElementById('neto'), neto);
+    setMoney(document.getElementById('exento'), exento);
+    setMoney(document.getElementById('iva'), iva);
+    setMoney(document.getElementById('total'), total);
+
+    const forma = document.getElementById('forma_pago_id');
+    const isCc = forma.selectedOptions[0] && forma.selectedOptions[0].dataset.cc === '1';
+    const abono = document.getElementById('monto_pagado');
+    abono.value = isCc ? '0' : money(total);
+}
+
+function setDocType(nextType) {
+    tipoDte = nextType;
+    document.querySelectorAll('.doc-toggle button').forEach(btn => btn.classList.toggle('active', btn.dataset.doc === nextType));
+    document.querySelectorAll('#items-body tr').forEach(row => {
+        recalcRow(row);
+    });
+}
+
+function selectedClient() {
+    return clientes.find(c => String(c.id) === document.getElementById('cliente_id').value);
+}
+
+document.getElementById('cliente_id').addEventListener('change', () => {
+    selectedClient();
+});
+
+document.querySelectorAll('.doc-toggle button').forEach(btn => btn.addEventListener('click', () => setDocType(btn.dataset.doc)));
+document.getElementById('add-row').addEventListener('click', () => addRow());
+document.getElementById('forma_pago_id').addEventListener('change', updateTotals);
+document.getElementById('cancel-btn').addEventListener('click', () => {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.href = "{% url 'ventas:libro_ventas' %}";
+    }
+});
+
+document.getElementById('submit-btn').addEventListener('click', async () => {
+    const status = document.getElementById('status');
+    const rows = Array.from(document.querySelectorAll('#items-body tr'));
+    const items = rows.map(row => ({
+        articulo_id: row.querySelector('.item-articulo').value,
+        descripcion: row.querySelector('.item-desc').value,
+        cantidad: row.querySelector('.item-cant').value,
+        neto: row.querySelector('.line-neto').value,
+        exento: (tipoDte === '34' || row.dataset.exentoArticulo === '1') ? row.querySelector('.line-neto').value : 0,
+        iva: (tipoDte === '34' || row.dataset.exentoArticulo === '1') ? 0 : Math.max(0, toNumber(row.querySelector('.line-total').value) - toNumber(row.querySelector('.line-neto').value)),
+        total: row.querySelector('.line-total').value,
+    })).filter(item => item.articulo_id);
+
+    status.className = 'status-box';
+    status.textContent = 'Emitiendo...';
+    document.getElementById('submit-btn').disabled = true;
+
+    try {
+        const response = await fetch("{% url 'ventas:facturar_directo' %}", {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+            body: JSON.stringify({
+                tipo_dte: tipoDte,
+                cliente_id: document.getElementById('cliente_id').value,
+                fecha: document.getElementById('fecha').value,
+                forma_pago_id: document.getElementById('forma_pago_id').value,
+                vendedor_id: document.getElementById('vendedor_id').value,
+                sucursal_id: '',
+                bodega_id: document.getElementById('bodega_id').value,
+                monto_pagado: document.getElementById('monto_pagado').value,
+                observaciones: '',
+                items
+            })
+        });
+        const raw = await response.text();
+        let data = null;
+        try {
+            data = raw ? JSON.parse(raw) : {};
+        } catch (parseErr) {
+            throw new Error(errorFromHtml(raw, response.status));
+        }
+        if (!response.ok || !data.success) throw new Error(data.message || 'No se pudo emitir.');
+        const envioTxt = data.envio && data.envio.success ? ' Enviado al SII.' : ` Generado, pendiente de envio: ${data.envio.message || ''}`;
+        status.className = data.envio && data.envio.success ? 'status-box ok' : 'status-box err';
+        status.textContent = `${data.message}${envioTxt}`;
+        const link = document.getElementById('print-link');
+        link.href = data.print_url;
+        link.classList.remove('d-none');
+    } catch (err) {
+        status.className = 'status-box err';
+        status.textContent = err.message;
+    } finally {
+        document.getElementById('submit-btn').disabled = false;
+    }
+});
+
+initSelect2();
+addRow();
+updateTotals();
+</script>
+{% endblock %}

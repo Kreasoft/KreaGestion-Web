@@ -311,6 +311,11 @@
                         {% endif %}
                     </div>
                     <div class="document-sii">SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}</div>
+                    {% if dte and dte.folio and venta.numero_venta %}
+                    <div style="font-size: 8.5pt; margin-top: 4px; font-weight: bold; border-top: 1px dotted #c00; padding-top: 4px; color: #000;">
+                        VALE REF: #{{ venta.numero_venta }}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -601,6 +606,30 @@
                 console.log('Event listener agregado al botón volver');
             }
         });
+
+        // Auto-ejecución
+        const params = new URLSearchParams(window.location.search);
+        const autoPrint = params.get('auto');
+        const autoClose = params.get('autoclose');
+        const autoCloseDelay = parseInt(params.get('autoclose_delay')) || 2500;
+
+        if (autoPrint === '1') {
+            window.addEventListener('load', function () {
+                console.log('[DTE AUTO] Iniciando flujo automático...');
+                setTimeout(function () {
+                    if (autoClose === '1') {
+                        console.log('[DTE AUTO] Cierre automático programado en', autoCloseDelay, 'ms');
+                        setTimeout(safeCloseWindow, autoCloseDelay);
+                    }
+                    try {
+                        window.print();
+                    } catch(e) {
+                        console.log('Error al imprimir:', e);
+                        safeCloseWindow();
+                    }
+                }, 500);
+            });
+        }
     </script>
 
 </body>

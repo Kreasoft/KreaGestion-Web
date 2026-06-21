@@ -293,24 +293,51 @@ def procesar_venta_caja(request, ticket_id):
             print(f"   DTE: {dte.id if dte else 'No generado'}")
             print("=" * 80)
             
-            # 6. Redirigir a impresión del documento
-            messages.success(request, f'{ticket.tipo_documento_planeado.title()} #{numero_venta_final} procesada exitosamente.')
-            
-            if dte:
-                # Redirigir a vista del DTE con impresión automática y cierre automático
-                from django.urls import reverse as django_reverse
-                dte_url = django_reverse('facturacion_electronica:ver_factura_electronica', kwargs={'dte_id': dte.pk})
+            # 6. Encolar impresión directa (impresión silenciosa en caja)
+            try:
+                from caja.models import ColaImpresion
+                from caja.impresion_utils import generar_esc_pos_ticket
                 
-                # Determinar URL de retorno final
-                # auto=1: imprime automáticamente
-                # autoclose=1: cierra y vuelve después de imprimir
-                # autoclose_delay=1000: espera 1 segundo después de imprimir antes de volver
-                from urllib.parse import quote
-                return redirect(f"{dte_url}?auto=1&autoclose=1&autoclose_delay=1000&return_url={quote(next_url, safe='')}")
-            else:
-                # Si no hay DTE, volver al origen
-                messages.warning(request, 'Documento procesado pero no se generó DTE.')
-                return redirect(next_url)
+                contenido = generar_esc_pos_ticket(ticket)
+                
+                caja_id_cola = None
+                if apertura_activa:
+                    caja_id_cola = apertura_activa.caja.id
+                
+                if not caja_id_cola and ticket.estacion_trabajo:
+                    from caja.models import AperturaCaja
+                    ap_activa = AperturaCaja.objects.filter(caja__empresa=request.empresa, estado='abierta', caja__estacion_trabajo=ticket.estacion_trabajo).first()
+                    if ap_activa:
+                        caja_id_cola = ap_activa.caja.id
+                
+                if not caja_id_cola:
+                    from caja.models import AperturaCaja
+                    ap_activa = AperturaCaja.objects.filter(caja__empresa=request.empresa, estado='abierta').order_by('-fecha_apertura').first()
+                    if ap_activa:
+                        caja_id_cola = ap_activa.caja.id
+
+                if caja_id_cola:
+                    ColaImpresion.objects.create(
+                        caja_id=caja_id_cola,
+                        empresa=request.empresa,
+                        venta=ticket,
+                        tipo_documento='dte' if dte else 'vale',
+                        documento_id=dte.id if dte else ticket.id,
+                        contenido_raw=contenido,
+                        estado='pendiente'
+                    )
+                    print(f"[CAJA] [OK] Impresion encolada para ticket {ticket.id} ({'dte' if dte else 'vale'}) en Caja {caja_id_cola}")
+                    messages.success(request, f'✅ {ticket.tipo_documento_planeado.title()} #{numero_venta_final} procesada e impresa con éxito.')
+                else:
+                    print(f"[CAJA] [WARN] No se encontro caja para encolar impresion del ticket {ticket.id}")
+                    messages.warning(request, f'✅ {ticket.tipo_documento_planeado.title()} #{numero_venta_final} procesada, pero no se pudo encolar la impresión (no hay caja abierta).')
+            except Exception as e_print:
+                print(f"[CAJA] [ERROR] Error al encolar impresion: {e_print}")
+                import traceback
+                traceback.print_exc()
+                messages.warning(request, f'✅ {ticket.tipo_documento_planeado.title()} #{numero_venta_final} procesada, pero hubo un error al mandar a imprimir.')
+
+            return redirect(next_url)
     
     except Exception as e:
         print(f"[CAJA] ERROR: {str(e)}")

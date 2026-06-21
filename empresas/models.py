@@ -170,6 +170,12 @@ class Empresa(models.Model):
         help_text="Solicita móvil y chofer al procesar ventas para generar hojas de ruta"
     )
 
+    venta_movil_permite_sin_stock = models.BooleanField(
+        default=True,
+        verbose_name="Ventas Móviles Permiten Sin Stock",
+        help_text="Permite que la app móvil agregue y sincronice artículos sin stock disponible."
+    )
+
     # Configuración de descuentos
     max_descuento_lineal = models.DecimalField(
         max_digits=5, 

@@ -16,7 +16,7 @@ def format_miles(value):
     try:
         # Convertir a número
         if isinstance(value, str):
-            value = value.replace(',', '').replace('.', '')
+            value = value.replace(',', '').replace('.', '').replace(' ', '').replace('\xa0', '').strip()
         
         num = Decimal(str(value))
         

@@ -206,19 +206,21 @@
                 <table class="table-piedra">
                     <thead>
                         <tr>
-                            <th width="15%">N° Ticket</th>
+                            <th width="10%">N° Ticket</th>
+                            <th width="12%">Fecha</th>
                             <th width="10%">Hora</th>
-                            <th width="15%">Tipo Doc.</th>
-                            <th width="20%">Cliente</th>
+                            <th width="12%">Tipo Doc.</th>
+                            <th width="18%">Cliente</th>
                             <th width="15%">Vendedor</th>
-                            <th width="15%" class="text-end">Total</th>
-                            <th width="10%" class="text-center">Acción</th>
+                            <th width="10%" class="text-end">Total</th>
+                            <th width="13%" class="text-center">Acción</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for ticket in tickets_pendientes %}
                         <tr>
                             <td><span class="fw-bold text-dark">#{{ ticket.numero_venta }}</span></td>
+                            <td>{{ ticket.fecha_creacion|date:"d/m/Y" }}</td>
                             <td>{{ ticket.fecha_creacion|time:"H:i" }}</td>
                             <td>
                                 {% if ticket.tipo_documento_planeado == 'factura' %}
@@ -235,13 +237,18 @@
                             <td>{{ ticket.vendedor.nombre|default:"-" }}</td>
                             <td class="text-end fw-bold text-dark">${{ ticket.total|format_price }}</td>
                             <td class="text-center">
-                                {% if apertura_activa %}
-                                    <a href="{% url 'caja:procesar_venta' ticket.pk %}?next={% url 'caja:procesar_venta_buscar' %}" class="btn-action-primary">
-                                        <i class="fas fa-cash-register me-1"></i> Procesar
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    {% if apertura_activa %}
+                                        <a href="{% url 'caja:procesar_venta' ticket.pk %}?next={% url 'caja:procesar_venta_buscar' %}" class="btn-action-primary">
+                                            <i class="fas fa-cash-register me-1"></i> Procesar
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-secondary btn-sm" disabled><i class="fas fa-lock"></i></button>
+                                    {% endif %}
+                                    <a href="{% url 'caja:eliminar_ticket_caja' ticket.pk %}" class="btn btn-danger btn-sm" style="padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem;" onclick="return confirm('¿Está seguro de que desea eliminar el ticket #{{ ticket.numero_venta }} de la lista?');" title="Eliminar ticket">
+                                        <i class="fas fa-trash-alt"></i>
                                     </a>
-                                {% else %}
-                                    <button class="btn btn-secondary btn-sm" disabled><i class="fas fa-lock"></i></button>
-                                {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}

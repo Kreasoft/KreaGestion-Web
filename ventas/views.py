@@ -403,64 +403,116 @@ def pos_main(request):
     return render(request, 'ventas/pos_main.html', context)
 
 
+def _build_articulo_results(articulos, lista_precio_id, request):
+    """Serializa un queryset de Artículo a lista de dicts para el POS."""
+    from inventario.models import Stock
+    from articulos.models import PrecioArticulo
+
+    # Precios de lista
+    precios_lista = {}
+    if lista_precio_id:
+        for p in PrecioArticulo.objects.filter(lista_precio_id=lista_precio_id, articulo__in=articulos).select_related('articulo'):
+            precios_lista[p.articulo_id] = float(p.precio)
+
+    results = []
+    for articulo in articulos:
+        try:
+            precio_neto = precios_lista.get(articulo.id, float(articulo.precio_venta))
+            iva = 0.0 if (articulo.categoria and articulo.categoria.exenta_iva) else precio_neto * 0.19
+            impuesto_especifico = 0.0
+            impuesto_esp_pct = 0
+            if articulo.categoria and articulo.categoria.impuesto_especifico:
+                try:
+                    pct = float(articulo.categoria.impuesto_especifico.get_porcentaje_decimal())
+                    impuesto_especifico = precio_neto * pct
+                    impuesto_esp_pct = float(articulo.categoria.impuesto_especifico.porcentaje)
+                except Exception:
+                    pass
+            precio_final = round(precio_neto + iva + impuesto_especifico)
+
+            stock_disponible = 0
+            try:
+                stock_obj = Stock.objects.filter(articulo=articulo, bodega__activa=True).first()
+                if stock_obj:
+                    stock_disponible = float(stock_obj.cantidad)
+            except Exception:
+                pass
+
+            results.append({
+                'id': articulo.id,
+                'codigo': articulo.codigo or '',
+                'codigo_barras': articulo.codigo_barras or '',
+                'nombre': articulo.nombre or '',
+                'descripcion': articulo.descripcion or articulo.nombre or '',
+                'precio': precio_final,
+                'precio_neto': precio_neto,
+                'stock': stock_disponible,
+                'categoria_nombre': articulo.categoria.nombre if articulo.categoria else 'Sin Categoría',
+                'categoria_exenta_iva': articulo.categoria.exenta_iva if articulo.categoria else False,
+                'impuesto_especifico_porcentaje': impuesto_esp_pct,
+            })
+        except Exception as e:
+            print(f"Error procesando artículo {articulo.id}: {e}")
+            continue
+    return results
+
+
 @login_required
 @requiere_empresa
 def pos_buscar_articulo(request):
-    """API para buscar artículos por código de barras, código o descripción"""
+    """API para buscar artículos en el POS.
+
+    Parámetros GET:
+        q           – texto de búsqueda (código, nombre, descripción, código de barras)
+        categoria   – ID o nombre exacto de categoría para filtrar (opcional)
+        lista_precio – ID de lista de precios (opcional)
+
+    Siempre opera sobre TODA la base de datos de la empresa (sin límite de 20).
+    """
     try:
         query = request.GET.get('q', '').strip()
         lista_precio_id = request.GET.get('lista_precio', '').strip()
-        print(f"=== BÚSQUEDA POS: '{query}' | Lista Precio: {lista_precio_id} ===")
-        
+        categoria_param = request.GET.get('categoria', '').strip()
+
+        categoria_filter = Q()
+        if categoria_param:
+            if categoria_param.isdigit():
+                categoria_filter = Q(categoria_id=int(categoria_param))
+            else:
+                categoria_filter = Q(categoria__nombre=categoria_param)
+
+        # ── Filtro por categoría sin texto de búsqueda ────────────────────────
+        if not query and categoria_param:
+            print(f"[POS BUSCAR] Filtrando por categoría: '{categoria_param}'")
+            articulos = Articulo.objects.filter(
+                empresa=request.empresa,
+                activo=True,
+            ).filter(
+                categoria_filter
+            ).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')
+            print(f"[POS BUSCAR] Artículos en categoría '{categoria_param}': {articulos.count()}")
+            return JsonResponse({'articulos': _build_articulo_results(articulos, lista_precio_id, request)})
+
         if not query:
             return JsonResponse({'articulos': []})
-        
-        # Verificar si es código comodín
+
+        # ── Detectar código comodín ────────────────────────────────────────────
         estacion_id = request.session.get('pos_estacion_id')
         query_limpio = query.upper().strip()
-        print(f"=== VERIFICANDO CÓDIGO COMODÍN: query='{query}' (limpio: '{query_limpio}'), estacion_id={estacion_id} ===")
-        
-        # Primero intentar con la estación de la sesión
         if estacion_id:
             try:
                 estacion = EstacionTrabajo.objects.get(id=estacion_id, empresa=request.empresa)
-                codigo_comodin_estacion = (estacion.codigo_comodin or '999999').upper().strip()
-                print(f"=== CODIGO COMODIN CONFIGURADO (Sesion): '{codigo_comodin_estacion}' ===")
-                print(f"=== COMPARACION: query_limpio='{query_limpio}' == codigo_comodin='{codigo_comodin_estacion}' ===")
-                print(f"=== SON IGUALES? {query_limpio == codigo_comodin_estacion} ===")
-                
-                if query_limpio == codigo_comodin_estacion:
-                    # Es código comodín, retornar señal especial
-                    print(f"=== [OK] CODIGO COMODIN DETECTADO (Sesion) ===")
-                    return JsonResponse({
-                        'es_comodin': True,
-                        'codigo_comodin': estacion.codigo_comodin or '999999',
-                        'articulos': []
-                    })
+                if query_limpio == (estacion.codigo_comodin or '999999').upper().strip():
+                    return JsonResponse({'es_comodin': True, 'codigo_comodin': estacion.codigo_comodin or '999999', 'articulos': []})
             except EstacionTrabajo.DoesNotExist:
-                print(f"=== ERROR: Estacion {estacion_id} no encontrada ===")
                 pass
-        
-        # Si no hay estación en sesión o no coincide, buscar en todas las estaciones activas
-        print(f"=== BUSCANDO EN TODAS LAS ESTACIONES ACTIVAS ===")
-        estaciones_activas = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True)
-        for estacion in estaciones_activas:
-            codigo_comodin_estacion = (estacion.codigo_comodin or '999999').upper().strip()
-            print(f"=== Estacion {estacion.id} ({estacion.nombre}): codigo comodin='{codigo_comodin_estacion}' ===")
-            print(f"=== COMPARACION: query_limpio='{query_limpio}' == codigo_comodin='{codigo_comodin_estacion}' ===")
-            print(f"=== SON IGUALES? {query_limpio == codigo_comodin_estacion} ===")
-            if query_limpio == codigo_comodin_estacion:
-                print(f"=== [OK] CODIGO COMODIN DETECTADO (Estacion {estacion.id}) ===")
-                return JsonResponse({
-                    'es_comodin': True,
-                    'codigo_comodin': estacion.codigo_comodin or '999999',
-                    'articulos': []
-                })
-        
-        print(f"=== No se encontró código comodín coincidente ===")
-        
-        # Buscar por código de barras, código, nombre o descripción
-        articulos = Articulo.objects.filter(
+        for estacion in EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True):
+            if query_limpio == (estacion.codigo_comodin or '999999').upper().strip():
+                return JsonResponse({'es_comodin': True, 'codigo_comodin': estacion.codigo_comodin or '999999', 'articulos': []})
+
+        # ── Búsqueda de texto completa sobre toda la BD ───────────────────────
+        print(f"[POS BUSCAR] Búsqueda texto: '{query}' | Categoría: '{categoria_param}'")
+        articulos_qs = Articulo.objects.filter(
             empresa=request.empresa,
             activo=True
         ).filter(
@@ -468,77 +520,14 @@ def pos_buscar_articulo(request):
             Q(codigo__icontains=query) |
             Q(nombre__icontains=query) |
             Q(descripcion__icontains=query)
-        ).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')[:100]
-        
-        print(f"Artículos encontrados: {articulos.count()}")
-        
-        # Obtener precios de la lista si está seleccionada
-        precios_lista = {}
-        if lista_precio_id:
-            from articulos.models import PrecioArticulo
-            precios = PrecioArticulo.objects.filter(
-                lista_precio_id=lista_precio_id,
-                articulo__in=articulos
-            ).select_related('articulo')
-            
-            for precio in precios:
-                precios_lista[precio.articulo_id] = float(precio.precio)
-        
-        results = []
-        for articulo in articulos:
-            try:
-                # Usar precio de la lista si existe, sino usar precio_venta del artículo
-                if articulo.id in precios_lista:
-                    precio_neto = precios_lista[articulo.id]
-                else:
-                    precio_neto = float(articulo.precio_venta)
-                
-                # Calcular IVA solo si la categoría NO está exenta
-                if articulo.categoria and articulo.categoria.exenta_iva:
-                    iva = 0.0
-                else:
-                    iva = precio_neto * 0.19
-                
-                # Calcular impuesto específico si aplica
-                impuesto_especifico = 0.0
-                impuesto_esp_pct = 0
-                if articulo.categoria and articulo.categoria.impuesto_especifico:
-                    try:
-                        porcentaje_decimal = float(articulo.categoria.impuesto_especifico.get_porcentaje_decimal())
-                        impuesto_especifico = precio_neto * porcentaje_decimal
-                        impuesto_esp_pct = float(articulo.categoria.impuesto_especifico.porcentaje)
-                    except:
-                        pass
-                
-                precio_final = round(precio_neto + iva + impuesto_especifico)
-                
-                # Obtener stock desde la bodega activa
-                from inventario.models import Stock
-                stock_disponible = 0
-                try:
-                    stock_obj = Stock.objects.filter(articulo=articulo, bodega__activa=True).first()
-                    if stock_obj:
-                        stock_disponible = float(stock_obj.cantidad)
-                except:
-                    pass
-                
-                results.append({
-                    'id': articulo.id,
-                    'codigo': articulo.codigo or '',
-                    'codigo_barras': articulo.codigo_barras or '',
-                    'nombre': articulo.nombre or '',
-                    'descripcion': articulo.descripcion or articulo.nombre or '',
-                    'precio': precio_final,
-                    'stock': stock_disponible,
-                    'categoria_exenta_iva': articulo.categoria.exenta_iva if articulo.categoria else False,
-                    'impuesto_especifico_porcentaje': impuesto_esp_pct,
-                })
-            except Exception as e:
-                print(f"Error procesando artículo {articulo.id}: {e}")
-                continue
-        
-        print(f"Retornando {len(results)} artículos para búsqueda '{query}'")
-        return JsonResponse({'articulos': results})
+        )
+        if categoria_param:
+            articulos_qs = articulos_qs.filter(categoria_filter)
+
+        articulos = articulos_qs.select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')
+        print(f"[POS BUSCAR] Resultados: {articulos.count()}")
+        return JsonResponse({'articulos': _build_articulo_results(articulos, lista_precio_id, request)})
+
     except Exception as e:
         print(f"Error en pos_buscar_articulo: {e}")
         import traceback
@@ -769,7 +758,7 @@ def pos_detalles_venta(request, venta_id):
 @permission_required('ventas.add_venta', raise_exception=True)
 def pos_view(request):
     """Vista principal del Punto de Venta"""
-    from articulos.models import Articulo
+    from articulos.models import Articulo, CategoriaArticulo
     from clientes.models import Cliente
     from caja.models import Caja
     from caja.forms import AperturaCajaForm
@@ -906,9 +895,17 @@ def pos_view(request):
     
     # Filtrar solo kits vigentes (sin requerir stock - el stock se valida al agregar al carrito)
     kits_disponibles = [kit for kit in kits if kit.activo and kit.esta_vigente]
+
+    # Cargar TODAS las categorías que tengan al menos un artículo activo en esta empresa
+    # (para el filtro de categorías, independiente de los 20 artículos iniciales del DOM)
+    categorias_activas = CategoriaArticulo.objects.filter(
+        empresa=request.empresa,
+        articulo__activo=True
+    ).distinct().order_by('nombre')
     
     context = {
         'articulos': articulos,
+        'categorias': categorias_activas,       # <- TODAS las categorías con artículos
         'clientes': clientes,
         'vendedores': vendedores,
         'formas_pago': formas_pago,
@@ -917,9 +914,9 @@ def pos_view(request):
         'apertura_activa': apertura_activa,
         'mostrar_modal_apertura': mostrar_modal_apertura,
         'form_apertura': form_apertura,
-        'modo_pos': modo_pos,  # Nuevo
-        'estacion_activa': estacion_activa,  # Nuevo
-        'kits': kits_disponibles,  # Kits de ofertas
+        'modo_pos': modo_pos,
+        'estacion_activa': estacion_activa,
+        'kits': kits_disponibles,
         'max_descuento_lineal': request.empresa.max_descuento_lineal,
         'max_descuento_total': request.empresa.max_descuento_total,
     }
@@ -2088,6 +2085,39 @@ def pos_procesar_preventa(request):
                                 except Exception as e_envio:
                                     print(f"[WARN] Error al enviar DTE: {e_envio}")
                             
+                            # ENVIAR A COLA DE IMPRESIÓN LOCAL
+                            impresion_silenciosa = False
+                            try:
+                                from caja.models import ColaImpresion, AperturaCaja
+                                from caja.impresion_utils import generar_esc_pos_ticket
+                                
+                                venta_final.dte_asociado = dte
+                                contenido = generar_esc_pos_ticket(venta_final)
+                                
+                                caja_id_cola = None
+                                ap_activa = AperturaCaja.objects.filter(caja__empresa=request.empresa, estado='abierta', caja__estacion_trabajo=estacion).first()
+                                if not ap_activa:
+                                    ap_activa = AperturaCaja.objects.filter(caja__empresa=request.empresa, estado='abierta').order_by('-fecha_apertura').first()
+                                if ap_activa:
+                                    caja_id_cola = ap_activa.caja.id
+
+                                if caja_id_cola:
+                                    ColaImpresion.objects.create(
+                                        caja_id=caja_id_cola,
+                                        empresa=request.empresa,
+                                        venta=venta_final,
+                                        tipo_documento='dte',
+                                        documento_id=dte.id,
+                                        contenido_raw=contenido,
+                                        estado='pendiente'
+                                    )
+                                    print(f"[OK] ✅ CIERRE DIRECTO DTE ENCOLADO (Caja {caja_id_cola})")
+                                    impresion_silenciosa = True
+                                else:
+                                    print(f"[WARN] No se encontró caja para encolar impresión silenciosa")
+                            except Exception as e:
+                                print(f"[ERROR] Error al encolar DTE en pos_procesar_preventa: {e}")
+
                             print("=" * 80)
                             print("[OK] CIERRE DIRECTO TICKET - COMPLETADO")
                             print(f"   Tipo: {tipo_doc_planeado}")
@@ -2104,7 +2134,8 @@ def pos_procesar_preventa(request):
                                 'numero_preventa': proximo_numero,
                                 'doc_url': doc_url,
                                 'preventa_id': preventa.id,
-                                'venta_final_id': venta_final.id
+                                'venta_final_id': venta_final.id,
+                                'impresion_silenciosa': impresion_silenciosa
                             })
                     
                     except Exception as e_cierre_ticket:
@@ -2682,6 +2713,7 @@ def pos_procesar_preventa(request):
                             
                             # Generar URL del documento y enviar al SII si corresponde
                             doc_url = None
+                            impresion_silenciosa = False
                             if dte:
                                 # Generar URL del documento electrónico con parámetros de autoclose y return al POS
                                 from django.urls import reverse
@@ -2702,6 +2734,27 @@ def pos_procesar_preventa(request):
                                             print("[WARN] CIERRE DIRECTO: No se pudo agregar DTE a cola")
                                     except Exception as e_envio:
                                         print(f"[WARN] CIERRE DIRECTO: Error al iniciar envío background: {e_envio}")
+
+                                try:
+                                    from caja.models import ColaImpresion
+                                    from caja.impresion_utils import generar_esc_pos_ticket
+
+                                    venta_final.dte_asociado = dte
+                                    contenido = generar_esc_pos_ticket(venta_final)
+
+                                    ColaImpresion.objects.create(
+                                        caja=apertura_activa.caja,
+                                        empresa=request.empresa,
+                                        venta=venta_final,
+                                        tipo_documento='dte',
+                                        documento_id=dte.id,
+                                        contenido_raw=contenido,
+                                        estado='pendiente'
+                                    )
+                                    impresion_silenciosa = True
+                                    print(f"[OK] CIERRE DIRECTO: DTE ENCOLADO PARA AGENTE LOCAL (Caja {apertura_activa.caja.id})")
+                                except Exception as e_imp:
+                                    print(f"[ERROR] CIERRE DIRECTO: Error al encolar DTE para agente local: {e_imp}")
                             
                             # Marcar ticket como procesado y facturado
                             ticket_vale.estado = 'confirmada'
@@ -2727,7 +2780,8 @@ def pos_procesar_preventa(request):
                                 'doc_url': doc_url or '',
                                 'ticket_vale_id': ticket_vale_id,
                                 'ticket_vale_numero': ticket_vale_numero,
-                                'venta_final_id': venta_final.id
+                                'venta_final_id': venta_final.id,
+                                'impresion_silenciosa': impresion_silenciosa
                             })
                     
                     except Exception as e_cierre:
@@ -2754,7 +2808,43 @@ def pos_procesar_preventa(request):
             if ticket_vale_id:
                 # Caso Factura Directa/Boleta Directa (modo manual)
                 procesamiento_url = django_reverse('ventas:procesar_venta_pos', args=[ticket_vale_id])
-            
+
+            impresion_silenciosa = False
+            if ticket_vale_id and data.get('tipo_documento') != 'cotizacion':
+                try:
+                    from caja.models import ColaImpresion, AperturaCaja
+                    from caja.impresion_utils import generar_esc_pos_ticket
+
+                    ap_activa = AperturaCaja.objects.filter(
+                        caja__empresa=request.empresa,
+                        estado='abierta',
+                        caja__estacion_trabajo=estacion
+                    ).first()
+
+                    if not ap_activa:
+                        ap_activa = AperturaCaja.objects.filter(
+                            caja__empresa=request.empresa,
+                            estado='abierta'
+                        ).order_by('-fecha_apertura').first()
+
+                    if ap_activa:
+                        contenido = generar_esc_pos_ticket(ticket_vale)
+                        ColaImpresion.objects.create(
+                            caja=ap_activa.caja,
+                            empresa=request.empresa,
+                            venta=ticket_vale,
+                            tipo_documento='vale' if tipo_doc_planeado == 'vale' else 'ticket',
+                            documento_id=ticket_vale.id,
+                            contenido_raw=contenido,
+                            estado='pendiente'
+                        )
+                        impresion_silenciosa = True
+                        print(f"[OK] POS: TICKET/VALE ENCOLADO PARA AGENTE LOCAL (Caja {ap_activa.caja.id})")
+                    else:
+                        print("[WARN] POS: No hay caja abierta para encolar impresion local")
+                except Exception as e_imp:
+                    print(f"[ERROR] POS: Error al encolar impresion local: {e_imp}")
+             
             respuesta_normal = {
                 'success': True,
                 'numero_preventa': proximo_numero,
@@ -2764,7 +2854,8 @@ def pos_procesar_preventa(request):
                 'ticket_vale_id': ticket_vale_id,
                 'ticket_vale_numero': ticket_vale_numero,
                 'cierre_directo': False, 
-                'redirect_url': procesamiento_url
+                'redirect_url': '' if impresion_silenciosa else procesamiento_url,
+                'impresion_silenciosa': impresion_silenciosa
             }
             print("=" * 80)
             print("[RETORNO NORMAL] Sin cierre directo - Respuesta JSON:")
@@ -3207,7 +3298,36 @@ def vale_html(request, pk):
             'formas_pago_list': formas_pago_list,
         }
         
-        return render(request, 'ventas/vale_html.html', context)
+        # Determinar el template según el tipo de impresora configurado para vales
+        empresa = request.empresa
+        tipo_impresora = getattr(empresa, 'impresora_vale', 'laser')
+        
+        if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
+            template_name = 'ventas/vale_termica.html'
+            # vale_termica.html espera la variable 'vale' y 'copias_range'
+            context['vale'] = venta
+            
+            n_copias = 1
+            estacion = getattr(venta, 'estacion_trabajo', None)
+            if not estacion:
+                estacion_id = request.session.get('pos_estacion_id')
+                if estacion_id:
+                    from .models import EstacionTrabajo
+                    try:
+                        estacion = EstacionTrabajo.objects.get(id=estacion_id)
+                    except: pass
+            if estacion:
+                # Los vales del POS se guardan como ticket con tipo_documento_planeado='vale'.
+                # Para copias, un vale debe respetar copias_vale de la estación.
+                tipo_para_copias = venta.tipo_documento
+                if tipo_para_copias == 'ticket' and venta.tipo_documento_planeado == 'vale':
+                    tipo_para_copias = 'vale'
+                n_copias = estacion.get_copias_por_tipo(tipo_para_copias)
+            context['copias_range'] = range(n_copias)
+        else:
+            template_name = 'ventas/vale_html.html'
+            
+        return render(request, template_name, context)
     
     except Venta.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Documento no encontrado'})
@@ -3240,7 +3360,12 @@ def vale_termica(request, pk):
                 except: pass
         
         if estacion:
-            n_copias = estacion.get_copias_por_tipo(venta.tipo_documento)
+            # Los vales del POS se guardan como ticket con tipo_documento_planeado='vale'.
+            # Para copias, un vale debe respetar copias_vale de la estación.
+            tipo_para_copias = venta.tipo_documento
+            if tipo_para_copias == 'ticket' and venta.tipo_documento_planeado == 'vale':
+                tipo_para_copias = 'vale'
+            n_copias = estacion.get_copias_por_tipo(tipo_para_copias)
         
         context = {
             'vale': venta,
@@ -3816,7 +3941,12 @@ def venta_html(request, pk):
             except: pass
     
     if estacion:
-        n_copias = estacion.get_copias_por_tipo(venta.tipo_documento)
+        # Los vales del POS se guardan como ticket con tipo_documento_planeado='vale'.
+        # Para copias, un vale debe respetar copias_vale de la estación.
+        tipo_para_copias = venta.tipo_documento
+        if tipo_para_copias == 'ticket' and venta.tipo_documento_planeado == 'vale':
+            tipo_para_copias = 'vale'
+        n_copias = estacion.get_copias_por_tipo(tipo_para_copias)
 
     context = {
         'venta': venta,
@@ -4854,8 +4984,129 @@ def mobile_sales_app(request):
         'vendedores': vendedores,
         'empresa': request.empresa,
     }
-    
-    return render(request, 'ventas/mobile_sales.html', context)
+
+    response = render(request, 'ventas/mobile_sales.html', context)
+    response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response
+
+
+def mobile_sales_manifest(request):
+    """Manifest PWA de la app móvil."""
+    manifest = {
+        "name": "GestionCloud Movil",
+        "short_name": "GC Movil",
+        "start_url": "/ventas/movil/",
+        "scope": "/ventas/movil/",
+        "display": "standalone",
+        "background_color": "#F1EEE9",
+        "theme_color": "#8D7B68",
+        "description": "Notas de venta y cotizaciones moviles con soporte offline.",
+        "icons": [
+            {
+                "src": "/static/image/LogoCloud.png",
+                "sizes": "192x192",
+                "type": "image/png"
+            },
+            {
+                "src": "/static/image/LogoCloud.png",
+                "sizes": "512x512",
+                "type": "image/png"
+            }
+        ]
+    }
+    return JsonResponse(manifest)
+
+
+def mobile_sales_service_worker(request):
+    js = """
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .then(() => self.registration.unregister())
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method === 'GET') event.respondWith(fetch(request));
+});
+"""
+    response = HttpResponse(js, content_type="application/javascript")
+    response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+    """Service worker de la app móvil."""
+    js = """
+const CACHE_NAME = 'gc-mobile-v2';
+const APP_SHELL = [
+  '/ventas/movil/manifest.webmanifest',
+  '/static/image/LogoCloud.png'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+
+  if (url.pathname.startsWith('/ventas/movil/api/')) {
+    event.respondWith(
+      fetch(request).catch(() => new Response(JSON.stringify({ success: false, offline: true }), {
+        headers: { 'Content-Type': 'application/json' }
+      }))
+    );
+    return;
+  }
+
+  const isMobilePage = request.mode === 'navigate' || url.pathname === '/ventas/movil/' || url.pathname.startsWith('/ventas/movil/');
+
+  if (isMobilePage) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return networkResponse;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('/ventas/movil/')))
+    );
+    return;
+  }
+
+  event.respondWith(
+    fetch(request)
+      .then((networkResponse) => {
+        const clone = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        return networkResponse;
+      })
+      .catch(() => caches.match(request))
+  );
+});
+"""
+    response = HttpResponse(js, content_type="application/javascript")
+    response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 @login_required
@@ -4870,6 +5121,12 @@ def mobile_sales_gestion(request):
     from django.utils import timezone
     from datetime import datetime, time
     
+    if request.method == 'POST' and request.POST.get('action') == 'save_mobile_config':
+        request.empresa.venta_movil_permite_sin_stock = request.POST.get('venta_movil_permite_sin_stock') == 'on'
+        request.empresa.save(update_fields=['venta_movil_permite_sin_stock'])
+        messages.success(request, 'Configuracion de ventas moviles actualizada correctamente.')
+        return redirect('ventas:mobile_sales_gestion')
+
     # Obtener fechas del filtro o usar HOY por defecto
     fecha_desde_str = request.GET.get('desde')
     fecha_hasta_str = request.GET.get('hasta')
@@ -4920,7 +5177,8 @@ def mobile_sales_gestion(request):
         'vendedores': vendedores,
         'fecha_desde': fecha_desde.strftime('%Y-%m-%d'),
         'fecha_hasta': fecha_hasta.strftime('%Y-%m-%d'),
-        'titulo': 'Gestión de Ventas Móviles'
+        'titulo': 'Gestión de Ventas Móviles',
+        'venta_movil_permite_sin_stock': request.empresa.venta_movil_permite_sin_stock,
     }
     
     return render(request, 'ventas/mobile_sales_gestion.html', context)
@@ -5039,18 +5297,20 @@ def mobile_api_sync(request):
                     'precio': int(p_final.quantize(Decimal('1'), rounding='ROUND_HALF_UP')),
                     'categoria_id': art.categoria_id,
                     'stock': art.stock_actual,
+                    'control_stock': art.control_stock,
                 })
             except Exception as e_art:
                 print(f"[ERROR] Sync Articulo {art.id}: {e_art}")
                 continue
 
-        # Clientes (Centralizados por vendedor si se especifica)
+        # Clientes: si el vendedor no tiene cartera asignada, no bloquear la app.
         vendedor_id_sync = request.GET.get('vendedor_id')
-        clientes_query = Cliente.objects.filter(empresa=request.empresa, estado='activo')
+        clientes_query = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')
         
         if vendedor_id_sync:
-            clientes_query = clientes_query.filter(vendedor_id=vendedor_id_sync)
-            
+            clientes_filtrados = clientes_query.filter(vendedor_id=vendedor_id_sync)
+            clientes_query = clientes_filtrados if clientes_filtrados.exists() else clientes_query
+
         clientes = clientes_query[:2000]
         clientes_data = [{
             'id': cli.id,
@@ -5094,6 +5354,10 @@ def mobile_api_sync(request):
             'clientes': clientes_data,
             'vendedores': vendedores_data,
             'formas_pago': formas_pago_data,
+            'configuracion': {
+                'permite_sin_stock': request.empresa.venta_movil_permite_sin_stock,
+                'intervalo_sync_minutos': 5,
+            },
             'timestamp': timezone.now().isoformat()
         })
     except Exception as e:
@@ -5221,6 +5485,38 @@ def mobile_api_save_client(request):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
+def _mobile_cotizacion_share_payload(request, venta):
+    es_cotizacion = (
+        venta.tipo_documento == 'cotizacion' or
+        venta.tipo_documento_planeado == 'cotizacion'
+    )
+    if not es_cotizacion:
+        return None
+
+    share_url = request.build_absolute_uri(reverse('ventas:cotizacion_html', args=[venta.id]))
+    cliente_nombre = venta.get_cliente_nombre()
+    empresa_nombre = getattr(venta.empresa, 'nombre', 'GestionCloud')
+    total = int(venta.total or 0)
+    email = getattr(venta.cliente, 'email', '') if venta.cliente else ''
+    telefono = getattr(venta.cliente, 'telefono', '') if venta.cliente else ''
+    subject = f"Cotizacion {venta.numero_venta} - {empresa_nombre}"
+    body = (
+        f"Hola {cliente_nombre},\n\n"
+        f"Te enviamos la cotizacion {venta.numero_venta} por ${total:,}.\n\n"
+        f"Puedes revisarla aqui:\n{share_url}\n\n"
+        f"Saludos,\n{empresa_nombre}"
+    )
+
+    return {
+        'es_cotizacion': True,
+        'url': share_url,
+        'email': email or '',
+        'telefono': telefono or '',
+        'subject': subject,
+        'body': body,
+    }
+
+
 @login_required
 @requiere_empresa
 def mobile_api_save_sale(request):
@@ -5241,6 +5537,10 @@ def mobile_api_save_sale(request):
         total_movil = Decimal(str(data.get('total', 0)))
         fecha_movil = data.get('fecha') # Fecha enviada desde el móvil
         device_id = data.get('deviceId') # ID del dispositivo que envía la venta
+        local_id = str(data.get('localId', '')).strip()
+        comentario_cierre = (data.get('comentario_cierre') or '').strip()
+        cliente_rut = data.get('cliente_rut')
+        cliente_nombre_movil = data.get('cliente_nombre', '').strip()
         
         # 0. Verificar si el dispositivo está autorizado
         from .models import DispositivoMovil
@@ -5250,6 +5550,27 @@ def mobile_api_save_sale(request):
                 'success': False, 
                 'error': 'DISPOSITIVO NO AUTORIZADO. Contacte al administrador.'
             }, status=403)
+
+        if local_id:
+            marca_local = f"[MOVIL-ID:{local_id}]"
+            venta_existente = Venta.objects.filter(
+                empresa=request.empresa,
+                observaciones__icontains=marca_local
+            ).first()
+            if venta_existente:
+                share = _mobile_cotizacion_share_payload(request, venta_existente)
+                return JsonResponse({
+                    'success': True,
+                    'venta_id': venta_existente.id,
+                    'numero': venta_existente.numero_venta,
+                    'tipo_documento': venta_existente.tipo_documento,
+                    'share': share,
+                    'message': 'Documento ya recibido previamente'
+                })
+
+        vendedor = None
+        if vendedor_id and str(vendedor_id).isdigit():
+            vendedor = Vendedor.objects.filter(id=vendedor_id, empresa=request.empresa).first()
         
         # 1. Buscar objetos relacionados
         cliente = None
@@ -5262,9 +5583,6 @@ def mobile_api_save_sale(request):
                 pass
         
         # Fallback: Buscar por RUT si aún no tenemos cliente
-        cliente_rut = data.get('cliente_rut')
-        cliente_nombre_movil = data.get('cliente_nombre', '').strip()
-        
         if not cliente and cliente_rut:
             try:
                 # Normalizar RUT (quitar puntos, guiones y espacios)
@@ -5302,13 +5620,27 @@ def mobile_api_save_sale(request):
         if cliente_id and not cliente:
              print(f"[ERROR-SAVE-SALE] Se envió ClienteID {cliente_id} (RUT: {cliente_rut}) pero NO SE ENCONTRÓ en DB.")
 
-        vendedor = None
-        if vendedor_id and str(vendedor_id).isdigit():
-            vendedor = Vendedor.objects.filter(id=vendedor_id, empresa=request.empresa).first()
-            
         forma_pago = None
         if forma_pago_id and str(forma_pago_id).isdigit():
             forma_pago = FormaPago.objects.filter(id=forma_pago_id, empresa=request.empresa).first()
+
+        # 1.5 Validaciones base
+        if not items:
+            return JsonResponse({'success': False, 'error': 'Debe enviar al menos un articulo.'}, status=400)
+
+        permite_sin_stock = request.empresa.venta_movil_permite_sin_stock
+        articulos_cache = {}
+        for item in items:
+            articulo = Articulo.objects.get(id=item['id'], empresa=request.empresa)
+            articulos_cache[item['id']] = articulo
+            cantidad = Decimal(str(item.get('cantidad', 0)))
+            if cantidad <= 0:
+                return JsonResponse({'success': False, 'error': f"Cantidad invalida para {articulo.nombre}."}, status=400)
+            if articulo.control_stock and not permite_sin_stock and Decimal(str(articulo.stock_actual)) < cantidad:
+                return JsonResponse({
+                    'success': False,
+                    'error': f"Stock insuficiente para {articulo.nombre}. Disponible: {articulo.stock_actual}"
+                }, status=400)
         
         # 2. Generar correlativo temporal de preventa
         from .models import EstacionTrabajo
@@ -5348,6 +5680,15 @@ def mobile_api_save_sale(request):
             except:
                 pass
 
+        observaciones_lineas = []
+        if cliente_nombre_movil:
+            observaciones_lineas.append(f"[MOVIL] Cliente: {cliente_nombre_movil}")
+        observaciones_lineas.append(f"[MOVIL] Doc Solicitado: {tipo_documento_solicitado}")
+        if local_id:
+            observaciones_lineas.append(f"[MOVIL-ID:{local_id}]")
+        if comentario_cierre:
+            observaciones_lineas.append(f"[CIERRE] {comentario_cierre}")
+
         venta = Venta.objects.create(
             empresa=request.empresa,
             numero_venta=numero_vale,
@@ -5363,27 +5704,30 @@ def mobile_api_save_sale(request):
             estado_cotizacion=estado_cot,
             facturado=False,
             usuario_creacion=request.user,
-            observaciones=data.get('observaciones', f"[MOVIL] Doc Solicitado: {tipo_documento_solicitado}")
+            observaciones="\n".join(observaciones_lineas)
         )
         
         # 4. Crear Detalles
         for item in items:
-            articulo = Articulo.objects.get(id=item['id'], empresa=request.empresa)
             VentaDetalle.objects.create(
                 venta=venta,
-                articulo=articulo,
+                articulo=articulos_cache[item['id']],
                 cantidad=Decimal(str(item['cantidad'])),
                 precio_unitario=Decimal(str(item['precio'])),
-                precio_total=Decimal(str(item['total']))
+                precio_total=Decimal(str(item['total'])),
+                comentario=(item.get('comentario') or '').strip()
             )
             
         # Recalcular totales para asegurar consistencia
         venta.calcular_totales()
         
+        share = _mobile_cotizacion_share_payload(request, venta)
         return JsonResponse({
             'success': True,
             'venta_id': venta.id,
             'numero': numero_vale,
+            'tipo_documento': venta.tipo_documento,
+            'share': share,
             'message': 'Venta recibida correctamente como Preventa Móvil'
         })
         
@@ -5415,13 +5759,13 @@ def mobile_api_sales_history(request):
         date_inicio = parse_date(fecha_inicio) if fecha_inicio else hoy
         date_fin = parse_date(fecha_fin) if fecha_fin else hoy
         
-        # Filtrar ventas de la empresa y del vendedor
+        # Filtrar ventas de la empresa y del vendedor logeado.
         ventas_qs = Venta.objects.filter(
             empresa=request.empresa,
             vendedor_id=vendedor_id,
             fecha__range=[date_inicio, date_fin]
         ).select_related('cliente')
-        
+
         print(f"[DEBUG-MOBILE-HISTORY] Vendedor: {vendedor_id}, Rango: {date_inicio} - {date_fin}, Encontradas: {ventas_qs.count()}")
         
         ventas = ventas_qs.order_by('-fecha_creacion', '-id')[:200]
@@ -5429,6 +5773,7 @@ def mobile_api_sales_history(request):
         ventas_data = []
         for v in ventas:
             cliente_name = v.get_cliente_nombre()
+            share = _mobile_cotizacion_share_payload(request, v)
             
             # Intentar obtener info de la venta final si ya fue procesada
             proceso = v.venta_preventa.first() if v.facturado else None
@@ -5445,7 +5790,8 @@ def mobile_api_sales_history(request):
                 'tipo_doc': v.tipo_documento_planeado or v.tipo_documento,
                 'estado': v.estado,
                 'facturado': v.facturado,
-                'doc_final': doc_final
+                'doc_final': doc_final,
+                'share': share
             })
             
         return JsonResponse({
@@ -6610,3 +6956,4 @@ def api_procesar_factura_consolidada(request):
         print(f"[ERROR CONSOLIDACION] {str(e)}")
         traceback.print_exc()
         return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+

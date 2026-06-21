@@ -283,3 +283,26 @@ class VentaProcesada(models.Model):
     
     def __str__(self):
         return f"Ticket #{self.venta_preventa.numero_venta} → {self.venta_final.get_tipo_documento_display()} #{self.venta_final.numero_venta}"
+
+class ColaImpresion(models.Model):
+    """Modelo para encolar trabajos de impresión silenciosa hacia el Agente Local"""
+    caja = models.ForeignKey(Caja, on_delete=models.CASCADE, verbose_name="Caja Destino")
+    empresa = models.ForeignKey('empresas.Empresa', on_delete=models.CASCADE, null=True, blank=True)
+    venta = models.ForeignKey(Venta, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Venta Asociada")
+    tipo_documento = models.CharField(max_length=50, blank=True, null=True)
+    documento_id = models.IntegerField(blank=True, null=True)
+    contenido_raw = models.TextField(verbose_name="Comandos ESC/POS RAW", blank=True, null=True)
+    contenido_esc_pos = models.TextField(blank=True, null=True)
+    estado = models.CharField(max_length=20, choices=[('pendiente', 'Pendiente'), ('imprimiendo', 'Imprimiendo'), ('impreso', 'Impreso'), ('error', 'Error')], default='pendiente', verbose_name="Estado")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_impresion = models.DateTimeField(blank=True, null=True)
+    intentos = models.IntegerField(default=0)
+    error_log = models.TextField(blank=True, verbose_name="Log de Error")
+
+    class Meta:
+        verbose_name = "Trabajo de Impresión"
+        verbose_name_plural = "Cola de Impresión"
+        ordering = ['fecha_creacion']
+
+    def __str__(self):
+        return f"Impresión {self.id} - {self.get_estado_display()}"

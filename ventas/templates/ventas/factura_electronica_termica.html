@@ -290,6 +290,11 @@
             <div style="font-size: 7pt; margin-top: 1mm;">
                 SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}
             </div>
+            {% if dte and dte.folio and venta.numero_venta %}
+            <div style="font-size: 8pt; margin-top: 1mm; font-weight: bold; border-top: 1px dotted #000; padding-top: 1mm;">
+                VALE REF: #{{ venta.numero_venta }}
+            </div>
+            {% endif %}
         </div>
 
         <!-- VENDEDOR -->
@@ -340,16 +345,18 @@
 
         <!-- DETALLE DE PRODUCTOS -->
         <div class="productos-section">
-            {% for detalle in detalles %}
-            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1mm; font-size: 8pt;">
-                <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 2mm;">
-                    <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
-                </div>
-                <div style="font-weight: bold;">
-                    ${{ detalle.precio_total|format_miles }}
-                </div>
-            </div>
-            {% endfor %}
+            <table style="width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed;">
+                {% for detalle in detalles %}
+                <tr style="border-bottom: 1px dotted #ccc;">
+                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1mm 2mm 1mm 0; vertical-align: bottom;">
+                        <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
+                    </td>
+                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1mm 0; vertical-align: bottom;">
+                        ${{ detalle.precio_total|format_miles }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
         </div>
 
         <!-- TOTALES -->
@@ -470,8 +477,6 @@
             Impreso: {{ venta.fecha_creacion|date:"d/m/Y H:i" }}<br>
             Gracias por su compra
         </div>
-        {% endif %}
-
     </div>
     {% endfor %}
 
@@ -486,12 +491,6 @@
             ← Volver
         </button>
     </div>
-
-    <!-- QZ Tray y dependencias -->
-    <script src="https://cdn.jsdelivr.net/npm/dependencies/rsvp-3.1.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dependencies/sha-256.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/qz-tray/qz-tray.js"></script>
-    <script src="{% static 'js/qz_interface.js' %}"></script>
 
     <script>
         // Parámetros URL globales
@@ -547,39 +546,18 @@
             }
         }
 
-        // Auto-ejecución
+        // Auto-ejecuci?n
         if (autoPrint === '1') {
             window.addEventListener('load', function () {
-                console.log('[DTE AUTO] Iniciando impresión automática...');
-                
-                // Intentar usar QZ Tray si está disponible y configurado
-                if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
-                    console.log('[DTE AUTO] Usando QZ Tray para ' + nCopiasConfig + ' copias...');
-                    QZ_Printers.printHTML(document.body.innerHTML, nCopiasConfig)
-                        .then(() => {
-                            if (autoClose === '1') {
-                                setTimeout(safeCloseWindow, 500);
-                            }
-                        })
-                        .catch(err => {
-                            console.error('[DTE AUTO] Error QZ:', err);
-                            // Fallback a window.print
-                            window.print();
-                            if (autoClose === '1') {
-                                setTimeout(safeCloseWindow, autoCloseDelay);
-                            }
-                        });
-                } else {
-                    // Fallback estándar
-                    setTimeout(function () {
-                        window.print();
+                console.log('[DTE AUTO] Iniciando impresi?n autom?tica...');
+                setTimeout(function () {
+                    window.print();
 
-                        if (autoClose === '1') {
-                            console.log('[DTE AUTO] Cierre programado en ' + autoCloseDelay + 'ms');
-                            setTimeout(safeCloseWindow, autoCloseDelay);
-                        }
-                    }, 500);
-                }
+                    if (autoClose === '1') {
+                        console.log('[DTE AUTO] Cierre programado en ' + autoCloseDelay + 'ms');
+                        setTimeout(safeCloseWindow, autoCloseDelay);
+                    }
+                }, 500);
             });
         }
     </script>

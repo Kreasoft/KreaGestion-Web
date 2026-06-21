@@ -1,0 +1,1 @@
+# Custom formats for GestionCloud

@@ -157,6 +157,7 @@
 
         .producto-nombre {
             flex: 1;
+            min-width: 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -168,6 +169,8 @@
             min-width: 18mm;
             text-align: right;
             font-weight: bold;
+            flex-shrink: 0;
+            white-space: nowrap;
         }
 
         /* Totales */
@@ -325,17 +328,22 @@
         <!-- DETALLE DE PRODUCTOS -->
         <div class="productos-section">
             <div class="productos-header">DETALLE DE PRODUCTOS</div>
-            {% for detalle in detalles %}
-            <div class="producto-item-line">
-                {% if detalle.item_pedido %}
-                <span class="producto-nombre">{{ detalle.item_pedido.articulo.nombre }}</span>
-                <span class="producto-cantidad">{{ detalle.cantidad|floatformat:0 }} {{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UN" }}</span>
-                {% else %}
-                <span class="producto-nombre">{{ detalle.articulo.nombre }}</span>
-                <span class="producto-cantidad">{{ detalle.cantidad|floatformat:0 }} {{ detalle.articulo.unidad_medida.simbolo|default:"UN" }}</span>
-                {% endif %}
-            </div>
-            {% endfor %}
+            <table style="width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed;">
+                {% for detalle in detalles %}
+                <tr style="border-bottom: 1px dotted #ccc;">
+                    <td style="width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1mm 2mm 1mm 0; vertical-align: bottom; font-weight: bold;">
+                        {% if detalle.item_pedido %}{{ detalle.item_pedido.articulo.nombre }}{% else %}{{ detalle.articulo.nombre }}{% endif %}
+                    </td>
+                    <td style="width: 30%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1mm 0; vertical-align: bottom;">
+                        {% if detalle.item_pedido %}
+                        {{ detalle.cantidad|floatformat:0 }} {{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UN" }}
+                        {% else %}
+                        {{ detalle.cantidad|floatformat:0 }} {{ detalle.articulo.unidad_medida.simbolo|default:"UN" }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
         </div>
 
         <!-- TOTALES -->
@@ -436,12 +444,6 @@
         </button>
     </div>
 
-    <!-- QZ Tray y dependencias -->
-    <script src="https://cdn.jsdelivr.net/npm/dependencies/rsvp-3.1.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dependencies/sha-256.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/qz-tray/qz-tray.js"></script>
-    <script src="{% static 'js/qz_interface.js' %}"></script>
-
     <script>
         // Definir cerrarVentana en el scope global para que sea accesible desde onclick
         window.cerrarVentana = function() {
@@ -491,44 +493,24 @@
                 const auto = params.get('auto');
                 const autoClose = params.get('autoclose');
                 const autoCloseDelay = parseInt(params.get('autoclose_delay')) || 2000;
-                const nCopiasConfig = parseInt("{{ n_copias|default:1 }}") || 1;
 
                 if (auto === '1') {
                     window.addEventListener('load', function () {
-                        console.log('[GUIA AUTO] Iniciando impresión automática...');
-                        
-                        // Intentar usar QZ Tray si está disponible y configurado
-                        if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
-                            console.log('[GUIA AUTO] Usando QZ Tray para ' + nCopiasConfig + ' copias...');
-                            QZ_Printers.printHTML(document.body.innerHTML, nCopiasConfig)
-                                .then(() => {
-                                    if (autoClose === '1') {
-                                        setTimeout(cerrarVentana, 500);
-                                    }
-                                })
-                                .catch(err => {
-                                    console.error('[GUIA AUTO] Error QZ:', err);
-                                    window.print();
-                                    if (autoClose === '1') {
-                                        setTimeout(cerrarVentana, autoCloseDelay);
-                                    }
-                                });
-                        } else {
-                            setTimeout(() => {
-                                try {
-                                    window.print();
+                        console.log('[GUIA AUTO] Iniciando impresi?n autom?tica...');
+                        setTimeout(() => {
+                            try {
+                                window.print();
 
-                                    // Si autoclose está activo, cerrar después del delay
-                                    if (autoClose === '1') {
-                                        console.log('[GUIA AUTO] Programando cierre en', autoCloseDelay, 'ms');
-                                        setTimeout(cerrarVentana, autoCloseDelay);
-                                    }
-                                } catch (e) { console.error(e); }
-                            }, 500);
-                        }
+                                if (autoClose === '1') {
+                                    console.log('[GUIA AUTO] Programando cierre en', autoCloseDelay, 'ms');
+                                    setTimeout(cerrarVentana, autoCloseDelay);
+                                }
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        }, 500);
                     });
 
-                    // También cerrar cuando se complete la impresión
                     if ('onafterprint' in window) {
                         window.addEventListener('afterprint', () => {
                             console.log('[GUIA AUTO] afterprint detectado');

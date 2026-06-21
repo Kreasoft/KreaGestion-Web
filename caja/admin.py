@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Caja, AperturaCaja, MovimientoCaja, VentaProcesada
+from .models import Caja, AperturaCaja, MovimientoCaja, VentaProcesada, ColaImpresion
 
 
 @admin.register(Caja)

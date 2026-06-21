@@ -660,6 +660,34 @@ def procesar_venta_buscar(request):
 
 @login_required
 @requiere_empresa
+@requiere_permiso('caja.add_ventaprocesada', mensaje='No tienes permisos para realizar esta acción. Contacta al administrador.', redirect_url='caja:apertura_list')
+def eliminar_ticket_caja(request, ticket_id):
+    """Eliminar o cancelar un ticket de la lista de pendientes"""
+    try:
+        ticket = Venta.objects.get(
+            pk=ticket_id,
+            empresa=request.empresa,
+            tipo_documento='ticket',
+            facturado=False
+        )
+        
+        # Verificar que no tenga ya un proceso de venta registrado
+        if VentaProcesada.objects.filter(venta_preventa=ticket).exists():
+            messages.error(request, f'No se puede eliminar el ticket #{ticket.numero_venta} porque ya fue procesado.')
+        else:
+            numero_venta = ticket.numero_venta
+            ticket.delete()
+            messages.success(request, f'El ticket #{numero_venta} ha sido eliminado correctamente.')
+    except Venta.DoesNotExist:
+        messages.error(request, 'El ticket no existe o ya fue procesado.')
+    except Exception as e:
+        messages.error(request, f'Error al eliminar el ticket: {str(e)}')
+        
+    return redirect('caja:procesar_venta_buscar')
+
+
+@login_required
+@requiere_empresa
 @requiere_permiso('caja.add_ventaprocesada', mensaje='No tienes permisos para procesar ventas. Contacta al administrador.', redirect_url='caja:apertura_list')
 def procesar_venta(request, ticket_id):
     """
@@ -1690,25 +1718,75 @@ def procesar_venta(request, ticket_id):
                             return_url = reverse('ventas:pos_view')
                             print(f"[OK] ✅ DTE GENERADO desde POS - Redirigiendo con retorno al POS")
                         
-                        from urllib.parse import quote as url_quote
-                        doc_url = reverse('facturacion_electronica:ver_factura_electronica', args=[dte_para_mostrar.pk])
-                        doc_url += f"?auto=1&from_caja=1&return_url={url_quote(return_url, safe='')}"
-                        print(f"     DTE ID: {dte_para_mostrar.pk}")
-                        print(f"     Folio: {dte_para_mostrar.folio}")
-                        print(f"     Tipo: {dte_para_mostrar.get_tipo_dte_display()}")
-                        print(f"     Return URL: {return_url}")
-                        return redirect(doc_url)
+                        # ENVIAR A COLA DE IMPRESIÓN LOCAL
+                        try:
+                            from caja.models import ColaImpresion
+                            from caja.impresion_utils import generar_esc_pos_ticket
+                            
+                            venta_final.dte_asociado = dte_para_mostrar
+                            contenido = generar_esc_pos_ticket(venta_final)
+                            
+                            caja_id_cola = apertura_activa.caja.id if apertura_activa else None
+                            if not caja_id_cola and ticket.estacion_trabajo:
+                                from caja.models import AperturaCaja
+                                ap_activa = AperturaCaja.objects.filter(caja__empresa=request.empresa, estado='abierta', caja__estacion_trabajo=ticket.estacion_trabajo).first()
+                                if ap_activa:
+                                    caja_id_cola = ap_activa.caja.id
+
+                            if caja_id_cola:
+                                ColaImpresion.objects.create(
+                                    caja_id=caja_id_cola,
+                                    empresa=request.empresa,
+                                    venta=venta_final,
+                                    tipo_documento='dte',
+                                    documento_id=dte_para_mostrar.id,
+                                    contenido_raw=contenido,
+                                    estado='pendiente'
+                                )
+                                print(f"[OK] ✅ DTE ENCOLADO PARA IMPRESIÓN SILENCIOSA (Caja {caja_id_cola})")
+                            else:
+                                print(f"[WARN] No se encontró caja para encolar impresión silenciosa")
+                                
+                        except Exception as e:
+                            import traceback
+                            print(f"[ERROR] Error al encolar DTE en caja:")
+                            traceback.print_exc()
+                        
+                        return redirect(return_url)
                     else:
-                        # NO SE GENERÓ DTE → Mostrar ticket/vale
-                        # Esto solo aplica para POS sin cierre directo (vales facturables pendientes de caja)
+                        # NO SE GENERÓ DTE → Encolar ticket/vale
+                        try:
+                            from caja.models import ColaImpresion
+                            from caja.impresion_utils import generar_esc_pos_ticket
+                            
+                            contenido = generar_esc_pos_ticket(venta_final)
+                            
+                            caja_id_cola = apertura_activa.caja.id if apertura_activa else None
+                            if not caja_id_cola and ticket.estacion_trabajo:
+                                from caja.models import AperturaCaja
+                                ap_activa = AperturaCaja.objects.filter(caja__empresa=request.empresa, estado='abierta', caja__estacion_trabajo=ticket.estacion_trabajo).first()
+                                if ap_activa:
+                                    caja_id_cola = ap_activa.caja.id
+
+                            if caja_id_cola:
+                                ColaImpresion.objects.create(
+                                    caja_id=caja_id_cola,
+                                    empresa=request.empresa,
+                                    venta=venta_final,
+                                    tipo_documento='vale',
+                                    documento_id=venta_final.id,
+                                    contenido_raw=contenido,
+                                    estado='pendiente'
+                                )
+                                print(f"[OK] ✅ VALE ENCOLADO PARA IMPRESIÓN SILENCIOSA (Caja {caja_id_cola})")
+                                
+                        except Exception as e:
+                            import traceback
+                            print(f"[ERROR] Error al encolar vale en caja:")
+                            traceback.print_exc()
+
                         pos_url = reverse('ventas:pos_view')
-                        vale_url = reverse('ventas:vale_html', args=[venta_final.pk])
-                        vale_url += f"?auto=1&return_url={pos_url}"
-                        print(f"[OK] 📄 SIN DTE - Redirigiendo a ticket/vale")
-                        print(f"     Vale ID: {venta_final.pk}")
-                        print(f"     Número: {venta_final.numero_venta}")
-                        print(f"     (Se facturará después en caja)")
-                        return redirect(vale_url)
+                        return redirect(pos_url)
                     # --- FIN: Bloque para impresión automática ---
                     
                 except IntegrityError as e:

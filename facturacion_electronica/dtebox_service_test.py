@@ -699,7 +699,7 @@ class DTEBoxService:
                     f.write(f"Status Code: {response.status_code}\n")
                     f.write(f"URL: {self.url}\n")
                     f.write(f"Headers: {response.headers}\n\n")
-                    f.write(f"Request Headers enviados:\n{headers_json}\n\n")
+                    f.write(f"Request Headers enviados:\n{headers_xml}\n\n")
                     f.write(f"Response Content COMPLETO:\n{response.text}\n")
                 print(f"[DTEBox] Respuesta guardada en: {response_file}")
             except Exception as e:

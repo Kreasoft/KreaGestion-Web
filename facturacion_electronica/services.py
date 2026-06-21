@@ -334,11 +334,31 @@ class DTEService:
         """
         disponibilidad = {}
         
+        # Obtener sucursal por defecto si es None para buscar el siguiente folio
+        sucursal_ref = sucursal
+        if sucursal_ref is None:
+            from empresas.models import Sucursal
+            sucursal_ref = Sucursal.objects.filter(empresa=empresa, es_principal=True).first()
+            if sucursal_ref is None:
+                sucursal_ref = Sucursal.objects.filter(empresa=empresa).first()
+        
         for tipo_venta, tipo_sii in DTEService.TIPO_DOCUMENTO_VENTAS_TO_SII.items():
             folios_disponibles = FolioService.verificar_folios_disponibles(empresa, tipo_sii, sucursal)
+            
+            siguiente_folio = None
+            if sucursal_ref:
+                try:
+                    from .models import ArchivoCAF
+                    caf = ArchivoCAF.obtener_caf_activo(empresa, sucursal_ref, tipo_sii)
+                    if caf and caf.esta_vigente() and (caf.folio_actual + 1 <= caf.folio_hasta):
+                        siguiente_folio = max(caf.folio_actual + 1, caf.folio_desde)
+                except Exception as e:
+                    print(f"[WARN] Error al predecir siguiente folio para {tipo_sii}: {e}")
+            
             disponibilidad[tipo_venta] = {
                 'tipo_sii': tipo_sii,
                 'folios_disponibles': folios_disponibles,
+                'siguiente_folio': siguiente_folio,
                 'disponible': folios_disponibles > 0
             }
         

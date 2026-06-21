@@ -1080,10 +1080,6 @@
                         title="Ver historial de tickets del día">
                         <i class="fas fa-history me-1"></i>Historial
                     </button>
-                    <button class="btn btn-outline-light" id="btn-printer-config" onclick="configurarImpresora()"
-                        title="Configurar Impresora Térmica">
-                        <i class="fas fa-print me-1"></i>Impresora
-                    </button>
                     <button class="btn btn-outline-light" onclick="window.print()" title="Imprimir (Navegador)">
                         <i class="fas fa-print"></i>
                     </button>
@@ -1154,8 +1150,12 @@
                     </div>
                     <div class="pos-category-filter" id="categoriasContainer"
                         style="display: none; margin-bottom: 10px;">
-                        <button class="category-btn active" data-category="all">Todas</button>
-                        <!-- Las categorías se cargarán dinámicamente -->
+                        <button type="button" class="category-btn active" data-category="all"
+                            onclick="posFilterByCategory('all', this)">Todas</button>
+                        {% for cat in categorias %}
+                        <button type="button" class="category-btn" data-category="{{ cat.id }}"
+                            onclick="posFilterByCategory('{{ cat.id }}', this)">{{ cat.nombre }}</button>
+                        {% endfor %}
                     </div>
                 </div>
 
@@ -1191,7 +1191,7 @@
                             <div class="pos-products-grid" id="pos-products-grid">
                                 {% for articulo in articulos %}
                                 <div class="pos-product-card {% if articulo.stock_actual <= 0 %}disabled{% endif %} {% if articulo.oferta_activa or articulo.en_oferta %}en-oferta{% endif %}"
-                                    title="{{ articulo.nombre }}" data-articulo-id="{{ articulo.id }}"
+                                    title="{{ articulo.nombre }}" data-articulo-id="{{ articulo.id|unlocalize }}"
                                     data-precio="{{ articulo.precio_final_calculado|unlocalize }}"
                                     data-precio-neto="{{ articulo.precio_venta|unlocalize }}"
                                     data-stock="{{ articulo.stock_actual|default:0 }}"
@@ -1243,7 +1243,7 @@
                                 {% for articulo in articulos %}
                                 {% if articulo.oferta_activa or articulo.en_oferta %}
                                 <div class="pos-product-card{% if articulo.stock_actual <= 0 %} disabled{% endif %} en-oferta"
-                                    title="{{ articulo.nombre }}" data-articulo-id="{{ articulo.id }}"
+                                    title="{{ articulo.nombre }}" data-articulo-id="{{ articulo.id|unlocalize }}"
                                     data-precio="{{ articulo.get_precio_oferta_decimal|unlocalize }}"
                                     data-precio-neto="{{ articulo.precio_venta|unlocalize }}"
                                     data-stock="{{ articulo.stock_actual|default:0 }}">
@@ -1330,7 +1330,7 @@
                                                     <div class="d-flex gap-1">
                                                         <button type="button" class="btn btn-sm flex-fill"
                                                             style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; font-size: 0.65rem; padding: 3px 6px; border: none;"
-                                                            data-kit-id="{{ kit.id }}"
+                                                            data-kit-id="{{ kit.id|unlocalize }}"
                                                             data-kit-nombre="{{ kit.nombre }}"
                                                             data-kit-precio="{{ kit.precio_kit|unlocalize }}"
                                                             data-kit-stock="{{ kit.stock_disponible }}"
@@ -1339,7 +1339,7 @@
                                                         </button>
                                                         <button type="button" class="btn btn-sm flex-fill"
                                                             style="background: linear-gradient(135deg, #D4A574 0%, #C19461 100%); color: white; font-size: 0.65rem; padding: 3px 6px; border: none;"
-                                                            data-kit-id="{{ kit.id }}"
+                                                            data-kit-id="{{ kit.id|unlocalize }}"
                                                             onclick="desglosarKitEnCarrito(this.dataset.kitId)">
                                                             <i class="fas fa-list"></i> Items
                                                         </button>
@@ -1448,6 +1448,13 @@
                         // Intentar parsear JSON
                         try {
                             const data = await clonedResponse.json();
+
+                            // Si la impresión ya fue encolada silenciosamente, NO redirigir.
+                            // De lo contrario se dispara un segundo flujo y termina duplicando
+                            // trabajos de impresión para el mismo comprobante.
+                            if (data && data.impresion_silenciosa) {
+                                return response;
+                            }
 
                             // Si la respuesta tiene redirect_url, redirigir automáticamente
                             if (data && data.redirect_url) {
@@ -2192,11 +2199,10 @@
 
             document.getElementById('btn-clear').addEventListener('click', clearCart);
 
-            // Configurar botón "Todas" para filtro de categorías
+            // Configurar botón "Todas" para filtro de categorías (ya maneja con onclick inline)
             const btnTodas = document.querySelector('.category-btn[data-category="all"]');
             if (btnTodas) {
-                btnTodas.addEventListener('click', (e) => filterByCategory('all', e.target));
-                console.log('Botón "Todas" configurado');
+                console.log('Botón "Todas" configurado (onclick inline)');
             }
 
             // Cargar artículos desde el DOM
@@ -2205,7 +2211,9 @@
             // Configurar el sistema de código de barras
             setupBarcodeSystem();
 
-            // Click en productos (usando event delegation)
+            // Cargar categorías (solo registra event listeners como respaldo; los onclick inline ya funcionan)
+            loadCategories();
+
             document.addEventListener('click', async function (e) {
                 console.log('*** CLICK DETECTADO ***', e.target);
 
@@ -2322,124 +2330,35 @@
                 document.getElementById('current-time').textContent = timeStr;
             }
 
-            // Cargar categorías
+            // loadCategories: registra event listeners de respaldo (los onclick inline ya funcionan)
             function loadCategories() {
-                const categories = new Set();
-                document.querySelectorAll('.pos-product-card').forEach(card => {
-                    const category = card.dataset.categoria;
-                    if (category && category !== 'sin-categoria') {
-                        categories.add(category);
-                    }
-                });
-
                 const categoryContainer = document.querySelector('.pos-category-filter');
-
-                // Agregar categorías dinámicamente
-                Array.from(categories).sort().forEach(category => {
-                    const btn = document.createElement('button');
-                    btn.className = 'category-btn';
-                    btn.textContent = category;
-                    btn.dataset.category = category;
-                    btn.addEventListener('click', (e) => filterByCategory(category, e.target));
-                    categoryContainer.appendChild(btn);
+                if (!categoryContainer) return;
+                let count = 0;
+                categoryContainer.querySelectorAll('.category-btn[data-category]:not([data-category="all"])').forEach(btn => {
+                    // Solo agregar listener si no tiene onclick ya (por seguridad)
+                    if (!btn.getAttribute('onclick')) {
+                        const category = btn.dataset.category;
+                        btn.addEventListener('click', (e) => posFilterByCategory(category, e.target));
+                    }
+                    count++;
                 });
-
-                console.log('Categorías cargadas:', categories.size);
+                console.log('Categorías registradas (respaldo):', count);
             }
 
-            // Filtrar por categoría
-            function filterByCategory(category, buttonElement) {
-                console.log('Filtrando por categoría:', category);
-                currentCategory = category;
 
-                // Actualizar botones - quitar active de todos
-                document.querySelectorAll('.category-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-
-                // Agregar active al botón clickeado
-                if (buttonElement) {
-                    buttonElement.classList.add('active');
-                } else {
-                    // Si no hay elemento (llamada programática), buscar el botón correcto
-                    const targetBtn = document.querySelector(`.category-btn[data-category="${category}"]`);
-                    if (targetBtn) {
-                        targetBtn.classList.add('active');
-                    }
-                }
-
-                // Limpiar búsqueda
-                const searchInput = document.getElementById('pos-search');
-                if (searchInput) {
-                    searchInput.value = '';
-                }
-
-                // Filtrar productos
-                let visibleCount = 0;
-                const grid = document.getElementById('pos-products-grid');
-                const esVistaLista = grid.classList.contains('vista-lista');
-
-                document.querySelectorAll('.pos-product-card').forEach(card => {
-                    const cardCategory = card.dataset.categoria;
-                    if (category === 'all' || cardCategory === category) {
-                        // Usar flex para mantener el estilo correcto según la vista
-                        card.style.display = esVistaLista ? 'flex' : 'flex';
-                        visibleCount++;
-                    } else {
-                        card.style.display = 'none';
-                    }
-                });
-
-                console.log(`Mostrando ${visibleCount} productos de categoría: ${category}`);
-            }
-
-            // Variable para controlar el timeout de búsqueda
-            let searchTimeout = null;
-
-            // Filtrar productos - ahora busca en toda la base de datos
+            // Filtrar productos por texto de búsqueda (llama a la función global)
             function filterProducts() {
-                const searchInput = document.getElementById('pos-search');
-                if (!searchInput) {
-                    console.error('Input de búsqueda no encontrado');
-                    return;
-                }
+                posFilterProducts();
+            }
 
-                const searchTerm = searchInput.value.trim();
-                console.log('Buscando:', searchTerm);
-
-                // Cancelar búsqueda anterior si existe
-                if (searchTimeout) {
-                    clearTimeout(searchTimeout);
-                }
-
-                if (!searchTerm) {
-                    // Si no hay término de búsqueda, mostrar productos cargados según categoría
-                    let count = 0;
-                    const grid = document.getElementById('pos-products-grid');
-                    const esVistaLista = grid.classList.contains('vista-lista');
-
-                    document.querySelectorAll('.pos-product-card').forEach(card => {
-                        const category = card.dataset.categoria;
-                        const matchesCategory = currentCategory === 'all' || category === currentCategory;
-                        if (matchesCategory) {
-                            card.style.display = 'flex';
-                            count++;
-                        } else {
-                            card.style.display = 'none';
-                        }
-                    });
-                    console.log(`Mostrando ${count} productos (sin búsqueda)`);
-                    return;
-                }
-
-                // Esperar 500ms antes de buscar (debounce)
-                searchTimeout = setTimeout(() => {
-                    buscarEnBaseDatos(searchTerm);
-                }, 500);
+            // Filtrar por categoría (llama a la función global)
+            function filterByCategory(category, buttonElement) {
+                posFilterByCategory(category, buttonElement);
             }
 
             // Buscar en toda la base de datos
-            function buscarEnBaseDatos(query) {
+            window.buscarEnBaseDatos = function (query) {
                 console.log('Buscando en base de datos:', query);
 
                 // Remover mensaje de "no resultados" si existe
@@ -2458,11 +2377,14 @@
                     card.style.display = 'none';
                 });
 
-                // Construir URL con lista de precios si está seleccionada
+                // Construir URL con texto de búsqueda, lista de precios y categoría activa
                 let url = `/ventas/pos/buscar-articulo/?q=${encodeURIComponent(query)}`;
                 if (listaPrecioActual) {
                     url += `&lista_precio=${listaPrecioActual}`;
-                    console.log('Usando lista de precios:', listaPrecioActual);
+                }
+                // Pasar la categoría activa para que el backend filtre directamente
+                if (currentCategory && currentCategory !== 'all') {
+                    url += `&categoria=${encodeURIComponent(currentCategory)}`;
                 }
 
                 // Buscar en el backend
@@ -2477,7 +2399,7 @@
                                 searchInput.value = '';
                             }
                             // Restaurar la visualización original de productos (según categoría actual)
-                            filterProducts();
+                            posFilterProducts();
                             
                             if (typeof window.mostrarModalProductoComodin === 'function') {
                                 window.mostrarModalProductoComodin();
@@ -2490,22 +2412,15 @@
                         console.log('Resultados de búsqueda:', data.articulos ? data.articulos.length : 0);
 
                         if (data.articulos && data.articulos.length > 0) {
-                            console.log('=== PROCESANDO', data.articulos.length, 'PRODUCTOS ===');
-                            // Mostrar todos los productos que coinciden con la búsqueda
-                            data.articulos.forEach((articulo, index) => {
-                                console.log(`[${index + 1}] ID: ${articulo.id}, Nombre: ${articulo.nombre}`);
+                            console.log('[POS] Resultados:', data.articulos.length, 'productos');
+                            data.articulos.forEach((articulo) => {
                                 const card = document.querySelector(`.pos-product-card[data-articulo-id="${articulo.id}"]`);
                                 if (card) {
-                                    // Si el producto ya está cargado, mostrarlo con flex
                                     card.style.display = 'flex';
-                                    console.log(`  ✓ Mostrando producto existente en DOM`);
                                 } else {
-                                    // Si no está cargado, agregarlo dinámicamente
-                                    console.log(`  + Agregando producto nuevo al DOM`);
                                     agregarProductoDinamico(articulo);
                                 }
                             });
-                            console.log('=== FIN PROCESAMIENTO ===');
                         } else {
                             // No se encontraron resultados
                             console.log('No se encontraron productos');
@@ -2517,58 +2432,14 @@
                     });
             }
 
-            // Agregar producto dinámicamente al grid
+            // Agregar producto dinámicamente al grid - delega a la función global
             function agregarProductoDinamico(articulo) {
-                const grid = document.getElementById('pos-products-grid');
-                if (!grid) return;
-
-                // Verificar si ya existe
-                if (document.querySelector(`.pos-product-card[data-articulo-id="${articulo.id}"]`)) {
-                    return;
-                }
-
-                const card = document.createElement('div');
-                card.className = 'pos-product-card';
-                card.dataset.articuloId = articulo.id;
-                card.dataset.categoria = 'Búsqueda';
-                card.dataset.dinamico = 'true';  // Marcar como producto dinámico
-
-                // Guardar datos del artículo en el elemento para que el event listener global pueda accederlos
-                card.dataset.precio = articulo.precio;
-                card.dataset.stock = articulo.stock;
-                card.dataset.categoriaExentaIva = articulo.categoria_exenta_iva || false;
-                card.dataset.impuestoEspecificoPorcentaje = articulo.impuesto_especifico_porcentaje || 0;
-
-                card.innerHTML = `
-        <div class="pos-product-name">${articulo.nombre || articulo.descripcion || articulo.codigo}</div>
-        <div class="pos-product-code">${articulo.codigo}</div>
-        <div class="pos-product-price">$${new Intl.NumberFormat('es-CL').format(Math.round(articulo.precio))}</div>
-        <div class="pos-product-stock">Stock: ${articulo.stock}</div>
-    `;
-
-                // NO agregar event listener aquí - el global ya lo maneja
-
-                // Agregar al inicio del grid
-                grid.insertBefore(card, grid.firstChild);
+                posAgregarProductoDinamico(articulo);
             }
 
-            // Mostrar mensaje cuando no hay resultados
+            // Mostrar mensaje cuando no hay resultados - delega a la función global
             function mostrarMensajeNoResultados() {
-                const grid = document.getElementById('pos-products-grid');
-                if (!grid) return;
-
-                // Remover mensaje anterior si existe
-                const mensajeAnterior = document.getElementById('no-results-message');
-                if (mensajeAnterior) {
-                    mensajeAnterior.remove();
-                }
-
-                const mensaje = document.createElement('div');
-                mensaje.id = 'no-results-message';
-                mensaje.style.cssText = 'grid-column: 1/-1; text-align: center; padding: 2rem; color: #6c757d;';
-                mensaje.innerHTML = '<i class="fas fa-search fa-2x mb-2"></i><br>No se encontraron productos';
-
-                grid.appendChild(mensaje);
+                posMostrarMensajeNoResultados();
             }
 
             // NOTA: Funciones del carrito ahora están en el scope global (líneas 736-920)
@@ -4102,6 +3973,8 @@
                     return;
                 }
 
+                const printWindow = null;
+
                 // Calcular totales actuales
                 let subtotal = 0;
                 let descuento = 0;
@@ -4186,11 +4059,20 @@
                     },
                     body: JSON.stringify(preventaData)
                 })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
+                    .then(async response => {
+                        const responseText = await response.text();
+                        let responseData = {};
+                        if (responseText) {
+                            try {
+                                responseData = JSON.parse(responseText);
+                            } catch (parseError) {
+                                responseData = { message: responseText };
+                            }
                         }
-                        return response.json();
+                        if (!response.ok) {
+                            throw new Error(responseData.message || `HTTP error! status: ${response.status}`);
+                        }
+                        return responseData;
                     })
                     .then(data => {
                         console.log('='.repeat(80));
@@ -4201,6 +4083,29 @@
                         console.log('='.repeat(80));
 
                         if (data.success) {
+                            if (data.impresion_silenciosa) {
+                                console.log('[IMPRESION] Trabajo enviado al agente local. Sin ventanas ni dialogos.');
+                                Swal.close();
+
+                                cart = [];
+                                updateCartDisplay();
+                                updateTotals();
+                                limpiarClientePOS();
+                                window.tipoDocumentoPlaneadoVale = null;
+                                window.tipoValeSeleccionado = null;
+                                window.tipoDespachoVale = null;
+                                updateStockFromServer();
+
+                                if (wasScanningMode) {
+                                    setTimeout(() => {
+                                        barcodeMode = true;
+                                        const barcodeInput = document.getElementById('barcode-input');
+                                        if (barcodeInput) barcodeInput.focus();
+                                    }, 250);
+                                }
+                                return;
+                            }
+
                             // Si es cotización, abrir ventana de impresión
                             if (data.tipo_documento === 'cotizacion') {
                                 Swal.fire({
@@ -4210,7 +4115,7 @@
                                     timer: 2000
                                 }).then(() => {
                                     // Abrir ventana de impresión de la cotización
-                                    window.open(`/ventas/cotizaciones/${data.preventa_id}/html/`, '_blank');
+                                    abrirComprobanteImprimible(`/ventas/cotizaciones/${data.preventa_id}/html/`, {}, printWindow);
 
                                     // Limpiar carrito y recargar
                                     cart = [];
@@ -4265,7 +4170,10 @@
                                     }).then(() => {
                                         // Abrir documento DTE para impresión
                                         // El doc_url ya viene con todos los parámetros necesarios del backend
-                                        window.open(data.doc_url, '_blank');
+                                        abrirComprobanteImprimible(data.doc_url, {
+                                            autoclose: true,
+                                            returnToPos: true
+                                        }, printWindow);
 
                                         // Limpiar carrito inmediatamente
                                         cart = [];
@@ -4300,106 +4208,10 @@
                                         text: `Vale #${data.numero_preventa} generado exitosamente`,
                                         timer: 2000
                                     }).then(() => {
-                                        // IMPRESION DIRECTA CON QZ TRAY
-                                        const nCopias = window.getNCopias('vale');
-                                        if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
-                                            const ticketUrl = `/ventas/vales/${data.preventa_id}/termica/`;
-                                            // No bloquear UI, hacerlo en background
-                                            QZ_Printers.printTicketFromUrl(ticketUrl, nCopias).catch(err => {
-                                                console.error("Error QZ, fallback to window.open", err);
-                                                window.open(`/ventas/vales/${data.preventa_id}/html/`, '_blank');
-                                            });
-                                        } else {
-                                            window.open(`/ventas/vales/${data.preventa_id}/html/`, '_blank');
-                                        }
-
-                                        // Limpiar carrito y recargar
-                                        cart = [];
-                                        updateCartDisplay();
-                                        updateTotals();
-                                        limpiarClientePOS();
-
-                                        // Limpiar variables de tipo de documento/vale
-                                        window.tipoDocumentoPlaneadoVale = null;
-                                        window.tipoValeSeleccionado = null;
-                                        window.tipoDespachoVale = null;
-
-                                        // Actualizar stock después de la venta
-                                        updateStockFromServer();
-
-                                        // Restaurar modo escaneo si estaba activo
-                                        if (wasScanningMode) {
-                                            setTimeout(() => {
-                                                barcodeMode = true;
-                                                const barcodeInput = document.getElementById('barcode-input');
-                                                if (barcodeInput) {
-                                                    barcodeInput.focus();
-                                                }
-                                            }, 2000);
-                                        }
-                                    });
-                                }
-                            } else if (data.tipo_documento === 'factura' || data.tipo_documento === 'boleta' || data.tipo_documento === 'guia') {
-                                // Para factura, boleta o guía
-                                const nombreDocumento = data.tipo_documento === 'factura' ? 'Factura' :
-                                    data.tipo_documento === 'boleta' ? 'Boleta' : 'Guía de Despacho';
-
-                                // CIERRE DIRECTO: Si se procesó automáticamente, abrir documento directamente
-                                console.log('='.repeat(80));
-                                console.log('[DEBUG] Verificando cierre directo...');
-                                console.log('[DEBUG] data.cierre_directo:', data.cierre_directo);
-                                console.log('[DEBUG] typeof data.cierre_directo:', typeof data.cierre_directo);
-                                console.log('[DEBUG] data.cierre_directo === true:', data.cierre_directo === true);
-                                console.log('[DEBUG] data.cierre_directo == true:', data.cierre_directo == true);
-                                console.log('[DEBUG] Boolean(data.cierre_directo):', Boolean(data.cierre_directo));
-                                console.log('[DEBUG] data.cierre_directo === false:', data.cierre_directo === false);
-                                console.log('[DEBUG] data.cierre_directo == false:', data.cierre_directo == false);
-                                console.log('[DEBUG] !data.cierre_directo:', !data.cierre_directo);
-                                console.log('='.repeat(80));
-
-                                // VERIFICACIÓN ESTRICTA: Solo procesar automáticamente si cierre_directo es explícitamente true
-                                // IMPORTANTE: Verificar explícitamente que NO sea false, undefined, null, 0, o string vacío
-                                const esCierreDirecto = (
-                                    data.cierre_directo === true ||
-                                    data.cierre_directo === 'true' ||
-                                    data.cierre_directo === 1
-                                ) && (
-                                        data.cierre_directo !== false &&
-                                        data.cierre_directo !== 'false' &&
-                                        data.cierre_directo !== 0 &&
-                                        data.cierre_directo !== null &&
-                                        data.cierre_directo !== undefined
-                                    );
-
-                                console.log('[DEBUG] esCierreDirecto calculado:', esCierreDirecto);
-                                console.log('[DEBUG] ¿Procesará automáticamente?:', esCierreDirecto);
-
-                                if (esCierreDirecto === true) {
-                                    console.log('[✓] CIERRE DIRECTO ACTIVO - Procesando automáticamente');
-                                    console.log('[CIERRE DIRECTO] Abriendo documento automaticamente');
-
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: '¡Documento Procesado!',
-                                        html: `<strong>${nombreDocumento} #${data.numero_venta}</strong><br>procesada automáticamente con cierre directo`,
-                                        timer: 2000,
-                                        showConfirmButton: false
-                                    }).then(() => {
-                                        // IMPRESIÓN DIRECTA CON QZ TRAY (o fallback a window.open)
-                                        const nCopias = window.getNCopias(data.tipo_documento);
-                                        const posUrl = "{% url 'ventas:pos_view' %}";
-                                        const separator = data.doc_url.includes('?') ? '&' : '?';
-
-                                        if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
-                                            // En este caso data.doc_url suele ser la vista térmica
-                                            const ticketUrl = data.doc_url.includes('/termica/') ? data.doc_url : data.doc_url.replace('/html/', '/termica/');
-                                            QZ_Printers.printTicketFromUrl(ticketUrl, nCopias).catch(err => {
-                                                console.error("Error QZ, fallback to window.open", err);
-                                                window.open(data.doc_url + separator + 'auto=1&autoclose=1&autoclose_delay=2000&return_url=' + encodeURIComponent(posUrl), '_blank');
-                                            });
-                                        } else {
-                                            window.open(data.doc_url + separator + 'auto=1&autoclose=1&autoclose_delay=2000&return_url=' + encodeURIComponent(posUrl), '_blank');
-                                        }
+                                        abrirComprobanteImprimible(`/ventas/vales/${data.preventa_id}/html/`, {
+                                            autoclose: true,
+                                            returnToPos: true
+                                        }, printWindow);
 
                                         // Limpiar carrito inmediatamente (el POS queda listo para siguiente venta)
                                         cart = [];
@@ -4471,7 +4283,15 @@
                                         timer: 2000,
                                         showConfirmButton: false
                                     }).then(() => {
-                                        window.open(data.doc_url, '_blank');
+                                        if (data.impresion_silenciosa) {
+                                            console.log("[DEBUG] Impresión silenciosa vía Agente Local. No se abre PDF.");
+                                            cerrarVentanaImpresionPreparada(printWindow);
+                                        } else {
+                                            abrirComprobanteImprimible(data.doc_url, {
+                                                autoclose: true,
+                                                returnToPos: true
+                                            }, printWindow);
+                                        }
                                         
                                         // Limpiar carrito y recargar
                                         cart = [];
@@ -4499,17 +4319,18 @@
                                         timer: 2000
                                     }).then(() => {
                                         // IMPRESION DEL TICKET (Vale facturable)
-                                        const ticketId = data.preventa_id || data.id;
-                                        if (ticketId) {
-                                            const nCopias = window.getNCopias('ticket');
-                                            if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
-                                                const ticketUrl = `/ventas/vales/${ticketId}/termica/`;
-                                                QZ_Printers.printTicketFromUrl(ticketUrl, nCopias).catch(err => {
-                                                    console.error("Error QZ, fallback to window.open", err);
-                                                    window.open(`/ventas/vales/${ticketId}/html/`, '_blank');
-                                                });
+                                        if (data.impresion_silenciosa) {
+                                            console.log("[DEBUG] Impresión silenciosa de vale vía Agente Local. No se abre popup.");
+                                            cerrarVentanaImpresionPreparada(printWindow);
+                                        } else {
+                                            const ticketId = data.preventa_id || data.id;
+                                            if (ticketId) {
+                                                abrirComprobanteImprimible(`/ventas/vales/${ticketId}/html/`, {
+                                                    autoclose: true,
+                                                    returnToPos: true
+                                                }, printWindow);
                                             } else {
-                                                window.open(`/ventas/vales/${ticketId}/html/`, '_blank');
+                                                cerrarVentanaImpresionPreparada(printWindow);
                                             }
                                         }
 
@@ -4533,6 +4354,7 @@
                                 }
                             }
                         } else {
+                            cerrarVentanaImpresionPreparada(printWindow);
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Error',
@@ -4542,6 +4364,7 @@
                         }
                     })
                     .catch(error => {
+                        cerrarVentanaImpresionPreparada(printWindow);
                         console.error('Error al procesar preventa:', error);
                         Swal.fire({
                             icon: 'error',
@@ -4567,7 +4390,267 @@
             console.log('*** DOMContentLoaded FINALIZADO ***');
         });
 
+        // ===== FUNCIONES GLOBALES DE FILTRADO (accesibles desde onclick inline) =====
+
+        // Agregar una tarjeta de producto al grid del POS dinámicamente
+        function posAgregarProductoDinamico(articulo) {
+            const grid = document.getElementById('pos-products-grid');
+            if (!grid) return;
+
+            // No duplicar si ya existe
+            if (document.querySelector(`.pos-product-card[data-articulo-id="${articulo.id}"]`)) {
+                return;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'pos-product-card';
+            card.dataset.articuloId = articulo.id;
+            card.dataset.categoria = articulo.categoria_nombre || 'sin-categoria';
+            card.dataset.dinamico = 'true';
+            card.dataset.precio = articulo.precio;
+            card.dataset.precioNeto = articulo.precio_neto || articulo.precio;
+            card.dataset.stock = articulo.stock;
+            card.dataset.categoriaExentaIva = articulo.categoria_exenta_iva || false;
+            card.dataset.impuestoEspecifico = articulo.impuesto_especifico_porcentaje || 0;
+            card.dataset.impuestoEspecificoPorcentaje = articulo.impuesto_especifico_porcentaje || 0;
+
+            card.innerHTML = `
+                <div class="pos-product-name">${articulo.nombre || articulo.descripcion || articulo.codigo}</div>
+                <div class="pos-product-code">${articulo.codigo || ''}</div>
+                <div class="pos-product-price">$${new Intl.NumberFormat('es-CL').format(Math.round(articulo.precio))}</div>
+                <div class="pos-product-stock ${articulo.stock <= 0 ? 'text-danger' : ''}">Stock: ${articulo.stock}</div>
+            `;
+
+            if (articulo.stock <= 0) {
+                card.classList.add('disabled');
+            }
+
+            // Insertar al inicio del grid para que sea visible de inmediato
+            grid.insertBefore(card, grid.firstChild);
+        }
+
+        // Mostrar mensaje de "sin resultados" en el grid
+        function posMostrarMensajeNoResultados() {
+            const grid = document.getElementById('pos-products-grid');
+            if (!grid) return;
+            const anterior = document.getElementById('no-results-message');
+            if (anterior) anterior.remove();
+            const msg = document.createElement('div');
+            msg.id = 'no-results-message';
+            msg.style.cssText = 'grid-column:1/-1;text-align:center;padding:2rem;color:#6c757d;';
+            msg.innerHTML = '<i class="fas fa-search fa-2x mb-2"></i><br>No se encontraron productos';
+            grid.appendChild(msg);
+        }
+
+        // Filtrar por categoría - global para onclick inline en botones
+        // USA AJAX para traer TODOS los artículos de la categoría (no solo los 20 del DOM)
+        function posFilterByCategory(category, buttonElement) {
+            console.log('[POS] Filtrando por categoría:', category);
+            currentCategory = category;
+
+            // Actualizar estado visual de botones
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            if (buttonElement) {
+                buttonElement.classList.add('active');
+            } else {
+                const targetBtn = document.querySelector(`.category-btn[data-category="${category}"]`);
+                if (targetBtn) targetBtn.classList.add('active');
+            }
+
+            // Limpiar búsqueda
+            const searchInput = document.getElementById('pos-search');
+            if (searchInput) searchInput.value = '';
+
+            // Limpiar productos dinámicos anteriores
+            document.querySelectorAll('.pos-product-card[data-dinamico="true"]').forEach(c => c.remove());
+            const mensajeAnterior = document.getElementById('no-results-message');
+            if (mensajeAnterior) mensajeAnterior.remove();
+
+            const grid = document.getElementById('pos-products-grid');
+            if (!grid) return;
+
+            if (category === 'all') {
+                // Mostrar todos los artículos del DOM inicial (los 20 del servidor)
+                document.querySelectorAll('.pos-product-card').forEach(card => {
+                    card.style.display = 'flex';
+                });
+                return;
+            }
+
+            // ── AJAX: traer TODOS los artículos de la categoría desde la BD ──
+            // Ocultar los del DOM inicial para no mezclar con AJAX
+            document.querySelectorAll('.pos-product-card').forEach(card => {
+                card.style.display = 'none';
+            });
+
+            // Indicador de carga
+            const loadingMsg = document.createElement('div');
+            loadingMsg.id = 'no-results-message';
+            loadingMsg.style.cssText = 'grid-column:1/-1;text-align:center;padding:2rem;color:#6c757d;';
+            loadingMsg.innerHTML = '<i class="fas fa-spinner fa-spin fa-2x mb-2"></i><br>Cargando productos...';
+            grid.appendChild(loadingMsg);
+
+            let url = `/ventas/pos/buscar-articulo/?categoria=${encodeURIComponent(category)}`;
+            if (typeof listaPrecioActual !== 'undefined' && listaPrecioActual) {
+                url += `&lista_precio=${listaPrecioActual}`;
+            }
+
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    // Remover indicador de carga
+                    const lm = document.getElementById('no-results-message');
+                    if (lm) lm.remove();
+
+                    if (data.articulos && data.articulos.length > 0) {
+                        console.log(`[POS] ${data.articulos.length} artículos en categoría '${category}'`);
+                        data.articulos.forEach(articulo => {
+                            // Si ya está en el DOM, simplemente mostrarlo
+                            const existing = document.querySelector(`.pos-product-card[data-articulo-id="${articulo.id}"]`);
+                            if (existing) {
+                                existing.style.display = 'flex';
+                            } else {
+                                posAgregarProductoDinamico(articulo);
+                            }
+                        });
+                    } else {
+                        const noResults = document.createElement('div');
+                        noResults.id = 'no-results-message';
+                        noResults.style.cssText = 'grid-column:1/-1;text-align:center;padding:2rem;color:#6c757d;';
+                        noResults.innerHTML = '<i class="fas fa-box-open fa-2x mb-2"></i><br>No hay productos en esta categoría';
+                        grid.appendChild(noResults);
+                    }
+                })
+                .catch(err => {
+                    console.error('[POS] Error cargando categoría:', err);
+                    const lm = document.getElementById('no-results-message');
+                    if (lm) lm.remove();
+                });
+        }
+
+        // Filtrar por texto de búsqueda - global
+        // Siempre busca en TODA la BD, respeta la categoría activa
+        function posFilterProducts() {
+            const searchInput = document.getElementById('pos-search');
+            if (!searchInput) return;
+
+            const searchTerm = searchInput.value.trim();
+
+            if (window._posSearchTimeout) clearTimeout(window._posSearchTimeout);
+
+            if (!searchTerm) {
+                // Sin término de búsqueda:
+                // Si hay categoría activa, recargar todos sus productos via AJAX
+                // Si es 'all', mostrar los del DOM inicial
+                document.querySelectorAll('.pos-product-card[data-dinamico="true"]').forEach(c => c.remove());
+                const mensajeAnterior = document.getElementById('no-results-message');
+                if (mensajeAnterior) mensajeAnterior.remove();
+
+                if (currentCategory === 'all') {
+                    document.querySelectorAll('.pos-product-card').forEach(card => {
+                        card.style.display = 'flex';
+                    });
+                } else {
+                    // Recargar la categoría actual
+                    posFilterByCategory(currentCategory, null);
+                }
+                return;
+            }
+
+            window._posSearchTimeout = setTimeout(() => {
+                window.buscarEnBaseDatos(searchTerm);
+            }, 400);
+        }
+
         // ===== FUNCIONES AUXILIARES =====
+
+        function crearVentanaImpresionPreparada() {
+            try {
+                const win = window.open('', '_blank', 'width=480,height=720');
+                if (!win) {
+                    return null;
+                }
+
+                win.document.open();
+                win.document.write(`
+                    <!doctype html>
+                    <html>
+                    <head>
+                        <title>Preparando impresion</title>
+                        <style>
+                            body {
+                                margin: 0;
+                                min-height: 100vh;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-family: Arial, sans-serif;
+                                color: #4b3a2b;
+                                background: #fffaf5;
+                            }
+                        </style>
+                    </head>
+                    <body>Preparando comprobante...</body>
+                    </html>
+                `);
+                win.document.close();
+                return win;
+            } catch (error) {
+                console.warn('[IMPRESION] No se pudo preparar ventana:', error);
+                return null;
+            }
+        }
+
+        function cerrarVentanaImpresionPreparada(win) {
+            try {
+                if (win && !win.closed) {
+                    win.close();
+                }
+            } catch (error) {
+                console.warn('[IMPRESION] No se pudo cerrar ventana preparada:', error);
+            }
+        }
+
+        function urlComprobanteImprimible(url, options = {}) {
+            const finalUrl = new URL(url, window.location.origin);
+            finalUrl.searchParams.set('auto', '1');
+
+            if (options.autoclose) {
+                finalUrl.searchParams.set('autoclose', '1');
+                finalUrl.searchParams.set('autoclose_delay', options.autocloseDelay || '2000');
+            }
+
+            if (options.returnToPos) {
+                finalUrl.searchParams.set('return_url', "{% url 'ventas:pos_view' %}");
+            }
+
+            return finalUrl.toString();
+        }
+
+        function abrirComprobanteImprimible(url, options = {}, preparedWindow = null) {
+            const finalUrl = urlComprobanteImprimible(url, options);
+
+            try {
+                if (preparedWindow && !preparedWindow.closed) {
+                    preparedWindow.location.href = finalUrl;
+                    preparedWindow.focus();
+                    return;
+                }
+
+                const win = window.open(finalUrl, '_blank', 'width=480,height=720');
+                if (win) {
+                    win.focus();
+                    return;
+                }
+            } catch (error) {
+                console.warn('[IMPRESION] Error abriendo comprobante:', error);
+            }
+
+            console.warn('[IMPRESION] Ventana bloqueada; abriendo comprobante en la pestaña actual.');
+            window.location.href = finalUrl;
+        }
 
         function limpiarClientePOS() {
             try {
@@ -5482,7 +5565,7 @@
                             </thead>
                             <tbody>
                                 {% for cliente in clientes %}
-                                <tr class="cliente-item" onclick="seleccionarClienteDesdeModalInicio('{{ cliente.id }}', '{{ cliente.nombre|escapejs }}', '{{ cliente.rut|default:''|escapejs }}', '{{ cliente.direccion|default:''|escapejs }}')"
+                        <tr class="cliente-item" onclick="seleccionarClienteDesdeModalInicio('{{ cliente.id|unlocalize }}', '{{ cliente.nombre|escapejs }}', '{{ cliente.rut|default:''|escapejs }}', '{{ cliente.direccion|default:''|escapejs }}')"
                                     style="cursor: pointer; transition: background 0.2s;">
                                     <td style="padding: 10px 12px; color: #8B7355; font-weight: 500;">
                                         {{ cliente.rut|default:"Sin RUT" }}
@@ -6122,155 +6205,12 @@
         }
     </script>
 
-    <!-- QZ Tray Integration -->
-    <!-- QZ Tray desactivado temporalmente -->
-    <!-- <script src="{% static 'vendor/qz/qz-tray.js' %}"></script> -->
-    <script src="{% static 'js/qz_interface.js' %}"></script>
-
     <script>
-        // Configuración de Impresora
-        function configurarImpresora() {
-            if (typeof qz === 'undefined') {
-                Swal.fire('Error', 'QZ Tray no está cargado.', 'error');
-                updateQZStatus('disconnected');
-                return;
-            }
-
-            updateQZStatus('connecting');
-            QZ_Printers.connect()
-                .then(() => {
-                    updateQZStatus('connected');
-                    return QZ_Printers.getPrinters();
-                })
-                .then(printers => {
-                    let optionsHtml = '<option value="">-- Seleccionar Impresora --</option>';
-                    const savedPrinter = localStorage.getItem('qz_selected_printer');
-
-                    printers.forEach(p => {
-                        const selected = p === savedPrinter ? 'selected' : '';
-                        optionsHtml += `<option value="${p}" ${selected}>${p}</option>`;
-                    });
-
-                    Swal.fire({
-                        title: 'Configurar Impresora Térmica',
-                        html: `
-                        <div class="mb-3">
-                            <label class="form-label">Seleccione la impresora para tickets:</label>
-                            <select id="select-impresora" class="form-select">
-                                ${optionsHtml}
-                            </select>
-                            <small class="text-muted d-block mt-2">
-                                <i class="fas fa-info-circle"></i> Esta configuración se guarda en este navegador.
-                            </small>
-                        </div>
-                    `,
-                        showCancelButton: true,
-                        confirmButtonText: '<i class="fas fa-save me-2"></i>Guardar',
-                        cancelButtonText: 'Cancelar',
-                        preConfirm: () => {
-                            const printer = document.getElementById('select-impresora').value;
-                            if (!printer) Swal.showValidationMessage('Debe seleccionar una impresora');
-                            return printer;
-                        }
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            QZ_Printers.setPrinter(result.value);
-                            Swal.fire('Guardado', 'Impresora configurada correctamente', 'success');
-                            updateQZStatus('connected');
-                        }
-                    });
-                })
-                .catch(err => {
-                    console.error(err);
-                    updateQZStatus('disconnected');
-                    const errorStr = err.toString();
-                    if (errorStr.includes("blocked by client")) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Conexión Bloqueada',
-                            html: `
-                                <p>QZ Tray ha bloqueado la conexión.</p>
-                                <ol class="text-start">
-                                    <li>Busque el icono verde de <b>QZ Tray</b> en la barra de tareas (cerca del reloj).</li>
-                                    <li>Haga clic derecho y vaya a <b>"Allowed / Blocked"</b> (Permitidos/Bloqueados).</li>
-                                    <li>Busque <b>localhost</b> en la lista de Bloqueados y elimínelo (botón menos).</li>
-                                    <li>Recargue esta página e intente nuevamente.</li>
-                                </ol>
-                            `
-                        });
-                    } else {
-                        Swal.fire('Error', 'No se pudo conectar con QZ Tray: ' + err, 'error');
-                    }
-                });
-        }
-
-        // Función para imprimir desde historial
         function imprimirTicketHistorial(id) {
-            if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
-                const ticketUrl = `/ventas/vales/${id}/termica/`;
-                Swal.fire({
-                    title: 'Imprimiendo...',
-                    timer: 1000,
-                    showConfirmButton: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-                QZ_Printers.printTicketFromUrl(ticketUrl).then(() => {
-                    // Success
-                }).catch(err => {
-                    console.error("Error QZ, fallback to window.open", err);
-                    window.open(`/ventas/vales/${id}/html/`, '_blank');
-                });
-            } else {
-                window.open(`/ventas/vales/${id}/html/`, '_blank');
-            }
-        }
-
-        // Auto-connect and Status Update
-        document.addEventListener("DOMContentLoaded", function () {
-            updateQZStatus('connecting');
-
-            if (typeof QZ_Printers !== 'undefined') {
-                QZ_Printers.connect()
-                    .then(() => {
-                        console.log("QZ Conectado al iniciar POS");
-                        updateQZStatus('connected');
-                    })
-                    .catch(err => {
-                        console.warn("QZ No conectado al iniciar POS:", err);
-                        updateQZStatus('disconnected');
-                        // No mostrar alerta intrusiva al inicio, solo visual en el botón
-                    });
-            } else {
-                console.error("QZ_Printers no está definido");
-                updateQZStatus('disconnected');
-            }
-        });
-
-        function updateQZStatus(status) {
-            const btn = document.getElementById('btn-printer-config');
-            if (!btn) return;
-
-            // Reset classes
-            btn.classList.remove('btn-outline-light', 'btn-success', 'btn-danger', 'btn-warning');
-
-            if (status === 'connected') {
-                btn.classList.add('btn-success'); // Verde
-                const printer = localStorage.getItem('qz_selected_printer') || 'Sin seleccionar';
-                btn.title = `Impresora Conectada: ${printer}`;
-                btn.innerHTML = '<i class="fas fa-print me-1"></i>Impresora ON';
-            } else if (status === 'disconnected') {
-                btn.classList.add('btn-danger'); // Rojo
-                btn.title = "QZ Tray Desconectado (Click para configurar)";
-                btn.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>Impresora OFF';
-            } else if (status === 'connecting') {
-                btn.classList.add('btn-warning'); // Amarillo
-                btn.title = "Conectando...";
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Conectando...';
-            } else {
-                btn.classList.add('btn-outline-light');
-            }
+            abrirComprobanteImprimible(`/ventas/vales/${id}/html/`, {
+                autoclose: true,
+                returnToPos: true
+            });
         }
 
         /* ===== FUNCIONES DEL PANEL DE AYUDA ===== */

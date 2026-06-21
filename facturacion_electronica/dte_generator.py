@@ -519,7 +519,7 @@ class DTEXMLGenerator:
             # Flujo desde POS/Despacho: los items vienen de la venta asociada al DTE
             # Primero intentar con la venta directa
             if hasattr(self.documento, 'venta') and self.documento.venta:
-                items = self.documento.venta.ventadetalle_set.all()
+                venta_asociada = self.documento.venta
                 if venta_asociada and hasattr(venta_asociada, 'ventadetalle_set'):
                     items = venta_asociada.ventadetalle_set.all()
             # Si no hay ninguna de las anteriores, intentar con transferencias

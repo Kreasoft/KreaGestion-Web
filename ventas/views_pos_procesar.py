@@ -53,15 +53,40 @@ def procesar_venta_pos(request, ticket_id):
     # El campo facturado se marca en True cuando se procesa en caja y se genera el DTE
     print("[POS VALE] Vale listo para facturar en caja (facturado=False)")
     
-    # Redirigir a impresión de vale
-    from urllib.parse import quote
+    # ENVIAR A COLA DE IMPRESIÓN LOCAL
+    try:
+        from caja.models import ColaImpresion, AperturaCaja
+        from caja.impresion_utils import generar_esc_pos_ticket
+        
+        contenido = generar_esc_pos_ticket(ticket)
+        
+        caja_id_cola = None
+        ap_activa = AperturaCaja.objects.filter(caja__empresa=empresa, estado='abierta', caja__estacion_trabajo=ticket.estacion_trabajo).first()
+        if not ap_activa:
+            ap_activa = AperturaCaja.objects.filter(caja__empresa=empresa, estado='abierta').order_by('-fecha_apertura').first()
+        if ap_activa:
+            caja_id_cola = ap_activa.caja.id
+
+        if caja_id_cola:
+            ColaImpresion.objects.create(
+                caja_id=caja_id_cola,
+                empresa=empresa,
+                venta=ticket,
+                tipo_documento='vale',
+                documento_id=ticket.id,
+                contenido_raw=contenido,
+                estado='pendiente'
+            )
+            print(f"[OK] ✅ VALE ENCOLADO EN POS (Caja {caja_id_cola})")
+        else:
+            print(f"[WARN] No se encontró caja para encolar vale en POS")
+    except Exception as e:
+        print(f"[ERROR] Error al encolar vale en procesar_venta_pos: {e}")
+
+    # Redirigir directamente al POS sin abrir PDF
     pos_url = reverse('ventas:pos_view')
-    vale_url = reverse('ventas:vale_html', args=[ticket.pk])
-    # Codificar return_url para que se pase correctamente
-    vale_url += f"?auto=1&autoclose=1&autoclose_delay=2000&return_url={quote(pos_url, safe='')}"
-    
-    print(f"[POS VALE] Vale generado - Redirigiendo a impresión: {vale_url}")
-    return redirect(vale_url)
+    print(f"[POS VALE] Vale encolado silenciosamente - Retornando al POS")
+    return redirect(pos_url)
 
 
 @login_required
@@ -305,22 +330,38 @@ def procesar_venta_pos_directo(request, ticket_id):
             # 8. Redirigir a impresión del documento
             messages.success(request, f'{ticket.tipo_documento_planeado.title()} #{numero_venta_final} procesada exitosamente.')
             
-            if dte:
-                # Redirigir a vista del DTE con impresión y cierre automático
-                from urllib.parse import quote
-                doc_url = reverse('facturacion_electronica:ver_factura_electronica', kwargs={'dte_id': dte.pk})
-                pos_url = reverse('ventas:pos_view')
-                # auto=1: imprime automáticamente
-                # autoclose=1: cierra y vuelve después de imprimir
-                # autoclose_delay=2000: espera 2 segundos (menos que caja porque POS es más rápido)
-                # IMPORTANTE: codificar return_url para que se pase correctamente
-                return redirect(f"{doc_url}?auto=1&autoclose=1&autoclose_delay=2000&return_url={quote(pos_url, safe='')}")
-            else:
-                # Si no hay DTE, imprimir como vale
-                from urllib.parse import quote
-                pos_url = reverse('ventas:pos_view')
-                vale_url = reverse('ventas:vale_html', args=[ticket.pk])
-                return redirect(f"{vale_url}?auto=1&autoclose=1&autoclose_delay=2000&return_url={quote(pos_url, safe='')}")
+            # ENVIAR A COLA DE IMPRESIÓN LOCAL
+            try:
+                from caja.models import ColaImpresion, AperturaCaja
+                from caja.impresion_utils import generar_esc_pos_ticket
+                
+                contenido = generar_esc_pos_ticket(ticket)
+                
+                caja_id_cola = None
+                ap_activa = AperturaCaja.objects.filter(caja__empresa=empresa, estado='abierta', caja__estacion_trabajo=ticket.estacion_trabajo).first()
+                if not ap_activa:
+                    ap_activa = AperturaCaja.objects.filter(caja__empresa=empresa, estado='abierta').order_by('-fecha_apertura').first()
+                if ap_activa:
+                    caja_id_cola = ap_activa.caja.id
+
+                if caja_id_cola:
+                    ColaImpresion.objects.create(
+                        caja_id=caja_id_cola,
+                        empresa=empresa,
+                        venta=ticket,
+                        tipo_documento='dte' if dte else 'vale',
+                        documento_id=dte.id if dte else ticket.id,
+                        contenido_raw=contenido,
+                        estado='pendiente'
+                    )
+                    print(f"[OK] ✅ CIERRE DIRECTO ENCOLADO (Caja {caja_id_cola})")
+                else:
+                    print(f"[WARN] No se encontró caja para encolar en procesar_venta_pos_directo")
+            except Exception as e:
+                print(f"[ERROR] Error al encolar en procesar_venta_pos_directo: {e}")
+
+            # Redirigir directamente al POS sin abrir PDF
+            return redirect(reverse('ventas:pos_view'))
     
     except Exception as e:
         print(f"[POS DIRECTO] ERROR: {str(e)}")

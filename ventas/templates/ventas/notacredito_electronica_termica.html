@@ -320,16 +320,18 @@
         <!-- DETALLE DE PRODUCTOS -->
         <div class="productos-section">
             <div class="productos-header">DETALLE DE PRODUCTOS</div>
-            {% for detalle in detalles %}
-            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.5mm; font-size: 8pt; border-bottom: 1px dotted #ccc; padding-bottom: 1mm;">
-                <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 2mm;">
-                    <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
-                </div>
-                <div style="font-weight: bold; min-width: 15mm; text-align: right;">
-                    ${{ detalle.total|format_miles }}
-                </div>
-            </div>
-            {% endfor %}
+            <table style="width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed;">
+                {% for detalle in detalles %}
+                <tr style="border-bottom: 1px dotted #ccc;">
+                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1.5mm 2mm 1.5mm 0; vertical-align: bottom;">
+                        <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
+                    </td>
+                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1.5mm 0; vertical-align: bottom;">
+                        ${{ detalle.total|format_miles }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
         </div>
 
         <!-- TOTALES -->
@@ -378,8 +380,6 @@
             Impreso: {{ nota.fecha|date:"d/m/Y" }}<br>
             Este documento anula parcial/totalmente el documento afectado
         </div>
-        {% endif %}
-
     </div>
     {% endfor %}
 
@@ -392,12 +392,6 @@
             <i class="fas fa-arrow-left me-1"></i> Volver
         </button>
     </div>
-
-    <!-- QZ Tray y dependencias -->
-    <script src="https://cdn.jsdelivr.net/npm/dependencies/rsvp-3.1.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dependencies/sha-256.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/qz-tray/qz-tray.js"></script>
-    <script src="{% static 'js/qz_interface.js' %}"></script>
 
     <script>
         // Parámetros URL globales
@@ -452,38 +446,18 @@
             }
         }
 
-        // Auto-ejecución
+        // Auto-ejecuci?n
         if (autoPrint === '1') {
             window.addEventListener('load', function () {
-                console.log('[DTE AUTO] Iniciando impresión automática...');
-                
-                // Intentar usar QZ Tray si está disponible y configurado
-                if (typeof QZ_Printers !== 'undefined' && localStorage.getItem('qz_selected_printer')) {
-                    console.log('[DTE AUTO] Usando QZ Tray para ' + nCopiasConfig + ' copias...');
-                    QZ_Printers.printHTML(document.body.innerHTML, nCopiasConfig)
-                        .then(() => {
-                            if (autoClose === '1') {
-                                setTimeout(safeCloseWindow, 500);
-                            }
-                        })
-                        .catch(err => {
-                            console.error('[DTE AUTO] Error QZ:', err);
-                            // Fallback a window.print
-                            window.print();
-                            if (autoClose === '1') {
-                                setTimeout(safeCloseWindow, autoCloseDelay);
-                            }
-                        });
-                } else {
-                    // Fallback estándar
-                    setTimeout(function () {
-                        window.print();
+                console.log('[DTE AUTO] Iniciando impresi?n autom?tica...');
+                setTimeout(function () {
+                    window.print();
 
-                        if (autoClose === '1') {
-                            setTimeout(safeCloseWindow, autoCloseDelay);
-                        }
-                    }, 800);
-                }
+                    if (autoClose === '1') {
+                        console.log('[DTE AUTO] Cierre programado en ' + autoCloseDelay + 'ms');
+                        setTimeout(safeCloseWindow, autoCloseDelay);
+                    }
+                }, 500);
             });
         }
     </script>
