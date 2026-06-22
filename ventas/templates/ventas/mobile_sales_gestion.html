@@ -266,10 +266,42 @@
 
                     <!-- Tab 3: Dispositivos -->
                     <div class="tab-pane fade" id="devices-pane" role="tabpanel">
+                        <div class="p-3" style="background: #FDFCFB; border-bottom: 1px solid #E8DCC8;">
+                            <form method="POST" class="row g-2 align-items-end">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="register_mobile_device">
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="small fw-bold text-muted mb-1 d-block">Código de la tablet</label>
+                                    <input type="text" name="device_code" class="form-control form-control-sm input-piedra text-uppercase" placeholder="DEV-XXXXX-XXXX" autocomplete="off" required>
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="small fw-bold text-muted mb-1 d-block">Modelo / descripción</label>
+                                    <input type="text" name="device_model" class="form-control form-control-sm input-piedra" placeholder="Tablet Android">
+                                </div>
+                                <div class="col-lg-4 col-md-8">
+                                    <label class="small fw-bold text-muted mb-1 d-block">Vendedor asignado</label>
+                                    <select name="device_vendedor_id" class="form-select form-select-sm input-piedra">
+                                        <option value="">-- Sin Asignar --</option>
+                                        {% for v in vendedores %}
+                                        <option value="{{ v.id }}">{{ v.nombre }} ({{ v.codigo }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-lg-2 col-md-4">
+                                    <button type="submit" class="btn btn-sm w-100" style="background: var(--color-piedra-primario); color: white; font-weight: 700;">
+                                        <i class="fas fa-check-circle me-1"></i> Registrar
+                                    </button>
+                                </div>
+                            </form>
+                            <div class="small text-muted mt-2">
+                                Si el código de la tablet no aparece en la lista, péguelo aquí para registrarlo, autorizarlo y asignarle vendedor.
+                            </div>
+                        </div>
                         <table class="table-piedra">
                             <thead>
                                 <tr>
                                     <th>Dispositivo</th>
+                                    <th>Código</th>
                                     <th>Detalles / SO</th>
                                     <th>Vendedor Asignado</th>
                                     <th>Registro</th>
@@ -281,7 +313,14 @@
                                 <tr>
                                     <td>
                                         <div class="fw-bold text-piedra">{{ d.nombre_dispositivo }}</div>
-                                        <code class="small text-muted" style="font-size: 0.65rem;">{{ d.unique_id }}</code>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <code class="fw-bold px-2 py-1 rounded" style="font-size: 0.9rem; color: #5D4037; background: #F5F1E8; border: 1px solid #E8DCC8;">{{ d.unique_id }}</code>
+                                            <button type="button" class="btn-action-piedra" title="Copiar código" onclick="copyDeviceCode('{{ d.unique_id }}')">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                     <td>
                                         <div class="small">{{ d.modelo|default:"Desconocido" }}</div>
@@ -310,7 +349,7 @@
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="5" class="text-center py-5 text-muted">No hay dispositivos registrados.</td></tr>
+                                <tr><td colspan="6" class="text-center py-5 text-muted">No hay dispositivos registrados.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -325,6 +364,22 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    async function copyDeviceCode(code) {
+        try {
+            await navigator.clipboard.writeText(code);
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: `Código copiado: ${code}`,
+                showConfirmButton: false,
+                timer: 1800
+            });
+        } catch (e) {
+            Swal.fire('Código del dispositivo', code, 'info');
+        }
+    }
+
     async function toggleDevice(id, btn) {
         try {
             const res = await fetch(`/ventas/movil/gestion/dispositivo/${id}/toggle/`, {

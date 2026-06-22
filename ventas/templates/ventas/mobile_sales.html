@@ -994,6 +994,7 @@
                 <p class="small text-muted mb-4">
                     Comunique el código de arriba a su supervisor para activar este teléfono en el sistema.
                 </p>
+                <div id="deviceRegisterStatus" class="small text-muted mb-3"></div>
                 
                 <button onclick="app.checkDevice(true)" class="btn-terroso mb-3">
                     <i class="fas fa-sync-alt me-2"></i> VERIFICAR AUTORIZACIÓN
@@ -1890,13 +1891,19 @@
                 
                 const dispId = document.getElementById('displayDeviceId');
                 if (dispId) dispId.innerText = this.deviceId;
+                const statusEl = document.getElementById('deviceRegisterStatus');
+                if (statusEl) statusEl.innerText = 'Registrando dispositivo en el servidor...';
 
                 if (manual) {
                     Swal.fire({ title: 'Verificando con el servidor...', didOpen: () => Swal.showLoading() });
                 }
 
                 // Siempre verificar con el servidor si hay conexión para detectar revocaciones
+                let verificationError = null;
+
                 if (!this.isOffline) {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 8000);
                     try {
                         let detailedModel = navigator.userAgent;
                         if (navigator.userAgentData) {
@@ -1909,12 +1916,34 @@
                         const res = await fetch('/ventas/movil/api/verificar-dispositivo/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                            credentials: 'same-origin',
+                            signal: controller.signal,
                             body: JSON.stringify({ deviceId: this.deviceId, modelo: detailedModel })
                         });
+
+                        clearTimeout(timeoutId);
+
+                        const contentType = res.headers.get('content-type') || '';
+                        if (!res.ok) {
+                            throw new Error(res.status === 403
+                                ? 'Sesion expirada o token de seguridad invalido. Recargue e ingrese nuevamente.'
+                                : `Servidor respondio con error ${res.status}.`);
+                        }
+
+                        if (!contentType.includes('application/json')) {
+                            throw new Error('El servidor no devolvio JSON. Revise si la sesion sigue iniciada en la tablet.');
+                        }
+
                         const data = await res.json();
+                        if (!data.success) throw new Error(data.error || 'No se pudo registrar el dispositivo.');
                         
                         this.isAuthorized = !!data.authorized;
                         localStorage.setItem('gc_isAuthorized', this.isAuthorized ? 'true' : 'false');
+                        if (statusEl) {
+                            statusEl.innerText = this.isAuthorized
+                                ? 'Dispositivo autorizado. Si no entra, verifique que tenga vendedor asignado.'
+                                : 'Dispositivo registrado. Autoricelo y asigne vendedor en Gestion Ventas Moviles.';
+                        }
 
                         // Auto-login si el dispositivo tiene un vendedor asignado y no hay sesión activa
                         if (this.isAuthorized && data.vendedor && !this.seller) {
@@ -1946,11 +1975,30 @@
                             }
                         }
                     } catch (e) {
+                         clearTimeout(timeoutId);
+                         verificationError = e;
+                         this.isAuthorized = false;
+                         localStorage.setItem('gc_isAuthorized', 'false');
+                         const errorMsg = e.name === 'AbortError'
+                             ? 'El servidor no respondio a tiempo. Revise conexion WiFi y que la tablet use la IP del PC, no 127.0.0.1.'
+                             : (e.message || 'No se pudo verificar el dispositivo.');
                          console.error("Error verificando dispositivo", e);
+                         if (statusEl) statusEl.innerText = errorMsg;
+                         if (manual) {
+                             Swal.fire('No se pudo verificar', errorMsg, 'error');
+                         }
                     }
+                } else if (manual) {
+                    const offlineMsg = 'La tablet esta sin conexion con el servidor. Revise WiFi y abra la app usando la IP del PC.';
+                    if (statusEl) statusEl.innerText = offlineMsg;
+                    Swal.fire('Sin conexion', offlineMsg, 'warning');
                 }
 
                 if (!this.isAuthorized) {
+                    const loginView = document.getElementById('loginView');
+                    const mainApp = document.getElementById('mainApp');
+                    if (loginView) loginView.style.display = 'none';
+                    if (mainApp) mainApp.style.display = 'block';
                     this.showView('viewNoAuth');
                 }
             },
@@ -1993,6 +2041,10 @@
                 if (viewId === 'viewClients') this.renderClientsFull();
                 if (viewId === 'viewLocation') this.initLocationMap();
                 if (viewId === 'viewSalesHistory') this.initSalesHistoryView();
+                if (viewId === 'viewNoAuth') {
+                    const dispId = document.getElementById('displayDeviceId');
+                    if (dispId) dispId.innerText = this.deviceId || 'DISPOSITIVO-SIN-CODIGO';
+                }
                 this.forceVisualOverrides();
                 setTimeout(() => this.forceVisualOverrides(), 100);
 

@@ -8,6 +8,7 @@ from django.http import JsonResponse, HttpResponse, Http404
 from django.utils import timezone
 from django.urls import reverse
 from django.template.loader import get_template
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from decimal import Decimal
 from datetime import datetime, timedelta
@@ -4970,6 +4971,7 @@ def articulo_precio_api(request, pk):
 
 @login_required
 @requiere_empresa
+@never_cache
 def mobile_sales_app(request):
     """
     Vista que carga el contenedor de la Aplicación Móvil (PWA).
@@ -5045,7 +5047,7 @@ self.addEventListener('fetch', (event) => {
 
     """Service worker de la app móvil."""
     js = """
-const CACHE_NAME = 'gc-mobile-v2';
+const CACHE_NAME = 'gc-mobile-v3';
 const APP_SHELL = [
   '/ventas/movil/manifest.webmanifest',
   '/static/image/LogoCloud.png'
@@ -5111,6 +5113,7 @@ self.addEventListener('fetch', (event) => {
 
 @login_required
 @requiere_empresa
+@never_cache
 def mobile_sales_gestion(request):
     """
     Vista de administración para gestionar las ventas enviadas desde el móvil
@@ -5125,6 +5128,34 @@ def mobile_sales_gestion(request):
         request.empresa.venta_movil_permite_sin_stock = request.POST.get('venta_movil_permite_sin_stock') == 'on'
         request.empresa.save(update_fields=['venta_movil_permite_sin_stock'])
         messages.success(request, 'Configuracion de ventas moviles actualizada correctamente.')
+        return redirect('ventas:mobile_sales_gestion')
+
+    if request.method == 'POST' and request.POST.get('action') == 'register_mobile_device':
+        codigo_dispositivo = (request.POST.get('device_code') or '').strip().upper()
+        vendedor_id = request.POST.get('device_vendedor_id') or None
+        modelo = (request.POST.get('device_model') or 'Registro manual').strip()[:100]
+
+        if not codigo_dispositivo:
+            messages.error(request, 'Debe ingresar el codigo del dispositivo que muestra la tablet.')
+            return redirect('ventas:mobile_sales_gestion')
+
+        vendedor = None
+        if vendedor_id:
+            vendedor = Vendedor.objects.filter(pk=vendedor_id, empresa=request.empresa, activo=True).first()
+
+        dispositivo, created = DispositivoMovil.objects.update_or_create(
+            empresa=request.empresa,
+            unique_id=codigo_dispositivo,
+            defaults={
+                'nombre_dispositivo': f"Dispositivo {codigo_dispositivo[4:9] if len(codigo_dispositivo) >= 9 else codigo_dispositivo[:8]}",
+                'modelo': modelo or 'Registro manual',
+                'autorizado': True,
+                'vendedor': vendedor,
+            }
+        )
+
+        estado = 'registrado' if created else 'actualizado'
+        messages.success(request, f'Dispositivo {codigo_dispositivo} {estado} y autorizado correctamente.')
         return redirect('ventas:mobile_sales_gestion')
 
     # Obtener fechas del filtro o usar HOY por defecto
@@ -5383,17 +5414,20 @@ def mobile_api_verify_device(request):
     
     try:
         data = json.loads(request.body)
-        device_id = data.get('deviceId')
-        modelo = data.get('modelo', 'Desconocido')
+        device_id = str(data.get('deviceId') or '').strip()
+        modelo = str(data.get('modelo') or 'Desconocido').strip()[:100]
         
         if not device_id:
             return JsonResponse({'success': False, 'error': 'Device ID requerido'}, status=400)
+
+        if len(device_id) > 100:
+            return JsonResponse({'success': False, 'error': 'Codigo de dispositivo demasiado largo'}, status=400)
             
         dispositivo, created = DispositivoMovil.objects.get_or_create(
             empresa=request.empresa,
             unique_id=device_id,
             defaults={
-                'nombre_dispositivo': f"Dispositivo {device_id[4:9]}",
+                'nombre_dispositivo': f"Dispositivo {device_id[4:9] if len(device_id) >= 9 else device_id[:8]}",
                 'modelo': modelo,
                 'autorizado': False
             }
@@ -5420,6 +5454,8 @@ def mobile_api_verify_device(request):
         })
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
@@ -5533,7 +5569,12 @@ def mobile_api_save_sale(request):
         cliente_id = data.get('cliente_id')
         vendedor_id = data.get('vendedor_id')
         forma_pago_id = data.get('forma_pago_id')
-        tipo_documento_solicitado = data.get('tipo_documento', 'boleta') # boleta, factura, cotizacion
+        tipo_documento_solicitado = str(data.get('tipo_documento') or 'boleta').strip().lower()
+        modo_documento = str(data.get('modo_documento') or '').strip().lower()
+        tipo_doc_local = str(data.get('tipo_doc') or '').strip().lower()
+        tipo_documento_planeado = str(data.get('tipo_documento_planeado') or '').strip().lower()
+        if 'cotizacion' in {tipo_documento_solicitado, modo_documento, tipo_doc_local, tipo_documento_planeado}:
+            tipo_documento_solicitado = 'cotizacion'
         total_movil = Decimal(str(data.get('total', 0)))
         fecha_movil = data.get('fecha') # Fecha enviada desde el móvil
         device_id = data.get('deviceId') # ID del dispositivo que envía la venta
@@ -5684,6 +5725,7 @@ def mobile_api_save_sale(request):
         if cliente_nombre_movil:
             observaciones_lineas.append(f"[MOVIL] Cliente: {cliente_nombre_movil}")
         observaciones_lineas.append(f"[MOVIL] Doc Solicitado: {tipo_documento_solicitado}")
+        observaciones_lineas.append(f"[MOVIL] Recibido: {timezone.localtime(timezone.now()).strftime('%d/%m/%Y %H:%M')}")
         if local_id:
             observaciones_lineas.append(f"[MOVIL-ID:{local_id}]")
         if comentario_cierre:
