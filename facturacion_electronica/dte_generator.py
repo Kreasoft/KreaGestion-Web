@@ -164,15 +164,19 @@ class DTEXMLGenerator:
         etree.SubElement(id_doc, "TipoDTE").text = self.tipo_dte
         etree.SubElement(id_doc, "Folio").text = str(self.folio)
         
-        # Obtener fecha de emisión según el tipo de documento
-        from ventas.models import Venta
-        from pedidos.models import OrdenDespacho
-        
         # PRIORIDAD DE FECHA PARA EL XML (CRÍTICO PARA CAJA)
-        if isinstance(self.documento, DocumentoTributarioElectronico):
-            fecha_emision = self.documento.fecha_emision
-        elif hasattr(self.documento, 'fecha'):
-            fecha_emision = self.documento.fecha
+        fecha_emision = None
+        for campo_fecha in (
+            'fecha_emision',
+            'fecha',
+            'fecha_pedido',
+            'fecha_despacho',
+            'fecha_creacion',
+        ):
+            if hasattr(self.documento, campo_fecha):
+                fecha_emision = getattr(self.documento, campo_fecha)
+                if fecha_emision:
+                    break
             
         if fecha_emision:
             from django.utils import timezone

@@ -5028,17 +5028,14 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
-      .then(() => self.registration.unregister())
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  if (request.method === 'GET') event.respondWith(fetch(request));
+  if (request.method === 'GET') {
+    event.respondWith(fetch(request));
+  }
 });
 """
     response = HttpResponse(js, content_type="application/javascript")

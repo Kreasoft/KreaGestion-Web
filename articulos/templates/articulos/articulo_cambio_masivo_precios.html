@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+{% load articulo_filters %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+{% block title %}Cambio Masivo de Precios - GestionCloud{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: #FAFAF8 !important;
+        min-height: 100vh;
+    }
+    .bulk-shell {
+        border: 2px solid #E8DCC8;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
+    }
+    .bulk-toolbar {
+        background: #FDFCFB;
+        border-bottom: 1px solid #E8DCC8;
+    }
+    .bulk-section-title {
+        color: #6F5B44;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+    }
+    .bulk-option {
+        background: white;
+        border: 1px solid #E8DCC8;
+        border-radius: 8px;
+        min-height: 46px;
+    }
+    .bulk-option .form-check-input:checked {
+        background-color: #8B7355;
+        border-color: #8B7355;
+    }
+    .bulk-divider {
+        width: 1px;
+        min-height: 34px;
+        background: #D4C4A8;
+        opacity: 0.85;
+    }
+    .table-bulk {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Poppins', sans-serif;
+    }
+    .table-bulk thead th {
+        background: #FDFCFB;
+        border-bottom: 2px solid #E8DCC8;
+        color: #8B7355;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+        letter-spacing: 0.8px;
+        padding: 11px 10px;
+        white-space: nowrap;
+    }
+    .table-bulk tbody td {
+        border-bottom: 1px solid #F5F1E8;
+        padding: 8px 10px;
+        vertical-align: middle;
+        font-size: 0.76rem;
+        color: #4A5568;
+    }
+    .table-bulk tbody tr:nth-of-type(odd) {
+        background-color: rgba(245, 241, 232, 0.3);
+    }
+    .table-bulk tbody tr:nth-of-type(even) {
+        background-color: white;
+    }
+    .table-bulk tbody tr:hover {
+        background-color: #F5F1E8 !important;
+    }
+    .price-strong {
+        color: #6F5B44;
+        font-weight: 700;
+    }
+    .btn-piedra-main {
+        background: #8B7355;
+        color: white !important;
+        border: none;
+        font-weight: 700;
+    }
+    .btn-piedra-main:hover {
+        background: #6F5B44;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+    {% if messages %}
+        <div class="row mb-3">
+            <div class="col-12">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="bulk-shell">
+        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
+            <div class="d-flex justify-content-between align-items-center gap-3">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-layer-group me-3" style="font-size: 2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                    <div>
+                        <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.7rem;">
+                            Cambio Masivo de <span class="fw-bold">Precios</span>
+                        </h2>
+                        <div style="font-size: 0.82rem; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                            Maestro de articulos por familia o seleccion manual.
+                        </div>
+                    </div>
+                </div>
+                <a href="{% url 'articulos:articulo_list' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600;">
+                    <i class="fas fa-arrow-left me-1"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <div class="bulk-toolbar p-3">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="bulk-section-title mb-1">Buscar producto</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text" style="background: white; border-right: none; color: #8B7355; border-color: #D4C4A8;"><i class="fas fa-search"></i></span>
+                        <input type="text" name="search" class="form-control form-control-sm" value="{{ search }}" placeholder="Codigo, barras o nombre" style="border-left: none; border-color: #D4C4A8;">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="bulk-section-title mb-1">Filtrar familia</label>
+                    <select name="categoria" class="form-select form-select-sm" style="border-color: #D4C4A8;">
+                        <option value="">Todas las familias</option>
+                        {% for cat in categorias %}
+                            <option value="{{ cat.id }}" {% if categoria_filtro|stringformat:"s" == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button type="submit" class="btn btn-sm btn-piedra-main px-3">
+                        <i class="fas fa-filter me-1"></i> Filtrar
+                    </button>
+                    <a href="{% url 'articulos:articulo_cambio_masivo_precios' %}" class="btn btn-sm btn-outline-secondary px-3" style="border-color: #D4C4A8; color: #8B7355;">
+                        <i class="fas fa-times me-1"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <form method="post" id="bulkPriceForm">
+            {% csrf_token %}
+            <div class="p-3" style="background: #FAFAF8; border-bottom: 1px solid #E8DCC8;">
+                <div class="row g-3 align-items-stretch">
+                    <div class="col-lg-3">
+                        <div class="bulk-option p-3 h-100">
+                            <div class="bulk-section-title mb-2">Alcance</div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="alcance" id="alcanceFamilia" value="familia" checked>
+                                <label class="form-check-label fw-bold" for="alcanceFamilia">Familia completa</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="alcance" id="alcanceSeleccionados" value="seleccionados">
+                                <label class="form-check-label fw-bold" for="alcanceSeleccionados">Productos seleccionados</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="bulk-option p-3 h-100">
+                            <label class="bulk-section-title mb-2" for="categoria_id">Familia</label>
+                            <select name="categoria_id" id="categoria_id" class="form-select form-select-sm" style="border-color: #D4C4A8;">
+                                <option value="">Seleccione familia</option>
+                                {% for cat in categorias %}
+                                    <option value="{{ cat.id }}" {% if categoria_filtro|stringformat:"s" == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-2">
+                        <div class="bulk-option p-3 h-100">
+                            <label class="bulk-section-title mb-2" for="porcentaje">Porcentaje</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" name="porcentaje" id="porcentaje" class="form-control text-end" step="0.01" value="0" required>
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-2">
+                        <div class="bulk-option p-3 h-100">
+                            <div class="bulk-section-title mb-2">Base</div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="base_calculo" id="baseNeto" value="neto" checked>
+                                <label class="form-check-label fw-bold" for="baseNeto">Neto</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="base_calculo" id="baseFinal" value="final">
+                                <label class="form-check-label fw-bold" for="baseFinal">Final con impuestos</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-2">
+                        <div class="bulk-option p-3 h-100 d-flex align-items-center justify-content-center">
+                            <button type="submit" class="btn btn-piedra-main w-100">
+                                <i class="fas fa-check me-1"></i> Aplicar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center justify-content-between px-3 py-2" style="background: white; border-bottom: 1px solid #E8DCC8;">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="form-check m-0">
+                        <input class="form-check-input" type="checkbox" id="selectAll">
+                        <label class="form-check-label fw-bold small" for="selectAll">Seleccionar visibles</label>
+                    </div>
+                    <div class="bulk-divider"></div>
+                    <span class="small text-muted"><strong id="selectedCount">0</strong> seleccionados de {{ articulos|length }} visibles</span>
+                </div>
+                <span class="badge" style="background: rgba(139, 115, 85, 0.1); color: #8B7355; border: 1px solid rgba(139, 115, 85, 0.2);">
+                    {{ articulos|length }} productos
+                </span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table-bulk mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 42px;"></th>
+                            <th>Codigo</th>
+                            <th>Articulo</th>
+                            <th>Familia</th>
+                            <th class="text-end">Neto</th>
+                            <th class="text-end">IVA</th>
+                            <th class="text-end">Imp. Esp.</th>
+                            <th class="text-end">Final</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for articulo in articulos %}
+                        <tr>
+                            <td class="text-center">
+                                <input class="form-check-input product-check" type="checkbox" name="productos" value="{{ articulo.id }}">
+                            </td>
+                            <td><span class="fw-bold" style="color: #6F5B44;">{{ articulo.codigo }}</span></td>
+                            <td>{{ articulo.nombre }}</td>
+                            <td>
+                                <span class="badge" style="background: rgba(139, 115, 85, 0.1); color: #8B7355; border: 1px solid rgba(139, 115, 85, 0.2);">
+                                    {{ articulo.categoria.nombre }}
+                                </span>
+                            </td>
+                            <td class="text-end price-strong">${{ articulo.precio_venta|format_price }}</td>
+                            <td class="text-end text-muted">${{ articulo.iva_calculado|format_price }}</td>
+                            <td class="text-end text-muted">${{ articulo.impuesto_calculado|format_price }}</td>
+                            <td class="text-end price-strong">${{ articulo.precio_final|format_price }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <i class="fas fa-box-open fa-3x mb-3 opacity-25" style="color: #8B7355;"></i>
+                                <h6 class="fw-bold" style="color: #8B7355;">No se encontraron productos</h6>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+
+        <div style="background: #FAFAF8; border-top: 2px solid #E8DCC8;">
+            <div class="d-flex align-items-center justify-content-between px-3 py-2" style="background: white; border-bottom: 1px solid #E8DCC8;">
+                <div class="bulk-section-title mb-0">
+                    <i class="fas fa-history me-1"></i> Historial reciente
+                </div>
+                <span class="small text-muted">Ultimos {{ historial_reciente|length }} movimientos</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table-bulk mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Usuario</th>
+                            <th>Articulo</th>
+                            <th>Familia</th>
+                            <th class="text-end">%</th>
+                            <th>Base</th>
+                            <th class="text-end">Neto</th>
+                            <th class="text-end">Final</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in historial_reciente %}
+                        <tr>
+                            <td class="text-muted">{{ mov.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                            <td>{{ mov.usuario|default:"-" }}</td>
+                            <td>
+                                <span class="fw-bold" style="color: #6F5B44;">{{ mov.articulo_codigo }}</span>
+                                <span class="text-muted ms-1">{{ mov.articulo_nombre }}</span>
+                            </td>
+                            <td>{{ mov.categoria_nombre|default:"-" }}</td>
+                            <td class="text-end fw-bold {% if mov.porcentaje < 0 %}text-danger{% else %}text-success{% endif %}">
+                                {{ mov.porcentaje }}%
+                            </td>
+                            <td>{{ mov.get_base_calculo_display }}</td>
+                            <td class="text-end">
+                                <span class="text-muted">${{ mov.precio_neto_anterior|format_price }}</span>
+                                <i class="fas fa-arrow-right mx-1 text-muted"></i>
+                                <span class="price-strong">${{ mov.precio_neto_nuevo|format_price }}</span>
+                            </td>
+                            <td class="text-end">
+                                <span class="text-muted">${{ mov.precio_final_anterior|format_price }}</span>
+                                <i class="fas fa-arrow-right mx-1 text-muted"></i>
+                                <span class="price-strong">${{ mov.precio_final_nuevo|format_price }}</span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">Sin movimientos registrados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('bulkPriceForm');
+    const selectAll = document.getElementById('selectAll');
+    const checks = Array.from(document.querySelectorAll('.product-check'));
+    const selectedCount = document.getElementById('selectedCount');
+    const alcanceFamilia = document.getElementById('alcanceFamilia');
+    const alcanceSeleccionados = document.getElementById('alcanceSeleccionados');
+    const categoriaSelect = document.getElementById('categoria_id');
+
+    function updateSelectedCount() {
+        selectedCount.textContent = checks.filter(check => check.checked).length;
+    }
+
+    function updateScopeState() {
+        const useFamily = alcanceFamilia.checked;
+        categoriaSelect.disabled = !useFamily;
+        categoriaSelect.required = useFamily;
+        checks.forEach(check => {
+            check.disabled = useFamily;
+        });
+        if (useFamily) {
+            selectAll.checked = false;
+            checks.forEach(check => check.checked = false);
+            updateSelectedCount();
+        }
+        selectAll.disabled = useFamily;
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checks.forEach(check => {
+                if (!check.disabled) {
+                    check.checked = selectAll.checked;
+                }
+            });
+            updateSelectedCount();
+        });
+    }
+
+    checks.forEach(check => check.addEventListener('change', updateSelectedCount));
+    alcanceFamilia.addEventListener('change', updateScopeState);
+    alcanceSeleccionados.addEventListener('change', updateScopeState);
+
+    form.addEventListener('submit', function(event) {
+        if (form.dataset.confirmed === 'true') {
+            return;
+        }
+
+        event.preventDefault();
+
+        const porcentaje = document.getElementById('porcentaje').value || '0';
+        const base = document.querySelector('input[name="base_calculo"]:checked').value === 'final'
+            ? 'precio final con impuestos'
+            : 'precio neto';
+        const alcance = alcanceFamilia.checked ? 'la familia seleccionada' : `${selectedCount.textContent} producto(s) seleccionado(s)`;
+
+        if (alcanceSeleccionados.checked && checks.filter(check => check.checked).length === 0) {
+            Swal.fire({
+                title: 'Seleccione productos',
+                text: 'Debe marcar al menos un producto para aplicar el cambio masivo.',
+                icon: 'info',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#8B7355'
+            });
+            return;
+        }
+
+        Swal.fire({
+            title: 'Confirmar cambio masivo',
+            html: `Se aplicara <strong>${porcentaje}%</strong> sobre <strong>${base}</strong> a <strong>${alcance}</strong>.<br><br>Esta accion actualizara precios y registrara historial.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Si, aplicar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#8B7355',
+            cancelButtonColor: '#6c757d',
+            reverseButtons: true
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                form.dataset.confirmed = 'true';
+                form.submit();
+            }
+        });
+    });
+
+    updateScopeState();
+    updateSelectedCount();
+});
+</script>
+{% endblock %}

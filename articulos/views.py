@@ -3,7 +3,9 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q, Sum
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
 from decimal import Decimal, InvalidOperation
@@ -20,10 +22,105 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.pdfgen import canvas
 from datetime import datetime
 import os
-from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo, KitOferta, KitOfertaItem
+import uuid
+from .models import Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, ImpuestoEspecifico, ListaPrecio, PrecioArticulo, HomologacionCodigo, KitOferta, KitOfertaItem, HistorialCambioPrecio
 from inventario.models import Stock, Inventario
 from .forms import ArticuloForm, CategoriaArticuloForm, UnidadMedidaForm, ImpuestoEspecificoForm, ListaPrecioForm, PrecioArticuloForm, HomologacionCodigoForm, KitOfertaForm, KitOfertaItemForm
 from core.decorators import requiere_empresa, requiere_permiso
+
+
+def _parse_chilean_decimal(value):
+    """Convierte montos chilenos o decimales de navegador a Decimal."""
+    if value is None:
+        return Decimal('0')
+    if isinstance(value, Decimal):
+        return value
+
+    value_str = str(value).strip().replace('$', '').replace(' ', '').replace('\xa0', '')
+    if not value_str:
+        return Decimal('0')
+
+    has_dot = '.' in value_str
+    has_comma = ',' in value_str
+
+    if has_dot and has_comma:
+        if value_str.rfind(',') > value_str.rfind('.'):
+            normalized = value_str.replace('.', '').replace(',', '.')
+        else:
+            normalized = value_str.replace(',', '')
+    elif has_comma:
+        parts = value_str.split(',')
+        if len(parts) == 2 and len(parts[1]) == 3:
+            normalized = value_str.replace(',', '')
+        else:
+            normalized = value_str.replace(',', '.')
+    elif has_dot:
+        parts = value_str.split('.')
+        if len(parts) > 2:
+            normalized = value_str.replace('.', '')
+        elif len(parts) == 2 and len(parts[1]) == 3 and len(parts[0]) <= 3:
+            normalized = value_str.replace('.', '')
+        else:
+            normalized = value_str
+    else:
+        normalized = value_str
+
+    return Decimal(normalized)
+
+
+def _money(value):
+    """Redondea montos a dos decimales para guardarlos de forma consistente."""
+    return value.quantize(Decimal('0.01'))
+
+
+def _articulo_impuestos(articulo):
+    """Obtiene tasas de IVA e impuesto especifico desde la familia del articulo."""
+    iva_rate = Decimal('0.00')
+    impuesto_rate = Decimal('0.00')
+
+    if articulo.categoria:
+        iva_rate = Decimal('0.00') if articulo.categoria.exenta_iva else Decimal('0.19')
+        if articulo.categoria.impuesto_especifico:
+            impuesto_rate = articulo.categoria.impuesto_especifico.get_porcentaje_decimal()
+
+    return iva_rate, impuesto_rate
+
+
+def _recalcular_estructura_precio(articulo, porcentaje, base_calculo):
+    precio_neto_actual = _parse_chilean_decimal(articulo.precio_venta)
+    precio_final_actual = _parse_chilean_decimal(articulo.precio_final)
+    iva_rate, impuesto_rate = _articulo_impuestos(articulo)
+    factor_total = Decimal('1.00') + iva_rate + impuesto_rate
+    factor_ajuste = Decimal('1.00') + (porcentaje / Decimal('100.00'))
+
+    if precio_final_actual <= 0 and precio_neto_actual > 0:
+        precio_final_actual = precio_neto_actual * factor_total
+
+    if base_calculo == 'final':
+        nuevo_final = precio_final_actual * factor_ajuste
+        nuevo_neto = nuevo_final / factor_total if factor_total > 0 else Decimal('0')
+    else:
+        nuevo_neto = precio_neto_actual * factor_ajuste
+        nuevo_final = nuevo_neto * factor_total
+
+    nuevo_iva = nuevo_neto * iva_rate
+    nuevo_impuesto = nuevo_neto * impuesto_rate
+    iva_anterior = precio_neto_actual * iva_rate
+    impuesto_anterior = precio_neto_actual * impuesto_rate
+    costo = _parse_chilean_decimal(articulo.precio_costo)
+    margen = ((nuevo_neto / costo) - Decimal('1.00')) * Decimal('100.00') if costo > 0 else _parse_chilean_decimal(articulo.margen_porcentaje)
+
+    return {
+        'precio_neto_anterior': _money(precio_neto_actual),
+        'iva_anterior': _money(iva_anterior),
+        'impuesto_especifico_anterior': _money(impuesto_anterior),
+        'precio_final_anterior': _money(precio_final_actual),
+        'precio_neto': _money(nuevo_neto),
+        'iva': _money(nuevo_iva),
+        'impuesto_especifico': _money(nuevo_impuesto),
+        'precio_final': _money(nuevo_final),
+        'margen_porcentaje': _money(margen),
+    }
 
 
 @requiere_empresa
@@ -269,6 +366,137 @@ def articulo_delete(request, pk):
     }
     
     return render(request, 'articulos/articulo_confirm_delete.html', context)
+
+
+@requiere_empresa
+@login_required
+@never_cache
+@requiere_permiso('articulos.change_articulo', mensaje='No tienes permisos para modificar precios de articulos. Por favor, contacta al administrador del sistema para solicitar este permiso.', redirect_url='articulos:articulo_list')
+def articulo_cambio_masivo_precios(request):
+    """Ajuste masivo de precios del maestro de articulos."""
+    categorias = CategoriaArticulo.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
+    articulos = Articulo.objects.filter(empresa=request.empresa).select_related('categoria', 'categoria__impuesto_especifico').order_by('codigo', 'nombre')
+
+    search = request.GET.get('search', '').strip()
+    categoria_filtro = request.GET.get('categoria', '').strip()
+
+    if search:
+        articulos = articulos.filter(
+            Q(codigo__icontains=search) |
+            Q(nombre__icontains=search) |
+            Q(codigo_barras__icontains=search)
+        )
+
+    if categoria_filtro:
+        articulos = articulos.filter(categoria_id=categoria_filtro)
+
+    if request.method == 'POST':
+        alcance = request.POST.get('alcance', 'familia')
+        categoria_id = request.POST.get('categoria_id')
+        producto_ids = request.POST.getlist('productos')
+        base_calculo = request.POST.get('base_calculo', 'neto')
+        porcentaje_raw = request.POST.get('porcentaje', '0')
+
+        try:
+            porcentaje = _parse_chilean_decimal(porcentaje_raw)
+        except (InvalidOperation, ValueError):
+            messages.error(request, 'Ingrese un porcentaje valido para aplicar el cambio masivo.')
+            return redirect('articulos:articulo_cambio_masivo_precios')
+
+        if porcentaje <= Decimal('-100'):
+            messages.error(request, 'El porcentaje no puede ser menor o igual a -100%.')
+            return redirect('articulos:articulo_cambio_masivo_precios')
+
+        if base_calculo not in ['neto', 'final']:
+            messages.error(request, 'Seleccione una base de calculo valida.')
+            return redirect('articulos:articulo_cambio_masivo_precios')
+
+        productos = Articulo.objects.filter(empresa=request.empresa).select_related('categoria', 'categoria__impuesto_especifico')
+
+        if alcance == 'familia':
+            if not categoria_id:
+                messages.error(request, 'Seleccione una familia para aplicar el cambio masivo.')
+                return redirect('articulos:articulo_cambio_masivo_precios')
+            productos = productos.filter(categoria_id=categoria_id)
+        elif alcance == 'seleccionados':
+            if not producto_ids:
+                messages.error(request, 'Seleccione al menos un producto para aplicar el cambio masivo.')
+                return redirect('articulos:articulo_cambio_masivo_precios')
+            productos = productos.filter(pk__in=producto_ids)
+        else:
+            messages.error(request, 'Seleccione un alcance valido para el cambio masivo.')
+            return redirect('articulos:articulo_cambio_masivo_precios')
+
+        productos = list(productos)
+        if not productos:
+            messages.warning(request, 'No se encontraron productos para actualizar.')
+            return redirect('articulos:articulo_cambio_masivo_precios')
+
+        actualizados = 0
+        operacion_id = uuid.uuid4()
+        with transaction.atomic():
+            for articulo in productos:
+                precios = _recalcular_estructura_precio(articulo, porcentaje, base_calculo)
+                HistorialCambioPrecio.objects.create(
+                    operacion_id=operacion_id,
+                    empresa=request.empresa,
+                    articulo=articulo,
+                    categoria=articulo.categoria,
+                    usuario=request.user if request.user.is_authenticated else None,
+                    articulo_codigo=articulo.codigo,
+                    articulo_nombre=articulo.nombre,
+                    categoria_nombre=articulo.categoria.nombre if articulo.categoria else '',
+                    alcance=alcance,
+                    base_calculo=base_calculo,
+                    porcentaje=porcentaje,
+                    precio_neto_anterior=precios['precio_neto_anterior'],
+                    iva_anterior=precios['iva_anterior'],
+                    impuesto_especifico_anterior=precios['impuesto_especifico_anterior'],
+                    precio_final_anterior=precios['precio_final_anterior'],
+                    precio_neto_nuevo=precios['precio_neto'],
+                    iva_nuevo=precios['iva'],
+                    impuesto_especifico_nuevo=precios['impuesto_especifico'],
+                    precio_final_nuevo=precios['precio_final'],
+                )
+                articulo.precio_venta = str(precios['precio_neto'])
+                articulo.precio_final = str(precios['precio_final'])
+                articulo.impuesto_especifico = str(precios['impuesto_especifico'])
+                articulo.margen_porcentaje = str(precios['margen_porcentaje'])
+                articulo.save(update_fields=[
+                    'precio_venta',
+                    'precio_final',
+                    'impuesto_especifico',
+                    'margen_porcentaje',
+                    'fecha_actualizacion',
+                ])
+                actualizados += 1
+
+        base_label = 'precio final con impuestos' if base_calculo == 'final' else 'precio neto'
+        messages.success(
+            request,
+            f'Cambio masivo aplicado a {actualizados} producto(s). Ajuste: {porcentaje}% sobre {base_label}. Historial registrado.'
+        )
+        return redirect('articulos:articulo_list')
+
+    for articulo in articulos:
+        try:
+            precios = _recalcular_estructura_precio(articulo, Decimal('0.00'), 'neto')
+            articulo.iva_calculado = precios['iva']
+            articulo.impuesto_calculado = precios['impuesto_especifico']
+        except Exception:
+            articulo.iva_calculado = Decimal('0.00')
+            articulo.impuesto_calculado = Decimal('0.00')
+
+    context = {
+        'categorias': categorias,
+        'articulos': articulos,
+        'historial_reciente': HistorialCambioPrecio.objects.filter(
+            empresa=request.empresa
+        ).select_related('usuario', 'categoria', 'articulo')[:20],
+        'search': search,
+        'categoria_filtro': categoria_filtro,
+    }
+    return render(request, 'articulos/articulo_cambio_masivo_precios.html', context)
 
 
 # Vistas para Categorías
@@ -1019,18 +1247,18 @@ def lista_precio_gestionar_precios(request, pk):
             contador = 0
             for articulo in articulos_query:
                 if base_calculo == 'neto':
-                    precio_base = float(articulo.precio_venta)
-                    nuevo_precio = precio_base * (1 - descuento / 100)
+                    precio_base = _parse_chilean_decimal(articulo.precio_venta)
+                    nuevo_precio = precio_base * (Decimal('1') - Decimal(str(descuento)) / Decimal('100'))
                 else:
-                    precio_base = float(articulo.precio_final)
-                    nuevo_precio = precio_base * (1 - descuento / 100)
-                    nuevo_precio = nuevo_precio / 1.19  # Convertir a neto
+                    precio_base = _parse_chilean_decimal(articulo.precio_final)
+                    nuevo_precio = precio_base * (Decimal('1') - Decimal(str(descuento)) / Decimal('100'))
+                    nuevo_precio = nuevo_precio / Decimal('1.19')  # Convertir a neto
                 
                 if nuevo_precio > 0:
                     PrecioArticulo.objects.update_or_create(
                         articulo=articulo,
                         lista_precio=lista,
-                        defaults={'precio': Decimal(str(round(nuevo_precio, 2)))}
+                        defaults={'precio': nuevo_precio.quantize(Decimal('0.01'))}
                     )
                     contador += 1
             
@@ -1058,10 +1286,8 @@ def lista_precio_gestionar_precios(request, pk):
                     articulo_id = clean_id(articulo_id_raw)
                     articulo = Articulo.objects.get(id=articulo_id, empresa=request.empresa)
                         
-                    # Limpiar el valor: eliminar puntos (separadores de miles) y espacios
                     if value and value.strip():
-                        value_clean = value.replace('.', '').replace(' ', '').replace(',', '.')
-                        precio_value = Decimal(value_clean) if value_clean else None
+                        precio_value = _parse_chilean_decimal(value)
                     else:
                         precio_value = None
                     
@@ -1101,14 +1327,15 @@ def lista_precio_gestionar_precios(request, pk):
     # Obtener precios actuales de esta lista
     precios_actuales = {}
     for precio in PrecioArticulo.objects.filter(lista_precio=lista).select_related('articulo'):
-        # Convertir Decimal a float para evitar problemas en el template
-        precios_actuales[precio.articulo_id] = float(precio.precio)
+        precios_actuales[precio.articulo_id] = precio.precio
     
     # Agregar el precio actual a cada artículo
     articulos_list = []
     for articulo in articulos:
         precio = precios_actuales.get(articulo.id)
         articulo.precio_en_lista = precio if precio is not None else None
+        articulo.precio_venta_num = _parse_chilean_decimal(articulo.precio_venta)
+        articulo.precio_final_num = _parse_chilean_decimal(articulo.precio_final)
         articulos_list.append(articulo)
     
     context = {

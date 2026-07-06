@@ -1378,7 +1378,7 @@
             currentProductQuery: '',
             filteredProducts: [],
             returnViewAfterClient: 'viewDashboard',
-            deviceId: localStorage.getItem('gc_deviceId'),
+            deviceId: null,
             isAuthorized: localStorage.getItem('gc_isAuthorized') === 'true',
             syncTimer: null,
             
@@ -1386,6 +1386,36 @@
             map: null,
             marker: null,
             currentCoords: null,
+
+            generateDeviceId: function() {
+                if (window.crypto && crypto.randomUUID) {
+                    return 'DEV-' + crypto.randomUUID().replace(/-/g, '').substring(0, 10).toUpperCase();
+                }
+                return 'DEV-' + Math.random().toString(36).substring(2, 7).toUpperCase() + '-' + Date.now().toString(36).slice(-4).toUpperCase();
+            },
+
+            getCookie: function(name) {
+                const prefix = name + '=';
+                const cookie = document.cookie
+                    .split(';')
+                    .map(c => c.trim())
+                    .find(c => c.startsWith(prefix));
+                return cookie ? cookie.substring(prefix.length) : null;
+            },
+
+            persistDeviceId: function(deviceId) {
+                this.deviceId = deviceId;
+                localStorage.setItem('gc_deviceId', deviceId);
+                document.cookie = `gc_deviceId=${encodeURIComponent(deviceId)}; max-age=31536000; path=/ventas/movil/; SameSite=Lax`;
+            },
+
+            resolveDeviceId: function() {
+                const localId = localStorage.getItem('gc_deviceId');
+                const cookieId = this.getCookie('gc_deviceId');
+                const deviceId = localId || (cookieId ? decodeURIComponent(cookieId) : null) || this.generateDeviceId();
+                this.persistDeviceId(deviceId);
+                return deviceId;
+            },
 
             init: async function() {
                 console.log("Iniciando App Móvil...");
@@ -1396,6 +1426,7 @@
 
                 // Inicializar DB local (IndexedDB)
                 await this.initDB();
+                this.resolveDeviceId();
                 this.registerServiceWorker();
                 
                 // Ahora que la DB está lista, podemos verificar estado de red
@@ -1531,15 +1562,8 @@
 
             registerServiceWorker: function() {
                 if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.getRegistrations()
-                        .then(registrations => Promise.all(registrations.map(reg => reg.unregister())))
-                        .catch(err => console.warn('No se pudo desregistrar service workers:', err));
-                }
-
-                if ('caches' in window) {
-                    caches.keys()
-                        .then(keys => Promise.all(keys.map(key => caches.delete(key))))
-                        .catch(err => console.warn('No se pudo limpiar cache del navegador:', err));
+                    navigator.serviceWorker.register('/ventas/movil/sw.js')
+                        .catch(err => console.warn('No se pudo registrar service worker movil:', err));
                 }
             },
 
@@ -1884,10 +1908,7 @@
             },
 
             checkDevice: async function(manual = false) {
-                if (!this.deviceId) {
-                    this.deviceId = 'DEV-' + Math.random().toString(36).substring(2, 7).toUpperCase() + '-' + Date.now().toString(36).slice(-4).toUpperCase();
-                    localStorage.setItem('gc_deviceId', this.deviceId);
-                }
+                this.resolveDeviceId();
                 
                 const dispId = document.getElementById('displayDeviceId');
                 if (dispId) dispId.innerText = this.deviceId;

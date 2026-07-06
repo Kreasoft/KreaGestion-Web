@@ -1,7 +1,9 @@
 from django.db import models
+from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 from decimal import Decimal
+import uuid
 from empresas.models import Empresa, Sucursal
 
 
@@ -527,6 +529,57 @@ class PrecioArticulo(models.Model):
     
     def __str__(self):
         return f"{self.articulo.nombre} - {self.lista_precio.nombre}: ${self.precio}"
+
+
+class HistorialCambioPrecio(models.Model):
+    """Auditoria de cambios masivos de precios por articulo."""
+
+    ALCANCE_CHOICES = [
+        ('familia', 'Familia'),
+        ('seleccionados', 'Productos seleccionados'),
+    ]
+    BASE_CALCULO_CHOICES = [
+        ('neto', 'Precio neto'),
+        ('final', 'Precio final con impuestos'),
+    ]
+
+    operacion_id = models.UUIDField(default=uuid.uuid4, db_index=True, editable=False, verbose_name="ID de Operacion")
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    articulo = models.ForeignKey(Articulo, on_delete=models.CASCADE, related_name='historial_cambios_precio', verbose_name="Articulo")
+    categoria = models.ForeignKey(CategoriaArticulo, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Familia")
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Usuario")
+
+    articulo_codigo = models.CharField(max_length=50, verbose_name="Codigo Articulo")
+    articulo_nombre = models.CharField(max_length=200, verbose_name="Nombre Articulo")
+    categoria_nombre = models.CharField(max_length=100, blank=True, verbose_name="Nombre Familia")
+    alcance = models.CharField(max_length=20, choices=ALCANCE_CHOICES, verbose_name="Alcance")
+    base_calculo = models.CharField(max_length=10, choices=BASE_CALCULO_CHOICES, verbose_name="Base de Calculo")
+    porcentaje = models.DecimalField(max_digits=7, decimal_places=2, verbose_name="Porcentaje Aplicado")
+
+    precio_neto_anterior = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Neto Anterior")
+    iva_anterior = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="IVA Anterior")
+    impuesto_especifico_anterior = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Impuesto Especifico Anterior")
+    precio_final_anterior = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Final Anterior")
+
+    precio_neto_nuevo = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Neto Nuevo")
+    iva_nuevo = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="IVA Nuevo")
+    impuesto_especifico_nuevo = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Impuesto Especifico Nuevo")
+    precio_final_nuevo = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Final Nuevo")
+
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creacion")
+
+    class Meta:
+        verbose_name = "Historial de Cambio de Precio"
+        verbose_name_plural = "Historial de Cambios de Precio"
+        ordering = ['-fecha_creacion', '-id']
+        indexes = [
+            models.Index(fields=['empresa', 'fecha_creacion']),
+            models.Index(fields=['articulo', 'fecha_creacion']),
+            models.Index(fields=['operacion_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.articulo_codigo} - {self.porcentaje}% ({self.fecha_creacion:%d/%m/%Y %H:%M})"
 
 
 class StockArticulo(models.Model):

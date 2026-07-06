@@ -2,7 +2,8 @@ from django.contrib import admin
 from .models import (
     Articulo, CategoriaArticulo, UnidadMedida, StockArticulo, 
     ImpuestoEspecifico, ListaPrecio, PrecioArticulo,
-    RecetaProduccion, InsumoReceta, OrdenProduccion
+    RecetaProduccion, InsumoReceta, OrdenProduccion,
+    HistorialCambioPrecio
 )
 
 
@@ -105,6 +106,25 @@ class PrecioArticuloAdmin(admin.ModelAdmin):
 
 
 # ==================== ADMIN DE PRODUCCIÓN ====================
+
+@admin.register(HistorialCambioPrecio)
+class HistorialCambioPrecioAdmin(admin.ModelAdmin):
+    list_display = [
+        'fecha_creacion', 'articulo_codigo', 'articulo_nombre', 'categoria_nombre',
+        'porcentaje', 'base_calculo', 'precio_neto_anterior', 'precio_neto_nuevo',
+        'precio_final_anterior', 'precio_final_nuevo', 'usuario'
+    ]
+    list_filter = ['empresa', 'alcance', 'base_calculo', 'categoria', 'fecha_creacion']
+    search_fields = ['articulo_codigo', 'articulo_nombre', 'categoria_nombre', 'operacion_id']
+    readonly_fields = [field.name for field in HistorialCambioPrecio._meta.fields]
+    ordering = ['-fecha_creacion', '-id']
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
 
 class InsumoRecetaInline(admin.TabularInline):
     model = InsumoReceta

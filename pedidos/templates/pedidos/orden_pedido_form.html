@@ -230,6 +230,81 @@
     .select2-container--default .select2-selection--single .select2-selection__arrow {
         height: 34px !important;
     }
+
+    .articulo-select2-dropdown {
+        min-width: 620px !important;
+    }
+
+    .cliente-select2-dropdown {
+        min-width: 560px !important;
+    }
+
+    .articulo-select2-dropdown .select2-results__options,
+    .cliente-select2-dropdown .select2-results__options {
+        max-height: 420px !important;
+    }
+
+    .producto-option,
+    .producto-selection,
+    .cliente-option,
+    .cliente-selection {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        line-height: 1.2;
+    }
+
+    .producto-option-code,
+    .producto-selection-code,
+    .cliente-option-rut,
+    .cliente-selection-rut {
+        flex: 0 0 140px;
+        max-width: 140px;
+        font-family: "Courier New", monospace;
+        font-weight: 700;
+        color: var(--stone-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .producto-option-name,
+    .producto-selection-name,
+    .cliente-option-name,
+    .cliente-selection-name {
+        flex: 1 1 auto;
+        min-width: 0;
+        color: #495057;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cliente-modal-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .cliente-modal-grid .span-2 {
+        grid-column: span 2;
+    }
+
+    @media (max-width: 768px) {
+        .cliente-modal-grid {
+            grid-template-columns: 1fr;
+        }
+        .cliente-modal-grid .span-2 {
+            grid-column: span 1;
+        }
+        .articulo-select2-dropdown {
+            min-width: calc(100vw - 32px) !important;
+        }
+        .cliente-select2-dropdown {
+            min-width: calc(100vw - 32px) !important;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -294,7 +369,7 @@
                         <div style="flex-grow: 1;">
                             {{ form.cliente }}
                         </div>
-                        <button class="btn-stone-primary" type="button" style="height: 36px; width: 36px; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Crear Nuevo Cliente">
+                        <button class="btn-stone-primary" type="button" id="btnNuevoCliente" style="height: 36px; width: 36px; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Crear Nuevo Cliente">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
@@ -336,18 +411,18 @@
             <div class="items-list-compact">
                 <!-- Header Tabla -->
                 <div class="items-list-header row g-0">
-                    <div class="col-4 ps-2">Producto / Servicio</div>
-                    <div class="col-2 text-center">Cant</div>
+                    <div class="col-5 ps-2">Producto / Servicio</div>
+                    <div class="col-1 text-center">Cant</div>
                     <div class="col-2 text-end pe-2">Precio</div>
-                    <div class="col-2 text-center">Desc %</div>
-                    <div class="col-2 text-end pe-3">Total</div>
+                    <div class="col-1 text-center">Desc %</div>
+                    <div class="col-3 text-end pe-3">Total</div>
                 </div>
                 
                 <!-- Body Tabla -->
                 <div id="items-container-body">
                     {% for item_form in formset %}
                         <div class="item-line row g-0 align-items-center" data-form-index="{{ forloop.counter0 }}">
-                            <div class="col-4 ps-2 pe-2">
+                            <div class="col-5 ps-2 pe-2">
                                 {{ item_form.id }}
                                 {% if item_form.DELETE %}<div style="display:none;">{{ item_form.DELETE }}</div>{% endif %}
                                 <input type="hidden" name="{{ item_form.impuesto_porcentaje.html_name }}" value="{{ item_form.impuesto_porcentaje.value|default:19|floatformat:0 }}">
@@ -357,13 +432,15 @@
                                     {% for articulo in articulos_empresa %}
                                         <option value="{{ articulo.id|unlocalize }}"
                                                 data-precio="{{ articulo.precio_venta|unlocalize }}"
+                                                data-codigo="{{ articulo.codigo }}"
+                                                data-nombre="{{ articulo.nombre }}"
                                                 {% if item_form.articulo.value|stringformat:'s' == articulo.id|stringformat:'s' %}selected{% endif %}>
-                                            {{ articulo.codigo }} - {{ articulo.nombre|truncatechars:35 }}
+                                            {{ articulo.codigo }} - {{ articulo.nombre }}
                                         </option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-2 px-1">
+                            <div class="col-1 px-1">
                                 <input type="number" name="{{ item_form.cantidad.html_name }}" class="form-control form-control-sm text-center" 
                                        value="{{ item_form.cantidad.value|unlocalize|default:1 }}" step="any">
                             </div>
@@ -371,11 +448,11 @@
                                 <input type="number" name="{{ item_form.precio_unitario.html_name }}" class="form-control form-control-sm text-end"
                                        value="{{ item_form.precio_unitario.value|unlocalize|default:0 }}">
                             </div>
-                             <div class="col-2 px-1">
+                             <div class="col-1 px-1">
                                 <input type="number" name="{{ item_form.descuento_porcentaje.html_name }}" class="form-control form-control-sm text-center"
                                        value="{{ item_form.descuento_porcentaje.value|unlocalize|default:0 }}" step="0.01">
                             </div>
-                            <div class="col-2 ps-1 pe-2 d-flex align-items-center">
+                            <div class="col-3 ps-1 pe-2 d-flex align-items-center">
                                 <input type="text" class="form-control form-control-sm text-end item-total bg-transparent border-0 fw-bold" readonly placeholder="$0">
                                 <button type="button" class="btn-stone-danger ms-2" onclick="eliminarItem(this)">
                                     <i class="fas fa-times"></i>
@@ -429,21 +506,92 @@
 <!-- Template Oculto JS -->
 <div id="empty-form-template" style="display:none;">
     <div class="item-line row g-0 align-items-center" data-form-index="__prefix__">
-        <div class="col-4 ps-2 pe-2">
+        <div class="col-5 ps-2 pe-2">
              <input type="hidden" name="items-__prefix__-impuesto_porcentaje" value="19">
              <select name="items-__prefix__-articulo" class="form-select articulo-select form-control-sm">
                 <option value="">Buscar...</option>
                 {% for articulo in articulos_empresa %}
-                    <option value="{{ articulo.id|unlocalize }}" data-precio="{{ articulo.precio_venta|unlocalize }}">{{ articulo.codigo }} - {{ articulo.nombre|truncatechars:35 }}</option>
+                    <option value="{{ articulo.id|unlocalize }}" data-precio="{{ articulo.precio_venta|unlocalize }}" data-codigo="{{ articulo.codigo }}" data-nombre="{{ articulo.nombre }}">{{ articulo.codigo }} - {{ articulo.nombre }}</option>
                 {% endfor %}
             </select>
         </div>
-        <div class="col-2 px-1"><input type="number" name="items-__prefix__-cantidad" class="form-control form-control-sm text-center" value="1" step="any"></div>
+        <div class="col-1 px-1"><input type="number" name="items-__prefix__-cantidad" class="form-control form-control-sm text-center" value="1" step="any"></div>
         <div class="col-2 px-1"><input type="number" name="items-__prefix__-precio_unitario" class="form-control form-control-sm text-end" value="0"></div>
-        <div class="col-2 px-1"><input type="number" name="items-__prefix__-descuento_porcentaje" class="form-control form-control-sm text-center" value="0" step="0.01"></div>
-        <div class="col-2 ps-1 pe-2 d-flex align-items-center">
+        <div class="col-1 px-1"><input type="number" name="items-__prefix__-descuento_porcentaje" class="form-control form-control-sm text-center" value="0" step="0.01"></div>
+        <div class="col-3 ps-1 pe-2 d-flex align-items-center">
             <input type="text" class="form-control form-control-sm text-end item-total bg-transparent border-0 fw-bold" readonly placeholder="$0">
             <button type="button" class="btn-stone-danger ms-2" onclick="eliminarItem(this)"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="clienteModal" tabindex="-1" aria-labelledby="clienteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border: 2px solid #E8DCC8; border-radius: 14px;">
+            <div class="modal-header" style="background: var(--stone-gradient); border-bottom: 1px solid var(--stone-light);">
+                <h5 class="modal-title fw-bold" id="clienteModalLabel" style="color: var(--stone-text);">
+                    <i class="fas fa-user-plus me-2"></i>Nuevo Cliente
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form id="clienteRapidoForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="cliente-modal-grid">
+                        <div>
+                            <label class="form-label">RUT *</label>
+                            <input type="text" name="rut" class="form-control form-control-sm" placeholder="12.345.678-9" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Nombre *</label>
+                            <input type="text" name="nombre" class="form-control form-control-sm" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Tipo Cliente</label>
+                            <select name="tipo_cliente" class="form-select form-select-sm">
+                                <option value="contribuyente">Contribuyente</option>
+                                <option value="consumidor_final">Consumidor Final</option>
+                                <option value="exento">Exento de IVA</option>
+                                <option value="extranjero">Extranjero</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Giro</label>
+                            <input type="text" name="giro" class="form-control form-control-sm">
+                        </div>
+                        <div class="span-2">
+                            <label class="form-label">Direccion *</label>
+                            <input type="text" name="direccion" class="form-control form-control-sm" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Comuna *</label>
+                            <input type="text" name="comuna" class="form-control form-control-sm" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Ciudad *</label>
+                            <input type="text" name="ciudad" class="form-control form-control-sm" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Telefono *</label>
+                            <input type="text" name="telefono" class="form-control form-control-sm" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <input type="hidden" name="estado" value="activo">
+                    <input type="hidden" name="limite_credito" value="0">
+                    <input type="hidden" name="plazo_pago" value="30">
+                    <input type="hidden" name="descuento_porcentaje" value="0">
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--stone-light);">
+                    <button type="button" class="btn-stone-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn-stone-primary" id="guardarClienteRapidoBtn">
+                        <i class="fas fa-save me-1"></i> Guardar Cliente
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -470,10 +618,119 @@ $(document).ready(function() {
         return Math.round(parseFloat(precioStr) || 0);
     }
     
-    function initSelect2(element) { $(element).select2({ placeholder: 'Buscar...', allowClear: true, width: '100%' }); }
+    function productoTemplate(option) {
+        if (!option.id) return option.text;
+
+        const $option = $(option.element);
+        const codigo = $option.data('codigo') || '';
+        const nombre = $option.data('nombre') || option.text;
+
+        return $(`
+            <span class="producto-option">
+                <span class="producto-option-code"></span>
+                <span class="producto-option-name"></span>
+            </span>
+        `).find('.producto-option-code').text(codigo).end()
+          .find('.producto-option-name').text(nombre).end();
+    }
+
+    function productoSeleccionTemplate(option) {
+        if (!option.id) return option.text;
+
+        const $option = $(option.element);
+        const codigo = $option.data('codigo') || '';
+        const nombre = $option.data('nombre') || option.text;
+
+        return $(`
+            <span class="producto-selection">
+                <span class="producto-selection-code"></span>
+                <span class="producto-selection-name"></span>
+            </span>
+        `).find('.producto-selection-code').text(codigo).end()
+          .find('.producto-selection-name').text(nombre).end();
+    }
+
+    function splitClienteText(text) {
+        const raw = (text || '').trim();
+        const parts = raw.split(' - ');
+        if (parts.length >= 2) {
+            return {
+                rut: parts.shift().trim(),
+                nombre: parts.join(' - ').trim()
+            };
+        }
+        return {
+            rut: '',
+            nombre: raw
+        };
+    }
+
+    function clienteTemplate(option) {
+        if (!option.id) return option.text;
+
+        const cliente = splitClienteText(option.text);
+        return $(`
+            <span class="cliente-option">
+                <span class="cliente-option-rut"></span>
+                <span class="cliente-option-name"></span>
+            </span>
+        `).find('.cliente-option-rut').text(cliente.rut || 'Sin RUT').end()
+          .find('.cliente-option-name').text(cliente.nombre).end();
+    }
+
+    function clienteSeleccionTemplate(option) {
+        if (!option.id) return option.text;
+
+        const cliente = splitClienteText(option.text);
+        return $(`
+            <span class="cliente-selection">
+                <span class="cliente-selection-rut"></span>
+                <span class="cliente-selection-name"></span>
+            </span>
+        `).find('.cliente-selection-rut').text(cliente.rut || 'Sin RUT').end()
+          .find('.cliente-selection-name').text(cliente.nombre).end();
+    }
+
+    function initSelect2(element, options) {
+        $(element).select2(Object.assign({
+            placeholder: 'Buscar...',
+            allowClear: true,
+            width: '100%'
+        }, options || {}));
+    }
+
+    function showClienteModal() {
+        const modalEl = document.getElementById('clienteModal');
+        if (window.bootstrap && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } else {
+            $('#clienteModal').modal('show');
+        }
+    }
+
+    function hideClienteModal() {
+        const modalEl = document.getElementById('clienteModal');
+        if (window.bootstrap && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        } else {
+            $('#clienteModal').modal('hide');
+        }
+    }
     
-    initSelect2($('#{{ form.cliente.id_for_label }}'));
-    $('.articulo-select').each(function() { initSelect2(this); });
+    initSelect2($('#{{ form.cliente.id_for_label }}'), {
+        dropdownCssClass: 'cliente-select2-dropdown',
+        templateResult: clienteTemplate,
+        templateSelection: clienteSeleccionTemplate,
+        escapeMarkup: function(markup) { return markup; }
+    });
+    $('.articulo-select').each(function() {
+        initSelect2(this, {
+            dropdownCssClass: 'articulo-select2-dropdown',
+            templateResult: productoTemplate,
+            templateSelection: productoSeleccionTemplate,
+            escapeMarkup: function(markup) { return markup; }
+        });
+    });
 
     function calculateTotal() {
         let subtotal = 0, descuentos = 0, iva = 0;
@@ -533,7 +790,12 @@ $(document).ready(function() {
         $('#items-container-body').append(compiledTmpl);
         totalForms.val(count + 1);
         
-        initSelect2($('#items-container-body .item-line:last-child .articulo-select'));
+        initSelect2($('#items-container-body .item-line:last-child .articulo-select'), {
+            dropdownCssClass: 'articulo-select2-dropdown',
+            templateResult: productoTemplate,
+            templateSelection: productoSeleccionTemplate,
+            escapeMarkup: function(markup) { return markup; }
+        });
     });
     
     // Eliminar Item
@@ -551,6 +813,62 @@ $(document).ready(function() {
     };
     
     calculateTotal();
+
+    $('#btnNuevoCliente').on('click', function() {
+        $('#clienteRapidoForm')[0].reset();
+        showClienteModal();
+    });
+
+    $('#clienteRapidoForm').on('submit', function(event) {
+        event.preventDefault();
+
+        const form = $(this);
+        const btn = $('#guardarClienteRapidoBtn');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Guardando...');
+
+        $.ajax({
+            url: '{% url "clientes:ajax_cliente_create" %}',
+            method: 'POST',
+            data: form.serialize(),
+            success: function(response) {
+                if (!response.success) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'No se pudo crear',
+                        text: response.message || 'Revise los datos del cliente.',
+                        confirmButtonColor: '#8B7355'
+                    });
+                    return;
+                }
+
+                const clienteSelect = $('#{{ form.cliente.id_for_label }}');
+                const label = `${response.rut || 'Sin RUT'} - ${response.nombre}`;
+                const newOption = new Option(label, response.id, true, true);
+                clienteSelect.append(newOption).trigger('change');
+
+                hideClienteModal();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Cliente creado',
+                    text: 'El cliente fue seleccionado automaticamente en la orden.',
+                    timer: 1800,
+                    showConfirmButton: false
+                });
+            },
+            error: function(xhr) {
+                const response = xhr.responseJSON || {};
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo crear',
+                    text: response.message || 'Ocurrio un error al crear el cliente.',
+                    confirmButtonColor: '#8B7355'
+                });
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> Guardar Cliente');
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

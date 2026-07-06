@@ -270,8 +270,25 @@ def ver_factura_electronica(request, dte_id):
             'cliente', 'vendedor', 'empresa', 'estacion_trabajo', 'forma_pago'
         ).prefetch_related('referencias').get(pk=dte.venta_id)
     
-    # Usar el prefetched orden_despacho
+    # Usar el prefetched orden_despacho histórico (Venta) o, para pedidos,
+    # recuperar la OrdenDespacho real desde los detalles vinculados al DTE.
     orden_despacho = dte.orden_despacho.all()[0] if dte.orden_despacho.exists() else None
+    if not orden_despacho and OrdenDespacho:
+        detalle_despacho = None
+        if dte.tipo_dte == '52':
+            detalle_despacho = dte.detalles_despacho_guia.select_related(
+                'orden_despacho',
+                'orden_despacho__orden_pedido',
+                'orden_despacho__orden_pedido__cliente',
+            ).first()
+        elif dte.tipo_dte in ['33', '34']:
+            detalle_despacho = dte.detalles_despacho_factura.select_related(
+                'orden_despacho',
+                'orden_despacho__orden_pedido',
+                'orden_despacho__orden_pedido__cliente',
+            ).first()
+        if detalle_despacho:
+            orden_despacho = detalle_despacho.orden_despacho
     
     # Intentar obtener transferencia
     transferencia = dte.transferencias.first()

@@ -147,9 +147,9 @@ def generar_guia_desde_orden_despacho(orden_despacho, usuario):
                 res_dtebox = dtebox.timbrar_dte(xml_firmado)
                 if res_dtebox['success'] and res_dtebox.get('ted'):
                     ted_xml = res_dtebox['ted']
-                    print("✅ Timbre obtenido exitosamente desde DTEBox")
+                    print("[OK] Timbre obtenido exitosamente desde DTEBox")
             except Exception as e_dtebox:
-                print(f"⚠️ Error al timbrar con DTEBox: {e_dtebox}. Intentando local...")
+                print(f"[WARN] Error al timbrar con DTEBox: {e_dtebox}. Intentando local...")
 
         # Si no se obtuvo de DTEBox, generar localmente
         if not ted_xml:

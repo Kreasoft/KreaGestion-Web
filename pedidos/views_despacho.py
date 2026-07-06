@@ -137,8 +137,12 @@ def orden_despacho_create(request):
                         return redirect('pedidos:orden_despacho_detail', pk=orden.pk)
             
             except Exception as e:
+                import traceback
                 error_msg = str(e)
-                messages.error(request, f'⚠ Error al crear orden: {error_msg}')
+                with open(r'C:\PROJECTOS-WEB\GestionCloud\debug_errors.log', 'a', encoding='utf-8') as f:
+                    f.write('\n=== Error al crear orden de despacho ===\n')
+                    f.write(traceback.format_exc())
+                messages.error(request, f'Error al crear orden: {error_msg}')
                 if 'No hay folios CAF disponibles' in error_msg:
                     messages.warning(request, 'Debe cargar archivos CAF en Facturación Electrónica → Folios CAF')
         else:
@@ -433,7 +437,5 @@ def generar_factura_despacho(request, pk):
             messages.error(request, f'Error al generar Factura: {str(e)}')
             
     return redirect('pedidos:orden_despacho_detail', pk=pk)
-
-
 
 
