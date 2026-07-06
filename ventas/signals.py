@@ -6,6 +6,11 @@ from .models import Venta, VentaDetalle
 from inventario.models import Stock, Inventario
 
 
+def print(*args, **kwargs):
+    """Evita que mensajes de depuracion rompan signals si stdout falla."""
+    return None
+
+
 @receiver(post_save, sender=Venta)
 def actualizar_stock_venta(sender, instance, created, **kwargs):
     """

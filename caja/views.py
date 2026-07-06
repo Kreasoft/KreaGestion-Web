@@ -22,6 +22,11 @@ from facturacion_electronica.models import DocumentoTributarioElectronico
 # from tesoreria.models import CuentaCorrienteCliente, MovimientoCuentaCorriente
 
 
+def print(*args, **kwargs):
+    """Evita que mensajes de depuracion rompan vistas si stdout falla en Windows."""
+    return None
+
+
 # ========================================
 # GESTIÓN DE CAJAS
 # ========================================
@@ -604,51 +609,7 @@ def procesar_venta_buscar(request):
     ).exclude(
         tipo_documento_planeado=''
     ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')[:500]
-    
-    # Debug: información de depuración
-    todos_los_tickets = Venta.objects.filter(
-        empresa=request.empresa,
-        tipo_documento='ticket'
-    )
-    
-    # Verificar también si hay VentaProcesada asociados
-    vales_con_procesada = []
-    for v in todos_los_tickets:
-        if VentaProcesada.objects.filter(venta_preventa=v).exists():
-            vales_con_procesada.append(v.id)
-    
-    # Debug: imprimir información de depuración simplificada
-    print("=" * 80)
-    print(f"[DEBUG PROCESAR VENTA BUSCAR] Empresa: {request.empresa.nombre} (ID: {request.empresa.id})")
-    print(f"[DEBUG] Total tickets: {todos_los_tickets.count()}")
-    print(f"[DEBUG] Tickets NO facturados (facturado=False): {todos_los_tickets.filter(facturado=False).count()}")
-    print(f"[DEBUG] Tickets facturados (facturado=True): {todos_los_tickets.filter(facturado=True).count()}")
-    print(f"[DEBUG] Tickets con VentaProcesada asociada: {len(vales_con_procesada)}")
-    print(f"[DEBUG] Tickets pendientes encontrados: {tickets_pendientes.count()}")
-    
-    # Mostrar detalles de los primeros tickets para depuración
-    if todos_los_tickets.exists():
-        print("\n[DEBUG] Primeros tickets del día:")
-        for v in todos_los_tickets[:10]:
-            tiene_procesada = VentaProcesada.objects.filter(venta_preventa=v).exists()
-            print(f"  - Ticket #{v.numero_venta}: facturado={v.facturado}, estado={v.estado}, tipo_planeado={v.tipo_documento_planeado}, tiene_procesada={tiene_procesada}, estacion={v.estacion_trabajo.nombre if v.estacion_trabajo else 'N/A'}")
-    
-    if tickets_pendientes.exists():
-        print("\n[DEBUG] Tickets pendientes que aparecerán en la lista:")
-        for v in tickets_pendientes[:5]:
-            tiene_procesada = VentaProcesada.objects.filter(venta_preventa=v).exists()
-            print(f"  - Ticket #{v.numero_venta}: facturado={v.facturado}, tipo_planeado={v.tipo_documento_planeado}, tiene_procesada={tiene_procesada}")
-    else:
-        print("\n[DEBUG] ⚠️ NO HAY TICKETS PENDIENTES")
-        tickets_no_facturados = todos_los_tickets.filter(facturado=False)
-        if tickets_no_facturados.exists():
-            print(f"  → Hay {tickets_no_facturados.count()} tickets con facturado=False pero no aparecen")
-            print("  → Verificando si tienen VentaProcesada asociada...")
-            for v in tickets_no_facturados[:5]:
-                tiene_procesada = VentaProcesada.objects.filter(venta_preventa=v).exists()
-                print(f"    - Vale #{v.numero_venta}: tiene_procesada={tiene_procesada}")
-    print("=" * 80)
-    
+
     context = {
         'apertura_activa': apertura_activa,
         'tickets_pendientes': tickets_pendientes,

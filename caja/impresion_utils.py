@@ -56,6 +56,58 @@ def img_to_escpos_hex(image_path, max_width=384):
         print(f"Error convirtiendo imagen a ESC/POS: {e}")
         return ""
 
+def _formatear_monto_ticket(monto):
+    return f"{int(round(float(monto or 0))):,}".replace(",", ".")
+
+
+def _agregar_linea_monto(lineas, nombre, monto, width):
+    monto_texto = f"${_formatear_monto_ticket(monto)}"
+    nombre = (nombre or "SIN FORMA").upper()
+    espacio_nombre = max(8, width - len(monto_texto) - 1)
+    lineas.append(f"{nombre[:espacio_nombre]:<{espacio_nombre}} {monto_texto}")
+
+
+def obtener_formas_pago_ticket(venta):
+    pagos = []
+    try:
+        from caja.models import MovimientoCaja
+
+        movimientos = (
+            MovimientoCaja.objects
+            .filter(venta=venta, tipo__in=['venta', 'ingreso'])
+            .select_related('forma_pago')
+            .order_by('id')
+        )
+
+        acumulados = {}
+        orden = []
+        for mov in movimientos:
+            if not mov.forma_pago:
+                continue
+
+            key = mov.forma_pago_id
+            if key not in acumulados:
+                acumulados[key] = {
+                    'nombre': mov.forma_pago.nombre,
+                    'monto': 0,
+                }
+                orden.append(key)
+
+            acumulados[key]['monto'] += abs(mov.monto or 0)
+
+        pagos = [acumulados[key] for key in orden]
+    except Exception:
+        pagos = []
+
+    if not pagos and getattr(venta, 'forma_pago', None):
+        pagos.append({
+            'nombre': venta.forma_pago.nombre,
+            'monto': venta.total,
+        })
+
+    return pagos
+
+
 def generar_esc_pos_ticket(venta, detalles=None):
     # Obtener configuración de empresa
     formato_impresora = 'termica_80'
@@ -198,10 +250,23 @@ def generar_esc_pos_ticket(venta, detalles=None):
     
     lineas.append("-" * width)
     
-    # FORMA DE PAGO
-    if venta.forma_pago:
+    # FORMAS DE PAGO
+    formas_pago_ticket = obtener_formas_pago_ticket(venta)
+    if formas_pago_ticket:
         lineas.append(ALIGN_LEFT)
-        lineas.append(f"MEDIO PAGO: {venta.forma_pago.nombre.upper()}")
+        if len(formas_pago_ticket) == 1:
+            pago = formas_pago_ticket[0]
+            lineas.append(f"MEDIO PAGO: {pago['nombre'].upper()}")
+            _agregar_linea_monto(lineas, "MONTO PAGO", pago['monto'], width)
+        else:
+            lineas.append(BOLD_ON)
+            lineas.append("PAGO COMBINADO")
+            lineas.append(BOLD_OFF)
+            for pago in formas_pago_ticket:
+                _agregar_linea_monto(lineas, pago['nombre'], pago['monto'], width)
+
+            total_pagado = sum(pago['monto'] for pago in formas_pago_ticket)
+            _agregar_linea_monto(lineas, "TOTAL PAGADO", total_pagado, width)
         lineas.append("-" * width)
         
     # TOTALES

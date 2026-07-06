@@ -18,6 +18,11 @@ from .forms import ProcesarVentaForm, AperturaCajaForm
 from facturacion_electronica.services import FolioService
 
 
+def print(*args, **kwargs):
+    """Evita que mensajes de depuracion rompan vistas si stdout falla en Windows."""
+    return None
+
+
 @login_required
 @requiere_empresa
 @requiere_permiso('caja.add_ventaprocesada', mensaje='No tienes permisos para procesar ventas. Contacta al administrador.', redirect_url='caja:apertura_list')

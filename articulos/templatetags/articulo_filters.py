@@ -4,6 +4,45 @@ from decimal import Decimal
 
 register = template.Library()
 
+
+def parse_chilean_decimal(value):
+    if value is None or value == '':
+        return Decimal('0')
+    if isinstance(value, Decimal):
+        return value
+
+    value_str = str(value).strip().replace('$', '').replace(' ', '').replace('\xa0', '')
+    if not value_str:
+        return Decimal('0')
+
+    has_dot = '.' in value_str
+    has_comma = ',' in value_str
+
+    if has_dot and has_comma:
+        if value_str.rfind(',') > value_str.rfind('.'):
+            normalized = value_str.replace('.', '').replace(',', '.')
+        else:
+            normalized = value_str.replace(',', '')
+    elif has_comma:
+        parts = value_str.split(',')
+        if len(parts) == 2 and len(parts[1]) == 3:
+            normalized = value_str.replace(',', '')
+        else:
+            normalized = value_str.replace(',', '.')
+    elif has_dot:
+        parts = value_str.split('.')
+        if len(parts) > 2:
+            normalized = value_str.replace('.', '')
+        elif len(parts) == 2 and len(parts[1]) == 3 and len(parts[0]) <= 3:
+            normalized = value_str.replace('.', '')
+        else:
+            normalized = value_str
+    else:
+        normalized = value_str
+
+    return Decimal(normalized)
+
+
 @register.filter
 def format_price(value):
     """Formatea un precio con separadores de miles en formato chileno (sin decimales)"""
@@ -11,13 +50,7 @@ def format_price(value):
         return "0"
     
     try:
-        # Convertir a Decimal si es necesario
-        if isinstance(value, str):
-            value = value.replace(',', '').replace('.', '').replace(' ', '').replace('\xa0', '').strip()
-            value = Decimal(value)
-        else:
-            value = Decimal(str(value))
-        
+        value = parse_chilean_decimal(value)
         # Redondear a entero
         value = round(value)
         
@@ -53,7 +86,7 @@ def precio_final_con_impuestos(articulo):
     
     try:
         # Obtener precio neto correctamente
-        precio_neto = float(articulo.precio_venta)
+        precio_neto = float(parse_chilean_decimal(articulo.precio_venta))
         
         # Calcular IVA (19%)
         iva = precio_neto * 0.19
@@ -76,7 +109,7 @@ def precio_final_con_impuestos(articulo):
     except Exception as e:
         print(f"ERROR en precio_final_con_impuestos: {e}")
         # Si hay error, devolver el precio original
-        return str(int(float(articulo.precio_venta)))
+        return str(int(parse_chilean_decimal(articulo.precio_venta)))
 
 @register.filter
 def test_precio(articulo):

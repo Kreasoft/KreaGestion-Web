@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% load humanize %}
+{% load l10n %}
 
 {% block title %}Cuenta Corriente Proveedores - GestionCloud{% endblock %}
 
@@ -139,16 +140,16 @@
     .table-piedra thead th {
         background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 12px 15px; text-align: left;
     }
-    .table-piedra tbody tr { transition: all 0.2s; }
+    .table-piedra tbody tr { transition: all 0.2s; height: 32px; }
     .table-piedra tbody tr:hover { background-color: #F8F6F2; }
     .table-piedra tbody td { 
-        padding: 10px 15px; vertical-align: middle; font-size: 0.85rem; color: #4A5568; border-bottom: 1px solid #F0EAE0;
+        height: 32px; padding: 2px 15px; vertical-align: middle; font-size: 0.82rem; line-height: 1.15; color: #4A5568; border-bottom: 1px solid #F0EAE0;
     }
     .table-piedra tbody tr:last-child td { border-bottom: none; }
 
     /* ICONOS ACCION */
     .btn-icon {
-        width: 30px; height: 30px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; transition: all 0.2s;
+        width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; transition: all 0.2s;
     }
     .btn-icon-view { color: #0288D1; } .btn-icon-view:hover { background: #E1F5FE; }
     .btn-icon-pay { color: #2E7D32; } .btn-icon-pay:hover { background: #E8F5E9; }
@@ -196,9 +197,9 @@
                 <a href="{% url 'tesoreria:exportar_cuenta_corriente_proveedor_excel' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}{% if request.GET.estado_pago %}{% if request.GET.search %}&{% else %}?{% endif %}estado_pago={{ request.GET.estado_pago }}{% endif %}" class="btn-action-success">
                     <i class="fas fa-file-excel"></i> Exportar
                 </a>
-                <button type="button" class="btn-action-secondary" onclick="window.print()">
+                <a href="{% url 'tesoreria:cuenta_corriente_proveedor_print' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" target="_blank" class="btn-action-secondary">
                     <i class="fas fa-print"></i>
-                </button>
+                </a>
                 <a href="{% url 'tesoreria:documento_pendiente_proveedor_list' %}" class="btn-action-secondary">
                     <i class="fas fa-list"></i> Ver Todos
                 </a>
@@ -222,21 +223,21 @@
                 <div class="stone-stat-card">
                     <div class="stat-content">
                         <span class="stat-label">Total Pendiente</span>
-                        <span class="stat-value format-number" data-value="{{ stats.total_pendiente|default:0 }}" data-prefix="$"></span>
+                        <span class="stat-value format-number" data-value="{{ stats.total_pendiente|default:0|unlocalize }}" data-prefix="$"></span>
                     </div>
                     <i class="fas fa-clock stat-icon text-warning" style="opacity: 0.2"></i>
                 </div>
                 <div class="stone-stat-card">
                     <div class="stat-content">
                         <span class="stat-label">Total Vencido</span>
-                        <span class="stat-value format-number text-danger" data-value="{{ stats.total_vencido|default:0 }}" data-prefix="$"></span>
+                        <span class="stat-value format-number text-danger" data-value="{{ stats.total_vencido|default:0|unlocalize }}" data-prefix="$"></span>
                     </div>
                     <i class="fas fa-exclamation-triangle stat-icon text-danger" style="opacity: 0.2"></i>
                 </div>
                 <div class="stone-stat-card">
                     <div class="stat-content">
                         <span class="stat-label">Pago Parcial</span>
-                        <span class="stat-value format-number text-info" data-value="{{ stats.total_parcial|default:0 }}" data-prefix="$"></span>
+                        <span class="stat-value format-number text-info" data-value="{{ stats.total_parcial|default:0|unlocalize }}" data-prefix="$"></span>
                     </div>
                     <i class="fas fa-coins stat-icon text-info" style="opacity: 0.2"></i>
                 </div>
@@ -299,9 +300,9 @@
                                 </div>
                             </td>
                             <td>{{ documento.fecha_emision|date:"d/m/Y"|default:"-" }}</td>
-                            <td class="text-end fw-bold format-number" data-value="{{ documento.total_documento|floatformat:0|default:0 }}">$</td>
-                            <td class="text-end fw-bold text-success format-number" data-value="{{ documento.monto_pagado|floatformat:0|default:0 }}">$</td>
-                            <td class="text-end fw-bold text-danger format-number" data-value="{{ documento.saldo_pendiente|floatformat:0|default:0 }}">$</td>
+                            <td class="text-end fw-bold format-number" data-value="{{ documento.total_documento|default:0|unlocalize }}">$</td>
+                            <td class="text-end fw-bold text-success format-number" data-value="{{ documento.monto_pagado|default:0|unlocalize }}">$</td>
+                            <td class="text-end fw-bold text-danger format-number" data-value="{{ documento.saldo_pendiente|default:0|unlocalize }}">$</td>
                             <td class="text-center">
                                 {% if documento.saldo_pendiente <= 0 %}
                                     <span class="badge badge-stone badge-stone-success">Pagado</span>
@@ -319,7 +320,7 @@
                                     <button type="button" class="btn-icon btn-icon-pay" title="Registrar Pago"
                                             data-doc-id="{{ documento.pk }}"
                                             data-doc-numero="{{ documento.numero_documento }}"
-                                            data-doc-saldo="{{ documento.saldo_pendiente|floatformat:0 }}"
+                                            data-doc-saldo="{{ documento.saldo_pendiente|unlocalize }}"
                                             onclick="registrarPago(this)">
                                         <i class="fas fa-hand-holding-usd"></i>
                                     </button>
@@ -402,8 +403,34 @@
 <!-- SCRIPTS MANTENIDOS DEL ORIGINAL -->
 <script>
 // Función para formatear números con punto como separador de miles
+function parseMonto(value) {
+    let text = String(value ?? '').trim().replace(/[^\d,.-]/g, '');
+    if (!text) return 0;
+
+    const hasComma = text.includes(',');
+    const hasDot = text.includes('.');
+
+    if (hasComma && hasDot) {
+        text = text.lastIndexOf(',') > text.lastIndexOf('.')
+            ? text.replace(/\./g, '').replace(',', '.')
+            : text.replace(/,/g, '');
+    } else if (hasDot) {
+        const parts = text.split('.');
+        if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+            text = text.replace(/\./g, '');
+        }
+    } else if (hasComma) {
+        const parts = text.split(',');
+        text = parts.length === 2 && parts[1].length !== 3
+            ? text.replace(',', '.')
+            : text.replace(/,/g, '');
+    }
+
+    return parseFloat(text) || 0;
+}
+
 function formatearNumero(numero) {
-    const num = Math.round(parseFloat(numero) || 0);
+    const num = Math.round(parseMonto(numero));
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
@@ -414,9 +441,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const prefix = element.dataset.prefix || '';
         const currentText = element.textContent.trim();
         if (value) {
-            const cleanValue = value.toString().replace(/[^\d.-]/g, '');
             const finalPrefix = currentText.startsWith('$') ? '$' : prefix;
-            element.textContent = finalPrefix + formatearNumero(cleanValue);
+            element.textContent = finalPrefix + formatearNumero(value);
         }
     });
     
@@ -480,7 +506,7 @@ let formasPagoSeleccionadas = [];
 function registrarPago(btn) {
     const documentoId = btn.dataset.docId;
     const numeroDocumento = btn.dataset.docNumero;
-    const saldoPendiente = parseFloat(btn.dataset.docSaldo.replace(/[^\d.-]/g, '')) || 0;
+    const saldoPendiente = parseMonto(btn.dataset.docSaldo);
     
     formasPagoSeleccionadas = [];
     
@@ -514,6 +540,10 @@ function mostrarModalPago(documentoId, numeroDocumento, saldoPendiente) {
         confirmButtonColor: '#8B7355',
         didOpen: () => agregarFormaPago(),
         preConfirm: () => validarYEnviarPago()
+    }).then(result => {
+        if (result.isConfirmed && result.value && result.value.success) {
+            window.location.reload();
+        }
     });
 }
 
@@ -542,20 +572,20 @@ function agregarFormaPago() {
 
 function calcularTotal() {
     let total = 0;
-    document.querySelectorAll('.monto-pago').forEach(input => total += parseFloat(input.value) || 0);
+    document.querySelectorAll('.monto-pago').forEach(input => total += parseMonto(input.value));
     document.getElementById('totalPagar').innerText = `$${formatearNumero(total)}`;
 }
 
 function validarYEnviarPago() {
     const docId = document.getElementById('documentoIdPago').value;
-    const saldo = parseFloat(document.getElementById('saldoPendientePago').value);
+    const saldo = parseMonto(document.getElementById('saldoPendientePago').value);
     const obs = document.getElementById('observacionesPago').value;
     
     const formas = [];
     let total = 0;
     document.querySelectorAll('.forma-pago-item').forEach(item => {
         const fid = item.querySelector('.forma-pago-select').value;
-        const mont = parseFloat(item.querySelector('.monto-pago').value) || 0;
+        const mont = parseMonto(item.querySelector('.monto-pago').value);
         if (fid && mont > 0) {
             formas.push({forma_pago_id: fid, monto: mont});
             total += mont;
@@ -570,9 +600,12 @@ function validarYEnviarPago() {
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
         body: JSON.stringify({documento_id: docId, formas_pago: formas, observaciones: obs})
     })
-    .then(r => r.json())
+    .then(r => r.json().then(d => {
+        if (!r.ok) throw new Error(d.message || d.error || 'No se pudo registrar el pago');
+        return d;
+    }))
     .then(d => {
-        if(!d.success) throw new Error(d.message);
+        if(!d.success) throw new Error(d.message || d.error || 'No se pudo registrar el pago');
         return d;
     })
     .catch(e => Swal.showValidationMessage(e.message));

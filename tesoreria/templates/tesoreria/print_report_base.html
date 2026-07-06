@@ -1,0 +1,318 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Reporte{% endblock %}</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 14mm 12mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #eef0f3;
+            color: #222;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            line-height: 1.35;
+        }
+
+        .screen-actions {
+            max-width: 216mm;
+            margin: 14px auto;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .screen-actions button,
+        .screen-actions a {
+            border: 1px solid #6f5b44;
+            background: #6f5b44;
+            color: #fff;
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .sheet {
+            width: 216mm;
+            min-height: 279mm;
+            margin: 0 auto 20px;
+            background: #fff;
+            padding: 12mm;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+        }
+
+        .report-header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 16px;
+            border-bottom: 2px solid #2f2f2f;
+            padding-bottom: 12px;
+            margin-bottom: 14px;
+        }
+
+        .brand {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .brand-logo {
+            width: 58px;
+            height: 58px;
+            object-fit: contain;
+            border: 1px solid #ddd;
+            padding: 4px;
+        }
+
+        .brand-name {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0;
+            margin: 0 0 3px;
+            color: #1f1f1f;
+        }
+
+        .brand-meta,
+        .report-meta {
+            color: #555;
+            font-size: 10px;
+        }
+
+        .report-meta {
+            text-align: right;
+            min-width: 150px;
+        }
+
+        .report-title {
+            margin: 0 0 12px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 16px;
+            align-items: end;
+        }
+
+        .report-title h1 {
+            margin: 0;
+            font-size: 20px;
+            color: #111;
+            text-transform: uppercase;
+        }
+
+        .report-title p {
+            margin: 3px 0 0;
+            color: #555;
+            font-size: 11px;
+        }
+
+        .filter-chip {
+            display: inline-block;
+            border: 1px solid #d5cab8;
+            background: #faf8f4;
+            padding: 4px 8px;
+            border-radius: 999px;
+            color: #5d4037;
+            font-size: 10px;
+            margin-left: 4px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin: 12px 0 14px;
+        }
+
+        .summary-card {
+            border: 1px solid #d8d8d8;
+            border-left: 4px solid #6f5b44;
+            padding: 8px 9px;
+            min-height: 46px;
+        }
+
+        .summary-label {
+            display: block;
+            color: #666;
+            text-transform: uppercase;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            margin-bottom: 4px;
+        }
+
+        .summary-value {
+            display: block;
+            font-size: 15px;
+            font-weight: 800;
+            color: #222;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #333;
+            border-bottom: 1px solid #cfcfcf;
+            padding-bottom: 5px;
+            margin: 14px 0 8px;
+        }
+
+        table.report-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .report-table th {
+            background: #f0ebe4;
+            color: #3f3327;
+            border: 1px solid #cfc7ba;
+            padding: 6px 5px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+            text-align: left;
+        }
+
+        .report-table td {
+            border: 1px solid #ddd;
+            padding: 5px;
+            vertical-align: top;
+            font-size: 10px;
+            word-wrap: break-word;
+        }
+
+        .report-table tbody tr:nth-child(even) td {
+            background: #fbfbfb;
+        }
+
+        .text-right {
+            text-align: right !important;
+        }
+
+        .text-center {
+            text-align: center !important;
+        }
+
+        .muted {
+            color: #777;
+        }
+
+        .status {
+            display: inline-block;
+            min-width: 58px;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 8.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: center;
+            border: 1px solid #bbb;
+        }
+
+        .status-ok { color: #1b5e20; background: #e8f5e9; border-color: #a5d6a7; }
+        .status-warn { color: #7b4b00; background: #fff8e1; border-color: #ffe082; }
+        .status-danger { color: #9b1c1c; background: #ffebee; border-color: #ffcdd2; }
+        .status-info { color: #0d47a1; background: #e3f2fd; border-color: #bbdefb; }
+
+        .report-footer {
+            margin-top: 16px;
+            padding-top: 8px;
+            border-top: 1px solid #cfcfcf;
+            display: flex;
+            justify-content: space-between;
+            color: #777;
+            font-size: 9px;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #777;
+            padding: 24px 8px !important;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+            }
+
+            .screen-actions {
+                display: none !important;
+            }
+
+            .sheet {
+                width: auto;
+                min-height: auto;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+
+            .report-table tr,
+            .summary-card {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="screen-actions">
+        <a href="{{ back_url|default:'/' }}">Volver</a>
+        <button type="button" onclick="window.print()">Imprimir</button>
+    </div>
+
+    <main class="sheet">
+        <header class="report-header">
+            <div class="brand">
+                {% if empresa.logo %}
+                    <img src="{{ empresa.logo.url }}" class="brand-logo" alt="Logo">
+                {% endif %}
+                <div>
+                    <h2 class="brand-name">{{ empresa.razon_social|default:empresa.nombre }}</h2>
+                    <div class="brand-meta">
+                        {% if empresa.rut %}RUT: {{ empresa.rut }}<br>{% endif %}
+                        {% if empresa.giro %}{{ empresa.giro }}<br>{% endif %}
+                        {% if empresa.direccion %}{{ empresa.direccion }}{% endif %}
+                        {% if empresa.comuna %}, {{ empresa.comuna }}{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="report-meta">
+                <strong>Fecha emisión</strong><br>
+                {{ generated_at|date:"d/m/Y H:i" }}<br><br>
+                <strong>Usuario</strong><br>
+                {{ request.user.get_full_name|default:request.user.username }}
+            </div>
+        </header>
+
+        <section class="report-title">
+            <div>
+                <h1>{{ titulo_reporte }}</h1>
+                <p>{{ subtitulo_reporte }}</p>
+            </div>
+            <div>
+                {% if search %}<span class="filter-chip">Buscar: {{ search }}</span>{% endif %}
+                {% if estado_pago %}<span class="filter-chip">Estado: {{ estado_pago|title }}</span>{% endif %}
+            </div>
+        </section>
+
+        {% block content %}{% endblock %}
+
+        <footer class="report-footer">
+            <span>GestionCloud - reporte generado automáticamente</span>
+            <span>Documento para control interno</span>
+        </footer>
+    </main>
+</body>
+</html>

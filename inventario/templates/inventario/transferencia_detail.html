@@ -155,11 +155,16 @@
                         </a>
 
                         {% if transferencia.estado != 'cancelado' %}
-                            {% if not transferencia.guia_despacho %}
-                                <button type="button" id="btnGenerarGuia" class="header-btn btn-action-base" style="background: #6B8E23;">
+                            {% if not transferencia.guia_despacho and transferencia.estado == 'confirmado' %}
+                                <button type="button"
+                                        id="btnGenerarGuia"
+                                        class="header-btn btn-action-base"
+                                        style="background: #6B8E23;"
+                                        data-url="{% url 'inventario:transferencia_generar_guia' transferencia.pk %}"
+                                        data-folio="{{ transferencia.numero_folio }}">
                                     <i class="fas fa-file-invoice me-2"></i> Generar Guía
                                 </button>
-                            {% else %}
+                            {% elif transferencia.guia_despacho %}
                                 <a href="{% url 'inventario:transferencia_imprimir_guia' transferencia.pk %}" target="_blank" class="header-btn btn-action-base" style="background: #6B8E23;">
                                     <i class="fas fa-print me-2"></i> Guía N° {{ transferencia.guia_despacho.folio }}
                                 </a>
@@ -398,85 +403,116 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+}
+
+function mostrarAlertaGuia(options) {
+    if (window.Swal) {
+        return Swal.fire(options);
+    }
+
+    if (options.icon === 'question') {
+        return Promise.resolve({ isConfirmed: window.confirm(options.text || options.title || 'Confirmar acción') });
+    }
+
+    window.alert(options.text || options.html || options.title || 'Proceso finalizado');
+    return Promise.resolve({});
+}
+
+async function generarGuiaTransferencia(button) {
+    const confirmacion = await mostrarAlertaGuia({
+        title: 'Generar Guía de Despacho',
+        html: `
+            <div class="text-start">
+                <p class="mb-3 text-muted">¿Está seguro que desea generar la Guía de Despacho Electrónica (Tipo 52)?</p>
+                <div class="p-3 bg-light rounded border mb-2 small">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Folio Transferencia:</span>
+                        <strong>{{ transferencia.numero_folio }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Origen:</span>
+                        <strong>{{ transferencia.bodega_origen.nombre }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Destino:</span>
+                        <strong>{{ transferencia.bodega_destino.nombre }}</strong>
+                    </div>
+                </div>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, Generar Guía',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    button.disabled = true;
+    mostrarAlertaGuia({
+        title: 'Procesando...',
+        text: 'Generando documento electrónico',
+        allowOutsideClick: false,
+        didOpen: () => { if (window.Swal) Swal.showLoading(); }
+    });
+
+    try {
+        const response = await fetch(button.dataset.url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken') || '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        });
+
+        const text = await response.text();
+        let data = {};
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (parseError) {
+            throw new Error(`Respuesta inesperada del servidor (${response.status}).`);
+        }
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || `No se pudo generar la guía (${response.status}).`);
+        }
+
+        await mostrarAlertaGuia({
+            icon: 'success',
+            title: '¡Éxito!',
+            html: `Guía <strong>N° ${data.folio}</strong> generada correctamente.`,
+            confirmButtonColor: '#8B7355'
+        });
+        window.location.reload();
+    } catch (error) {
+        button.disabled = false;
+        mostrarAlertaGuia({
+            icon: 'error',
+            title: 'Error',
+            text: error.message || 'No se pudo generar la guía',
+            confirmButtonColor: '#8B7355'
+        });
+    }
+}
+
 // Generar guía electrónica
 document.addEventListener('DOMContentLoaded', function() {
     const btnGenerarGuia = document.getElementById('btnGenerarGuia');
     if (btnGenerarGuia) {
         btnGenerarGuia.addEventListener('click', function() {
-            Swal.fire({
-                title: 'Generar Guía de Despacho',
-                html: `
-                    <div class="text-start">
-                        <p class="mb-3 text-muted">¿Está seguro que desea generar la Guía de Despacho Electrónica (Tipo 52)?</p>
-                        <div class="p-3 bg-light rounded border mb-2 small">
-                            <div class="d-flex justify-content-between mb-1">
-                                <span>Folio Transferencia:</span>
-                                <strong>{{ transferencia.numero_folio }}</strong>
-                            </div>
-                            <div class="d-flex justify-content-between mb-1">
-                                <span>Origen:</span>
-                                <strong>{{ transferencia.bodega_origen.nombre }}</strong>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span>Destino:</span>
-                                <strong>{{ transferencia.bodega_destino.nombre }}</strong>
-                            </div>
-                        </div>
-                    </div>
-                `,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#8B7355',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Sí, Generar Guía',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({
-                        title: 'Procesando...',
-                        text: 'Generando documento electrónico',
-                        allowOutsideClick: false,
-                        didOpen: () => { Swal.showLoading(); }
-                    });
-                    
-                    fetch('{% url "inventario:transferencia_generar_guia" transferencia.pk %}', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': '{{ csrf_token }}',
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: '¡Éxito!',
-                                html: `Guía <strong>N° ${data.folio}</strong> generada correctamente.`,
-                                confirmButtonColor: '#8B7355'
-                            }).then(() => {
-                                window.location.reload();
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: data.error || 'No se pudo generar la guía',
-                                confirmButtonColor: '#8B7355'
-                            });
-                        }
-                    })
-                    .catch(() => {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error de Conexión',
-                            text: 'Verifique su conexión e intente nuevamente',
-                            confirmButtonColor: '#8B7355'
-                        });
-                    });
-                }
-            });
+            generarGuiaTransferencia(btnGenerarGuia);
         });
+    }
+
     // Auto-activar generación de guía si viene con el parámetro ask_emit
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('ask_emit') === '1' && btnGenerarGuia) {

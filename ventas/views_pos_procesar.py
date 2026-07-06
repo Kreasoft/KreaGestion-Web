@@ -19,6 +19,11 @@ from .models import Venta, VentaDetalle, EstacionTrabajo, FormaPago
 from caja.models import VentaProcesada
 
 
+def print(*args, **kwargs):
+    """Evita que mensajes de depuracion rompan vistas si stdout falla en Windows."""
+    return None
+
+
 @login_required
 @requiere_empresa
 def procesar_venta_pos(request, ticket_id):

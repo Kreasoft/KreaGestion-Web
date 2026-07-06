@@ -7,6 +7,11 @@ from empresas.models import Empresa, Sucursal
 from clientes.models import Cliente
 from articulos.models import Articulo
 
+
+def print(*args, **kwargs):
+    """Evita que mensajes de depuracion rompan operaciones de modelo si stdout falla."""
+    return None
+
 # Constantes para tipos de documentos
 TIPO_DOCUMENTO_CHOICES = [
     ('factura', 'Factura'),

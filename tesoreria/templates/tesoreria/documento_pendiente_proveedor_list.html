@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% load humanize %}
+{% load l10n %}
 
 {% block title %}Documentos Pendientes Proveedores - GestionCloud{% endblock %}
 
@@ -214,7 +215,7 @@
                             </td>
                             <td>{{ documento.fecha_emision|date:"d/m/Y" }}</td>
                             <td>{{ documento.fecha_vencimiento|date:"d/m/Y"|default:"-" }}</td>
-                            <td class="text-end fw-bold format-number" data-value="{{ documento.total|floatformat:0 }}">$</td>
+                            <td class="text-end fw-bold format-number" data-value="{{ documento.total|default:0|unlocalize }}">$</td>
                             <td class="text-center">
                                 {% if documento.estado_pago == 'pagado' %}
                                     <span class="badge badge-stone badge-stone-success">Pagado</span>
@@ -292,8 +293,34 @@
 
 <script>
 // FORMATTER
+function parseMonto(value) {
+    let text = String(value ?? '').trim().replace(/[^\d,.-]/g, '');
+    if (!text) return 0;
+
+    const hasComma = text.includes(',');
+    const hasDot = text.includes('.');
+
+    if (hasComma && hasDot) {
+        text = text.lastIndexOf(',') > text.lastIndexOf('.')
+            ? text.replace(/\./g, '').replace(',', '.')
+            : text.replace(/,/g, '');
+    } else if (hasDot) {
+        const parts = text.split('.');
+        if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+            text = text.replace(/\./g, '');
+        }
+    } else if (hasComma) {
+        const parts = text.split(',');
+        text = parts.length === 2 && parts[1].length !== 3
+            ? text.replace(',', '.')
+            : text.replace(/,/g, '');
+    }
+
+    return parseFloat(text) || 0;
+}
+
 function formatearNumero(numero) {
-    const num = Math.round(parseFloat(numero) || 0);
+    const num = Math.round(parseMonto(numero));
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
@@ -301,8 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.format-number').forEach(element => {
         const value = element.dataset.value;
         if (value) {
-            const cleanValue = value.toString().replace(/[^\d.-]/g, '');
-            element.textContent = '$' + formatearNumero(cleanValue);
+            element.textContent = '$' + formatearNumero(value);
         }
     });
 

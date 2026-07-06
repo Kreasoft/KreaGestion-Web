@@ -6,10 +6,23 @@ import threading
 import time
 import json
 import os
+import sys
 
 # Configuración Base
 CONFIG_FILE = "config_impresora.json"
-API_BASE_URL = "http://127.0.0.1:8000/caja/api/impresion" # Cambiar a la URL de Producción
+DEFAULT_API_BASE_URL = "http://127.0.0.1:8001/caja/api/impresion"
+
+
+def get_app_dir():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+CONFIG_PATHS = [
+    os.path.join(get_app_dir(), CONFIG_FILE),
+    os.path.join(os.getcwd(), CONFIG_FILE),
+]
 
 class AgenteImpresionApp:
     def __init__(self, root):
@@ -23,19 +36,35 @@ class AgenteImpresionApp:
         self.config = self.cargar_config()
 
         self.crear_interfaz()
+        if self.config.get("auto_start", True) and self.config.get("impresora") and self.config.get("caja_id"):
+            self.root.after(500, self.iniciar_servicio)
 
     def cargar_config(self):
-        if os.path.exists(CONFIG_FILE):
+        for config_path in CONFIG_PATHS:
+            if not os.path.exists(config_path):
+                continue
             try:
-                with open(CONFIG_FILE, 'r') as f:
+                with open(config_path, 'r') as f:
                     return json.load(f)
             except:
-                pass
-        return {"impresora": "", "caja_id": "1"}
+                continue
+        return {
+            "impresora": "",
+            "caja_id": "1",
+            "api_base_url": DEFAULT_API_BASE_URL,
+            "auto_start": True,
+        }
 
     def guardar_config(self, impresora, caja_id):
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump({"impresora": impresora, "caja_id": caja_id}, f)
+        config = {
+            "impresora": impresora,
+            "caja_id": caja_id,
+            "api_base_url": self.config.get("api_base_url", DEFAULT_API_BASE_URL),
+            "auto_start": self.config.get("auto_start", True),
+        }
+        with open(CONFIG_PATHS[0], 'w') as f:
+            json.dump(config, f)
+        self.config = config
 
     def obtener_impresoras(self):
         try:
@@ -118,11 +147,12 @@ class AgenteImpresionApp:
     def tarea_fondo(self):
         caja_id = self.entry_caja.get()
         impresora = self.combo_impresoras.get()
+        api_base_url = self.config.get("api_base_url", DEFAULT_API_BASE_URL).rstrip("/")
         
         while self.servicio_corriendo:
             try:
                 # 1. Consultar trabajos pendientes
-                url_get = f"{API_BASE_URL}/pendientes/?caja_id={caja_id}"
+                url_get = f"{api_base_url}/pendientes/?caja_id={caja_id}"
                 response = requests.get(url_get, timeout=5)
                 
                 if response.status_code == 200:
@@ -138,7 +168,7 @@ class AgenteImpresionApp:
                         
                         # 3. Marcar como impreso o reportar error al servidor
                         status = "impreso" if exito else "error"
-                        url_post = f"{API_BASE_URL}/marcar-impreso/"
+                        url_post = f"{api_base_url}/marcar-impreso/"
                         payload = {"id": job_id, "status": status, "error_msg": error_msg}
                         requests.post(url_post, json=payload)
                         

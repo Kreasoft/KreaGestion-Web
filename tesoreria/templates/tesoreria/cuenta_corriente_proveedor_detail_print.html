@@ -1,0 +1,87 @@
+{% extends "tesoreria/print_report_base.html" %}
+{% load format_filters %}
+
+{% block title %}Cuenta Corriente Proveedor - {{ proveedor.nombre }}{% endblock %}
+
+{% block content %}
+<div class="section-title">Antecedentes del proveedor</div>
+<table class="report-table" style="margin-bottom: 12px;">
+    <tbody>
+        <tr>
+            <th style="width: 16%;">Proveedor</th>
+            <td style="width: 34%;"><strong>{{ proveedor.nombre }}</strong></td>
+            <th style="width: 16%;">RUT</th>
+            <td style="width: 34%;">{{ proveedor.rut|default:"-" }}</td>
+        </tr>
+        <tr>
+            <th>Teléfono</th>
+            <td>{{ proveedor.telefono|default:"-" }}</td>
+            <th>Email</th>
+            <td>{{ proveedor.email|default:"-" }}</td>
+        </tr>
+    </tbody>
+</table>
+
+<section class="summary-grid">
+    <div class="summary-card">
+        <span class="summary-label">Documentos</span>
+        <span class="summary-value">{{ stats.total_documentos|format_miles }}</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Total documentos</span>
+        <span class="summary-value">${{ stats.total_general|format_miles }}</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Total pagado</span>
+        <span class="summary-value">${{ stats.total_pagado|format_miles }}</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Saldo pendiente</span>
+        <span class="summary-value">${{ stats.total_saldo|format_miles }}</span>
+    </div>
+</section>
+
+<div class="section-title">Detalle de documentos</div>
+<table class="report-table">
+    <thead>
+        <tr>
+            <th style="width: 12%;">N° Doc</th>
+            <th style="width: 10%;">Tipo</th>
+            <th style="width: 12%;">Emisión</th>
+            <th style="width: 12%;">Venc.</th>
+            <th style="width: 14%;" class="text-right">Total</th>
+            <th style="width: 14%;" class="text-right">Pagado</th>
+            <th style="width: 14%;" class="text-right">Saldo</th>
+            <th style="width: 12%;" class="text-center">Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for documento in documentos %}
+        <tr>
+            <td><strong>{{ documento.numero_documento }}</strong></td>
+            <td>{{ documento.get_tipo_documento_display }}</td>
+            <td>{{ documento.fecha_emision|date:"d/m/Y"|default:"-" }}</td>
+            <td>{{ documento.fecha_vencimiento|date:"d/m/Y"|default:"-" }}</td>
+            <td class="text-right">${{ documento.total_documento|format_miles }}</td>
+            <td class="text-right">${{ documento.monto_pagado|format_miles }}</td>
+            <td class="text-right"><strong>${{ documento.saldo_pendiente|format_miles }}</strong></td>
+            <td class="text-center">
+                {% if documento.saldo_pendiente <= 0 %}
+                    <span class="status status-ok">Pagado</span>
+                {% elif documento.monto_pagado > 0 and documento.saldo_pendiente > 0 %}
+                    <span class="status status-warn">Parcial</span>
+                {% elif documento.fecha_vencimiento and documento.fecha_vencimiento < today and documento.saldo_pendiente > 0 %}
+                    <span class="status status-danger">Vencido</span>
+                {% else %}
+                    <span class="status status-info">Pendiente</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="8" class="no-data">No hay documentos para este proveedor.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

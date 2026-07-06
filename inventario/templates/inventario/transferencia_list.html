@@ -130,13 +130,47 @@
 
     /* FILTROS */
     .stone-filter-box {
-        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;
+        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 10px; padding: 0.75rem; margin-bottom: 1rem;
+    }
+    .transfer-filter-grid {
+        display: grid;
+        grid-template-columns: minmax(210px, 1.35fr) minmax(120px, 0.75fr) minmax(155px, 0.95fr) minmax(155px, 0.95fr) minmax(260px, 1.15fr) auto;
+        gap: 0.65rem;
+        align-items: end;
     }
     .form-control-stone, .form-select-stone {
-        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.4rem 0.75rem; font-size: 0.85rem; background-color: white; width: 100%; color: var(--stone-text);
+        border-radius: 7px; border: 1px solid #D4C4A8; padding: 0.35rem 0.65rem; font-size: 0.82rem; background-color: white; width: 100%; color: var(--stone-text); min-height: 34px;
     }
     .form-control-stone:focus, .form-select-stone:focus {
         border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
+    }
+    .transfer-filter-grid .form-label {
+        font-size: 0.74rem;
+        line-height: 1.1;
+    }
+    .date-range-compact {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.4rem;
+    }
+    .filter-submit-btn {
+        min-height: 34px;
+        padding: 0.35rem 0.8rem;
+        white-space: nowrap;
+    }
+    @media (max-width: 1400px) {
+        .transfer-filter-grid {
+            grid-template-columns: repeat(3, minmax(180px, 1fr));
+        }
+        .filter-submit-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+    @media (max-width: 768px) {
+        .transfer-filter-grid {
+            grid-template-columns: 1fr;
+        }
     }
 
     /* TABLA PIEDRA COMPACTA */
@@ -145,26 +179,46 @@
         background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 10px 15px; /* Reduced padding */
     }
     .table-piedra tbody tr { 
-        height: 32px !important; /* Forces 32px height as requested */ 
+        height: 32px !important;
         transition: all 0.2s ease; border-bottom: 1px solid #F5F1E8; 
     }
     .table-piedra tbody tr:hover { background-color: #F5F1E8; }
     .table-piedra tbody td { 
-        padding: 2px 15px; /* Reduced vertical padding */
-        vertical-align: middle; font-size: 0.85rem; color: #4A5568; 
+        height: 32px !important;
+        max-height: 32px;
+        padding: 0 15px;
+        vertical-align: middle; font-size: 0.82rem; color: #4A5568; 
+        line-height: 1;
+        white-space: nowrap;
+    }
+    .table-piedra tbody td .d-flex.flex-column {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 5px !important;
     }
 
     /* BADGES */
-    .badge-stone { padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; display: inline-block; }
+    .badge-stone { padding: 2px 7px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; display: inline-block; line-height: 1.2; }
+    .table-piedra tbody td .badge {
+        width: auto !important;
+        padding: 2px 7px;
+        line-height: 1.2;
+        vertical-align: middle;
+    }
     .bg-pendiente { background: #FFF3E0; color: #E65100; border: 1px solid #FFE0B2; }
     .bg-confirmado { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
     .bg-cancelado { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
 
     /* ACCIONES */
     .btn-icon-stone {
-        width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E8DCC8; background: white; color: var(--stone-secondary); transition: all 0.2s; text-decoration: none;
+        width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E8DCC8; background: white; color: var(--stone-secondary); transition: all 0.2s; text-decoration: none; font-size: 0.72rem; padding: 0;
     }
     .btn-icon-stone:hover { background: var(--stone-primary); color: white; border-color: var(--stone-primary); }
+    .btn-icon-stone:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        background: #F7F5F0;
+    }
 </style>
 {% endblock %}
 
@@ -243,12 +297,12 @@
 
                     <!-- FILTROS -->
                     <div class="stone-filter-box">
-                        <form method="get" class="row g-3 align-items-end">
-                            <div class="col-md-3">
+                        <form method="get" class="transfer-filter-grid">
+                            <div>
                                 <label class="form-label small fw-bold text-muted mb-1">Buscar</label>
                                 <input type="text" name="search" class="form-control-stone" placeholder="Folio u observaciones..." value="{{ request.GET.search }}">
                             </div>
-                            <div class="col-md-2">
+                            <div>
                                 <label class="form-label small fw-bold text-muted mb-1">Estado</label>
                                 <select name="estado" class="form-select-stone">
                                     <option value="">Todos</option>
@@ -257,7 +311,7 @@
                                     <option value="cancelado" {% if request.GET.estado == 'cancelado' %}selected{% endif %}>Cancelado</option>
                                 </select>
                             </div>
-                            <div class="col-md-2">
+                            <div>
                                 <label class="form-label small fw-bold text-muted mb-1">Bodega Origen</label>
                                 <select name="bodega_origen" class="form-select-stone">
                                     <option value="">Todas</option>
@@ -268,7 +322,7 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-2">
+                            <div>
                                 <label class="form-label small fw-bold text-muted mb-1">Bodega Destino</label>
                                 <select name="bodega_destino" class="form-select-stone">
                                     <option value="">Todas</option>
@@ -279,15 +333,15 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label small fw-bold text-muted mb-1">Fecha</label>
-                                <div class="input-group">
-                                    <input type="date" name="desde" class="form-control-stone" style="border-radius: 8px 0 0 8px;" value="{{ request.GET.desde|default:fecha_desde }}">
-                                    <input type="date" name="hasta" class="form-control-stone" style="border-radius: 0 8px 8px 0; border-left: 0;" value="{{ request.GET.hasta|default:fecha_hasta }}">
+                            <div>
+                                <label class="form-label small fw-bold text-muted mb-1">Desde / Hasta</label>
+                                <div class="date-range-compact">
+                                    <input type="date" name="desde" class="form-control-stone" aria-label="Fecha desde" title="Fecha desde" value="{{ request.GET.desde|default:fecha_desde }}">
+                                    <input type="date" name="hasta" class="form-control-stone" aria-label="Fecha hasta" title="Fecha hasta" value="{{ request.GET.hasta|default:fecha_hasta }}">
                                 </div>
                             </div>
-                             <div class="col-12 text-end mt-3">
-                                <button type="submit" class="header-btn" style="background-color: var(--stone-secondary); color: white;">
+                             <div>
+                                <button type="submit" class="header-btn filter-submit-btn" style="background-color: var(--stone-secondary); color: white;">
                                     <i class="fas fa-filter me-2"></i> Filtrar
                                 </button>
                             </div>
@@ -351,6 +405,21 @@
                                             <a href="{% url 'inventario:transferencia_detail' transferencia.pk %}" class="btn-icon-stone" title="Ver Detalle">
                                                 <i class="fas fa-eye"></i>
                                             </a>
+                                            {% if transferencia.estado == 'confirmado' %}
+                                                {% if transferencia.guia_despacho %}
+                                                    <a href="{% url 'inventario:transferencia_imprimir_guia' transferencia.pk %}" target="_blank" class="btn-icon-stone" title="Imprimir Guía SII">
+                                                        <i class="fas fa-print" style="color: #6B8E23;"></i>
+                                                    </a>
+                                                {% else %}
+                                                    <button type="button"
+                                                            class="btn-icon-stone btn-generar-guia"
+                                                            title="Generar Guía SII"
+                                                            data-url="{% url 'inventario:transferencia_generar_guia' transferencia.pk %}"
+                                                            data-folio="{{ transferencia.numero_folio }}">
+                                                        <i class="fas fa-file-invoice" style="color: #6B8E23;"></i>
+                                                    </button>
+                                                {% endif %}
+                                            {% endif %}
                                             {% if transferencia.estado != 'cancelado' %}
                                                 <a href="{% url 'inventario:transferencia_create' %}?edit={{ transferencia.pk }}" class="btn-icon-stone" title="Editar">
                                                     <i class="fas fa-edit"></i>
@@ -364,7 +433,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="8" class="text-center py-5">
+                                    <td colspan="9" class="text-center py-5">
                                         <div class="d-flex flex-column align-items-center opacity-50">
                                             <i class="fas fa-dolly fa-3x mb-3 text-muted"></i>
                                             <h6 class="fw-bold text-muted">No hay transferencias registradas</h6>
@@ -414,4 +483,97 @@
     {% endfor %}
 </script>
 {% endif %}
+
+<script>
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+}
+
+function mostrarAlertaGuia(options) {
+    if (window.Swal) {
+        return Swal.fire(options);
+    }
+
+    if (options.icon === 'question') {
+        return Promise.resolve({ isConfirmed: window.confirm(options.text || options.title || 'Confirmar acción') });
+    }
+
+    window.alert(options.text || options.html || options.title || 'Proceso finalizado');
+    return Promise.resolve({});
+}
+
+async function generarGuiaTransferencia(url, folio, button) {
+    const confirmacion = await mostrarAlertaGuia({
+        title: 'Generar Guía de Despacho',
+        text: `¿Generar guía SII para la transferencia ${folio}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#8B7355',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, Generar Guía',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    if (button) button.disabled = true;
+    mostrarAlertaGuia({
+        title: 'Procesando...',
+        text: 'Generando documento electrónico',
+        allowOutsideClick: false,
+        didOpen: () => { if (window.Swal) Swal.showLoading(); }
+    });
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken') || '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        });
+
+        const text = await response.text();
+        let data = {};
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (parseError) {
+            throw new Error(`Respuesta inesperada del servidor (${response.status}).`);
+        }
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || `No se pudo generar la guía (${response.status}).`);
+        }
+
+        await mostrarAlertaGuia({
+            icon: 'success',
+            title: 'Guía generada',
+            html: `Guía <strong>N° ${data.folio}</strong> generada correctamente.`,
+            confirmButtonColor: '#8B7355'
+        });
+        window.location.reload();
+    } catch (error) {
+        if (button) button.disabled = false;
+        mostrarAlertaGuia({
+            icon: 'error',
+            title: 'Error',
+            text: error.message || 'No se pudo generar la guía',
+            confirmButtonColor: '#8B7355'
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.btn-generar-guia').forEach((button) => {
+        button.addEventListener('click', function() {
+            generarGuiaTransferencia(button.dataset.url, button.dataset.folio, button);
+        });
+    });
+});
+</script>
 {% endblock %}

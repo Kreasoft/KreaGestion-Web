@@ -1,0 +1,70 @@
+{% extends "tesoreria/print_report_base.html" %}
+{% load format_filters %}
+
+{% block title %}Cuenta Corriente Clientes{% endblock %}
+
+{% block content %}
+<section class="summary-grid">
+    <div class="summary-card">
+        <span class="summary-label">Documentos</span>
+        <span class="summary-value">{{ stats.total_documentos|format_miles }}</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Total documentos</span>
+        <span class="summary-value">${{ stats.total_general|format_miles }}</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Total pagado</span>
+        <span class="summary-value">${{ stats.total_pagado|format_miles }}</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Saldo por cobrar</span>
+        <span class="summary-value">${{ stats.total_saldo|format_miles }}</span>
+    </div>
+</section>
+
+<div class="section-title">Detalle de documentos por cobrar</div>
+<table class="report-table">
+    <thead>
+        <tr>
+            <th style="width: 5%;" class="text-center">#</th>
+            <th style="width: 12%;">Documento</th>
+            <th style="width: 27%;">Cliente</th>
+            <th style="width: 12%;">Fecha</th>
+            <th style="width: 12%;" class="text-right">Total</th>
+            <th style="width: 12%;" class="text-right">Pagado</th>
+            <th style="width: 12%;" class="text-right">Saldo</th>
+            <th style="width: 8%;" class="text-center">Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for movimiento in movimientos %}
+        <tr>
+            <td class="text-center">{{ forloop.counter }}</td>
+            <td><strong>{{ movimiento.venta.numero_venta|default:"-" }}</strong></td>
+            <td>
+                <strong>{{ movimiento.cuenta_corriente.cliente.nombre }}</strong><br>
+                <span class="muted">{{ movimiento.cuenta_corriente.cliente.rut|default:"-" }}</span>
+            </td>
+            <td>{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</td>
+            <td class="text-right">${{ movimiento.monto_display|format_miles }}</td>
+            <td class="text-right">${{ movimiento.total_pagado|format_miles }}</td>
+            <td class="text-right"><strong>${{ movimiento.saldo_pendiente_factura|format_miles }}</strong></td>
+            <td class="text-center">
+                {% if movimiento.estado_pago == 'pagado' %}
+                    <span class="status status-ok">Pagado</span>
+                {% elif movimiento.estado_pago == 'parcial' %}
+                    <span class="status status-warn">Parcial</span>
+                {% else %}
+                    <span class="status status-danger">Pendiente</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="8" class="no-data">No hay documentos para los filtros seleccionados.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -22,6 +22,121 @@ from bodegas.models import Bodega
 from core.decorators import requiere_empresa
 
 
+def parse_monto_chileno(value):
+    """Convierte montos con separadores CL o técnicos a Decimal sin cortar miles."""
+    text = str(value or '').strip().replace('$', '').replace(' ', '')
+    if not text:
+        return Decimal('0')
+
+    has_comma = ',' in text
+    has_dot = '.' in text
+
+    if has_comma and has_dot:
+        if text.rfind(',') > text.rfind('.'):
+            text = text.replace('.', '').replace(',', '.')
+        else:
+            text = text.replace(',', '')
+    elif has_dot:
+        parts = text.split('.')
+        if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) == 3):
+            text = text.replace('.', '')
+    elif has_comma:
+        parts = text.split(',')
+        text = text.replace(',', '.') if len(parts) == 2 and len(parts[1]) != 3 else text.replace(',', '')
+
+    return Decimal(text)
+
+
+def _documentos_proveedor_filtrados(empresa, search='', estado_pago=''):
+    documentos = DocumentoCompra.objects.filter(
+        empresa=empresa,
+        en_cuenta_corriente=True
+    ).select_related('proveedor').order_by('proveedor__nombre', 'fecha_emision', 'numero_documento')
+
+    if search:
+        documentos = documentos.filter(
+            Q(numero_documento__icontains=search) |
+            Q(proveedor__nombre__icontains=search) |
+            Q(proveedor__rut__icontains=search)
+        )
+
+    if estado_pago:
+        documentos = documentos.filter(estado_pago=estado_pago)
+
+    return documentos
+
+
+def _stats_documentos_proveedor(documentos):
+    return {
+        'total_documentos': documentos.count(),
+        'total_general': documentos.aggregate(Sum('total_documento'))['total_documento__sum'] or 0,
+        'total_pagado': documentos.aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or 0,
+        'total_saldo': documentos.aggregate(Sum('saldo_pendiente'))['saldo_pendiente__sum'] or 0,
+        'total_pendiente': documentos.filter(estado_pago='credito').aggregate(Sum('saldo_pendiente'))['saldo_pendiente__sum'] or 0,
+        'total_vencido': documentos.filter(estado_pago='vencida').aggregate(Sum('saldo_pendiente'))['saldo_pendiente__sum'] or 0,
+        'total_parcial': documentos.filter(estado_pago='parcial').aggregate(Sum('saldo_pendiente'))['saldo_pendiente__sum'] or 0,
+    }
+
+
+def _movimientos_cliente_filtrados(empresa, search='', estado_pago=''):
+    from .models import MovimientoCuentaCorrienteCliente
+
+    movimientos_base = MovimientoCuentaCorrienteCliente.objects.filter(
+        cuenta_corriente__empresa=empresa,
+        tipo_movimiento='debe'
+    ).select_related('cuenta_corriente', 'cuenta_corriente__cliente', 'venta').order_by('-fecha_movimiento')
+
+    movimientos = []
+    for mov in movimientos_base:
+        total_pagado_result = MovimientoCuentaCorrienteCliente.objects.filter(
+            cuenta_corriente=mov.cuenta_corriente,
+            venta=mov.venta,
+            tipo_movimiento='haber'
+        ).aggregate(total=Sum('monto'))['total']
+
+        total_pagado = Decimal(str(total_pagado_result)) if total_pagado_result else Decimal('0')
+        monto_factura = Decimal(str(mov.monto))
+
+        if total_pagado >= monto_factura:
+            mov.estado_pago = 'pagado'
+        elif total_pagado > 0:
+            mov.estado_pago = 'parcial'
+        else:
+            mov.estado_pago = 'pendiente'
+
+        mov.monto_display = int(monto_factura)
+        mov.total_pagado = int(total_pagado)
+        mov.saldo_pendiente_factura = int(monto_factura - total_pagado)
+        movimientos.append(mov)
+
+    if search:
+        search_lower = search.lower()
+        movimientos = [
+            mov for mov in movimientos
+            if (
+                search_lower in mov.cuenta_corriente.cliente.nombre.lower() or
+                search_lower in (mov.cuenta_corriente.cliente.rut or '').lower() or
+                (mov.venta and search in mov.venta.numero_venta)
+            )
+        ]
+
+    if estado_pago:
+        movimientos = [mov for mov in movimientos if mov.estado_pago == estado_pago]
+
+    return movimientos
+
+
+def _stats_movimientos_cliente(movimientos):
+    return {
+        'total_documentos': len(movimientos),
+        'total_general': sum(m.monto_display for m in movimientos),
+        'total_pagado': sum(m.total_pagado for m in movimientos),
+        'total_saldo': sum(m.saldo_pendiente_factura for m in movimientos),
+        'total_pendiente': sum(m.saldo_pendiente_factura for m in movimientos if m.estado_pago == 'pendiente'),
+        'total_parcial': sum(m.saldo_pendiente_factura for m in movimientos if m.estado_pago == 'parcial'),
+    }
+
+
 @login_required
 @requiere_empresa
 def cuenta_corriente_proveedor_list(request):
@@ -102,6 +217,30 @@ def cuenta_corriente_proveedor_list(request):
     }
     
     return render(request, 'tesoreria/cuenta_corriente_proveedor_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def cuenta_corriente_proveedor_print(request):
+    """Reporte imprimible de cuenta corriente de proveedores."""
+    empresa = request.empresa
+    search = request.GET.get('search', '')
+    estado_pago = request.GET.get('estado_pago', '')
+    documentos = _documentos_proveedor_filtrados(empresa, search, estado_pago)
+
+    context = {
+        'empresa': empresa,
+        'documentos': documentos,
+        'stats': _stats_documentos_proveedor(documentos),
+        'search': search,
+        'estado_pago': estado_pago,
+        'today': timezone.now().date(),
+        'generated_at': timezone.now(),
+        'titulo_reporte': 'Cuenta Corriente Proveedores',
+        'subtitulo_reporte': 'Documentos de compra y saldos por pagar',
+        'back_url': f"{request.path.rsplit('/imprimir/', 1)[0]}/" + (f"?{request.GET.urlencode()}" if request.GET else ""),
+    }
+    return render(request, 'tesoreria/cuenta_corriente_proveedor_print.html', context)
 
 
 @login_required
@@ -377,15 +516,7 @@ def exportar_cuenta_corriente_proveedor_excel(request):
 @requiere_empresa
 def cuenta_corriente_proveedor_detail(request, proveedor_id):
     """Detalle de cuenta corriente de un proveedor específico"""
-    # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        empresa = Empresa.objects.first()
-    else:
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
+    empresa = request.empresa
     
     # Obtener documentos del proveedor de la empresa activa
     documentos = DocumentoCompra.objects.filter(
@@ -418,6 +549,36 @@ def cuenta_corriente_proveedor_detail(request, proveedor_id):
     }
     
     return render(request, 'tesoreria/cuenta_corriente_proveedor_detail.html', context)
+
+
+@login_required
+@requiere_empresa
+def cuenta_corriente_proveedor_detail_print(request, proveedor_id):
+    """Reporte imprimible del detalle de cuenta corriente de un proveedor."""
+    empresa = request.empresa
+    documentos = DocumentoCompra.objects.filter(
+        empresa=empresa,
+        proveedor_id=proveedor_id,
+        en_cuenta_corriente=True
+    ).select_related('proveedor').order_by('fecha_vencimiento', 'fecha_emision', 'numero_documento')
+
+    if not documentos.exists():
+        messages.error(request, 'No se encontraron documentos para este proveedor en la empresa actual.')
+        return redirect('tesoreria:cuenta_corriente_proveedor_list')
+
+    proveedor = documentos.first().proveedor
+    context = {
+        'empresa': empresa,
+        'proveedor': proveedor,
+        'documentos': documentos,
+        'stats': _stats_documentos_proveedor(documentos),
+        'today': timezone.now().date(),
+        'generated_at': timezone.now(),
+        'titulo_reporte': f'Cuenta Corriente Proveedor',
+        'subtitulo_reporte': proveedor.nombre,
+        'back_url': request.path.rsplit('/imprimir/', 1)[0] + '/',
+    }
+    return render(request, 'tesoreria/cuenta_corriente_proveedor_detail_print.html', context)
 
 
 @login_required
@@ -535,6 +696,30 @@ def cuenta_corriente_cliente_list(request):
     }
     
     return render(request, 'tesoreria/cuenta_corriente_cliente_list.html', context)
+
+
+@login_required
+@requiere_empresa
+def cuenta_corriente_cliente_print(request):
+    """Reporte imprimible de cuenta corriente de clientes."""
+    empresa = request.empresa
+    search = request.GET.get('search', '')
+    estado_pago = request.GET.get('estado_pago', '')
+    movimientos = _movimientos_cliente_filtrados(empresa, search, estado_pago)
+
+    context = {
+        'empresa': empresa,
+        'movimientos': movimientos,
+        'stats': _stats_movimientos_cliente(movimientos),
+        'search': search,
+        'estado_pago': estado_pago,
+        'today': timezone.now().date(),
+        'generated_at': timezone.now(),
+        'titulo_reporte': 'Cuenta Corriente Clientes',
+        'subtitulo_reporte': 'Documentos de venta y saldos por cobrar',
+        'back_url': f"{request.path.rsplit('/imprimir/', 1)[0]}/" + (f"?{request.GET.urlencode()}" if request.GET else ""),
+    }
+    return render(request, 'tesoreria/cuenta_corriente_cliente_print.html', context)
 
 
 @login_required
@@ -818,8 +1003,8 @@ def registrar_pago(request):
         if not formas_pago:
             return JsonResponse({'error': 'Debe especificar al menos una forma de pago'}, status=400)
         
-        # Calcular monto total - manejar tanto números como strings
-        monto_total = sum(Decimal(str(forma['monto'])) for forma in formas_pago)
+        # Calcular monto total - manejar tanto números como strings con separadores
+        monto_total = sum(parse_monto_chileno(forma['monto']) for forma in formas_pago)
         
         # Validar monto
         if monto_total <= 0:
@@ -867,7 +1052,7 @@ def registrar_pago(request):
             forma_pago = FormaPagoPago.objects.create(
                 pago=pago,
                 forma_pago=forma_pago_obj,
-                monto=Decimal(str(forma_data['monto'])),
+                monto=parse_monto_chileno(forma_data['monto']),
                 numero_cheque=forma_data.get('numero_cheque', ''),
                 banco_cheque=forma_data.get('banco_cheque', ''),
                 numero_transferencia=forma_data.get('numero_transferencia', ''),
@@ -1105,7 +1290,7 @@ def editar_pago(request, pago_id):
             return JsonResponse({'error': 'Debe especificar al menos una forma de pago'}, status=400)
         
         # Calcular nuevo monto total
-        nuevo_monto_total = sum(Decimal(str(forma['monto'])) for forma in formas_pago)
+        nuevo_monto_total = sum(parse_monto_chileno(forma['monto']) for forma in formas_pago)
         
         if nuevo_monto_total <= 0:
             return JsonResponse({'error': 'El monto debe ser mayor a 0'}, status=400)
@@ -1115,6 +1300,9 @@ def editar_pago(request, pago_id):
         documento.monto_pagado -= pago.monto_total_pagado
         documento.calcular_totales()
         documento.save()
+
+        if nuevo_monto_total > documento.saldo_pendiente:
+            return JsonResponse({'error': 'El monto excede el saldo pendiente'}, status=400)
         
         # Eliminar formas de pago anteriores
         pago.formas_pago.all().delete()
@@ -1135,7 +1323,7 @@ def editar_pago(request, pago_id):
             forma_pago = FormaPagoPago.objects.create(
                 pago=pago,
                 forma_pago=forma_pago_obj,
-                monto=Decimal(str(forma_data['monto'])),
+                monto=parse_monto_chileno(forma_data['monto']),
                 numero_cheque=forma_data.get('numero_cheque', ''),
                 banco_cheque=forma_data.get('banco_cheque', ''),
                 numero_transferencia=forma_data.get('numero_transferencia', ''),
@@ -1211,7 +1399,7 @@ def documento_pendiente_proveedor_create(request):
         try:
             proveedor_id = request.POST.get('proveedor')
             proveedor = get_object_or_404(Proveedor, pk=proveedor_id, empresa=empresa)
-            total = int(request.POST.get('total', 0))
+            total = int(parse_monto_chileno(request.POST.get('total', 0)))
             
             documento = DocumentoCompra.objects.create(
                 empresa=empresa,
@@ -1248,7 +1436,7 @@ def documento_pendiente_proveedor_edit(request, pk):
         try:
             proveedor_id = request.POST.get('proveedor')
             proveedor = get_object_or_404(Proveedor, pk=proveedor_id, empresa=empresa)
-            total = int(request.POST.get('total', 0))
+            total = int(parse_monto_chileno(request.POST.get('total', 0)))
             
             documento.proveedor = proveedor
             documento.tipo_documento = request.POST.get('tipo_documento')

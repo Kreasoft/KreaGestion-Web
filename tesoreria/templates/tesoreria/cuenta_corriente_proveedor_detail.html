@@ -2,6 +2,7 @@
 {% load static %}
 {% load articulo_filters %}
 {% load humanize %}
+{% load l10n %}
 
 {% block title %}Cuenta Corriente - {{ proveedor.nombre }} - GestionCloud{% endblock %}
 
@@ -176,9 +177,9 @@
                 </div>
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <button type="button" class="btn-action-primary" onclick="window.print()">
+                <a href="{% url 'tesoreria:cuenta_corriente_proveedor_detail_print' proveedor.pk %}" target="_blank" class="btn-action-primary">
                     <i class="fas fa-print"></i> Imprimir
-                </button>
+                </a>
             </div>
         </div>
 
@@ -206,14 +207,14 @@
                      <div class="stone-stat-card mb-2">
                         <div class="stat-content">
                             <span class="stat-label">Pendiente</span>
-                            <span class="stat-value text-danger format-number" data-value="{{ stats.total_pendiente|default:0 }}">$</span>
+                            <span class="stat-value text-danger format-number" data-value="{{ stats.total_pendiente|default:0|unlocalize }}">$</span>
                         </div>
                         <i class="fas fa-clock stat-icon text-danger"></i>
                     </div>
                     <div class="stone-stat-card">
                         <div class="stat-content">
                             <span class="stat-label">Vencido</span>
-                            <span class="stat-value text-danger format-number" data-value="{{ stats.total_vencido|default:0 }}">$</span>
+                            <span class="stat-value text-danger format-number" data-value="{{ stats.total_vencido|default:0|unlocalize }}">$</span>
                         </div>
                         <i class="fas fa-exclamation-triangle stat-icon text-danger"></i>
                     </div>
@@ -232,7 +233,7 @@
                 <div class="stone-stat-card">
                     <div class="stat-content">
                         <span class="stat-label">Pago Parcial</span>
-                        <span class="stat-value text-info format-number" data-value="{{ stats.total_parcial|default:0 }}">$</span>
+                        <span class="stat-value text-info format-number" data-value="{{ stats.total_parcial|default:0|unlocalize }}">$</span>
                     </div>
                     <i class="fas fa-coins stat-icon text-info"></i>
                 </div>
@@ -264,9 +265,9 @@
                             <td class="{% if documento.fecha_vencimiento and documento.fecha_vencimiento < today and documento.saldo_pendiente > 0 %}text-danger fw-bold{% endif %}">
                                 {{ documento.fecha_vencimiento|date:"d/m/Y"|default:"-" }}
                             </td>
-                            <td class="text-end fw-bold format-number" data-value="{{ documento.total_documento|floatformat:0 }}">$</td>
-                            <td class="text-end fw-bold text-success format-number" data-value="{{ documento.monto_pagado|default:0|floatformat:0 }}">$</td>
-                            <td class="text-end fw-bold text-danger format-number" data-value="{{ documento.saldo_pendiente|floatformat:0 }}">$</td>
+                            <td class="text-end fw-bold format-number" data-value="{{ documento.total_documento|default:0|unlocalize }}">$</td>
+                            <td class="text-end fw-bold text-success format-number" data-value="{{ documento.monto_pagado|default:0|unlocalize }}">$</td>
+                            <td class="text-end fw-bold text-danger format-number" data-value="{{ documento.saldo_pendiente|default:0|unlocalize }}">$</td>
                             <td class="text-center">
                                 {% if documento.estado_pago == 'pagada' %}
                                     <span class="badge badge-stone badge-stone-success">Pagada</span>
@@ -282,7 +283,7 @@
                                 <div class="d-flex justify-content-center gap-1">
                                     {% if documento.saldo_pendiente > 0 %}
                                     <button class="btn-icon btn-icon-pay" 
-                                            onclick="registrarPago({{ documento.id }}, '{{ documento.numero_documento }}', {{ documento.saldo_pendiente|stringformat:'f' }})"
+                                            onclick="registrarPago({{ documento.id }}, '{{ documento.numero_documento }}', {{ documento.saldo_pendiente|unlocalize }})"
                                             title="Registrar Pago">
                                         <i class="fas fa-hand-holding-usd"></i>
                                     </button>
@@ -317,8 +318,34 @@
 {% block extra_js %}
 <script>
 // FORMATTER UTILS
+function parseMonto(value) {
+    let text = String(value ?? '').trim().replace(/[^\d,.-]/g, '');
+    if (!text) return 0;
+
+    const hasComma = text.includes(',');
+    const hasDot = text.includes('.');
+
+    if (hasComma && hasDot) {
+        text = text.lastIndexOf(',') > text.lastIndexOf('.')
+            ? text.replace(/\./g, '').replace(',', '.')
+            : text.replace(/,/g, '');
+    } else if (hasDot) {
+        const parts = text.split('.');
+        if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+            text = text.replace(/\./g, '');
+        }
+    } else if (hasComma) {
+        const parts = text.split(',');
+        text = parts.length === 2 && parts[1].length !== 3
+            ? text.replace(',', '.')
+            : text.replace(/,/g, '');
+    }
+
+    return parseFloat(text) || 0;
+}
+
 function formatearNumero(numero) {
-    const num = Math.round(parseFloat(numero) || 0);
+    const num = Math.round(parseMonto(numero));
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
@@ -326,8 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.format-number').forEach(element => {
         const value = element.dataset.value;
         if (value) {
-            const cleanValue = value.toString().replace(/[^\d.-]/g, '');
-            element.textContent = '$' + formatearNumero(cleanValue);
+            element.textContent = '$' + formatearNumero(value);
         }
     });
 });
@@ -383,6 +409,10 @@ function mostrarModalPago(documentoId, numeroDocumento, saldoPendiente) {
         confirmButtonColor: '#8B7355',
         didOpen: () => agregarFormaPago(),
         preConfirm: () => validarYEnviarPago()
+    }).then(result => {
+        if (result.isConfirmed && result.value && result.value.success) {
+            window.location.reload();
+        }
     });
 }
 
@@ -409,20 +439,20 @@ function agregarFormaPago() {
 
 function calcularTotal() {
     let total = 0;
-    document.querySelectorAll('.monto-pago').forEach(input => total += parseFloat(input.value) || 0);
+    document.querySelectorAll('.monto-pago').forEach(input => total += parseMonto(input.value));
     document.getElementById('totalPagar').innerText = `$${formatearNumero(total)}`;
 }
 
 function validarYEnviarPago() {
     const docId = document.getElementById('documentoIdPago').value;
-    const saldo = parseFloat(document.getElementById('saldoPendientePago').value);
+    const saldo = parseMonto(document.getElementById('saldoPendientePago').value);
     const obs = document.getElementById('observacionesPago').value;
     
     const formas = [];
     let total = 0;
     document.querySelectorAll('.forma-pago-item').forEach(item => {
         const fid = item.querySelector('.forma-pago-select').value;
-        const mont = parseFloat(item.querySelector('.monto-pago').value) || 0;
+        const mont = parseMonto(item.querySelector('.monto-pago').value);
         if (fid && mont > 0) {
             formas.push({forma_pago_id: fid, monto: mont});
             total += mont;
@@ -437,9 +467,12 @@ function validarYEnviarPago() {
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
         body: JSON.stringify({documento_id: docId, formas_pago: formas, observaciones: obs})
     })
-    .then(r => r.json())
+    .then(r => r.json().then(d => {
+        if (!r.ok) throw new Error(d.message || d.error || 'No se pudo registrar el pago');
+        return d;
+    }))
     .then(d => {
-        if(!d.success) throw new Error(d.message);
+        if(!d.success) throw new Error(d.message || d.error || 'No se pudo registrar el pago');
         return d;
     })
     .catch(e => Swal.showValidationMessage(e.message));

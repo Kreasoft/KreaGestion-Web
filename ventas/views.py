@@ -28,6 +28,11 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 
 
+def print(*args, **kwargs):
+    """Evita que mensajes de depuracion rompan vistas si stdout falla en Windows."""
+    return None
+
+
 # ========== VENDEDORES ==========
 
 @login_required
@@ -418,7 +423,7 @@ def _build_articulo_results(articulos, lista_precio_id, request):
     results = []
     for articulo in articulos:
         try:
-            precio_neto = precios_lista.get(articulo.id, float(articulo.precio_venta))
+            precio_neto = precios_lista.get(articulo.id, float(articulo._string_to_decimal(articulo.precio_venta)))
             iva = 0.0 if (articulo.categoria and articulo.categoria.exenta_iva) else precio_neto * 0.19
             impuesto_especifico = 0.0
             impuesto_esp_pct = 0
@@ -430,6 +435,12 @@ def _build_articulo_results(articulos, lista_precio_id, request):
                 except Exception:
                     pass
             precio_final = round(precio_neto + iva + impuesto_especifico)
+            oferta_activa = bool(articulo.oferta_activa())
+            precio_oferta = float(articulo.get_precio_oferta_decimal()) if oferta_activa else 0
+            porcentaje_ahorro = float(articulo.get_porcentaje_ahorro()) if oferta_activa else 0
+            precio_pos = round(precio_oferta) if precio_oferta > 0 else precio_final
+            factor_total = 1 + (0 if (articulo.categoria and articulo.categoria.exenta_iva) else 0.19) + (impuesto_esp_pct / 100)
+            precio_neto_pos = (precio_pos / factor_total) if factor_total > 0 else precio_neto
 
             stock_disponible = 0
             try:
@@ -445,12 +456,16 @@ def _build_articulo_results(articulos, lista_precio_id, request):
                 'codigo_barras': articulo.codigo_barras or '',
                 'nombre': articulo.nombre or '',
                 'descripcion': articulo.descripcion or articulo.nombre or '',
-                'precio': precio_final,
-                'precio_neto': precio_neto,
+                'precio': precio_pos,
+                'precio_normal': precio_final,
+                'precio_neto': precio_neto_pos,
                 'stock': stock_disponible,
                 'categoria_nombre': articulo.categoria.nombre if articulo.categoria else 'Sin Categoría',
                 'categoria_exenta_iva': articulo.categoria.exenta_iva if articulo.categoria else False,
                 'impuesto_especifico_porcentaje': impuesto_esp_pct,
+                'en_oferta': oferta_activa,
+                'precio_oferta': precio_oferta,
+                'porcentaje_ahorro': porcentaje_ahorro,
             })
         except Exception as e:
             print(f"Error procesando artículo {articulo.id}: {e}")
@@ -808,14 +823,8 @@ def pos_view(request):
         mostrar_modal_apertura = True
         form_apertura = AperturaCajaForm(empresa=request.empresa)
     
-    # Obtener datos para el POS con impuesto específico incluido
-    # Limitar a 20 para máxima velocidad inicial. El resto se busca por AJAX.
-    articulos_queryset = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria', 'categoria__impuesto_especifico').order_by('-id')[:20]
-    
-    # Calcular precios finales directamente en la vista
-    articulos = []
-    for articulo in articulos_queryset:
-        precio_neto = float(articulo.precio_venta)
+    def preparar_articulo_pos(articulo):
+        precio_neto = float(articulo._string_to_decimal(articulo.precio_venta))
         
         # Calcular IVA solo si la categoría NO está exenta
         if articulo.categoria and articulo.categoria.exenta_iva:
@@ -831,7 +840,36 @@ def pos_view(request):
         
         precio_final = round(precio_neto + iva + impuesto_especifico)
         articulo.precio_final_calculado = precio_final
+        oferta_activa = bool(articulo.oferta_activa())
+        precio_oferta = float(articulo.get_precio_oferta_decimal()) if oferta_activa else 0
+        articulo.oferta_pos_activa = bool(oferta_activa and precio_oferta > 0)
+        articulo.precio_oferta_pos = round(precio_oferta) if articulo.oferta_pos_activa else 0
+        articulo.precio_pos_calculado = articulo.precio_oferta_pos if articulo.oferta_pos_activa else precio_final
+        factor_total = 1 + (0 if (articulo.categoria and articulo.categoria.exenta_iva) else 0.19)
+        if articulo.categoria and articulo.categoria.impuesto_especifico:
+            factor_total += float(articulo.categoria.impuesto_especifico.porcentaje or 0) / 100
+        articulo.precio_neto_pos = (articulo.precio_pos_calculado / factor_total) if factor_total > 0 else precio_neto
+        return articulo
+
+    # Obtener datos para el POS con impuesto específico incluido
+    # Limitar a 20 para máxima velocidad inicial. El resto se busca por AJAX.
+    articulos_queryset = Articulo.objects.filter(empresa=request.empresa, activo=True).select_related('categoria', 'categoria__impuesto_especifico').order_by('-id')[:20]
+    
+    # Calcular precios finales directamente en la vista
+    articulos = []
+    for articulo in articulos_queryset:
+        preparar_articulo_pos(articulo)
         articulos.append(articulo)
+
+    ofertas_queryset = Articulo.objects.filter(
+        empresa=request.empresa,
+        activo=True,
+        en_oferta=True,
+    ).select_related('categoria', 'categoria__impuesto_especifico').order_by('nombre')
+    ofertas = []
+    for articulo in ofertas_queryset:
+        preparar_articulo_pos(articulo)
+        ofertas.append(articulo)
         
     # Mejorar la velocidad inicial: limitar clientes iniciales a los 50 más recientes para evitar colapso de memoria
     clientes = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('-id')[:50]
@@ -906,6 +944,7 @@ def pos_view(request):
     
     context = {
         'articulos': articulos,
+        'ofertas': ofertas,
         'categorias': categorias_activas,       # <- TODAS las categorías con artículos
         'clientes': clientes,
         'vendedores': vendedores,
@@ -3904,29 +3943,15 @@ def venta_html(request, pk):
     # Obtener formas de pago múltiples (desde MovimientoCaja)
     formas_pago_list = []
     try:
-        from caja.models import VentaProcesada, MovimientoCaja
-        
-        # Buscar VentaProcesada para esta venta
-        venta_procesada = VentaProcesada.objects.filter(venta_final=venta).first()
-        
-        if venta_procesada and venta_procesada.apertura_caja:
-            # Obtener todos los movimientos de caja asociados a esta venta
-            movimientos = MovimientoCaja.objects.filter(
-                apertura_caja=venta_procesada.apertura_caja,
-                descripcion__icontains=venta.numero_venta
-            ).select_related('forma_pago')
-            
-            for mov in movimientos:
-                if mov.forma_pago and mov.tipo == 'ingreso':
-                    formas_pago_list.append({
-                        'forma_pago': mov.forma_pago.nombre,
-                        'monto': abs(mov.monto)
-                    })
-            
-            if formas_pago_list:
-                print(f"[PRINT] Formas de pago encontradas: {len(formas_pago_list)}")
-                for fp in formas_pago_list:
-                    print(f"   - {fp['forma_pago']}: ${fp['monto']}")
+        from caja.impresion_utils import obtener_formas_pago_ticket
+
+        formas_pago_list = [
+            {
+                'forma_pago': pago['nombre'],
+                'monto': pago['monto'],
+            }
+            for pago in obtener_formas_pago_ticket(venta)
+        ]
     except Exception as e:
         print(f"[WARN] Error al obtener formas de pago: {str(e)}")
     

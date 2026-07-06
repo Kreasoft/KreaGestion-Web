@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% load l10n %}
+{% load articulo_filters %}
 
 {% block title %}Gestionar Precios - {{ lista.nombre }}{% endblock %}
 
@@ -289,12 +290,12 @@
                                         data-nombre="{{ articulo.nombre|lower }}" 
                                         data-codigo="{{ articulo.codigo|lower }}" 
                                         data-categoria="{{ articulo.categoria.id }}"
-                                        data-precio-neto="{{ articulo.precio_venta|unlocalize }}"
-                                        data-precio-iva="{{ articulo.precio_final|unlocalize }}">
+                                        data-precio-neto="{{ articulo.precio_venta_num|unlocalize }}"
+                                        data-precio-iva="{{ articulo.precio_final_num|unlocalize }}">
                                         <td><span class="fw-bold opacity-75">{{ articulo.codigo }}</span></td>
                                         <td><span class="text-truncate d-inline-block" style="max-width: 300px;">{{ articulo.nombre }}</span></td>
-                                        <td class="text-end text-muted small">$ {{ articulo.precio_venta|floatformat:0 }}</td>
-                                        <td class="text-end text-muted small">$ {{ articulo.precio_final|floatformat:0 }}</td>
+                                        <td class="text-end text-muted small">$ {{ articulo.precio_venta_num|format_price }}</td>
+                                        <td class="text-end text-muted small">$ {{ articulo.precio_final_num|format_price }}</td>
                                         <td class="text-center">
                                             <input type="number" class="descuento-pill descuento-input" 
                                                    step="0.01" min="0" max="100" placeholder="0"
@@ -304,8 +305,8 @@
                                             <input type="number" name="precio_{{ articulo.id }}" 
                                                    class="precio-input-premium precio-neto-lista" 
                                                    step="1" min="0"
-                                                   {% if articulo.precio_en_lista %}value="{{ articulo.precio_en_lista|unlocalize }}"{% endif %}
-                                                   onchange="calcularPrecioIVADesdeNeto(this)">
+                                                    {% if articulo.precio_en_lista %}value="{{ articulo.precio_en_lista|unlocalize }}"{% endif %}
+                                                    onchange="calcularPrecioIVADesdeNeto(this)">
                                         </td>
                                         <td class="text-end">
                                             <input type="number" class="precio-input-premium precio-iva-lista" 
@@ -333,6 +334,33 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 // Filtrar artículos
+function parsePrecio(value) {
+    if (value === null || value === undefined) return 0;
+    let text = String(value).trim().replace(/\$/g, '').replace(/\s/g, '');
+    if (!text) return 0;
+    const hasDot = text.includes('.');
+    const hasComma = text.includes(',');
+
+    if (hasDot && hasComma) {
+        text = text.lastIndexOf(',') > text.lastIndexOf('.')
+            ? text.replace(/\./g, '').replace(',', '.')
+            : text.replace(/,/g, '');
+    } else if (hasComma) {
+        const parts = text.split(',');
+        text = parts.length === 2 && parts[1].length === 3
+            ? text.replace(/,/g, '')
+            : text.replace(',', '.');
+    } else if (hasDot) {
+        const parts = text.split('.');
+        if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3 && parts[0].length <= 3)) {
+            text = text.replace(/\./g, '');
+        }
+    }
+
+    const parsed = Number.parseFloat(text);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function filtrarArticulos() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const categoriaId = document.getElementById('categoriaFilter').value;
@@ -369,7 +397,7 @@ function copiarPreciosVenta() {
             let contador = 0;
             rows.forEach(row => {
                 if (row.style.display !== 'none') {
-                    const precioNeto = parseFloat(row.dataset.precioNeto) || 0;
+                    const precioNeto = parsePrecio(row.dataset.precioNeto);
                     const inputNetoLista = row.querySelector('.precio-neto-lista');
                     if (precioNeto && inputNetoLista) {
                         inputNetoLista.value = Math.round(precioNeto);
@@ -386,7 +414,7 @@ function copiarPreciosVenta() {
 // Calcular precio con IVA desde precio neto
 function calcularPrecioIVADesdeNeto(input) {
     const row = input.closest('tr');
-    const precioNeto = parseFloat(input.value) || 0;
+    const precioNeto = parsePrecio(input.value);
     const precioIVA = Math.round(precioNeto * 1.19);
     const inputIVA = row.querySelector('.precio-iva-lista');
     if (inputIVA) inputIVA.value = precioIVA > 0 ? precioIVA : '';
@@ -395,9 +423,9 @@ function calcularPrecioIVADesdeNeto(input) {
 
 // Calcular % de descuento inverso
 function calcularPorcentajeDescuento(row) {
-    const precioNetoOriginal = parseFloat(row.dataset.precioNeto) || 0;
+    const precioNetoOriginal = parsePrecio(row.dataset.precioNeto);
     const inputNetoLista = row.querySelector('.precio-neto-lista');
-    const precioNetoLista = parseFloat(inputNetoLista.value) || 0;
+    const precioNetoLista = parsePrecio(inputNetoLista.value);
     const inputDescuento = row.querySelector('.descuento-input');
     
     if (precioNetoOriginal > 0 && precioNetoLista > 0 && inputDescuento) {
@@ -416,8 +444,8 @@ function calcularPrecioConDescuento(input) {
     const desc = parseFloat(input.value) || 0;
     const baseCalculo = document.querySelector('input[name="baseCalculo"]:checked').value;
     
-    const pNetoBase = parseFloat(row.dataset.precioNeto) || 0;
-    const pIvaBase = parseFloat(row.dataset.precioIva) || 0;
+    const pNetoBase = parsePrecio(row.dataset.precioNeto);
+    const pIvaBase = parsePrecio(row.dataset.precioIva);
     
     let nuevoNeto;
     if (baseCalculo === 'neto') {
