@@ -4,6 +4,15 @@
 {% block title %}Facturacion Directa - GestionCloud{% endblock %}
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_head %}
+<style>
+    .form-control, .form-select { height: 26px !important; min-height: 26px !important; padding: 2px 8px !important; font-size: 0.72rem !important; border-color: #D4C4A8 !important; }
+    .form-control:focus, .form-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+    .form-check-input:checked { background-color: #8D6E63 !important; border-color: #6F5B44 !important; }
+    .form-check-input:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+</style>
+{% endblock %}
+
 {% block extra_css %}
 <style>
     :root {
@@ -19,23 +28,23 @@
     body { background: #FAFAF8 !important; }
 
     .direct-page {
-        padding: 10px 15px;
+        padding: 8px 12px;
         background: #FAFAF8;
         min-height: 100vh;
     }
 
     .card-piedra {
         border: 2px solid #E8DCC8;
-        border-radius: 15px;
+        border-radius: 8px;
         overflow: hidden;
         box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
         background: white;
     }
 
     .direct-page-header {
-        background: var(--gradient-piedra, linear-gradient(135deg, #8B7355 0%, #6F5B44 100%));
-        border-bottom: 3px solid var(--color-piedra-borde, #D4C4A8);
-        padding: 8px 14px;
+        background: var(--gradient-piedra, linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%));
+        border-bottom: 2px solid var(--color-piedra-borde, #D4C4A8);
+        padding: 8px 16px;
     }
 
     .direct-page-icon {
@@ -48,21 +57,21 @@
         justify-content: center;
         color: var(--color-piedra-texto, #fff);
         margin-right: 14px;
-        font-size: 2.65rem;
+        font-size: 1.2rem;
         line-height: 1;
         opacity: 0.88;
     }
 
     .direct-page-title {
-        font-size: 1.35rem;
+        font-size: 1.45rem;
         line-height: 1.1;
-        color: var(--color-piedra-texto, #fff);
+        color: var(--color-piedra-texto, #5D4037);
         letter-spacing: 0;
     }
 
     .direct-page-subtitle {
-        font-size: 0.74rem;
-        color: var(--color-piedra-texto, #fff);
+        font-size: 0.75rem;
+        color: var(--color-piedra-texto, #5D4037);
         opacity: 0.82;
         line-height: 1.2;
     }
@@ -117,6 +126,7 @@
 
     .doc-toggle {
         display: inline-flex;
+        flex-wrap: wrap;
         border: 1px solid var(--stone-border);
         border-radius: 6px;
         overflow: hidden;
@@ -425,11 +435,81 @@
     .status-box.ok { color: var(--green); font-weight: 700; }
     .status-box.err { color: var(--red); font-weight: 700; }
 
+    .sub-header-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 8px;
+        padding: 8px 10px 2px;
+    }
+
+    .sub-card {
+        background: #fffdf9;
+        border: 1px solid var(--stone-border);
+        border-radius: 8px;
+        padding: 8px 10px;
+    }
+
+    .guide-panel {
+        display: none;
+    }
+
+    .guide-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .summary-mini {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .summary-mini-card {
+        background: #fffdf9;
+        border: 1px solid var(--stone-border);
+        border-radius: 8px;
+        padding: 7px 10px;
+    }
+
+    .summary-mini-label {
+        font-size: 0.66rem;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: var(--stone-secondary);
+    }
+
+    .summary-mini-value {
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--ink);
+        line-height: 1.2;
+    }
+
+    .summary-mini-value.limit-exceeded {
+        color: var(--red);
+    }
+
+    .limit-warning {
+        display: none;
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #fff3f3;
+        border: 1px solid #efc4c9;
+        color: var(--red);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
     @media (max-width: 1100px) {
         .direct-header { grid-template-columns: 1fr 1fr; }
         .totals-strip { grid-template-columns: 1fr; }
         .line-table { min-width: 1040px; }
         .line-zone { overflow-x: auto; }
+        .sub-header-grid { grid-template-columns: 1fr; }
+        .guide-grid,
+        .summary-mini { grid-template-columns: 1fr 1fr; }
     }
 </style>
 {% endblock %}
@@ -450,8 +530,8 @@
                             <i class="fas fa-file-invoice-dollar"></i>
                         </div>
                         <div>
-                            <h2 class="mb-0 fw-light direct-page-title">Facturacion <span class="fw-bold">Directa</span></h2>
-                            <div class="direct-page-subtitle">Emision inmediata de facturas afectas y exentas</div>
+                            <h2 class="mb-0 fw-light direct-page-title">Facturador <span class="fw-bold">Directo</span></h2>
+                            <div class="direct-page-subtitle">Emisión inmediata de facturas, boletas y guías con detalle libre por línea</div>
                         </div>
                     </div>
                 </div>
@@ -464,6 +544,9 @@
                                 <div class="doc-toggle" role="group">
                                     <button type="button" class="active" data-doc="33">Factura afecta</button>
                                     <button type="button" data-doc="34">Factura exenta</button>
+                                    <button type="button" data-doc="39">Boleta afecta</button>
+                                    <button type="button" data-doc="41">Boleta exenta</button>
+                                    <button type="button" data-doc="52">Guía</button>
                                 </div>
                             </div>
                             <div class="field">
@@ -471,7 +554,7 @@
                                 <select id="cliente_id" class="form-select form-select-sm">
                                     <option value="">Seleccionar cliente</option>
                                     {% for cliente in clientes %}
-                                    <option value="{{ cliente.id|unlocalize }}">{{ cliente.rut }} - {{ cliente.nombre }}</option>
+                                    <option value="{{ cliente.id|unlocalize }}" data-rut="{{ cliente.rut|default:'' }}" data-nombre="{{ cliente.nombre }}">{{ cliente.rut }} - {{ cliente.nombre }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -508,6 +591,63 @@
                             </div>
                         </div>
 
+                        <div class="sub-header-grid">
+                            <div class="sub-card">
+                                <div class="field mb-0">
+                                    <label>Detalle del documento</label>
+                                    <textarea id="observaciones" class="form-control form-control-sm" rows="2" placeholder="Glosa u observación general del documento"></textarea>
+                                </div>
+                            </div>
+                            <div class="sub-card">
+                                <div class="summary-mini">
+                                    <div class="summary-mini-card">
+                                        <div class="summary-mini-label">Ítems</div>
+                                        <div class="summary-mini-value" id="cantidad_items">0</div>
+                                    </div>
+                                    <div class="summary-mini-card">
+                                        <div class="summary-mini-label">Máximo</div>
+                                        <div class="summary-mini-value" id="max_items">{{ max_items_config.factura }}</div>
+                                    </div>
+                                    <div class="summary-mini-card">
+                                        <div class="summary-mini-label">Documento</div>
+                                        <div class="summary-mini-value" id="doc_label">Factura</div>
+                                    </div>
+                                </div>
+                                <div id="limit-warning" class="limit-warning"></div>
+                            </div>
+                        </div>
+
+                        <div id="guide-panel" class="sub-header-grid guide-panel">
+                            <div class="sub-card">
+                                <div class="guide-grid">
+                                    <div class="field">
+                                        <label>Tipo de traslado</label>
+                                        <select id="tipo_despacho" class="form-select form-select-sm">
+                                            <option value="">Seleccionar</option>
+                                            {% for value, label in tipo_despacho_choices %}
+                                            <option value="{{ value }}">{{ value }} - {{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="field">
+                                        <label>Patente</label>
+                                        <input id="patente_transporte" type="text" class="form-control form-control-sm" placeholder="ABCD11">
+                                    </div>
+                                    <div class="field">
+                                        <label>RUT transportista</label>
+                                        <input id="rut_transportista" type="text" class="form-control form-control-sm" placeholder="76000000-0">
+                                    </div>
+                                    <div class="field">
+                                        <label>Chofer</label>
+                                        <input id="nombre_chofer" type="text" class="form-control form-control-sm" placeholder="Nombre chofer">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="sub-card d-flex align-items-center" style="color:#6F5B44; font-size:0.78rem; font-weight:700;">
+                                La guía usa el tipo de traslado y, si corresponde, datos de transporte. El detalle por línea puede extenderse en la columna de descripción.
+                            </div>
+                        </div>
+
                         <div class="line-zone">
                             <table class="line-table">
                                 <thead>
@@ -528,6 +668,9 @@
 
                         <div class="totals-strip">
                             <div>
+                                <button type="button" class="btn btn-sm btn-articulos-f10 me-1" data-articulos-f10 title="Buscar artículos (F10)">
+                                    <i class="fas fa-search me-1"></i>F10
+                                </button>
                                 <button type="button" id="add-row" class="btn-light-stone">
                                     <i class="fas fa-plus me-1"></i> Linea
                                 </button>
@@ -563,6 +706,20 @@
 const articulos = JSON.parse(document.getElementById('articulos-data').textContent);
 const clientes = JSON.parse(document.getElementById('clientes-data').textContent);
 let tipoDte = '33';
+const maxItemsConfig = {
+    '33': {{ max_items_config.factura|default:20 }},
+    '34': {{ max_items_config.factura|default:20 }},
+    '39': {{ max_items_config.boleta|default:35 }},
+    '41': {{ max_items_config.boleta|default:35 }},
+    '52': {{ max_items_config.guia|default:50 }}
+};
+const docLabels = {
+    '33': 'Factura',
+    '34': 'Factura exenta',
+    '39': 'Boleta',
+    '41': 'Boleta exenta',
+    '52': 'Guía'
+};
 
 function csrfToken() {
     const inputToken = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -695,9 +852,14 @@ function addRow(data = {}) {
         <td><button type="button" class="icon-btn remove-row" title="Eliminar"><i class="fas fa-times"></i></button></td>
     `;
     document.getElementById('items-body').appendChild(tr);
-    if (data.articulo_id) tr.querySelector('.item-articulo').value = data.articulo_id;
-    initProductSelect(tr.querySelector('.item-articulo'));
+    const sel = tr.querySelector('.item-articulo');
+    initProductSelect(sel);
     bindRow(tr);
+    if (data.articulo_id) {
+        sel.value = data.articulo_id;
+        if (window.jQuery) jQuery(sel).val(String(data.articulo_id)).trigger('change');
+        else sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     recalcRow(tr);
 }
 
@@ -771,10 +933,13 @@ function recalcRow(row) {
 
 function updateTotals() {
     let neto = 0, exento = 0, iva = 0, total = 0;
+    let itemCount = 0;
     document.querySelectorAll('#items-body tr').forEach(row => {
+        const articuloId = row.querySelector('.item-articulo').value;
         const lineNeto = toNumber(row.querySelector('.line-neto').value);
         const lineTotal = toNumber(row.querySelector('.line-total').value);
-        const exenta = tipoDte === '34' || row.dataset.exentoArticulo === '1';
+        const exenta = ['34', '41'].includes(tipoDte) || row.dataset.exentoArticulo === '1';
+        if (articuloId) itemCount += 1;
         if (exenta) {
             exento += lineNeto;
         } else {
@@ -788,6 +953,7 @@ function updateTotals() {
     setMoney(document.getElementById('exento'), exento);
     setMoney(document.getElementById('iva'), iva);
     setMoney(document.getElementById('total'), total);
+    updateItemSummary(itemCount);
 
     const forma = document.getElementById('forma_pago_id');
     const isCc = forma.selectedOptions[0] && forma.selectedOptions[0].dataset.cc === '1';
@@ -798,9 +964,13 @@ function updateTotals() {
 function setDocType(nextType) {
     tipoDte = nextType;
     document.querySelectorAll('.doc-toggle button').forEach(btn => btn.classList.toggle('active', btn.dataset.doc === nextType));
+    document.getElementById('doc_label').textContent = docLabels[nextType] || 'Documento';
+    document.getElementById('max_items').textContent = maxItemsConfig[nextType] || 20;
+    document.getElementById('guide-panel').style.display = nextType === '52' ? 'grid' : 'none';
     document.querySelectorAll('#items-body tr').forEach(row => {
         recalcRow(row);
     });
+    updateItemSummary();
 }
 
 function selectedClient() {
@@ -830,13 +1000,22 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
         descripcion: row.querySelector('.item-desc').value,
         cantidad: row.querySelector('.item-cant').value,
         neto: row.querySelector('.line-neto').value,
-        exento: (tipoDte === '34' || row.dataset.exentoArticulo === '1') ? row.querySelector('.line-neto').value : 0,
-        iva: (tipoDte === '34' || row.dataset.exentoArticulo === '1') ? 0 : Math.max(0, toNumber(row.querySelector('.line-total').value) - toNumber(row.querySelector('.line-neto').value)),
+        exento: (['34', '41'].includes(tipoDte) || row.dataset.exentoArticulo === '1') ? row.querySelector('.line-neto').value : 0,
+        iva: (['34', '41'].includes(tipoDte) || row.dataset.exentoArticulo === '1') ? 0 : Math.max(0, toNumber(row.querySelector('.line-total').value) - toNumber(row.querySelector('.line-neto').value)),
         total: row.querySelector('.line-total').value,
     })).filter(item => item.articulo_id);
 
+    const maxItems = maxItemsConfig[tipoDte] || 20;
+    if (items.length > maxItems) {
+        updateItemSummary(items.length);
+        status.className = 'status-box err';
+        status.textContent = `El documento supera el máximo permitido de ${maxItems} ítems.`;
+        return;
+    }
+
     status.className = 'status-box';
     status.textContent = 'Emitiendo...';
+    document.getElementById('submit-btn').dataset.processing = '1';
     document.getElementById('submit-btn').disabled = true;
 
     try {
@@ -852,7 +1031,11 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
                 sucursal_id: '',
                 bodega_id: document.getElementById('bodega_id').value,
                 monto_pagado: document.getElementById('monto_pagado').value,
-                observaciones: '',
+                observaciones: document.getElementById('observaciones').value,
+                tipo_despacho: document.getElementById('tipo_despacho').value,
+                patente_transporte: document.getElementById('patente_transporte').value,
+                rut_transportista: document.getElementById('rut_transportista').value,
+                nombre_chofer: document.getElementById('nombre_chofer').value,
                 items
             })
         });
@@ -874,12 +1057,41 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
         status.className = 'status-box err';
         status.textContent = err.message;
     } finally {
+        delete document.getElementById('submit-btn').dataset.processing;
         document.getElementById('submit-btn').disabled = false;
+        updateItemSummary();
     }
 });
 
+function updateItemSummary(forcedCount = null) {
+    const itemCount = forcedCount !== null
+        ? forcedCount
+        : Array.from(document.querySelectorAll('#items-body tr')).filter(row => row.querySelector('.item-articulo').value).length;
+    const maxItems = maxItemsConfig[tipoDte] || 20;
+    const warning = document.getElementById('limit-warning');
+    const countEl = document.getElementById('cantidad_items');
+    const submitBtn = document.getElementById('submit-btn');
+    const exceeds = itemCount > maxItems;
+
+    countEl.textContent = itemCount;
+    countEl.classList.toggle('limit-exceeded', exceeds);
+
+    if (exceeds) {
+        warning.style.display = 'block';
+        warning.textContent = `La selección actual tiene ${itemCount} ítems y el máximo permitido para ${docLabels[tipoDte] || 'documento'} es ${maxItems}.`;
+    } else {
+        warning.style.display = 'none';
+        warning.textContent = '';
+    }
+
+    if (submitBtn.dataset.processing !== '1') {
+        submitBtn.disabled = exceeds || itemCount === 0;
+    }
+}
+
 initSelect2();
 addRow();
+setDocType('33');
 updateTotals();
 </script>
 {% endblock %}

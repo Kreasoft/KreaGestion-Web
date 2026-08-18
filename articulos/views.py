@@ -4,7 +4,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Value, DecimalField
+from django.db.models.functions import Coalesce
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
@@ -13,6 +14,15 @@ import json
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
+from core.excel_utils import (
+    build_excel_response,
+    finalize_excel_table,
+    format_excel_datetime,
+    set_column_widths,
+    setup_corporate_sheet,
+    style_data_row,
+    write_table_headers,
+)
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
 from reportlab.lib.units import inch
@@ -129,7 +139,17 @@ def _recalcular_estructura_precio(articulo, porcentaje, base_calculo):
 def articulo_list(request):
     """Lista de artículos"""
     # Filtrar por empresa activa (todos los usuarios, incluyendo superusuarios)
-    articulos_base = Articulo.objects.filter(empresa=request.empresa)
+    articulos_base = (
+        Articulo.objects.filter(empresa=request.empresa)
+        .select_related('categoria')
+        .annotate(
+            stock_total=Coalesce(
+                Sum('stocks__cantidad', filter=Q(stocks__empresa=request.empresa)),
+                Value(0),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            )
+        )
+    )
     
     # Ordenamiento dinámico
     sort = request.GET.get('sort', 'nombre')
@@ -141,7 +161,7 @@ def articulo_list(request):
         'categoria': 'categoria__nombre',
         'tipo': 'tipo_articulo',
         'precio': 'precio_final',
-        'stock': 'stock_actual',
+        'stock': 'stock_total',
         'fecha': 'fecha_creacion'
     }
     
@@ -167,38 +187,17 @@ def articulo_list(request):
     
     if tipo_articulo:
         articulos = articulos.filter(tipo_articulo=tipo_articulo)
+
+    activo = request.GET.get('activo', '')
+    if activo == '1':
+        articulos = articulos.filter(activo=True)
+    elif activo == '0':
+        articulos = articulos.filter(activo=False)
     
     # Paginación
     paginator = Paginator(articulos, 25)  # 25 artículos por página
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
-    # Agregar stock total a cada artículo (alineado a Kardex)
-    for articulo in page_obj:
-        if articulo.control_stock:
-            # 1) Calcular por movimientos confirmados (Kardex)
-            movs = Inventario.objects.filter(
-                empresa=request.empresa,
-                articulo=articulo,
-                estado='confirmado'
-            )
-            # Entradas y ajustes suman; salidas restan; transferencias neto 0 en total global
-            entradas = movs.filter(tipo_movimiento__in=['entrada', 'ajuste']).aggregate(s=Sum('cantidad'))['s'] or 0
-            salidas = movs.filter(tipo_movimiento='salida').aggregate(s=Sum('cantidad'))['s'] or 0
-            stock_kardex = (entradas - salidas)
-
-            # 2) Fallback a tabla Stock (filtrando por empresa) si no hay movimientos
-            if stock_kardex is None:
-                stock_kardex = 0
-            if stock_kardex == 0:
-                stock_tabla = Stock.objects.filter(empresa=request.empresa, articulo=articulo).aggregate(
-                    total=Sum('cantidad')
-                )['total'] or 0
-                articulo.stock_total = stock_tabla
-            else:
-                articulo.stock_total = stock_kardex
-        else:
-            articulo.stock_total = None
     
     # Estadísticas reales (antes de aplicar filtros)
     articulos_totales = Articulo.objects.filter(empresa=request.empresa)
@@ -218,6 +217,7 @@ def articulo_list(request):
         'search': search,
         'categoria_id': categoria_id,
         'tipo_articulo': tipo_articulo,
+        'activo': activo,
         'sort': sort,
         'direction': direction,
         'total_articulos': total_articulos,
@@ -1354,113 +1354,39 @@ def lista_precio_exportar_excel(request, pk):
     lista = get_object_or_404(ListaPrecio, pk=pk, empresa=request.empresa)
     precios = PrecioArticulo.objects.filter(lista_precio=lista).select_related('articulo').order_by('articulo__nombre')
     
-    # Crear workbook
     wb = Workbook()
     ws = wb.active
     ws.title = "Lista de Precios"
-    
-    # Estilos
-    header_font = Font(name='Poppins', size=14, bold=True, color="FFFFFF")
-    title_font = Font(name='Poppins', size=18, bold=True, color="6F5B44")
-    subtitle_font = Font(name='Poppins', size=11, color="6F5B44")
-    data_font = Font(name='Poppins', size=10)
-    
-    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
-    title_fill = PatternFill(start_color="F5F0EB", end_color="F5F0EB", fill_type="solid")
-    
-    border = Border(
-        left=Side(style='thin', color='D4C4A8'),
-        right=Side(style='thin', color='D4C4A8'),
-        top=Side(style='thin', color='D4C4A8'),
-        bottom=Side(style='thin', color='D4C4A8')
-    )
-    
-    # Título principal
-    ws.merge_cells('A1:E1')
-    cell = ws['A1']
-    cell.value = f"LISTA DE PRECIOS: {lista.nombre.upper()}"
-    cell.font = title_font
-    cell.alignment = Alignment(horizontal='center', vertical='center')
-    cell.fill = title_fill
-    ws.row_dimensions[1].height = 30
-    
-    # Información de la lista
-    ws.merge_cells('A2:E2')
-    cell = ws['A2']
-    cell.value = f"Empresa: {request.empresa.nombre} | Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
-    cell.font = subtitle_font
-    cell.alignment = Alignment(horizontal='center')
-    ws.row_dimensions[2].height = 20
-    
-    # Espacio
-    ws.row_dimensions[3].height = 10
-    
-    # Encabezados
     headers = ['Código', 'Artículo', 'Precio Neto', 'Precio c/IVA', 'Última Actualización']
-    for col_num, header in enumerate(headers, 1):
-        cell = ws.cell(row=4, column=col_num)
-        cell.value = header
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = Alignment(horizontal='center', vertical='center')
-        cell.border = border
-    
-    ws.row_dimensions[4].height = 25
-    
-    # Datos
-    for row_num, precio in enumerate(precios, 5):
+    branding = setup_corporate_sheet(
+        ws,
+        request.empresa,
+        f"LISTA DE PRECIOS: {lista.nombre.upper()}",
+        f"Actualizacion exportada: {format_excel_datetime()}",
+        len(headers),
+    )
+    styles = branding["styles"]
+    write_table_headers(ws, branding["header_row"], headers, styles)
+
+    for row_num, precio in enumerate(precios, branding["data_row"]):
         precio_iva = float(precio.precio) * 1.19
-        
-        # Código
-        cell = ws.cell(row=row_num, column=1)
-        cell.value = precio.articulo.codigo
-        cell.font = data_font
-        cell.alignment = Alignment(horizontal='left')
-        cell.border = border
-        
-        # Artículo
-        cell = ws.cell(row=row_num, column=2)
-        cell.value = precio.articulo.nombre
-        cell.font = data_font
-        cell.alignment = Alignment(horizontal='left')
-        cell.border = border
-        
-        # Precio Neto
-        cell = ws.cell(row=row_num, column=3)
-        cell.value = float(precio.precio)
-        cell.font = data_font
-        cell.number_format = '$#,##0'
-        cell.alignment = Alignment(horizontal='right')
-        cell.border = border
-        
-        # Precio c/IVA
-        cell = ws.cell(row=row_num, column=4)
-        cell.value = precio_iva
-        cell.font = data_font
-        cell.number_format = '$#,##0'
-        cell.alignment = Alignment(horizontal='right')
-        cell.border = border
-        
-        # Fecha
-        cell = ws.cell(row=row_num, column=5)
-        cell.value = precio.fecha_actualizacion.strftime('%d/%m/%Y %H:%M')
-        cell.font = data_font
-        cell.alignment = Alignment(horizontal='center')
-        cell.border = border
-    
-    # Ajustar anchos de columna
-    ws.column_dimensions['A'].width = 12
-    ws.column_dimensions['B'].width = 45
-    ws.column_dimensions['C'].width = 15
-    ws.column_dimensions['D'].width = 15
-    ws.column_dimensions['E'].width = 20
-    
-    # Preparar respuesta
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename="Lista_Precios_{lista.nombre}_{datetime.now().strftime("%Y%m%d")}.xlsx"'
-    wb.save(response)
-    
-    return response
+
+        ws.cell(row=row_num, column=1, value=precio.articulo.codigo)
+        ws.cell(row=row_num, column=2, value=precio.articulo.nombre)
+        ws.cell(row=row_num, column=3, value=float(precio.precio)).alignment = styles["right"]
+        ws.cell(row=row_num, column=3).number_format = '$#,##0'
+        ws.cell(row=row_num, column=4, value=precio_iva).alignment = styles["right"]
+        ws.cell(row=row_num, column=4).number_format = '$#,##0'
+        ws.cell(row=row_num, column=5, value=format_excel_datetime(precio.fecha_actualizacion)).alignment = styles["center"]
+        style_data_row(ws, row_num, len(headers), styles, zebra=((row_num - branding["data_row"]) % 2 == 1))
+
+    set_column_widths(ws, [12, 45, 15, 15, 20])
+    last_row = max(branding["data_row"], precios.count() + branding["data_row"] - 1)
+    finalize_excel_table(ws, branding["header_row"], branding["data_row"], last_row, len(headers))
+    return build_excel_response(
+        wb,
+        f"Lista_Precios_{lista.nombre}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+    )
 
 
 @requiere_empresa
@@ -1502,7 +1428,7 @@ def lista_precio_exportar_pdf(request, pk):
     
     # Título
     elements.append(Paragraph(f"LISTA DE PRECIOS: {lista.nombre.upper()}", title_style))
-    elements.append(Paragraph(f"Empresa: {request.empresa.nombre} | Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", subtitle_style))
+    elements.append(Paragraph(f"Empresa: {request.empresa.nombre} | Fecha: {datetime.now().strftime('%d-%m-%Y %H:%M')}", subtitle_style))
     
     # Preparar datos para la tabla
     data = [['Código', 'Artículo', 'Precio Neto', 'Precio c/IVA', 'Actualización']]
@@ -1514,7 +1440,7 @@ def lista_precio_exportar_pdf(request, pk):
             precio.articulo.nombre[:40],  # Limitar longitud
             f"${float(precio.precio):,.0f}".replace(",", "."),
             f"${precio_iva:,.0f}".replace(",", "."),
-            precio.fecha_actualizacion.strftime('%d/%m/%Y')
+            precio.fecha_actualizacion.strftime('%d-%m-%Y')
         ])
     
     # Crear tabla
@@ -1849,6 +1775,34 @@ def kit_item_create(request, kit_id):
     kit = get_object_or_404(KitOferta, pk=kit_id, empresa=request.empresa)
     
     if request.method == 'POST':
+        ids = request.POST.getlist('articulo_ids[]') or request.POST.getlist('articulo_ids')
+        if ids:
+            created = 0
+            orden = kit.items.count()
+            for raw_id in ids:
+                try:
+                    art_id = int(str(raw_id).strip())
+                except (TypeError, ValueError):
+                    continue
+                articulo = Articulo.objects.filter(
+                    pk=art_id, empresa=request.empresa, activo=True
+                ).first()
+                if not articulo:
+                    continue
+                _, was_created = KitOfertaItem.objects.get_or_create(
+                    kit=kit,
+                    articulo=articulo,
+                    defaults={'cantidad': 1, 'orden': orden},
+                )
+                if was_created:
+                    created += 1
+                    orden += 1
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'created': created})
+            if created:
+                messages.success(request, f'{created} artículo(s) agregados al kit.')
+            return redirect('articulos:kit_oferta_detail', pk=kit.pk)
+
         form = KitOfertaItemForm(request.POST, empresa=request.empresa)
         if form.is_valid():
             item = form.save(commit=False)
@@ -1962,3 +1916,55 @@ def kit_oferta_items_json(request, pk):
             'success': False,
             'error': str(e)
         }, status=400)
+
+
+@login_required
+@requiere_empresa
+def api_buscar_articulos_f10(request):
+    """Listado compacto de artículos para el modal F10 (selección múltiple)."""
+    q = (request.GET.get('q') or '').strip()
+    bodega_id = (request.GET.get('bodega_id') or '').strip()
+    stock_filter = Q(stocks__empresa=request.empresa)
+    if bodega_id.isdigit():
+        stock_filter &= Q(stocks__bodega_id=int(bodega_id))
+
+    qs = Articulo.objects.filter(empresa=request.empresa, activo=True).annotate(
+        stock_total=Coalesce(
+            Sum('stocks__cantidad', filter=stock_filter),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    )
+    if q:
+        qs = qs.filter(Q(codigo__icontains=q) | Q(nombre__icontains=q) | Q(codigo_barras__icontains=q))
+    qs = qs.order_by('nombre')[:400]
+
+    articulos = []
+    for articulo in qs:
+        precio = articulo.precio_venta or 0
+        try:
+            precio = float(precio)
+        except (TypeError, ValueError):
+            precio = 0
+        stock = articulo.stock_total or 0
+        try:
+            stock = float(stock)
+        except (TypeError, ValueError):
+            stock = 0
+        costo = 0
+        try:
+            costo_raw = (articulo.precio_costo or '0').replace(',', '.')
+            costo = float(costo_raw or 0)
+        except (TypeError, ValueError, AttributeError):
+            costo = 0
+        articulos.append({
+            'id': articulo.id,
+            'codigo': articulo.codigo or '',
+            'nombre': articulo.nombre or '',
+            'precio': precio,
+            'costo': costo,
+            'iva': float(articulo.categoria.get_iva_porcentaje()),
+            'stock': stock,
+            'control_stock': bool(articulo.control_stock),
+        })
+    return JsonResponse({'ok': True, 'articulos': articulos})
